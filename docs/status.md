@@ -43,12 +43,18 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
   options and a native PulseAudio stream-monitoring path. This narrows the next
   audio experiment; it does not establish working isolation. See
   [native audio investigation](audio-investigation.md).
+- Candidate builds now select x86-64-v3 through a project-owned GN toolchain.
+  Real compiler fixtures verify cache hits, header/CPU invalidation and reuse
+  across checkout paths/server restarts. Incremental reference objects remain
+  intact; verified completed archives skip the compiler. See [CPU and caching
+  checks](build-caching.md). Candidate CI is wired for each Electron channel,
+  followed by automatic native/Krisp checks against all three Discord clients.
 
 ## Outstanding before a release
 
 1. Finish the bounded reference capacity build and inspect its diagnostics.
-   Blacksmith has unlocked the account and the maintainer reports an unused
-   3,000-minute allowance. The first hosted experiment failed before compilation;
+   Blacksmith has unlocked the account and the maintainer confirms 168 of the
+   3,000 allowance minutes used. The first hosted experiment failed before compilation;
    use the installed PC runner's persistent cache to qualify the launcher fix.
 2. Confirm cold-build disk/memory use and successful incremental resumption.
 3. Finish the Discord integration ports to Electron 45, 46 and 47: their source
