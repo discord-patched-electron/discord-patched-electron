@@ -83,6 +83,10 @@ def build(output: Path):
     run("git", "-C", tools, "checkout", "--detach", config["depot_tools_commit"])
     os.environ["PATH"] = str(tools) + os.pathsep + os.environ["PATH"]
     os.environ["DEPOT_TOOLS_UPDATE"] = "0"
+    # Disabling self-updates also skips gclient's normal Python bootstrap. GN's
+    # launcher still requires python-bin/python3 and python3_bin_reldir.txt.
+    # This upstream entry point installs tools without changing the pinned Git ref.
+    run(tools / "ensure_bootstrap")
     source = work / "checkout"
     electron = source / "src/electron"
     report = work / "source.json"

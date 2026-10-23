@@ -69,5 +69,19 @@ uses commit `f8bdaea`. Its [standard checks](https://github.com/discord-patched-
 passed all 19 tests and all source assembly targets. The workflow passed actionlint,
 and synthetic history checks verified that its allowance preflight accepts a first
 dispatch and rejects earlier runs even on later API pages. GitHub reports the
-Blacksmith App installed and not suspended. Compilation and the final measured
-allowance consumption are still pending.
+Blacksmith App installed and not suspended.
+
+That hosted run failed before C++ compilation, after the fetch, dependency patches
+and hooks completed. The depot_tools GN launcher required
+`python3_bin_reldir.txt`, but setting `DEPOT_TOOLS_UPDATE=0` also bypassed the normal
+Python bootstrap. The driver now explicitly invokes upstream `ensure_bootstrap`,
+which preserves the pinned Git revision. This was verified in the local container:
+bootstrap exited successfully, `gn --version` returned `2486 (641ace93dd95)`, and
+depot_tools HEAD remained `08328c3e239aa5e869da9ac98de765c6541395bf`.
+
+The hosted job ran from 18:15:39 to 18:35:57 UTC (20 minutes 18 seconds). At 8x,
+rounding up to 21 minutes estimates 168 allowance minutes, not an account billing
+reading. Its command reported 1,202 seconds, minimum available RAM about 58 GiB
+and minimum free disk about 605 GiB. No reference binary was produced, and these
+preparation numbers do not establish linker capacity. The one-shot hosted guard
+remains in force; the local cache is used to qualify further build-stage fixes.
