@@ -63,12 +63,17 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
         actual = hashlib.file_digest(tar.extractfile(root + "/modules/discord_krisp/discord_krisp.node"), "sha256").hexdigest()
         if actual != patch["output_sha256"]:
             raise ValueError("Packaging modified or stripped the patched Krisp binary")
+        audio = json.load(tar.extractfile(root + "/app-audio-patch.json"))
+        adapter_hash = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/dpe-app-audio.cjs"), "sha256").hexdigest()
+        wrapper_hash = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/index.js"), "sha256").hexdigest()
+        if adapter_hash != audio["adapter_sha256"] or wrapper_hash != audio["output_sha256"] or audio["enabled_by_default"]:
+            raise ValueError("Packaged experimental audio adapter differs from its preparation report")
         for filename in ("package-inputs.json", "runtime/LICENSE", "runtime/LICENSES.chromium.html"):
             if root + "/" + filename not in members:
                 raise ValueError(f"Missing runtime provenance/license: {filename}")
     return {"package": name, "client_version": inputs["client"]["version"],
             "electron_channel": inputs["electron_channel"], "package_sha256": sha256(archive),
-            "package_bytes": archive.stat().st_size, "krisp_patch": patch,
+            "package_bytes": archive.stat().st_size, "krisp_patch": patch, "app_audio_patch": audio,
             "runtime_is_test_fixture": True, "runtime_validated": False, "publishable": False}
 
 

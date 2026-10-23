@@ -19,6 +19,8 @@ SUPPORT = {
     "common.py": "scripts/common.py",
     "prepare_app.py": "scripts/prepare_app.py",
     "patch_krisp.py": "scripts/patch_krisp.py",
+    "patch_app_audio.py": "scripts/patch_app_audio.py",
+    "app-audio.cjs": "integration/audio/app-audio.cjs",
     "stage_package.py": "scripts/stage_package.py",
     "krisp-patcher.py": "packaging/upstream/krisp-patcher.py",
     "provenance.json": "packaging/upstream/provenance.json",

@@ -381,7 +381,10 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 ### Phase 4 — application audio
 
 - [ ] Trace source selection/options and locate the screen-share audio input boundary.
-- [ ] Try the smallest existing-option correction first.
+- [x] Try the smallest existing-option correction first. The opt-in module
+  wrapper passes isolated X11 native audio selection/lifecycle tests on bundled
+  Stable/PTB/Canary runtimes; Wayland, multi-process mixing and live-call
+  qualification remain open. See [audio investigation](audio-investigation.md).
 - [ ] If necessary, implement the venmic-based helper and a minimal module adapter.
 - [ ] Pass two-application isolation and lifecycle tests on X11 and Wayland for each supported Discord channel/module variant; validate the relevant runtime combinations.
 - [ ] Release the fix through the same fingerprinted pipeline, without remote client UI changes if the proven boundary allows it.

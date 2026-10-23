@@ -20,7 +20,7 @@ from common import ROOT, digest, electron_channel, hash_files, read_json, run, s
 from fingerprints import runtime_key
 from compiler_cache import compiler_cache
 
-IMPLEMENTATION = ["scripts/build_reference.py", "scripts/assemble.py", "scripts/common.py", "scripts/fingerprints.py",
+IMPLEMENTATION = ["scripts/build_reference.py", "scripts/assemble.py", "scripts/common.py", "scripts/runtime_fingerprints.py",
                   "scripts/compiler_cache.py", "config/compiler-cache.json"]
 
 

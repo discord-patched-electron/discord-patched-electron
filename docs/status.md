@@ -11,10 +11,11 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
   updates. See [discovery](discovery.md); compiler dispatch and AUR publication
   are not yet connected to the queue. The first two CI polls passed and the
   unchanged second poll left the remote state commit untouched. Discovered PTB
-  1.0.224 and Canary 1.0.2357 await validation; the bootstrap locks below retain
-  the previously checked versions.
+  1.0.224 and Canary 1.0.2357 passed separate CI native/Krisp baseline and
+  six-recipe checks; the bootstrap locks now include those exact snapshots.
+  See [client-update evidence](evidence/client-updates-ci.json).
 - The vendored AUR files match commit `3b290dffd5eb840faed445bdc2bdb18572839471`.
-- Current manifests lock Stable 1.0.166, PTB 1.0.223 and Canary 1.0.2354 separately.
+- Current manifests lock Stable 1.0.166, PTB 1.0.224 and Canary 1.0.2357 separately.
 - The existing Krisp patcher applies to each channel's real native binary. The
   validation wrapper confirms that only the expected six-byte conditional branch
   changes and that repeating the patch is a no-op. Input/output hashes are in
@@ -49,8 +50,9 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
   delta plus separate explicit compatibility patches. All skipped imported file
   changes have replacement patches or documented upstream equivalents.
 - Static inspection of all three voice modules finds soundshare PID/loopback
-  options and a native PulseAudio stream-monitoring path. This narrows the next
-  audio experiment; it does not establish working isolation. See
+  options and a native PulseAudio stream-monitoring path. An opt-in module wrapper now passes isolated native X11 two-tone, source
+  switching and shutdown checks on all three bundled runtimes. Wayland,
+  multi-process mixing and live-call/microphone validation remain unfinished. See
   [native audio investigation](audio-investigation.md).
 - Candidate builds now select x86-64-v3 through a project-owned GN toolchain.
   Real compiler fixtures verify cache hits, header/CPU invalidation and reuse
@@ -72,8 +74,9 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 5. Validate the generated packages with real custom runtimes, then finish the
    compiler coordinator, release ledger and automatic AUR publisher. Discovery
    and the durable backlog are implemented; no publishable runtime exists yet.
-6. Trace the live screen-share audio arguments and implement the verified native
-   audio adapter; no unproven per-app fix is enabled.
+6. Finish live screen-share argument tracing, Wayland identity and multi-process
+   audio handling. The tested X11 adapter is opt-in, not default-enabled;
+   custom-runtime and live-call qualification remain outstanding.
 
 The standard GitHub Actions workflow runs checks. The local reference workflow
 uses four CPUs, 12 GiB RAM, up to 8 GiB additional swap and two compiler tasks.

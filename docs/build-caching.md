@@ -89,3 +89,10 @@ Sources: [GCC x86 CPU levels](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.htm
 [sccache local cache correctness](https://github.com/mozilla/sccache/blob/v0.18.0/docs/Local.md),
 [sccache path normalization](https://github.com/mozilla/sccache/blob/v0.18.0/docs/Configuration.md),
 [GitHub cache limits and eviction](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+
+Native identity calculation now lives in `scripts/runtime_fingerprints.py`,
+separate from integration fingerprints. Application-audio wrapper/packaging
+changes update integration keys without invalidating the C++ build identity.
+The one-time identity implementation migration supersedes old pending candidate
+keys through normal discovery reconciliation; it does not restart the already
+running reference checkout or discard its Ninja outputs.

@@ -11,7 +11,8 @@ options=('!strip')
 depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse')
 makedepends=('asar' 'brotli' 'unzip' 'python-capstone' 'python-pyelftools')
 optdepends=('pipewire: screen sharing under Wayland'
-            'xdg-utils: open links and files')
+            'xdg-utils: open links and files'
+            'xorg-xprop: selected-window identity for experimental application audio')
 source=(
 @SOURCES@
 )
@@ -24,7 +25,7 @@ noextract=(
 
 prepare() {
   mkdir -p support/scripts support/packaging/upstream
-  cp common.py prepare_app.py patch_krisp.py stage_package.py support/scripts/
+  cp common.py prepare_app.py patch_krisp.py patch_app_audio.py stage_package.py support/scripts/
   cp krisp-patcher.py provenance.json support/packaging/upstream/
   python support/scripts/stage_package.py --inputs package-inputs.json --asar /usr/bin/asar
 }
@@ -42,4 +43,5 @@ package() {
   install -Dm644 THIRD_PARTY.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY.md"
   install -Dm644 package-inputs.json "$root/package-inputs.json"
   install -Dm644 stage/krisp-patch.json "$root/krisp-patch.json"
+  install -Dm644 stage/app-audio-patch.json "$root/app-audio-patch.json"
 }

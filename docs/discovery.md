@@ -115,5 +115,6 @@ handoff/teardown and offline Krisp processing using their bundled Electron
 44.9.3, with 53.6 dB synthetic noise reduction. These are baseline results, not
 custom-runtime, live-call or per-application audio qualification. The existing
 narrow dispatch-library exception required no change. See
-[local evidence](evidence/client-updates-local.json). Bootstrap locks remain
-unchanged pending the CI snapshot checks.
+[local evidence](evidence/client-updates-local.json). The CI snapshot checks subsequently passed;
+[CI evidence](evidence/client-updates-ci.json) records both runs. The bootstrap
+locks now include those exact PTB/Canary snapshots.

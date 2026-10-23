@@ -1,0 +1,105 @@
+name: Application audio validation
+on:
+  workflow_call:
+    inputs:
+      reference_run:
+        type: string
+        required: false
+        default: ''
+  workflow_dispatch:
+    inputs:
+      reference_run:
+        description: Successful compiler run ID; empty uses bundled baselines
+        type: string
+        required: false
+        default: ''
+  workflow_run:
+    workflows: [Reference build capacity, Blacksmith reference capacity, Candidate Electron build]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    env:
+      REFERENCE_RUN: ${{ github.event.workflow_run.id || inputs.reference_run || '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Fetch and verify the completed compiler artifact
+        if: env.REFERENCE_RUN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python scripts/fetch_reference.py "$REFERENCE_RUN" --output out/reference-download
+          chmod a+r out/reference-download/artifact-provenance.json
+      - name: Prepare fixture tools and exact client archives
+        run: |
+          python -m pip install -r requirements-test.txt
+          npm ci --ignore-scripts
+          args=()
+          if [ -n "$REFERENCE_RUN" ]; then
+            args+=(--runtime out/reference-download/runtime --provenance out/reference-download/artifact-provenance.json)
+          fi
+          for channel in stable ptb canary; do
+            python scripts/check_app_audio.py --discord "$channel" --output "out/app-audio/$channel" --download-only "${args[@]}"
+          done
+      - name: Build disposable audio environment
+        run: |
+          docker build -t discord-electron-arch-packaging ci/arch
+          docker build -t discord-electron-audio-fixture ci/audio
+      - name: Test every channel with isolated audio and no network
+        shell: bash
+        run: |
+          sudo chown -R 1000:1000 out/app-audio
+          args=()
+          if [ -n "$REFERENCE_RUN" ]; then
+            args+=(--runtime /repo/out/reference-download/runtime --provenance /repo/out/reference-download/artifact-provenance.json)
+          fi
+          failed=0
+          for channel in stable ptb canary; do
+            if ! docker run --rm --network none --cpus 2 --memory 4g \
+              -v "$GITHUB_WORKSPACE:/repo:ro" \
+              -v "$GITHUB_WORKSPACE/out/app-audio/$channel:/audio" \
+              discord-electron-audio-fixture \
+              python /repo/scripts/check_app_audio.py --discord "$channel" --output /audio "${args[@]}"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
+      - name: Return diagnostics to the Actions user
+        if: always()
+        run: |
+          if [ -d out/app-audio ]; then
+            sudo chown -R "$(id -u):$(id -g)" out/app-audio
+          fi
+      - name: Retain synthetic audio diagnostics
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: application-audio-diagnostics
+          path: |
+            out/reference-download/artifact-provenance.json
+            out/app-audio/*/audio-report.json
+            out/app-audio/*/identity.json
+            out/app-audio/*/fixture.json
+            out/app-audio/*/*.log
+            out/app-audio/*/discord-webrtc_*
+          retention-days: 7
+          if-no-files-found: warn

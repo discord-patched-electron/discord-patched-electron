@@ -1,0 +1,448 @@
+{
+  "custom_runtime_verified": false,
+  "date": "2026-10-23",
+  "publishable": false,
+  "real_discord_call_verified": false,
+  "reports": [
+    {
+      "channel": "stable",
+      "report": {
+        "all_cases_passed": true,
+        "cases": {
+          "app-a": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 8613.479214764802,
+            "tone_440_amplitude": 4871.424357038456,
+            "tone_880_amplitude": 0.0011756408307530615
+          },
+          "app-b": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 2797.0475199438783,
+            "tone_440_amplitude": 0.0018882461430155615,
+            "tone_880_amplitude": 4504.067586042092
+          },
+          "app-exited": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "cleared": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "disabled": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "re-enabled": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 2740.367267213933,
+            "tone_440_amplitude": 4871.424808739177,
+            "tone_880_amplitude": 0.0011316749164621844
+          },
+          "system": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 8559.871520069,
+            "tone_440_amplitude": 4871.424890765848,
+            "tone_880_amplitude": 4504.067877137036
+          },
+          "unknown": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          }
+        },
+        "custom_runtime_verified": false,
+        "fixture": {
+          "cases": [
+            "system",
+            "app-a",
+            "app-b",
+            "disabled",
+            "unknown",
+            "re-enabled",
+            "app-exited",
+            "cleared"
+          ],
+          "events": [
+            {
+              "event": "soundshare",
+              "value": true
+            },
+            {
+              "event": "soundshare",
+              "value": true
+            }
+          ],
+          "passed": true,
+          "publishable": false,
+          "real_discord_call_verified": false,
+          "schema": 1,
+          "versions": {
+            "acorn": "8.17.0",
+            "ada": "3.4.4",
+            "ares": "1.34.6",
+            "brotli": "1.2.0",
+            "chrome": "148.0.7778.280",
+            "cldr": "48.0",
+            "electron": "42.11.15",
+            "icu": "78.2",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "146",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.69.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "node": "24.19.0",
+            "openssl": "0.0.0",
+            "simdjson": "4.6.4",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.3",
+            "tz": "2026d",
+            "undici": "7.29.0",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "14.8.178.38-electron.0",
+            "zlib": "1.3.2.1-motley",
+            "zstd": "1.6.0"
+          },
+          "wayland_source_identity_verified": false
+        },
+        "identity": {
+          "adapter_patch": {
+            "adapter_sha256": "23a8ecaee4f8fda52c166118d06fc9d4e932fab3ea3917bd67b21d68cf8f53a7",
+            "enabled_by_default": false,
+            "input_sha256": "c06fc0d68fbeb6b139e10ae98810918cb91512325e221922fe0de9b85a9cb8c1",
+            "output_sha256": "2fe200d8f156d30c5d389340f697ebaa4f9868d7cce6465d9caa004eca9fd988",
+            "publishable": false,
+            "requires_environment": "DPE_APP_AUDIO=1"
+          },
+          "channel": "stable",
+          "client_digest": "cd919496ec7ff7709411b98df587e09a09de690ad85d5a6962be2954b7379a75",
+          "client_version": "1.0.166",
+          "executable": "Discord",
+          "runtime_sha256": "37d7e3540277d878985c8f973e2313ada9601adb5bd8116e29f5bb4201ca2809",
+          "voice_sha256": "1a3fa65e21242ca84a27b6b654ba342c7ebf6c964fa3c1e1ee41682b9717fa24"
+        },
+        "microphone_lifecycle_verified": false,
+        "publishable": false,
+        "real_discord_call_verified": false,
+        "schema": 1,
+        "wayland_source_identity_verified": false,
+        "x11_source_identity_verified": true
+      }
+    },
+    {
+      "channel": "ptb",
+      "report": {
+        "all_cases_passed": true,
+        "cases": {
+          "app-a": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 8660.60663787622,
+            "tone_440_amplitude": 4871.424183819935,
+            "tone_880_amplitude": 0.0010526173044221353
+          },
+          "app-b": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 2786.9949013105843,
+            "tone_440_amplitude": 0.002108743101216142,
+            "tone_880_amplitude": 4504.067611692175
+          },
+          "app-exited": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "cleared": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "disabled": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "re-enabled": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 2739.0349407015224,
+            "tone_440_amplitude": 4871.424847930406,
+            "tone_880_amplitude": 0.0010407452912362795
+          },
+          "system": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 8598.06830913022,
+            "tone_440_amplitude": 4871.424661834522,
+            "tone_880_amplitude": 4504.068201921493
+          },
+          "unknown": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          }
+        },
+        "custom_runtime_verified": false,
+        "fixture": {
+          "cases": [
+            "system",
+            "app-a",
+            "app-b",
+            "disabled",
+            "unknown",
+            "re-enabled",
+            "app-exited",
+            "cleared"
+          ],
+          "events": [
+            {
+              "event": "soundshare",
+              "value": true
+            },
+            {
+              "event": "soundshare",
+              "value": true
+            }
+          ],
+          "passed": true,
+          "publishable": false,
+          "real_discord_call_verified": false,
+          "schema": 1,
+          "versions": {
+            "acorn": "8.18.0",
+            "ada": "4.0.0",
+            "ares": "1.34.9",
+            "brotli": "1.2.0",
+            "chrome": "152.0.7977.167",
+            "cldr": "48.0",
+            "electron": "44.9.3",
+            "icu": "78.2",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "149",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.70.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "node": "24.22.1",
+            "openssl": "0.0.0",
+            "simdjson": "4.6.11",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.4",
+            "tz": "2026d",
+            "undici": "7.30.1",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "15.2.124.43-electron.0",
+            "zlib": "1.3.2.1-motley",
+            "zstd": "1.6.0"
+          },
+          "wayland_source_identity_verified": false
+        },
+        "identity": {
+          "adapter_patch": {
+            "adapter_sha256": "23a8ecaee4f8fda52c166118d06fc9d4e932fab3ea3917bd67b21d68cf8f53a7",
+            "enabled_by_default": false,
+            "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+            "output_sha256": "a7a9a3e490341f6acbaad0fad83eca96cf0094869e6c7ef3e15480999442b8d3",
+            "publishable": false,
+            "requires_environment": "DPE_APP_AUDIO=1"
+          },
+          "channel": "ptb",
+          "client_digest": "f05c31510c2cb2e942b02d492ddb059b904ad62fb3e4847fb8c326e6a2cb77ed",
+          "client_version": "1.0.224",
+          "executable": "DiscordPTB",
+          "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+          "voice_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+        },
+        "microphone_lifecycle_verified": false,
+        "publishable": false,
+        "real_discord_call_verified": false,
+        "schema": 1,
+        "wayland_source_identity_verified": false,
+        "x11_source_identity_verified": true
+      }
+    },
+    {
+      "channel": "canary",
+      "report": {
+        "all_cases_passed": true,
+        "cases": {
+          "app-a": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 8632.631521690573,
+            "tone_440_amplitude": 4871.424714430388,
+            "tone_880_amplitude": 0.0010039259486769349
+          },
+          "app-b": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 2798.6071264116877,
+            "tone_440_amplitude": 0.0026903193368786535,
+            "tone_880_amplitude": 4504.067533672947
+          },
+          "app-exited": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "cleared": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "disabled": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          },
+          "re-enabled": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 2740.3881927956377,
+            "tone_440_amplitude": 4871.424778838329,
+            "tone_880_amplitude": 0.0007111108104054588
+          },
+          "system": {
+            "passed": true,
+            "samples": 15840,
+            "synthetic_microphone_rms": 8559.871520069,
+            "tone_440_amplitude": 4871.424219416251,
+            "tone_880_amplitude": 4504.067779620447
+          },
+          "unknown": {
+            "passed": true,
+            "samples": 0,
+            "synthetic_microphone_rms": 0.0,
+            "tone_440_amplitude": 0.0,
+            "tone_880_amplitude": 0.0
+          }
+        },
+        "custom_runtime_verified": false,
+        "fixture": {
+          "cases": [
+            "system",
+            "app-a",
+            "app-b",
+            "disabled",
+            "unknown",
+            "re-enabled",
+            "app-exited",
+            "cleared"
+          ],
+          "events": [
+            {
+              "event": "soundshare",
+              "value": true
+            },
+            {
+              "event": "soundshare",
+              "value": true
+            }
+          ],
+          "passed": true,
+          "publishable": false,
+          "real_discord_call_verified": false,
+          "schema": 1,
+          "versions": {
+            "acorn": "8.18.0",
+            "ada": "4.0.0",
+            "ares": "1.34.9",
+            "brotli": "1.2.0",
+            "chrome": "152.0.7977.167",
+            "cldr": "48.0",
+            "electron": "44.9.3",
+            "icu": "78.2",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "149",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.70.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "node": "24.22.1",
+            "openssl": "0.0.0",
+            "simdjson": "4.6.11",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.4",
+            "tz": "2026d",
+            "undici": "7.30.1",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "15.2.124.43-electron.0",
+            "zlib": "1.3.2.1-motley",
+            "zstd": "1.6.0"
+          },
+          "wayland_source_identity_verified": false
+        },
+        "identity": {
+          "adapter_patch": {
+            "adapter_sha256": "23a8ecaee4f8fda52c166118d06fc9d4e932fab3ea3917bd67b21d68cf8f53a7",
+            "enabled_by_default": false,
+            "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+            "output_sha256": "a7a9a3e490341f6acbaad0fad83eca96cf0094869e6c7ef3e15480999442b8d3",
+            "publishable": false,
+            "requires_environment": "DPE_APP_AUDIO=1"
+          },
+          "channel": "canary",
+          "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+          "client_version": "1.0.2357",
+          "executable": "DiscordCanary",
+          "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+          "voice_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+        },
+        "microphone_lifecycle_verified": false,
+        "publishable": false,
+        "real_discord_call_verified": false,
+        "schema": 1,
+        "wayland_source_identity_verified": false,
+        "x11_source_identity_verified": true
+      }
+    }
+  ],
+  "schema": 1,
+  "wayland_source_identity_verified": false
+}

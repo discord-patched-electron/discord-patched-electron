@@ -1,0 +1,411 @@
+{
+  "date": "2026-10-23",
+  "native": {
+    "all_selected_passed": true,
+    "combinations": [
+      {
+        "channel": "ptb",
+        "client_digest": "f05c31510c2cb2e942b02d492ddb059b904ad62fb3e4847fb8c326e6a2cb77ed",
+        "client_version": "1.0.224",
+        "native_fixture_passed": true,
+        "noise_reduction_db": 53.59615994882603,
+        "offline_krisp_verified": true,
+        "original_inputs": {
+          "executable": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+          "krisp": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "voice": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+        },
+        "passed": true,
+        "publishable": false,
+        "runtime_versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "152.0.7977.167",
+          "cldr": "48.0",
+          "electron": "44.9.3",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "149",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026d",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.2.124.43-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        }
+      },
+      {
+        "channel": "canary",
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "native_fixture_passed": true,
+        "noise_reduction_db": 53.59615994882603,
+        "offline_krisp_verified": true,
+        "original_inputs": {
+          "executable": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+          "krisp": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "voice": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+        },
+        "passed": true,
+        "publishable": false,
+        "runtime_versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "152.0.7977.167",
+          "cldr": "48.0",
+          "electron": "44.9.3",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "149",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026d",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.2.124.43-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        }
+      }
+    ],
+    "per_app_audio_verified": false,
+    "publishable": false,
+    "real_discord_call_verified": false,
+    "runtime_kind": "official bundled baseline",
+    "schema": 1,
+    "selected_channels": [
+      "ptb",
+      "canary"
+    ]
+  },
+  "native_run": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40018095359",
+  "packaging": {
+    "all_selected_passed": true,
+    "combinations": [
+      {
+        "client_digest": "f05c31510c2cb2e942b02d492ddb059b904ad62fb3e4847fb8c326e6a2cb77ed",
+        "client_version": "1.0.224",
+        "discord_channel": "ptb",
+        "electron_channel": "nightly",
+        "krisp_patch": {
+          "already_patched": false,
+          "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+          "offset": 4407835,
+          "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+          "runtime_validated": false,
+          "size": 6
+        },
+        "native_library_dependencies_checked": [
+          "discord_cloudsync/discord_cloudsync.node",
+          "discord_dispatch/discord_dispatch.node",
+          "discord_erlpack/discord_erlpack.node",
+          "discord_game_utils/discord_game_utils.node",
+          "discord_krisp/discord_krisp.node",
+          "discord_modules/discord_modules.node",
+          "discord_ndi/discord_ndi.node",
+          "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+          "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+          "discord_sysimg/discord_sysimg.node",
+          "discord_utils/discord_utils.node",
+          "discord_voice/discord_voice.node",
+          "discord_zstd/discord_zstd.node"
+        ],
+        "native_library_exceptions": {
+          "discord_dispatch/discord_dispatch.node": {
+            "missing": [
+              "libcrypto.so.1.1",
+              "libssl.so.1.1"
+            ],
+            "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+            "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+          }
+        },
+        "package": "discord-ptb-nightly-patched-electron-bin",
+        "package_bytes": 378716160,
+        "package_sha256": "6ad134f25e51f9de4b3a57d505efa82e931b4fb80474c13313c32a2541b4c240",
+        "passed": true,
+        "publishable": false,
+        "runtime_is_test_fixture": true,
+        "runtime_validated": false
+      },
+      {
+        "client_digest": "f05c31510c2cb2e942b02d492ddb059b904ad62fb3e4847fb8c326e6a2cb77ed",
+        "client_version": "1.0.224",
+        "discord_channel": "ptb",
+        "electron_channel": "prerelease",
+        "krisp_patch": {
+          "already_patched": false,
+          "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+          "offset": 4407835,
+          "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+          "runtime_validated": false,
+          "size": 6
+        },
+        "native_library_dependencies_checked": [
+          "discord_cloudsync/discord_cloudsync.node",
+          "discord_dispatch/discord_dispatch.node",
+          "discord_erlpack/discord_erlpack.node",
+          "discord_game_utils/discord_game_utils.node",
+          "discord_krisp/discord_krisp.node",
+          "discord_modules/discord_modules.node",
+          "discord_ndi/discord_ndi.node",
+          "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+          "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+          "discord_sysimg/discord_sysimg.node",
+          "discord_utils/discord_utils.node",
+          "discord_voice/discord_voice.node",
+          "discord_zstd/discord_zstd.node"
+        ],
+        "native_library_exceptions": {
+          "discord_dispatch/discord_dispatch.node": {
+            "missing": [
+              "libcrypto.so.1.1",
+              "libssl.so.1.1"
+            ],
+            "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+            "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+          }
+        },
+        "package": "discord-ptb-prerelease-patched-electron-bin",
+        "package_bytes": 378716160,
+        "package_sha256": "d187b2490e297cd1873dcec342d8f68f7c8a4645f180d537dd0fc79a8f129b7f",
+        "passed": true,
+        "publishable": false,
+        "runtime_is_test_fixture": true,
+        "runtime_validated": false
+      },
+      {
+        "client_digest": "f05c31510c2cb2e942b02d492ddb059b904ad62fb3e4847fb8c326e6a2cb77ed",
+        "client_version": "1.0.224",
+        "discord_channel": "ptb",
+        "electron_channel": "stable",
+        "krisp_patch": {
+          "already_patched": false,
+          "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+          "offset": 4407835,
+          "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+          "runtime_validated": false,
+          "size": 6
+        },
+        "native_library_dependencies_checked": [
+          "discord_cloudsync/discord_cloudsync.node",
+          "discord_dispatch/discord_dispatch.node",
+          "discord_erlpack/discord_erlpack.node",
+          "discord_game_utils/discord_game_utils.node",
+          "discord_krisp/discord_krisp.node",
+          "discord_modules/discord_modules.node",
+          "discord_ndi/discord_ndi.node",
+          "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+          "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+          "discord_sysimg/discord_sysimg.node",
+          "discord_utils/discord_utils.node",
+          "discord_voice/discord_voice.node",
+          "discord_zstd/discord_zstd.node"
+        ],
+        "native_library_exceptions": {
+          "discord_dispatch/discord_dispatch.node": {
+            "missing": [
+              "libcrypto.so.1.1",
+              "libssl.so.1.1"
+            ],
+            "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+            "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+          }
+        },
+        "package": "discord-ptb-stable-patched-electron-bin",
+        "package_bytes": 378716160,
+        "package_sha256": "0da86de4e815b4bf592be3a5033e0cc093d4e3d5ce6456621cab0808a1d76ea8",
+        "passed": true,
+        "publishable": false,
+        "runtime_is_test_fixture": true,
+        "runtime_validated": false
+      },
+      {
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "discord_channel": "canary",
+        "electron_channel": "nightly",
+        "krisp_patch": {
+          "already_patched": false,
+          "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+          "offset": 4407835,
+          "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+          "runtime_validated": false,
+          "size": 6
+        },
+        "native_library_dependencies_checked": [
+          "discord_cloudsync/discord_cloudsync.node",
+          "discord_dispatch/discord_dispatch.node",
+          "discord_erlpack/discord_erlpack.node",
+          "discord_game_utils/discord_game_utils.node",
+          "discord_krisp/discord_krisp.node",
+          "discord_modules/discord_modules.node",
+          "discord_ndi/discord_ndi.node",
+          "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+          "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+          "discord_sysimg/discord_sysimg.node",
+          "discord_utils/discord_utils.node",
+          "discord_voice/discord_voice.node",
+          "discord_zstd/discord_zstd.node"
+        ],
+        "native_library_exceptions": {
+          "discord_dispatch/discord_dispatch.node": {
+            "missing": [
+              "libcrypto.so.1.1",
+              "libssl.so.1.1"
+            ],
+            "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+            "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+          }
+        },
+        "package": "discord-canary-nightly-patched-electron-bin",
+        "package_bytes": 378746880,
+        "package_sha256": "0d2c7004f6c54b21af818404ce702a7c510a3efa6f75badc63b02023e3a246b1",
+        "passed": true,
+        "publishable": false,
+        "runtime_is_test_fixture": true,
+        "runtime_validated": false
+      },
+      {
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "discord_channel": "canary",
+        "electron_channel": "prerelease",
+        "krisp_patch": {
+          "already_patched": false,
+          "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+          "offset": 4407835,
+          "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+          "runtime_validated": false,
+          "size": 6
+        },
+        "native_library_dependencies_checked": [
+          "discord_cloudsync/discord_cloudsync.node",
+          "discord_dispatch/discord_dispatch.node",
+          "discord_erlpack/discord_erlpack.node",
+          "discord_game_utils/discord_game_utils.node",
+          "discord_krisp/discord_krisp.node",
+          "discord_modules/discord_modules.node",
+          "discord_ndi/discord_ndi.node",
+          "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+          "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+          "discord_sysimg/discord_sysimg.node",
+          "discord_utils/discord_utils.node",
+          "discord_voice/discord_voice.node",
+          "discord_zstd/discord_zstd.node"
+        ],
+        "native_library_exceptions": {
+          "discord_dispatch/discord_dispatch.node": {
+            "missing": [
+              "libcrypto.so.1.1",
+              "libssl.so.1.1"
+            ],
+            "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+            "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+          }
+        },
+        "package": "discord-canary-prerelease-patched-electron-bin",
+        "package_bytes": 378746880,
+        "package_sha256": "54d61f52822b11ecdd93bfefd633c353babbda9f34588acc433cd2e73e7c1103",
+        "passed": true,
+        "publishable": false,
+        "runtime_is_test_fixture": true,
+        "runtime_validated": false
+      },
+      {
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "discord_channel": "canary",
+        "electron_channel": "stable",
+        "krisp_patch": {
+          "already_patched": false,
+          "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+          "offset": 4407835,
+          "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+          "runtime_validated": false,
+          "size": 6
+        },
+        "native_library_dependencies_checked": [
+          "discord_cloudsync/discord_cloudsync.node",
+          "discord_dispatch/discord_dispatch.node",
+          "discord_erlpack/discord_erlpack.node",
+          "discord_game_utils/discord_game_utils.node",
+          "discord_krisp/discord_krisp.node",
+          "discord_modules/discord_modules.node",
+          "discord_ndi/discord_ndi.node",
+          "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+          "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+          "discord_sysimg/discord_sysimg.node",
+          "discord_utils/discord_utils.node",
+          "discord_voice/discord_voice.node",
+          "discord_zstd/discord_zstd.node"
+        ],
+        "native_library_exceptions": {
+          "discord_dispatch/discord_dispatch.node": {
+            "missing": [
+              "libcrypto.so.1.1",
+              "libssl.so.1.1"
+            ],
+            "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+            "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+          }
+        },
+        "package": "discord-canary-stable-patched-electron-bin",
+        "package_bytes": 378746880,
+        "package_sha256": "a40f1640e3232d5c9b356e377d7160cc83e9608d823e51d4f902462baf32f699",
+        "passed": true,
+        "publishable": false,
+        "runtime_is_test_fixture": true,
+        "runtime_validated": false
+      }
+    ],
+    "publishable": false,
+    "runtime_is_test_fixture": true,
+    "runtime_validated": false,
+    "schema": 1,
+    "selected_channels": [
+      "ptb",
+      "canary"
+    ]
+  },
+  "packaging_run": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40018378321",
+  "publishable": false,
+  "schema": 1,
+  "state_commit": "9497bda8d8c48e451e40c4b36f87e18f1d09a5c9"
+}
