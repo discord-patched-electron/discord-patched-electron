@@ -38,6 +38,36 @@ def validate_port(port: dict, imported: Path) -> Path:
     return adapted
 
 
+def hydrate_patch_base(cache: Path, fork: dict) -> None:
+    """Resolve abbreviated patch IDs before applying against a partial clone.
+
+    Git can lazily fetch a full blob ID, but cannot discover an absent blob from
+    the abbreviated IDs in a diff. A prior patch-base checkout used to mask this.
+    """
+    imported = ROOT / fork["patch"]
+    prefixes = sorted({value for value in re.findall(r"^index ([a-f0-9]+)\.\.",
+        imported.read_text(), re.MULTILINE) if set(value) != {"0"}})
+    if not prefixes:
+        return
+    checked = subprocess.check_output(["git", "-C", str(cache), "cat-file", "--batch-check"],
+        input="\n".join(prefixes) + "\n", text=True).splitlines()
+    missing = [prefix for prefix, result in zip(prefixes, checked, strict=True) if result.endswith(" missing")]
+    if not missing:
+        return
+    blobs = set(git(cache, "ls-tree", "-r", "--format=%(objectname)", fork["base"]).splitlines())
+    wanted = []
+    for prefix in missing:
+        matches = [oid for oid in blobs if oid.startswith(prefix)]
+        if len(matches) != 1:
+            raise ValueError(f"Imported patch blob {prefix} does not resolve uniquely in its locked base")
+        wanted.append(matches[0])
+    # Same batched object-fetch protocol used by Git's promisor lazy fetches.
+    # No ref, FETCH_HEAD or active worktree is changed.
+    run("git", "-C", cache, "fetch", "--quiet", "--no-tags", "--no-write-fetch-head",
+        "--recurse-submodules=no", "--filter=blob:none", fork["repository"], "--stdin",
+        input="\n".join(wanted) + "\n", text=True)
+
+
 def prepare_cache(cache: Path, lock: dict, target: str) -> None:
     if target not in ("reference", "patch-base"):
         require_enabled_electron(target)
@@ -70,6 +100,8 @@ def assemble(target: str, cache: Path, destination: Path, report: Path) -> bool:
     if destination.exists():
         raise ValueError(f"Refusing to overwrite checkout {destination}; choose a fresh destination")
     prepare_cache(cache, lock, target)
+    if target != "reference":
+        hydrate_patch_base(cache, fork)
     commit = fork["commit"] if target == "reference" else fork["base"] if target == "patch-base" else lock["targets"][target]["commit"]
     destination.parent.mkdir(parents=True, exist_ok=True)
     run("git", "-C", cache, "worktree", "add", "--detach", destination, commit)
