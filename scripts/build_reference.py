@@ -130,7 +130,7 @@ def reset_patch_repositories(source: Path, bases: dict):
         run("git", "-C", repo, "reset", "--hard", commit)
 
 
-def build(output: Path, target: str = "reference"):
+def build(output: Path, target: str = "reference", *, prepare_only: bool = False):
     started = time.monotonic()
     config = build_config(target)
     cache = cache_root()
@@ -195,6 +195,12 @@ def build(output: Path, target: str = "reference"):
         reset_patch_repositories(source, read_json(work / "patch-bases.json"))
         run("gclient", "runhooks", cwd=source)
         write_json(prepared, {"identity": identity})
+    if prepare_only:
+        write_json(output / "preparation.json", {"target": target, "identity": identity,
+            "workspace": str(work), "runtime_key": key, "source_assembled": True,
+            "dependencies_patched": True, "compiled": False, "publishable": False})
+        print("Source and dependencies prepared; no GN or Electron compiler started", flush=True)
+        return
     args = config["gn_args"] + ['override_electron_version="' + spec["version"] + '"',
                                 f"concurrent_links={resources['concurrent_links']}"]
     if target != "reference":
@@ -234,6 +240,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=["reference", *enabled_electron_channels()], default="reference")
     parser.add_argument("--output", type=Path, default=ROOT / "out/capacity")
+    parser.add_argument("--prepare-only", action="store_true",
+                        help="Fetch and patch a separate target workspace without starting its compiler")
     args = parser.parse_args()
     cache = cache_root()
     cache.mkdir(parents=True, exist_ok=True)
@@ -264,7 +272,7 @@ def main():
     thread = threading.Thread(target=monitor, daemon=True)
     thread.start()
     try:
-        build(output, args.target)
+        build(output, args.target, prepare_only=args.prepare_only)
     except BaseException:
         metrics["status"] = "failed"
         raise
