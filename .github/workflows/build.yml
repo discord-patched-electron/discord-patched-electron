@@ -29,7 +29,7 @@ jobs:
       ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || 'auto' }}
       SENTRYCLI_SKIP_DOWNLOAD: '1'
       PYTHONUNBUFFERED: '1'
-      TARGET: ${{ inputs.target }}
+      ELECTRON_BUILD_TARGET: ${{ inputs.target }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -43,7 +43,7 @@ jobs:
           mkdir -p out/capacity
           set -o pipefail
           /usr/bin/time -v timeout --signal=INT --kill-after=60s 21h \
-            python3 scripts/build_reference.py --target "$TARGET" 2>&1 | tee out/capacity/build.log
+            python3 scripts/build_reference.py --target "$ELECTRON_BUILD_TARGET" 2>&1 | tee out/capacity/build.log
       - name: Retain diagnostic logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
