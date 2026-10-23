@@ -35,6 +35,9 @@ def validate_port(port: dict, imported: Path) -> Path:
     if (set(paths) != replacements | set(omissions) or replacements & set(omissions)
             or not set(paths) <= changed(imported) or not all(omissions.values())):
         raise ValueError("Every excluded import needs one explicit replacement or upstream-equivalence reason")
+    for followup in port.get("followup_patches", []):
+        if sha256(ROOT / followup["patch"]) != followup["patch_sha256"]:
+            raise ValueError("Follow-up compatibility patch differs from its locked checksum")
     return adapted
 
 
@@ -116,6 +119,9 @@ def assemble(target: str, cache: Path, destination: Path, report: Path) -> bool:
             # These paths have explicit reviewed replacements or upstream
             # equivalents. Never infer exclusions from an application failure.
             series = [(patch, ["--exclude=" + path for path in port["replaced_paths"]]), (adapted, [])]
+            # Small context refreshes to imported dependency patches belong in
+            # an additive layer, rather than copying their entire original text.
+            series += [(ROOT / entry["patch"], []) for entry in port.get("followup_patches", [])]
             result["port"] = port
         result["patch_log"] = ""
         for patch_file, options in series:

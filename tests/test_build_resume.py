@@ -7,11 +7,24 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build_reference import build_config, build_inputs, enable_compiler_cache, reference_inputs, reset_patch_repositories, reuse_completed
+from build_reference import build_config, build_inputs, enable_compiler_cache, reference_inputs, reset_patch_repositories, reuse_completed, verify_source
 from common import ROOT, digest, read_json, sha256, write_json
 
 
 class HookRecovery(unittest.TestCase):
+    def test_cached_source_rejects_both_staged_and_unstaged_drift(self):
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp) / "source"
+            head = self.repo(repo)
+            report = {"upstream_commit":head, "tree":self.git(repo, "write-tree")}
+            verify_source(repo, report)
+            (repo / "fixture").write_text("unrecorded edit\n")
+            with self.assertRaisesRegex(ValueError, "unrecorded edits"):
+                verify_source(repo, report)
+            self.git(repo, "add", "fixture")
+            with self.assertRaisesRegex(ValueError, "differs from its assembly report"):
+                verify_source(repo, report)
+
     def git(self, repo, *args):
         return subprocess.check_output(["git", "-C", str(repo), "-c", "user.name=Test",
             "-c", "user.email=test@example.invalid", *args], text=True, stderr=subprocess.DEVNULL).strip()

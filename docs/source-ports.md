@@ -64,3 +64,29 @@ Discord's Chromium, FFmpeg and other dependency patches remain imported and
 ordered. Their applicability to newer Chromium versions is not established by
 Electron source assembly. Runtime publication must wait for those patches to
 apply, C++ compilation to succeed and the functional validation matrix to pass.
+
+## Electron 46 dependency refresh
+
+`patches/ports/46/dependency-context.patch` is a checksum-pinned additive layer
+applied after the original import and Electron API port. It refreshes dependency
+patches against Chromium 158 / its current FFmpeg. Fresh assembly checks the final
+Git tree. Cached source checkouts must match that tree with no unrecorded edits.
+
+Most changes refresh surrounding context. The substantive adaptations preserve
+upstream OpenH264 NULL cleanup, failed-reinitialization protection and its flush
+callback; retain Discord's packet-to-frame metadata matching; resolve all pending
+restriction-target promises; and preserve frame-scoped audio authorization.
+Upstream already carries the WebNN lock annotation, so that redundant patch is
+explicitly removed from the dependency series. Upstream's macOS locale resolver
+is retained alongside Discord's empty-localization guard. Exact reasons are
+recorded in `ports.46.dependency_notes`.
+
+The stale generated FFmpeg roll is replaced by `roll_ffmpeg_linux_x64.patch`.
+It was generated using the patched `media/ffmpeg/scripts/build_ffmpeg.py linux
+x64 --branding Chrome`, followed by `robosushi.py --import-only`, with Chromium's
+pinned Clang. The standalone FFmpeg build and upstream license checks pass. The
+new Linux x64 source lists override the upstream GN lists only for that target;
+other target lists are retained. Only Linux x64 is qualified by this project.
+The generated configuration preserves Discord's GIF, AAC/MP4/file and dynamically
+loaded OpenH264 functionality. It is committed as a patch, so ordinary CI builds
+do not regenerate it or need the standalone generation dependencies.

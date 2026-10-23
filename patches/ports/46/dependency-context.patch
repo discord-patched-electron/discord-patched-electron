@@ -1,0 +1,2486 @@
+diff --git a/patches/chromium/.patches b/patches/chromium/.patches
+index d49f4a6946c8e6f47d625299be441b41ac00a9d8..79cec8ffa1fa9b50855cc04011e5cd73dfdc9e50 100644
+--- a/patches/chromium/.patches
++++ b/patches/chromium/.patches
+@@ -160,7 +160,6 @@ remove_ffmpeg_h264_decoder_and_parser.patch
+ add_recording_compilation_timing_for_scripts.patch
+ fix_middle_click_autoscroll_under_page_zoom.patch
+ add_missing_coregraphics_include.patch
+-add_missing_lock_annotation.patch
+ fix_requestwindow_to_allow_opening_documentpip.patch
+ fix_skip_cc_wrapper_for_clang-cl_assembly_on_win-arm64.patch
+ fix_recover_from_renderprocesshost_reuse_race.patch
+diff --git a/patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch b/patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch
+index d5156582ae45615ca952fd3dedf49b69b78bd850..4f9ef5a53cc5041dca59a442f8b2a0da89e05c1f 100644
+--- a/patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch
++++ b/patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch
+@@ -5,10 +5,10 @@ Subject: add media foundation h264 decode to ffmpeg
+ 
+ 
+ diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+-index d4f038983987bf71cb44b25edc03a6cd1d72196c..73b064808ebf833224298563dbd07f0b8b35ca3c 100644
++index aca2627015bec55846b892886b3fe955cb614325..147983c1d756253e68669c275331b62ec5eb366e 100644
+ --- a/content/browser/renderer_host/render_process_host_impl.cc
+ +++ b/content/browser/renderer_host/render_process_host_impl.cc
+-@@ -4008,6 +4008,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
++@@ -4079,6 +4079,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+        switches::kTextGamma,
+        switches::kTrySupportedChannelLayouts,
+        switches::kRaiseTimerFrequency,
+@@ -18,11 +18,11 @@ index d4f038983987bf71cb44b25edc03a6cd1d72196c..73b064808ebf833224298563dbd07f0b
+  #if BUILDFLAG(IS_OZONE)
+        switches::kOzonePlatform,
+ diff --git a/media/base/media_switches.cc b/media/base/media_switches.cc
+-index 179e14dfddf5bd0ef4b391dc8a865d8c49f5b6b2..2f762ce65834cb423e1e04a787215c21a66da362 100644
++index 6ddd8169a21ce367dd8ea9c3732f96b0108fbfa9..32d9c78cf6ffa216d85a04b389f6fcc9631e1f5b 100644
+ --- a/media/base/media_switches.cc
+ +++ b/media/base/media_switches.cc
+-@@ -303,6 +303,15 @@ const char kAlsaOutputDevice[] = "alsa-output-device";
+- #endif  // BUILDFLAG(IS_LINUX) || ...
++@@ -302,6 +302,15 @@ const char kAlsaOutputDevice[] = "alsa-output-device";
++         // BUILDFLAG(IS_FREEBSD) || BUILDFLAG(IS_SOLARIS)
+  
+  #if BUILDFLAG(IS_WIN)
+ +// When enabled, FFmpegVideoDecoder will use
+@@ -38,10 +38,10 @@ index 179e14dfddf5bd0ef4b391dc8a865d8c49f5b6b2..2f762ce65834cb423e1e04a787215c21
+  // Leads to lower latencies for audio streams which uses the
+  // AudioParameters::AUDIO_PCM_LOW_LATENCY audio path.
+ diff --git a/media/base/media_switches.h b/media/base/media_switches.h
+-index a510eb58b0fb6b822545c0ed13516ecebc2276d9..0ac83eed44fbff97896956d89d4aff20caf749bb 100644
++index 85e5f08b56bca59d906ffa1e1157a89462379c68..6d03bdf565b63932ab8d2152984933d564a35ae0 100644
+ --- a/media/base/media_switches.h
+ +++ b/media/base/media_switches.h
+-@@ -102,6 +102,8 @@ MEDIA_EXPORT extern const char kEnableExclusiveAudio[];
++@@ -103,6 +103,8 @@ MEDIA_EXPORT extern const char kEnableExclusiveAudio[];
+  MEDIA_EXPORT extern const char kForceWaveAudio[];
+  MEDIA_EXPORT extern const char kTrySupportedChannelLayouts[];
+  MEDIA_EXPORT extern const char kWaveOutBuffers[];
+@@ -51,10 +51,10 @@ index a510eb58b0fb6b822545c0ed13516ecebc2276d9..0ac83eed44fbff97896956d89d4aff20
+  
+  #if BUILDFLAG(USE_CRAS)
+ diff --git a/media/ffmpeg/ffmpeg_common.cc b/media/ffmpeg/ffmpeg_common.cc
+-index 280dce68853c12508ab94bd3c9516896db963664..483138ccf1ccb72fb3dde4bdecc957d4c535105d 100644
++index e4c443001dba3beafeb64d88a492ea52bf39679c..45eb0b391b39d0393feda672130b41533906ec8e 100644
+ --- a/media/ffmpeg/ffmpeg_common.cc
+ +++ b/media/ffmpeg/ffmpeg_common.cc
+-@@ -69,7 +69,7 @@ VideoColorSpace GetGuessedColorSpace(const VideoColorSpace& color_space) {
++@@ -65,7 +65,7 @@ VideoColorSpace GetGuessedColorSpace(const VideoColorSpace& color_space) {
+  const char* GetAllowedVideoDecoders() {
+    // This should match the configured lists in //third_party/ffmpeg.
+  #if BUILDFLAG(USE_PROPRIETARY_CODECS) && BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
+@@ -63,7 +63,7 @@ index 280dce68853c12508ab94bd3c9516896db963664..483138ccf1ccb72fb3dde4bdecc957d4
+  #else
+    return "";
+  #endif
+-@@ -959,6 +959,7 @@ void VideoDecoderConfigToAVCodecContext(
++@@ -951,6 +951,7 @@ void VideoDecoderConfigToAVCodecContext(
+    codec_context->profile = VideoCodecProfileToProfileID(config.profile());
+    codec_context->coded_width = config.coded_size().width();
+    codec_context->coded_height = config.coded_size().height();
+@@ -72,10 +72,10 @@ index 280dce68853c12508ab94bd3c9516896db963664..483138ccf1ccb72fb3dde4bdecc957d4
+      codec_context->color_range = AVCOL_RANGE_JPEG;
+    }
+ diff --git a/media/ffmpeg/scripts/build_ffmpeg.py b/media/ffmpeg/scripts/build_ffmpeg.py
+-index b150ed49da25b321ab3e4e20eea1cae61d96001d..43205347d1bce8575840a9a08507ad0c783c83fe 100755
++index da7971926da34f875295bbeec6fc0d90ec45f141..1debe52133d42a26b832202381810f53e377179f 100755
+ --- a/media/ffmpeg/scripts/build_ffmpeg.py
+ +++ b/media/ffmpeg/scripts/build_ffmpeg.py
+-@@ -970,6 +970,8 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
++@@ -975,6 +975,8 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+              '--toolchain=msvc',
+              '--extra-cflags=-I' +
+              os.path.join(FFMPEG_DIR, 'chromium/include/win'),
+@@ -84,7 +84,7 @@ index b150ed49da25b321ab3e4e20eea1cae61d96001d..43205347d1bce8575840a9a08507ad0c
+          ])
+  
+          if target_arch == 'x64':
+-@@ -991,8 +993,10 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
++@@ -996,8 +998,10 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+  
+      # Google Chrome specific configuration.
+      configure_flags['Chrome'].extend([
+diff --git a/patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch b/patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch
+index 6d30f9f77b5e5f792dbfb0ac2b9565f2602c6638..eea2b44277362462df35242d2560363e01f1ec8b 100644
+--- a/patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch
++++ b/patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch
+@@ -5,7 +5,7 @@ Subject: [av] add ability to get native gpu-backed textures out of chromium
+ 
+ 
+ diff --git a/content/browser/media/audio_output_stream_broker.cc b/content/browser/media/audio_output_stream_broker.cc
+-index f5c460377e442bd13f421c36c4edee3c20763a29..2725635183c082328aa0e3907484c867cef9fca8 100644
++index ec1f5a20ddf37500310514da38186f99d6626592..ee1ee9c91070a236398105b5a89e4cfecf3820f3 100644
+ --- a/content/browser/media/audio_output_stream_broker.cc
+ +++ b/content/browser/media/audio_output_stream_broker.cc
+ @@ -77,6 +77,7 @@ AudioOutputStreamBroker::AudioOutputStreamBroker(
+@@ -16,7 +16,7 @@ index f5c460377e442bd13f421c36c4edee3c20763a29..2725635183c082328aa0e3907484c867
+      DeleterCallback deleter,
+      mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient> client)
+      : AudioStreamBroker(render_process_id, render_frame_id),
+-@@ -84,6 +85,7 @@ AudioOutputStreamBroker::AudioOutputStreamBroker(
++@@ -86,6 +87,7 @@ AudioOutputStreamBroker::AudioOutputStreamBroker(
+        output_device_id_(output_device_id),
+        params_(params),
+        group_id_(group_id),
+@@ -24,7 +24,7 @@ index f5c460377e442bd13f421c36c4edee3c20763a29..2725635183c082328aa0e3907484c867
+        deleter_(std::move(deleter)),
+        client_(std::move(client)),
+        observer_(render_process_id, render_frame_id, stream_id),
+-@@ -176,7 +178,7 @@ void AudioOutputStreamBroker::CreateStream(
++@@ -206,7 +208,7 @@ void AudioOutputStreamBroker::CreateStream(
+          MediaInternals::GetInstance()->CreateMojoAudioLog(
+              media::AudioLogFactory::AudioComponent::kAudioOuputController,
+              log_component_id, render_process_id(), render_frame_id()),
+@@ -33,7 +33,7 @@ index f5c460377e442bd13f421c36c4edee3c20763a29..2725635183c082328aa0e3907484c867
+          base::BindOnce(&AudioOutputStreamBroker::StreamCreated,
+                         weak_ptr_factory_.GetWeakPtr(), std::move(stream)));
+    } else {
+-@@ -185,7 +187,7 @@ void AudioOutputStreamBroker::CreateStream(
++@@ -215,7 +217,7 @@ void AudioOutputStreamBroker::CreateStream(
+          MediaInternals::GetInstance()->CreateMojoAudioLog(
+              media::AudioLogFactory::AudioComponent::kAudioOuputController,
+              log_component_id, render_process_id(), render_frame_id()),
+@@ -43,7 +43,7 @@ index f5c460377e442bd13f421c36c4edee3c20763a29..2725635183c082328aa0e3907484c867
+                         weak_ptr_factory_.GetWeakPtr(), std::move(stream)));
+    }
+ diff --git a/content/browser/media/audio_output_stream_broker.h b/content/browser/media/audio_output_stream_broker.h
+-index d9d9d12d153dcd9bf6e73b5dde6480ddabd2f9e1..da11c75014d79631b670ecd4137c792954c38ab7 100644
++index f543cfdb8c509c1eaf8dbff747c57e06d360ed06..fcc280399d4d4387cd9e0d95136a05fd47edaa14 100644
+ --- a/content/browser/media/audio_output_stream_broker.h
+ +++ b/content/browser/media/audio_output_stream_broker.h
+ @@ -6,6 +6,7 @@
+@@ -54,7 +54,7 @@ index d9d9d12d153dcd9bf6e73b5dde6480ddabd2f9e1..da11c75014d79631b670ecd4137c7929
+  
+  #include "base/functional/callback.h"
+  #include "base/memory/weak_ptr.h"
+-@@ -40,6 +41,7 @@ class CONTENT_EXPORT AudioOutputStreamBroker final
++@@ -40,6 +41,7 @@ class CONTENT_EXPORT AudioOutputStreamBroker
+        const std::string& output_device_id,
+        const media::AudioParameters& params,
+        const base::UnguessableToken& group_id,
+@@ -62,7 +62,7 @@ index d9d9d12d153dcd9bf6e73b5dde6480ddabd2f9e1..da11c75014d79631b670ecd4137c7929
+        DeleterCallback deleter,
+        mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient>
+            client);
+-@@ -82,6 +84,7 @@ class CONTENT_EXPORT AudioOutputStreamBroker final
++@@ -90,6 +92,7 @@ class CONTENT_EXPORT AudioOutputStreamBroker
+    std::string output_device_id_;
+    const media::AudioParameters params_;
+    const base::UnguessableToken group_id_;
+@@ -103,10 +103,10 @@ index a5eb25c65132c67e6fe89d94fc175063fe309270..1c6268cc2121e591e4abc9b1b0389648
+        mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient> client)
+        final;
+ diff --git a/content/browser/media/forwarding_audio_stream_factory.cc b/content/browser/media/forwarding_audio_stream_factory.cc
+-index dd812d386a0b17d8d3e402bf2832c695e17625a4..143049c9af9db90aa00513985c38fd013b37c9d7 100644
++index 67649b167b160248ccaa49347cba1012e3903077..c50f214f119f0a1a338afbe5d63ea2070c3d7e03 100644
+ --- a/content/browser/media/forwarding_audio_stream_factory.cc
+ +++ b/content/browser/media/forwarding_audio_stream_factory.cc
+-@@ -112,6 +112,7 @@ void ForwardingAudioStreamFactory::Core::CreateOutputStream(
++@@ -114,6 +114,7 @@ void ForwardingAudioStreamFactory::Core::CreateOutputStream(
+      int render_process_id,
+      int render_frame_id,
+      const GlobalRenderFrameHostToken& main_frame_token,
+@@ -114,7 +114,7 @@ index dd812d386a0b17d8d3e402bf2832c695e17625a4..143049c9af9db90aa00513985c38fd01
+      const std::string& device_id,
+      const media::AudioParameters& params,
+      mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient> client) {
+-@@ -122,6 +123,7 @@ void ForwardingAudioStreamFactory::Core::CreateOutputStream(
++@@ -124,6 +125,7 @@ void ForwardingAudioStreamFactory::Core::CreateOutputStream(
+        .insert(broker_factory_->CreateAudioOutputStreamBroker(
+            render_process_id, render_frame_id, main_frame_token,
+            ++stream_id_counter_, device_id, params, group_id_,
+@@ -123,7 +123,7 @@ index dd812d386a0b17d8d3e402bf2832c695e17625a4..143049c9af9db90aa00513985c38fd01
+                           base::Unretained(this)),
+            std::move(client)))
+ diff --git a/content/browser/media/forwarding_audio_stream_factory.h b/content/browser/media/forwarding_audio_stream_factory.h
+-index 0a12aaa7eee7253475ab8bf77e5b1cbc0415e1a7..756dcf296e21574db3f68b84700ee7ed439ff8c0 100644
++index 6904988ce505960461d0bd9a869cb7c9f23f9fc8..8d6eead54e365516a5969980f7a3ca852ed9b2e9 100644
+ --- a/content/browser/media/forwarding_audio_stream_factory.h
+ +++ b/content/browser/media/forwarding_audio_stream_factory.h
+ @@ -89,6 +89,7 @@ class CONTENT_EXPORT ForwardingAudioStreamFactory final
+@@ -135,7 +135,7 @@ index 0a12aaa7eee7253475ab8bf77e5b1cbc0415e1a7..756dcf296e21574db3f68b84700ee7ed
+          const media::AudioParameters& params,
+          mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient>
+ diff --git a/content/browser/renderer_host/media/render_frame_audio_output_stream_factory.cc b/content/browser/renderer_host/media/render_frame_audio_output_stream_factory.cc
+-index 96b8bcd7cb6949aad27d31105481b6f38893f88d..29aee314ae188019818126b68d111c68102868c8 100644
++index 0a88ccb1d9a2a58b2c158329a6b8b038b94d4ed5..e29f94d2184f1b48c2e12f688e551c71057040ce 100644
+ --- a/content/browser/renderer_host/media/render_frame_audio_output_stream_factory.cc
+ +++ b/content/browser/renderer_host/media/render_frame_audio_output_stream_factory.cc
+ @@ -11,6 +11,7 @@
+@@ -197,11 +197,11 @@ index 96b8bcd7cb6949aad27d31105481b6f38893f88d..29aee314ae188019818126b68d111c68
+        global_render_frame_host_id_(frame->GetGlobalId()),
+        main_frame_token_(frame->GetMainFrame()->GetGlobalFrameToken()),
+ +      source_frame_tokens_(GetSourceFrameTokens(frame)),
+-       authorization_handler_(audio_system, media_stream_manager, process_id_) {
+-   CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
+- 
++       authorization_handler_(audio_system,
++                              media_stream_manager,
++                              global_render_frame_host_id_) {
+ diff --git a/content/public/browser/audio_stream_broker.h b/content/public/browser/audio_stream_broker.h
+-index 1087fe4832d59ecfcd8474db992923b820bac468..166b91bef4e3c73d148e8a82a286b8088b9af29f 100644
++index 0d818bcb4127e01000f160888298e099d95a8a6d..b76e6c34ed05e6353a92e8f0137ea94084b9a7fd 100644
+ --- a/content/public/browser/audio_stream_broker.h
+ +++ b/content/public/browser/audio_stream_broker.h
+ @@ -8,8 +8,10 @@
+@@ -215,7 +215,7 @@ index 1087fe4832d59ecfcd8474db992923b820bac468..166b91bef4e3c73d148e8a82a286b808
+  #include "content/common/content_export.h"
+  #include "content/public/browser/global_routing_id.h"
+  #include "media/mojo/mojom/audio_output_stream.mojom.h"
+-@@ -123,6 +125,7 @@ class CONTENT_EXPORT AudioStreamBrokerFactory {
++@@ -126,6 +128,7 @@ class CONTENT_EXPORT AudioStreamBrokerFactory {
+        const std::string& output_device_id,
+        const media::AudioParameters& params,
+        const base::UnguessableToken& group_id,
+@@ -410,10 +410,10 @@ index 89ced9d4c3a111c3c99aedf7964b21be6faf0df6..9e63ecb49bd415f7cc4601f8ad0e983b
+                          std::unique_ptr<Matcher> matcher);
+    ~LoopbackGroupObserver() override;
+ diff --git a/services/audio/loopback_stream.cc b/services/audio/loopback_stream.cc
+-index 57c15f52216ff7eceb11e4378c03b0292455683c..aaf250dea768296a3b1972d161bf55aff56d13ea 100644
++index 2d15db741e6e5fbf346d5053af1962d204dbf48a..1b154f458dd3865e9a1c7364585d47fa994fbad3 100644
+ --- a/services/audio/loopback_stream.cc
+ +++ b/services/audio/loopback_stream.cc
+-@@ -37,14 +37,33 @@ LoopbackStream::LoopbackStream(
++@@ -36,14 +36,33 @@ LoopbackStream::LoopbackStream(
+      uint32_t shared_memory_count,
+      LoopbackCoordinator* coordinator,
+      const base::UnguessableToken& group_id)
+@@ -579,7 +579,7 @@ index 6ac239329aacadd0ae4b2c12c43896ea297a132b..758212c8c49d564829842ee210e3b5f5
+    mojo::Receiver<media::mojom::AudioStreamFactory> receiver_{this};
+  
+ diff --git a/services/audio/public/cpp/output_device.cc b/services/audio/public/cpp/output_device.cc
+-index 8670782afe26c0b399867db78618ee12038fc928..32508a306718719330a58d42703a8c4927eb08be 100644
++index aee8abe9bded17fedf21ae15d51f6746d4a00ca1..2318f8c425863a5a23baf01e0ae9f379b31ad7f4 100644
+ --- a/services/audio/public/cpp/output_device.cc
+ +++ b/services/audio/public/cpp/output_device.cc
+ @@ -31,6 +31,7 @@ OutputDevice::OutputDevice(
+@@ -792,12 +792,12 @@ index 726882dee485542f95d14ceaba75691bfddb6d16..80854b816f1e6ac88f0c99ec35429b1c
+    // shadow tree, per https://w3c.github.io/webcomponents/spec/shadow/.
+    mojom::TreeScopeType GetTreeScopeType() const { return scope_; }
+ diff --git a/third_party/blink/renderer/core/css/resolver/style_adjuster.cc b/third_party/blink/renderer/core/css/resolver/style_adjuster.cc
+-index f2efcb2f53de8f126c6bfe92f20f45126428c109..27f844004132053b4b1a5e8b485539d92ecc6781 100644
++index 6cea8d84bc2423c97472e4cd416f27d5d450208b..567ed4f102272d7d00d0eb512c5de6b1bf1f6021 100644
+ --- a/third_party/blink/renderer/core/css/resolver/style_adjuster.cc
+ +++ b/third_party/blink/renderer/core/css/resolver/style_adjuster.cc
+-@@ -1249,6 +1249,11 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
+-   // and this needs to override those changes.
+-   AdjustStyleForFirstLetter(builder, parent_style);
++@@ -1255,6 +1255,11 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
++                              layout_parent_style);
++   }
+  
+ +  if (element && builder.StyleType() == kPseudoIdNone &&
+ +      element->ForcesElementCaptureEligibility()) {
+@@ -806,12 +806,12 @@ index f2efcb2f53de8f126c6bfe92f20f45126428c109..27f844004132053b4b1a5e8b485539d9
+ +
+    builder.SetForcesStackingContext(false);
+  
+-   // z-index is only applicable if positioned, or if a flex/grid/etc item.
++   // https://github.com/WICG/html-in-canvas
+ diff --git a/third_party/blink/renderer/core/dom/element.cc b/third_party/blink/renderer/core/dom/element.cc
+-index ea4cf128bb7d96f11c343f98cc69a5ad75475eee..e2a84445814f6e414ab10784935bae4e1a508ded 100644
++index 38eb73c687890122688a8cd3a1c8d6511a98f855..af91673cf0e067bec40e87bd529af026966a619a 100644
+ --- a/third_party/blink/renderer/core/dom/element.cc
+ +++ b/third_party/blink/renderer/core/dom/element.cc
+-@@ -7341,8 +7341,6 @@ const TrackedElementSubRects* Element::GetTrackedElementSubRects() const {
++@@ -7693,8 +7693,6 @@ const TrackedElementSubRects* Element::GetTrackedElementSubRects() const {
+  }
+  
+  void Element::SetRestrictionTargetId(std::unique_ptr<RestrictionTargetId> id) {
+@@ -820,7 +820,7 @@ index ea4cf128bb7d96f11c343f98cc69a5ad75475eee..e2a84445814f6e414ab10784935bae4e
+    NodeRareData& rare_data = EnsureRareData();
+    CHECK(!rare_data.GetRestrictionTargetId());
+  
+-@@ -7410,6 +7408,15 @@ void Element::SetIsEligibleForElementCapture(bool value) {
++@@ -7760,6 +7758,15 @@ void Element::SetIsEligibleForElementCapture(bool value) {
+    return SetElementFlag(ElementFlags::kIsEligibleForElementCapture, value);
+  }
+  
+@@ -837,10 +837,10 @@ index ea4cf128bb7d96f11c343f98cc69a5ad75475eee..e2a84445814f6e414ab10784935bae4e
+    DCHECK(definition);
+    DCHECK(!GetCustomElementDefinition());
+ diff --git a/third_party/blink/renderer/core/dom/element.h b/third_party/blink/renderer/core/dom/element.h
+-index 2ec1f99d833e6ef7c91fc9b67a741b69956f730f..b181ae8ff9aa9d8d6bd3f80749f6f7c96d745dbe 100644
++index 813a0bdbdb0c87897a000b064d39947c026d62a6..1968fa1f31266f84f2f92c130187ae3eec34cb45 100644
+ --- a/third_party/blink/renderer/core/dom/element.h
+ +++ b/third_party/blink/renderer/core/dom/element.h
+-@@ -205,8 +205,9 @@ enum class ElementFlags {
++@@ -221,8 +221,9 @@ enum class ElementFlags {
+    kIsEligibleForElementCapture = 1 << 6,
+    kHasCheckedElementCaptureEligibility = 1 << 7,
+    kIsUnboundedElementActive = 1 << 8,
+@@ -851,7 +851,7 @@ index 2ec1f99d833e6ef7c91fc9b67a741b69956f730f..b181ae8ff9aa9d8d6bd3f80749f6f7c9
+  };
+  
+  enum class ShadowRootMode;
+-@@ -1066,6 +1067,13 @@ class CORE_EXPORT Element : public ContainerNode {
++@@ -1106,6 +1107,13 @@ class CORE_EXPORT Element : public ContainerNode {
+    // has a RestrictionTargetId.
+    void SetIsEligibleForElementCapture(bool value);
+  
+@@ -866,10 +866,10 @@ index 2ec1f99d833e6ef7c91fc9b67a741b69956f730f..b181ae8ff9aa9d8d6bd3f80749f6f7c9
+  
+    // Returns true if the attachment was successful.
+ diff --git a/third_party/blink/renderer/core/dom/node_rare_data.h b/third_party/blink/renderer/core/dom/node_rare_data.h
+-index ef20d672b3d82db6ed46303e98f5d6bc969cbe49..8e115ff961d131672a7c907b8f5013e87cbb079b 100644
++index ee97bc28a0061959540f40926cf2b8e2bd49d4cf..88b19eb901b5c91bd95b45d3d0d4b642f1676d63 100644
+ --- a/third_party/blink/renderer/core/dom/node_rare_data.h
+ +++ b/third_party/blink/renderer/core/dom/node_rare_data.h
+-@@ -134,7 +134,7 @@ class CORE_EXPORT NodeRareData final : public GarbageCollected<NodeRareData> {
++@@ -138,7 +138,7 @@ class CORE_EXPORT NodeRareData final : public GarbageCollected<NodeRareData> {
+  
+    enum {
+      kConnectedFrameCountBits = 10,  // Must fit Page::maxNumberOfFrames.
+@@ -921,19 +921,21 @@ index cbbc4e1e82c4d251f217f5e9d3fe1d2510aee24c..658d8f5c8bba423910da4ceeb73feb93
+    if (Frame* frame = ToCoreFrame(*this))
+      return frame->IsLoading();
+ diff --git a/third_party/blink/renderer/modules/mediastream/media_devices.cc b/third_party/blink/renderer/modules/mediastream/media_devices.cc
+-index 4fe2cb45a008988d10548632d027e63dddbb21e9..eb760e1e8bac650c4f97818afe2a4aa5bb391e41 100644
++index cbdf6f2c9b6b4161a9a62d584daa048b6f5aeaca..f5dea63e9fdd3ec850ab3afdabcb10bf0b9a844d 100644
+ --- a/third_party/blink/renderer/modules/mediastream/media_devices.cc
+ +++ b/third_party/blink/renderer/modules/mediastream/media_devices.cc
+-@@ -1625,6 +1625,17 @@ void MediaDevices::ResolveRestrictionTargetPromise(Element* element,
+-   ScriptPromiseResolver<RestrictionTarget>* const resolver = it->value;
++@@ -1635,6 +1635,19 @@ void MediaDevices::ResolveRestrictionTargetPromise(Element* element,
++       std::move(it->value);
+    restriction_target_resolvers_.erase(it);
+  
+ +  // The element may have been tagged for capture while this was in flight.
+-+  // Known design: that id isn't browser-registered, so restrictTo() rejects it.
+++  // That id is not browser-registered, so restrictTo() still rejects it.
+ +  if (const RestrictionTargetId* existing = element->GetRestrictionTargetId()) {
+ +    const String existing_str(
+ +        blink::TokenToGUID(existing->value()).AsLowercaseString());
+-+    resolver->Resolve(MakeGarbageCollected<RestrictionTarget>(existing_str));
+++    for (auto& resolver : resolvers) {
+++      resolver->Resolve(MakeGarbageCollected<RestrictionTarget>(existing_str));
+++    }
+ +    RecordUma(SubCaptureTarget::Type::kRestrictionTarget,
+ +              ProduceTargetPromiseResult::kPromiseResolved);
+ +    return;
+@@ -941,4 +943,4 @@ index 4fe2cb45a008988d10548632d027e63dddbb21e9..eb760e1e8bac650c4f97818afe2a4aa5
+ +
+    const base::Token token = SubCaptureTargetIdToToken(id);
+    if (token.is_zero()) {
+-     resolver->Reject();
++     for (auto& resolver : resolvers) {
+diff --git a/patches/chromium/crash_include_code_integrity_scan_in_crash_handler_and_put_results.patch b/patches/chromium/crash_include_code_integrity_scan_in_crash_handler_and_put_results.patch
+index 046e1e191de978b4769fb5e636fc033ae25295d1..85a7c5713cfcdd2d04cdee8bc6ae8a5c8ff8a0a3 100644
+--- a/patches/chromium/crash_include_code_integrity_scan_in_crash_handler_and_put_results.patch
++++ b/patches/chromium/crash_include_code_integrity_scan_in_crash_handler_and_put_results.patch
+@@ -5,10 +5,10 @@ Subject: [crash] Include code integrity scan in crash handler and put results
+  in .dmp file
+ 
+ diff --git a/components/crash/core/app/BUILD.gn b/components/crash/core/app/BUILD.gn
+-index b25d2303fd3056a6e063bb59b9a6448c1a6e249f..27d26b6ce4435ed6e06a7264ae369f586233d1d0 100644
++index ffbbd8cad579f1ddd407a4a52b08b3104a7c1995..1690ddfafd41c1397bdb984a0a1609c6881f6a8b 100644
+ --- a/components/crash/core/app/BUILD.gn
+ +++ b/components/crash/core/app/BUILD.gn
+-@@ -160,6 +160,8 @@ if (is_win) {
++@@ -205,6 +205,8 @@ if (is_win) {
+      sources = [
+        "crash_switches.cc",
+        "crash_switches.h",
+@@ -17,7 +17,7 @@ index b25d2303fd3056a6e063bb59b9a6448c1a6e249f..27d26b6ce4435ed6e06a7264ae369f58
+        "fallback_crash_handler_launcher_win.cc",
+        "fallback_crash_handler_launcher_win.h",
+        "fallback_crash_handler_win.cc",
+-@@ -180,6 +182,7 @@ if (is_win) {
++@@ -227,6 +229,7 @@ if (is_win) {
+        "//third_party/crashpad/crashpad/client",
+        "//third_party/crashpad/crashpad/handler",
+        "//third_party/crashpad/crashpad/minidump",
+@@ -772,18 +772,18 @@ index 0000000000000000000000000000000000000000..7016c6c45dc2eaa1c2cfca9a38a61e2e
+ +
+ +#endif // COMPONENTS_CRASH_CORE_APP_DISCORD_CODE_INTEGRITY_WIN_H_
+ diff --git a/components/crash/core/app/run_as_crashpad_handler_win.cc b/components/crash/core/app/run_as_crashpad_handler_win.cc
+-index eb75397c8721a8040922670a4f61b8dc584eb8b8..e18e176a852e06eb31b50a6fce9f103b59f3bfc5 100644
++index afe3df8856f40bac5dd5638c434bef61a14301f9..2ed3c8ae87305eefb21ca1c3c2abd917483ff2de 100644
+ --- a/components/crash/core/app/run_as_crashpad_handler_win.cc
+ +++ b/components/crash/core/app/run_as_crashpad_handler_win.cc
+-@@ -17,6 +17,7 @@
++@@ -18,6 +18,7 @@
+  #include "base/strings/string_util.h"
+  #include "base/strings/utf_string_conversions.h"
+  #include "base/threading/platform_thread.h"
+ +#include "components/crash/core/app/discord_code_integrity_win.h"
++ #include "components/crash/core/app/shared_memory_user_stream_args.h"
++ #include "components/crash/core/app/shared_memory_user_stream_data_source.h"
+  #include "components/gwp_asan/buildflags/buildflags.h"
+- #include "components/stability_report/user_stream_data_source_win.h"
+- #include "third_party/crashpad/crashpad/client/crashpad_info.h"
+-@@ -88,6 +89,9 @@ int RunAsCrashpadHandler(const base::CommandLine& command_line,
++@@ -103,6 +104,9 @@ int RunAsCrashpadHandler(const base::CommandLine& command_line,
+    user_stream_data_sources.push_back(
+        std::make_unique<stability_report::UserStreamDataSourceWin>());
+  
+diff --git a/patches/chromium/direct_video_sinks.patch b/patches/chromium/direct_video_sinks.patch
+index df857e42cbe299d702399e7ffae0d1915064021e..326f78e14cf4c3211017cc987db309f8816c9f70 100644
+--- a/patches/chromium/direct_video_sinks.patch
++++ b/patches/chromium/direct_video_sinks.patch
+@@ -7,7 +7,7 @@ allows forwarding MediaStreams (specific use case: ones created from
+ captureStream() on video and canvas elements) to discord native modules.
+ 
+ diff --git a/third_party/blink/public/web/web_v8_features.h b/third_party/blink/public/web/web_v8_features.h
+-index f735897d455ab6d348ece19eee987d94f270325c..09364ad0b665cf6a9891b6fe2f07a55822bba6bf 100644
++index e5993d541af75e30a3250f9db254ed9bd55ffd62..795e56f2a7d63a07dd3f540f29194d5f74f2bbc7 100644
+ --- a/third_party/blink/public/web/web_v8_features.h
+ +++ b/third_party/blink/public/web/web_v8_features.h
+ @@ -25,6 +25,7 @@ namespace blink {
+@@ -19,10 +19,10 @@ index f735897d455ab6d348ece19eee987d94f270325c..09364ad0b665cf6a9891b6fe2f07a558
+    static void EnableMojoJSAndUseBroker(
+        v8::Local<v8::Context> context,
+ diff --git a/third_party/blink/renderer/bindings/generated_in_modules.gni b/third_party/blink/renderer/bindings/generated_in_modules.gni
+-index 065779e15ad81c7616c0a6a852ac87c802f66afe..e5f1675f336657ed55cf7730ff375f771a1dca15 100644
++index b56e9a96ebd3d598e53848fa955d02ac45628900..35c27b70f0201e0e200cc089057486ac5cecd933 100644
+ --- a/third_party/blink/renderer/bindings/generated_in_modules.gni
+ +++ b/third_party/blink/renderer/bindings/generated_in_modules.gni
+-@@ -2275,6 +2275,8 @@ generated_interface_sources_in_modules = [
++@@ -2277,6 +2277,8 @@ generated_interface_sources_in_modules = [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_directory_reader.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_directory_reader_sync.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_directory_reader_sync.h",
+@@ -32,10 +32,10 @@ index 065779e15ad81c7616c0a6a852ac87c802f66afe..e5f1675f336657ed55cf7730ff375f77
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_document.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_document_picture_in_picture.cc",
+ diff --git a/third_party/blink/renderer/bindings/idl_in_modules.gni b/third_party/blink/renderer/bindings/idl_in_modules.gni
+-index 04825bb72d1213411bf9fc87bb128340e9f89f6c..7142c7705ca46e23979061a75983c6710417d01b 100644
++index 68b809c784a4c9e4c938726d7125497f2747974c..8165970ca547c919d8acd6e6cdd45b0a5b733eb0 100644
+ --- a/third_party/blink/renderer/bindings/idl_in_modules.gni
+ +++ b/third_party/blink/renderer/bindings/idl_in_modules.gni
+-@@ -244,6 +244,7 @@ static_idl_files_in_modules = [
++@@ -253,6 +253,7 @@ static_idl_files_in_modules = [
+    "//third_party/blink/renderer/modules/device_orientation/window_device_orientation.idl",
+    "//third_party/blink/renderer/modules/device_posture/device_posture.idl",
+    "//third_party/blink/renderer/modules/device_posture/navigator_device_posture.idl",
+@@ -44,12 +44,12 @@ index 04825bb72d1213411bf9fc87bb128340e9f89f6c..7142c7705ca46e23979061a75983c671
+    "//third_party/blink/renderer/modules/document_picture_in_picture/document_picture_in_picture_event.idl",
+    "//third_party/blink/renderer/modules/document_picture_in_picture/document_picture_in_picture_event_init.idl",
+ diff --git a/third_party/blink/renderer/core/context_features/context_feature_settings.h b/third_party/blink/renderer/core/context_features/context_feature_settings.h
+-index 4dddc36f8c67dd4348a7c0fe2d8eceef135f1b9d..c23a40fe8298927d4d78907bf271b648f328f1a2 100644
++index 5a112bc80291c05fa9bb2ebe4aec48c65e645910..dcf021ac0c1c90d29eed8e028d4eab59829ff0e9 100644
+ --- a/third_party/blink/renderer/core/context_features/context_feature_settings.h
+ +++ b/third_party/blink/renderer/core/context_features/context_feature_settings.h
+-@@ -67,11 +67,16 @@ class CORE_EXPORT ContextFeatureSettings final
+-     return enable_private_aggregation_in_shared_storage_;
++@@ -64,11 +64,16 @@ class CORE_EXPORT ContextFeatureSettings final
+    }
++   bool isUnboundedElementEnabled() const;
+  
+ +  // ContextEnabled=DiscordVideo feature
+ +  void enableDiscordVideo(bool enable) { enable_discord_video_ = enable; }
+@@ -61,14 +61,14 @@ index 4dddc36f8c67dd4348a7c0fe2d8eceef135f1b9d..c23a40fe8298927d4d78907bf271b648
+    bool enable_mojo_js_ = false;
+    bool enable_mojo_js_file_system_access_helper_ = false;
+ +  bool enable_discord_video_ = false;
+-   bool enable_private_aggregation_in_shared_storage_ = false;
+- 
+-   // Protected memory bool that indicates if MojoJS bindings are allowed to be
++   bool enable_unbounded_element_ = false;
++   bool enable_unbounded_element_privileged_ = false;
++ };
+ diff --git a/third_party/blink/renderer/core/exported/web_v8_features.cc b/third_party/blink/renderer/core/exported/web_v8_features.cc
+-index a5ba7c51beadd002a65d5042e634578483f13944..71aa9d9459f0b24994021875f7a8f9c5370feaa0 100644
++index b41c870161a06a4c336ff5e34be6b5863324d897..492991fecdc6e76afb05eff3313c2ca60e34ae7d 100644
+ --- a/third_party/blink/renderer/core/exported/web_v8_features.cc
+ +++ b/third_party/blink/renderer/core/exported/web_v8_features.cc
+-@@ -51,6 +51,15 @@ void WebV8Features::EnableMojoJS(v8::Local<v8::Context> context, bool enable) {
++@@ -52,6 +52,15 @@ void WebV8Features::EnableMojoJS(v8::Local<v8::Context> context, bool enable) {
+        ->EnableMojoJS(enable);
+  }
+  
+@@ -85,13 +85,13 @@ index a5ba7c51beadd002a65d5042e634578483f13944..71aa9d9459f0b24994021875f7a8f9c5
+  void WebV8Features::EnableMojoJSAndUseBroker(
+      v8::Local<v8::Context> context,
+ diff --git a/third_party/blink/renderer/modules/BUILD.gn b/third_party/blink/renderer/modules/BUILD.gn
+-index b144c727ac9a752e3f79549eab3d22ca21a7e305..8f2f7a80fa271c7f13f056cba41d9ef03866b561 100644
++index 9b0b898bdecf6c48b89e4caec5215335e4937cc8..c0aa761a283d7bb1204b41a9e56ace50b38fe4a1 100644
+ --- a/third_party/blink/renderer/modules/BUILD.gn
+ +++ b/third_party/blink/renderer/modules/BUILD.gn
+-@@ -89,6 +89,7 @@ component("modules") {
+-     "//third_party/blink/renderer/modules/delegated_ink",
++@@ -91,6 +91,7 @@ component("modules") {
+      "//third_party/blink/renderer/modules/device_orientation",
+      "//third_party/blink/renderer/modules/device_posture",
++     "//third_party/blink/renderer/modules/dictation",
+ +    "//third_party/blink/renderer/modules/discord_video",
+      "//third_party/blink/renderer/modules/document_metadata",
+      "//third_party/blink/renderer/modules/document_picture_in_picture",
+diff --git a/patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch b/patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch
+index 93a9b39ec6c6738f6dfe5283b6251cd4cb34a005..6651dfde1536fa2ff9f2a60caa4010e008c6da8d 100644
+--- a/patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch
++++ b/patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch
+@@ -6,36 +6,36 @@ Subject: Disable NvidiaVpSuperResolution feature by default
+ Disabling this until it can be fully tested in the discord app.
+ 
+ diff --git a/ui/gl/gl_switches.cc b/ui/gl/gl_switches.cc
+-index 21a2b69ccbe1579d0f5c66856bc7d9246b0a792d..39b260016348b679348a9662faf94873046343be 100644
++index f1ef3b5fe5e7d59ba0fa1a7e56168e311f9fd002..507038d5f1ca9517104ca2cae3e5d19747a2f8ce 100644
+ --- a/ui/gl/gl_switches.cc
+ +++ b/ui/gl/gl_switches.cc
+-@@ -293,6 +293,9 @@ BASE_FEATURE(kEGLDualGPURendering,
++@@ -387,6 +387,9 @@ BASE_FEATURE(kEGLDualGPURendering,
+  // Allow overlay swapchain to use Intel video processor for super resolution.
+  BASE_FEATURE(kIntelVpSuperResolution, base::FEATURE_DISABLED_BY_DEFAULT);
+  
+ +// Allow overlay swapchain to use NVIDIA video processor for super resolution.
+ +BASE_FEATURE(kNvidiaVpSuperResolution, base::FEATURE_DISABLED_BY_DEFAULT);
+ +
+- // Default to using ANGLE's Metal backend.
+- BASE_FEATURE(kDefaultANGLEMetal, base::FEATURE_ENABLED_BY_DEFAULT);
+- 
++ // Default to using ANGLE's Vulkan backend.
++ BASE_FEATURE(kDefaultANGLEVulkan,
++              base::FEATURE_DISABLED_BY_DEFAULT);
+ diff --git a/ui/gl/gl_switches.h b/ui/gl/gl_switches.h
+-index 54e41a46c9487988fc7fd6992347d487d9661190..5fee7cc576fa7ee55ec13c475cf707571be8f597 100644
++index fbf5f8498970424b17f6d55b7dd028d3b7c3114e..a68bd8cf327d19b0ae741649134d4ee07335d6f5 100644
+ --- a/ui/gl/gl_switches.h
+ +++ b/ui/gl/gl_switches.h
+-@@ -127,6 +127,7 @@ GL_EXPORT BASE_DECLARE_FEATURE(kDirectCompositionUnlimitedOverlays);
++@@ -142,6 +142,7 @@ GL_EXPORT BASE_DECLARE_FEATURE(kDirectCompositionUnlimitedOverlays);
+  GL_EXPORT BASE_DECLARE_FEATURE(kDesktopPlaneRemovalForMFFullScreenLetterbox);
+  GL_EXPORT BASE_DECLARE_FEATURE(kEGLDualGPURendering);
+  GL_EXPORT BASE_DECLARE_FEATURE(kIntelVpSuperResolution);
+ +GL_EXPORT BASE_DECLARE_FEATURE(kNvidiaVpSuperResolution);
+- GL_EXPORT BASE_DECLARE_FEATURE(kDefaultANGLEMetal);
+  GL_EXPORT BASE_DECLARE_FEATURE(kDefaultANGLEVulkan);
+  GL_EXPORT BASE_DECLARE_FEATURE(kTrackCurrentShaders);
++ GL_EXPORT BASE_DECLARE_FEATURE(kVulkanFromANGLE);
+ diff --git a/ui/gl/swap_chain_presenter.cc b/ui/gl/swap_chain_presenter.cc
+-index 021c6204fa1d70a987ba2461559e30add7221db2..36e521828463192493a318be27d80b4e1112ed0c 100644
++index d4a6ef6576c55236f12f40190d0a05bc7966663f..5b31fd99bccf4bf2e4244b340fe46f25a38474fe 100644
+ --- a/ui/gl/swap_chain_presenter.cc
+ +++ b/ui/gl/swap_chain_presenter.cc
+-@@ -242,7 +242,8 @@ HRESULT ToggleVpSuperResolution(UINT gpu_vendor_id,
++@@ -244,7 +244,8 @@ HRESULT ToggleVpSuperResolution(UINT gpu_vendor_id,
+      return ToggleIntelVpSuperResolution(video_context, video_processor, enable);
+    }
+  
+diff --git a/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch b/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch
+index 7a5533718b62560b0757f3e3af9da3bdb16ec096..0fe0ca28dc80d9f17dc981ed6f8107127892569a 100644
+--- a/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch
++++ b/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch
+@@ -7,10 +7,10 @@ Subject: Enabling AudioVideoTracks feature to use HTMLMediaElements
+ enables audiotrack feature
+ 
+ diff --git a/third_party/blink/renderer/platform/runtime_enabled_features.json5 b/third_party/blink/renderer/platform/runtime_enabled_features.json5
+-index ec42d8decc654df1d09efda40466f4fc2c9d5a04..71fe5ec20ba7a7347c273afd10b675e0f6194b20 100644
++index 5f0d41ffc62542748a3a77dd5895b2b9e583cc08..135e94f81d165a8298e7ee3405d448e1d862425a 100644
+ --- a/third_party/blink/renderer/platform/runtime_enabled_features.json5
+ +++ b/third_party/blink/renderer/platform/runtime_enabled_features.json5
+-@@ -757,7 +757,7 @@
++@@ -806,7 +806,7 @@
+      },
+      {
+        name: "AudioVideoTracks",
+@@ -18,4 +18,4 @@ index ec42d8decc654df1d09efda40466f4fc2c9d5a04..71fe5ec20ba7a7347c273afd10b675e0
+ +      status: "stable",
+      },
+      {
+-       // https://drafts.csswg.org/css-scroll-snap
++       // Shared MessagePort between AudioWorklet and AudioWorkletGlobalScope.
+diff --git a/patches/chromium/fix_fix_unknown_case_with_a_double-call_to_onrefreshcomplete.patch b/patches/chromium/fix_fix_unknown_case_with_a_double-call_to_onrefreshcomplete.patch
+index 127f1448294e5c0898bfdb6c00dcbdb2f4b5a1b0..648d53b733430f240e25c189f41897c5db5615c2 100644
+--- a/patches/chromium/fix_fix_unknown_case_with_a_double-call_to_onrefreshcomplete.patch
++++ b/patches/chromium/fix_fix_unknown_case_with_a_double-call_to_onrefreshcomplete.patch
+@@ -5,17 +5,17 @@ Subject: fix: fix unknown case with a double-call to OnRefreshComplete
+ 
+ 
+ diff --git a/chrome/browser/media/webrtc/desktop_media_list_base.cc b/chrome/browser/media/webrtc/desktop_media_list_base.cc
+-index f95b2230135dbcd6b19a31215d4f10be3481148c..98e4119ae6db535931718e0689e2c56caefa88fa 100644
++index 723d264a6eadd1b640b91cd2b48e0795f3346851..78407f27b2e5a7a8e136876192d44030cc69b3e1 100644
+ --- a/chrome/browser/media/webrtc/desktop_media_list_base.cc
+ +++ b/chrome/browser/media/webrtc/desktop_media_list_base.cc
+-@@ -231,8 +231,10 @@ uint32_t DesktopMediaListBase::GetImageHash(const gfx::Image& image) {
++@@ -243,8 +243,10 @@ uint32_t DesktopMediaListBase::GetImageHash(const gfx::Image& image) {
+  
+  void DesktopMediaListBase::OnRefreshComplete() {
+-   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+--  DCHECK(refresh_callback_);
++   CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M161);
++-  CHECK(refresh_callback_, base::NotFatalUntil::M161);
+ -  std::move(refresh_callback_).Run();
+-+  // Hack: Avoid calling if the callback is null in rare cases
+-+  if (!refresh_callback_.is_null()) {
+++  // Avoid invoking an already-consumed callback after a duplicate refresh.
+++  if (refresh_callback_) {
+ +    std::move(refresh_callback_).Run();
+ +  }
+  }
+diff --git a/patches/chromium/fix_validate_locale_exists_before_trying_to_use_it.patch b/patches/chromium/fix_validate_locale_exists_before_trying_to_use_it.patch
+index ec10989fae77c78d1f52e6fc9ddfac386a6bf19c..b1b923038de5e710bf6cf680e1a5a577bcd1a331 100644
+--- a/patches/chromium/fix_validate_locale_exists_before_trying_to_use_it.patch
++++ b/patches/chromium/fix_validate_locale_exists_before_trying_to_use_it.patch
+@@ -5,76 +5,25 @@ Subject: fix: validate locale exists before trying to use it
+ 
+ 
+ diff --git a/ui/base/l10n/l10n_util_mac.mm b/ui/base/l10n/l10n_util_mac.mm
+-index cad5022d82a9b4987dd07ecc38c4eddddfa07512..c23a6560dec59c92afa27251f251415798684f7d 100644
++index efc4bf25fdd46635f1f763ca8e3afef9ed40c4d9..0a168c795a4a0a710ee62dc6912f25f6ecc0c586 100644
+ --- a/ui/base/l10n/l10n_util_mac.mm
+ +++ b/ui/base/l10n/l10n_util_mac.mm
+-@@ -8,9 +8,13 @@
++@@ -8,6 +8,7 @@
+  
+  #import "base/apple/bundle_locations.h"
+  #import "base/check.h"
+-+#import "base/i18n/language_tag.h"
+-+#import "base/i18n/tag_converters.h"
+- #import "base/lazy_instance.h"
+ +#import "base/logging.h"
++ #import "base/lazy_instance.h"
+  #import "base/strings/sys_string_conversions.h"
+  #import "ui/base/l10n/l10n_util.h"
+-+#import "ui/base/resource/resource_bundle.h"
+- 
+- namespace {
+- 
+-@@ -49,18 +53,44 @@ void OverrideLocaleWithCocoaLocale() {
+-   // "Today" are in the same language as raw dates like "March 20, 1999" (Chrome
++@@ -50,6 +51,10 @@ void OverrideLocaleWithCocoaLocale() {
+    // strings resources vs ICU generated strings).  This also makes the Mac act
+    // like other Chrome platforms.
+--  NSArray* language_list = base::apple::OuterBundle().preferredLocalizations;
+--  NSString* first_locale = language_list[0];
+--  // macOS uses "_" instead of "-", so swap to get a real locale value.
+--  std::string locale_value = base::SysNSStringToUTF8(
+--      [first_locale stringByReplacingOccurrencesOfString:@"_" withString:@"-"]);
+--
+--  // On disk the "en-US" resources are just "en" (http://crbug.com/25578), so
+--  // the reverse mapping is done here to continue to feed Chrome the same values
+--  // in all cases on all platforms.  (l10n_util maps en to en-US if it gets
+--  // passed this on the command line)
+--  if (locale_value == "en")
+-+  NSArray<NSString*>* language_list =
+-+      base::apple::OuterBundle().preferredLocalizations;
++   NSArray* language_list = base::apple::OuterBundle().preferredLocalizations;
+ +  if (language_list.count == 0) {
+ +    LOG(WARNING) << "preferredLocalizations is empty; not overriding locale";
+ +    return;
+ +  }
+-+
+-+  std::string locale_value;
+-+  for (NSString* localization in language_list) {
+-+    // macOS uses "_" instead of "-", so swap to get a real locale value.
+-+    std::string candidate = base::SysNSStringToUTF8([localization
+-+        stringByReplacingOccurrencesOfString:@"_"
+-+                                  withString:@"-"]);
+-+
+-+    // On disk the "en-US" resources are just "en" (http://crbug.com/25578), so
+-+    // the reverse mapping is done here to continue to feed Chrome the same
+-+    // values in all cases on all platforms.  (l10n_util maps en to en-US if it
+-+    // gets passed this on the command line)
+-+    if (candidate == "en") {
+-+      candidate = "en-US";
+-+    }
+-+
+-+    std::optional<base::i18n::LanguageTag> candidate_tag =
+-+        base::i18n::LanguageTagConverter::GetInstance().FromString(candidate);
+-+    if (candidate_tag &&
+-+        ui::ResourceBundle::LocaleDataPakExists(
+-+            *candidate_tag, ui::ResourceBundle::Gender::kDefault)) {
+-+      locale_value = candidate;
+-+      break;
+-+    }
+-+    LOG(WARNING) << "No locale data for \"" << candidate << "\"";
+-+  }
+-+
+-+  if (locale_value.empty()) {
+-+    LOG(WARNING) << "No preferred localization has locale data; falling back "
+-+                    "to en-US";
+-     locale_value = "en-US";
+-+  }
+- 
+-   g_overridden_locale.Get() = locale_value;
+- }
++   NSString* first_locale = language_list[0];
++   // macOS uses "_" instead of "-", so swap to get a real locale value.
++   std::string locale_value = base::SysNSStringToUTF8(
+diff --git a/patches/chromium/ignore_mouse_buttons_other_than_left_right_middle.patch b/patches/chromium/ignore_mouse_buttons_other_than_left_right_middle.patch
+index e92bad8ca488088800db827681622bbf118ce416..cb311870e3991d1cd92ebdbe4f9ed65e88784d6b 100644
+--- a/patches/chromium/ignore_mouse_buttons_other_than_left_right_middle.patch
++++ b/patches/chromium/ignore_mouse_buttons_other_than_left_right_middle.patch
+@@ -21,4 +21,4 @@ index c958284e0fff644b8e8d2a55a7592207d3335bea..c81ee5cd16d41ec8fbf3873c4d6969f2
+ +
+    // Don't track forwarded mouse messages. We expect the caller to track the
+    // mouse.
+-   base::WeakPtr<HWNDMessageHandler> ref(msg_handler_weak_factory_.GetWeakPtr());
++   LRESULT ret = HandleMouseEventInternal(message, w_param, l_param, false);
+diff --git a/patches/chromium/revert_videocapture_enable_mediafoundationcamerausagemonitoring_by.patch b/patches/chromium/revert_videocapture_enable_mediafoundationcamerausagemonitoring_by.patch
+index 9852dc8d3b99dcc7236ecd575dad071ad0a6aff0..8088d3156a849f58a01d4ca7609af3dde7989439 100644
+--- a/patches/chromium/revert_videocapture_enable_mediafoundationcamerausagemonitoring_by.patch
++++ b/patches/chromium/revert_videocapture_enable_mediafoundationcamerausagemonitoring_by.patch
+@@ -7,15 +7,15 @@ Subject: Revert "[VideoCapture] Enable MediaFoundationCameraUsageMonitoring by
+ This reverts commit 97e8a23175eaf5ab7b86915785e2e62a64233f83.
+ 
+ diff --git a/media/capture/capture_switches.cc b/media/capture/capture_switches.cc
+-index d82b335e56219560808b7a2ba9cf8561a87d4a30..8455ffb78f23a0e9df87fe8dc8dab8e4712dc5a1 100644
++index 0d8a8814c11c75d21e8ea52c032f48e15c2c8315..646c05f6698300c5a455245caba90f6a5b1db205 100644
+ --- a/media/capture/capture_switches.cc
+ +++ b/media/capture/capture_switches.cc
+-@@ -52,7 +52,7 @@ BASE_FEATURE(kWebRtcPipeWireCamera, base::FEATURE_DISABLED_BY_DEFAULT);
++@@ -62,7 +62,7 @@ BASE_FEATURE(kWebRtcPipeWireCamera, base::FEATURE_DISABLED_BY_DEFAULT);
+  #if BUILDFLAG(IS_WIN)
+  // Controls monitoring for camera usage by other applications.
+  BASE_FEATURE(kMediaFoundationCameraUsageMonitoring,
+ -             base::FEATURE_ENABLED_BY_DEFAULT);
+ +             base::FEATURE_DISABLED_BY_DEFAULT);
+- #endif  // BUILDFLAG(IS_WIN)
+  
+- }  // namespace features
++ // Avoids activating capture devices when only the device list is required.
++ BASE_FEATURE(kWinDeviceEnumerationWithoutActivation,
+diff --git a/patches/ffmpeg/.patches b/patches/ffmpeg/.patches
+index 40d1e4f45d0062b8fbab651ac794c681ee271ad2..c40edfc17a43ebf62c8a6ad3a630876b11725594 100644
+--- a/patches/ffmpeg/.patches
++++ b/patches/ffmpeg/.patches
+@@ -3,5 +3,5 @@ add_discord_ffmpeg_config_options.patch
+ add_media_foundation_h264_decode.patch
+ add_dynamic_loading_for_openh264_on_linux.patch
+ fix_openh264_opaque_for_bframes.patch
+-roll_ffmpeg.patch
++roll_ffmpeg_linux_x64.patch
+ fix_mov_constant_stsz_sample_count.patch
+diff --git a/patches/ffmpeg/add_dynamic_loading_for_openh264_on_linux.patch b/patches/ffmpeg/add_dynamic_loading_for_openh264_on_linux.patch
+index 7ed11e27857e4e77f02e302b7da50958715fa9df..5ae439ea4b02c0842091a86da21fa5fa370f121c 100644
+--- a/patches/ffmpeg/add_dynamic_loading_for_openh264_on_linux.patch
++++ b/patches/ffmpeg/add_dynamic_loading_for_openh264_on_linux.patch
+@@ -5,10 +5,10 @@ Subject: Add dynamic loading for OpenH264 on Linux
+ 
+ 
+ diff --git a/configure b/configure
+-index d00e34bb58af243d37ff5a4b6ea8e40b72dd6426..54e792a0cbc5139b32214b118c6fe109f46d97da 100755
++index f67dafd5ecbde7568fea1dd1476af216cf310581..2008fecb563c2a08879f5130e54fa1adf1d3d1d6 100755
+ --- a/configure
+ +++ b/configure
+-@@ -7442,7 +7442,7 @@ enabled libopencore_amrwb && { check_pkg_config libopencore_amrwb opencore-amrwb
++@@ -7312,7 +7312,7 @@ enabled libopencore_amrwb && { check_pkg_config libopencore_amrwb opencore-amrwb
+  enabled libopencv         && { check_pkg_config libopencv opencv4 opencv2/core/core_c.h cvCreateImageHeader ||
+                                 require libopencv opencv2/core/core_c.h cvCreateImageHeader -lopencv_core -lopencv_imgproc; }
+  enabled libopencolorio    && require_pkg_config_cxx libopencolorio "OpenColorIO" OpenColorIO/OpenColorIO.h OCIO_NAMESPACE::Config
+@@ -18,7 +18,7 @@ index d00e34bb58af243d37ff5a4b6ea8e40b72dd6426..54e792a0cbc5139b32214b118c6fe109
+                                 { require_pkg_config libopenjpeg "libopenjp2 >= 2.1.0" openjpeg.h opj_version -DOPJ_STATIC && add_cppflags -DOPJ_STATIC; } }
+  enabled libopenmpt        && require_pkg_config libopenmpt "libopenmpt >= 0.2.6557" libopenmpt/libopenmpt.h openmpt_module_create -lstdc++ && append libopenmpt_extralibs "-lstdc++"
+ diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
+-index 4e05e2c56b6e725182ad6ebd8c1fedee026cd643..5520dd8c73cbf94011b6fd895c27ab1a1a3e4d7c 100644
++index 265bfba35fe2f7031aaa2c1da80c72ef27872285..25cf43217db646c28171ef080a4845df4238d32a 100644
+ --- a/fftools/ffmpeg_opt.c
+ +++ b/fftools/ffmpeg_opt.c
+ @@ -36,6 +36,7 @@
+@@ -42,7 +42,7 @@ index 4e05e2c56b6e725182ad6ebd8c1fedee026cd643..5520dd8c73cbf94011b6fd895c27ab1a
+  static int opt_init_hw_device(void *optctx, const char *opt, const char *arg)
+  {
+      if (!strcmp(arg, "list")) {
+-@@ -2094,6 +2101,10 @@ const OptionDef options[] = {
++@@ -2102,6 +2109,10 @@ const OptionDef options[] = {
+          "set QSV hardware device (DirectX adapter index, DRM path or X11 display name)", "device"},
+  #endif
+  
+@@ -216,7 +216,7 @@ index 0b462d6fdcd228f79550136c4f288de2c9133e33..b3dc15f235b635a249bdffb17d057e03
+  
+  #endif /* AVCODEC_LIBOPENH264_H */
+ diff --git a/libavcodec/libopenh264dec.c b/libavcodec/libopenh264dec.c
+-index b6a9bba2dc73dea3ebb3cd85ff00063b0f148e96..b194526034163430eae754ee349a415d338c4221 100644
++index c9b245965342593878d5873a0b6cbc9484f78f92..fcc88f8e6eab7149aa398cd2c43842960cdcc190 100644
+ --- a/libavcodec/libopenh264dec.c
+ +++ b/libavcodec/libopenh264dec.c
+ @@ -19,8 +19,8 @@
+@@ -230,19 +230,18 @@ index b6a9bba2dc73dea3ebb3cd85ff00063b0f148e96..b194526034163430eae754ee349a415d
+  
+  #include "libavutil/common.h"
+  #include "libavutil/fifo.h"
+-@@ -42,8 +42,9 @@ static av_cold int svc_decode_close(AVCodecContext *avctx)
++@@ -42,8 +42,8 @@ static av_cold int svc_decode_close(AVCodecContext *avctx)
+  {
+      SVCContext *s = avctx->priv_data;
+  
+--    if (s->decoder)
++-    if (s->decoder) {
+ -        WelsDestroyDecoder(s->decoder);
+ +    if (s->decoder && ff_WelsDestroyDecoder) {
+-+      ff_WelsDestroyDecoder(s->decoder);
+-+    }
+++        ff_WelsDestroyDecoder(s->decoder);
++         s->decoder = NULL;
++     }
+  
+-     return 0;
+- }
+-@@ -55,9 +56,14 @@ static av_cold int svc_decode_init(AVCodecContext *avctx)
++@@ -65,9 +65,14 @@ static av_cold int svc_decode_init(AVCodecContext *avctx)
+      int log_level;
+      WelsTraceCallback callback_function;
+  
+diff --git a/patches/ffmpeg/add_media_foundation_h264_decode.patch b/patches/ffmpeg/add_media_foundation_h264_decode.patch
+index 1d5661374aa345edb779941401e8b438fe076f0b..7de6c6d8eb4056f2e39fefb1b8e9e9bc6c419567 100644
+--- a/patches/ffmpeg/add_media_foundation_h264_decode.patch
++++ b/patches/ffmpeg/add_media_foundation_h264_decode.patch
+@@ -31,7 +31,7 @@ index dbb6f89134947b9c353a49fd193709407775772d..d00e34bb58af243d37ff5a4b6ea8e40b
+ +++ b/configure
+ @@ -3219,6 +3219,8 @@ h263p_decoder_select="h263_decoder"
+  h263p_encoder_select="h263_encoder"
+- h264_decoder_select="cabac golomb h264chroma h264dsp h264parse h264pred h264qpel h264_sei videodsp"
++ h264_decoder_select="bswapdsp cabac golomb h264chroma h264dsp h264parse h264pred h264qpel h264_sei videodsp"
+  h264_decoder_suggest="error_resilience"
+ +h264_mf_decoder_select="h264_mp4toannexb_bsf h264_parser"
+ +h264_mf_decoder_deps="mediafoundation"
+diff --git a/patches/ffmpeg/fix_openh264_opaque_for_bframes.patch b/patches/ffmpeg/fix_openh264_opaque_for_bframes.patch
+index 4a09e316743ff1adf4e2005b6d11d8eadde57995..fede114280a381be26f35ba49034be3f1144787f 100644
+--- a/patches/ffmpeg/fix_openh264_opaque_for_bframes.patch
++++ b/patches/ffmpeg/fix_openh264_opaque_for_bframes.patch
+@@ -41,7 +41,7 @@ and .flush support in the libopenh264 wrapper, or when Discord moves the
+ Linux H.264 path off OpenH264. Upstream as a follow-up to ffmpeg-devel.
+ 
+ diff --git a/libavcodec/libopenh264dec.c b/libavcodec/libopenh264dec.c
+-index b194526034163430eae754ee349a415d338c4221..32fecb68433aa33c05d6b06e472f7533fe7fc590 100644
++index fcc88f8e6eab7149aa398cd2c43842960cdcc190..24365cd9d2a14c58ece96deb1af5c555838020e6 100644
+ --- a/libavcodec/libopenh264dec.c
+ +++ b/libavcodec/libopenh264dec.c
+ @@ -27,6 +27,7 @@
+@@ -67,21 +67,20 @@ index b194526034163430eae754ee349a415d338c4221..32fecb68433aa33c05d6b06e472f7533
+  } SVCContext;
+  
+  static av_cold int svc_decode_close(AVCodecContext *avctx)
+-@@ -44,6 +51,13 @@ static av_cold int svc_decode_close(AVCodecContext *avctx)
+- 
+-     if (s->decoder && ff_WelsDestroyDecoder) {
+-       ff_WelsDestroyDecoder(s->decoder);
+-+      s->decoder = NULL;
+-+    }
++@@ -46,6 +53,12 @@ static av_cold int svc_decode_close(AVCodecContext *avctx)
++         ff_WelsDestroyDecoder(s->decoder);
++         s->decoder = NULL;
++     }
+ +    if (s->packet_props) {
+ +        for (int i = 0; i < s->packet_props_count; i++) {
+ +            av_packet_free(&s->packet_props[i]);
+ +        }
+ +        av_freep(&s->packet_props);
+-     }
+++    }
+  
+      return 0;
+-@@ -52,6 +66,8 @@ static av_cold int svc_decode_close(AVCodecContext *avctx)
++ }
++@@ -61,6 +74,8 @@ static void svc_decode_flush(AVCodecContext *avctx)
+  static av_cold int svc_decode_init(AVCodecContext *avctx)
+  {
+      SVCContext *s = avctx->priv_data;
+@@ -90,7 +89,7 @@ index b194526034163430eae754ee349a415d338c4221..32fecb68433aa33c05d6b06e472f7533
+      SDecodingParam param = { 0 };
+      int log_level;
+      WelsTraceCallback callback_function;
+-@@ -89,6 +105,111 @@ static av_cold int svc_decode_init(AVCodecContext *avctx)
++@@ -99,6 +114,101 @@ static av_cold int svc_decode_init(AVCodecContext *avctx)
+      return 0;
+  }
+  
+@@ -188,21 +187,11 @@ index b194526034163430eae754ee349a415d338c4221..32fecb68433aa33c05d6b06e472f7533
+ +    return ret;
+ +}
+ +
+-+static void svc_decode_flush(AVCodecContext *avctx)
+-+{
+-+    // Cisco's ISVCDecoder has no API to fully reset its internal DPB /
+-+    // reference state, and the packet_props cache from the prior GOP must
+-+    // also be dropped. Tearing the decoder down and rebuilding it is the
+-+    // only reliable reset — close() frees the decoder + packet_props array,
+-+    // init() recreates the decoder and re-applies trace options.
+-+    svc_decode_close(avctx);
+-+    svc_decode_init(avctx);
+-+}
+ +
+  static int svc_decode_frame(AVCodecContext *avctx, AVFrame *avframe,
+                              int *got_frame, AVPacket *avpkt)
+  {
+-@@ -110,6 +231,7 @@ static int svc_decode_frame(AVCodecContext *avctx, AVFrame *avframe,
++@@ -129,6 +239,7 @@ static int svc_decode_frame(AVCodecContext *avctx, AVFrame *avframe,
+          return 0;
+  #endif
+      } else {
+@@ -210,7 +199,7 @@ index b194526034163430eae754ee349a415d338c4221..32fecb68433aa33c05d6b06e472f7533
+          info.uiInBsTimeStamp = avpkt->pts;
+  #if OPENH264_VER_AT_LEAST(1, 4)
+          // Contrary to the name, DecodeFrameNoDelay actually does buffering
+-@@ -148,6 +270,14 @@ static int svc_decode_frame(AVCodecContext *avctx, AVFrame *avframe,
++@@ -167,6 +278,14 @@ static int svc_decode_frame(AVCodecContext *avctx, AVFrame *avframe,
+  
+      avframe->pts     = info.uiOutYuvTimeStamp;
+      avframe->pkt_dts = AV_NOPTS_VALUE;
+@@ -225,11 +214,3 @@ index b194526034163430eae754ee349a415d338c4221..32fecb68433aa33c05d6b06e472f7533
+  #if OPENH264_VER_AT_LEAST(1, 7)
+      (*s->decoder)->GetOption(s->decoder, DECODER_OPTION_PROFILE, &opt);
+      avctx->profile = opt;
+-@@ -168,6 +298,7 @@ const FFCodec ff_libopenh264_decoder = {
+-     .init           = svc_decode_init,
+-     FF_CODEC_DECODE_CB(svc_decode_frame),
+-     .close          = svc_decode_close,
+-+    .flush          = svc_decode_flush,
+-     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_DR1,
+-     .caps_internal  = FF_CODEC_CAP_SETS_PKT_DTS |
+-                       FF_CODEC_CAP_INIT_CLEANUP,
+diff --git a/patches/ffmpeg/roll_ffmpeg_linux_x64.patch b/patches/ffmpeg/roll_ffmpeg_linux_x64.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..128ef7206f46b17916b40e2d32cf59cfe0ebaa44
+--- /dev/null
++++ b/patches/ffmpeg/roll_ffmpeg_linux_x64.patch
+@@ -0,0 +1,1559 @@
++From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
++From: Discord Patched Electron <build@invalid.example>
++Date: Fri, 23 Oct 2026 23:30:00 +0000
++Subject: Regenerate Discord FFmpeg configuration for Linux x64
++
++Generated with patched Chromium build_ffmpeg.py linux x64 --branding Chrome
++and robosushi.py --import-only. Preserve upstream GN configuration for other
++targets and override the supported Linux x64 source lists.
++
++diff --git a/CREDITS.chromium b/CREDITS.chromium
++index b1a82b4cc7f9dea5a46cc88005447749325ce535..f6b1c167f5e0127c8651a023b1056b560c701067 100644
++--- a/CREDITS.chromium
+++++ b/CREDITS.chromium
++@@ -129,239 +129,113 @@ compatible with the LGPL.
++ 
++ ********************************************************************************
++ 
++-libavcodec/riscv/h264_intrapred_rvv.S
+++libavcodec/wels/codec_api.h
++ 
++-SPDX-License-Identifier: BSD-2-Clause
+++!
+++@page License
++ 
++-Copyright © 2025 Tristan Matthews
++-Partly based on h264_pred.c Copyright (c) 2023 SiFive, Inc.
+++\copy
+++Copyright (c)  2013, Cisco Systems
+++All rights reserved.
++ 
++ Redistribution and use in source and binary forms, with or without
++-modification, are permitted provided that the following conditions are met:
++-
++-1. Redistributions of source code must retain the above copyright notice,
++-this list of conditions and the following disclaimer.
++-
++-2. Redistributions in binary form must reproduce the above copyright notice,
++-this list of conditions and the following disclaimer in the documentation
++-and/or other materials provided with the distribution.
++-
++-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++-POSSIBILITY OF SUCH DAMAGE.
++-
++-********************************************************************************
++-
++-libavcodec/riscv/h264addpx_rvv.S
++-
++-Copyright © 2024 Rémi Denis-Courmont.
++-
++-Redistribution and use in source and binary forms, with or without
++-modification, are permitted provided that the following conditions are met:
++-
++-1. Redistributions of source code must retain the above copyright notice,
++-this list of conditions and the following disclaimer.
++-
++-2. Redistributions in binary form must reproduce the above copyright notice,
++-this list of conditions and the following disclaimer in the documentation
++-and/or other materials provided with the distribution.
++-
++-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++-POSSIBILITY OF SUCH DAMAGE.
++-
++-********************************************************************************
++-
++-libavcodec/riscv/h264dsp_rvv.S
++-
++-SPDX-License-Identifier: BSD-2-Clause
++-
++-Copyright © 2024 Rémi Denis-Courmont.
++-
++-Redistribution and use in source and binary forms, with or without
++-modification, are permitted provided that the following conditions are met:
++-
++-1. Redistributions of source code must retain the above copyright notice,
++-this list of conditions and the following disclaimer.
++-
++-2. Redistributions in binary form must reproduce the above copyright notice,
++-this list of conditions and the following disclaimer in the documentation
++-and/or other materials provided with the distribution.
++-
++-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++-POSSIBILITY OF SUCH DAMAGE.
++-
++-********************************************************************************
++-
++-libavcodec/riscv/h264idct_dequant_rvv.S
++-
++-SPDX-License-Identifier: BSD-2-Clause
++-
++-Copyright © 2025 Rémi Denis-Courmont.
++-
++-Redistribution and use in source and binary forms, with or without
++-modification, are permitted provided that the following conditions are met:
++-
++-1. Redistributions of source code must retain the above copyright notice,
++-this list of conditions and the following disclaimer.
++-
++-2. Redistributions in binary form must reproduce the above copyright notice,
++-this list of conditions and the following disclaimer in the documentation
++-and/or other materials provided with the distribution.
++-
++-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++-POSSIBILITY OF SUCH DAMAGE.
++-
++-********************************************************************************
++-
++-libavcodec/riscv/h264idct_rvv.S
++-
++-SPDX-License-Identifier: BSD-2-Clause
++-
++-Copyright (c) 2024 J. Dekker <jdek@itanimul.li>
++-Copyright © 2024 Rémi Denis-Courmont.
++-
++-Redistribution and use in source and binary forms, with or without
++-modification, are permitted provided that the following conditions are met:
++-
++-1. Redistributions of source code must retain the above copyright notice,
++-this list of conditions and the following disclaimer.
+++modification, are permitted provided that the following conditions
+++are met:
++ 
++-2. Redistributions in binary form must reproduce the above copyright notice,
++-this list of conditions and the following disclaimer in the documentation
++-and/or other materials provided with the distribution.
+++* Redistributions of source code must retain the above copyright
+++notice, this list of conditions and the following disclaimer.
++ 
++-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+++* Redistributions in binary form must reproduce the above copyright
+++notice, this list of conditions and the following disclaimer in
+++the documentation and/or other materials provided with the
+++distribution.
+++
+++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+++"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+++LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+++FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+++COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+++INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+++BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+++LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+++CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+++LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+++ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ POSSIBILITY OF SUCH DAMAGE.
++ 
++ ********************************************************************************
++ 
++-libavcodec/riscv/h264qpel_rvv.S
++-
++-SPDX-License-Identifier: BSD-2-Clause
+++libavcodec/wels/codec_app_def.h
++ 
++-Copyright (c) 2024 Niklas Haas
+++!
+++\copy
+++Copyright (c)  2013, Cisco Systems
+++All rights reserved.
++ 
++ Redistribution and use in source and binary forms, with or without
++-modification, are permitted provided that the following conditions are met:
++-
++-1. Redistributions of source code must retain the above copyright notice,
++-this list of conditions and the following disclaimer.
+++modification, are permitted provided that the following conditions
+++are met:
++ 
++-2. Redistributions in binary form must reproduce the above copyright notice,
++-this list of conditions and the following disclaimer in the documentation
++-and/or other materials provided with the distribution.
+++* Redistributions of source code must retain the above copyright
+++notice, this list of conditions and the following disclaimer.
++ 
++-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+++* Redistributions in binary form must reproduce the above copyright
+++notice, this list of conditions and the following disclaimer in
+++the documentation and/or other materials provided with the
+++distribution.
+++
+++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+++"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+++LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+++FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+++COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+++INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+++BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+++LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+++CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+++LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+++ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ POSSIBILITY OF SUCH DAMAGE.
++ 
++ ********************************************************************************
++ 
++-libavcodec/riscv/startcode_rvb.S
+++libavcodec/wels/codec_def.h
++ 
++-Copyright © 2024 Rémi Denis-Courmont.
+++!
+++\copy
+++Copyright (c)  2013, Cisco Systems
+++All rights reserved.
++ 
++ Redistribution and use in source and binary forms, with or without
++-modification, are permitted provided that the following conditions are met:
++-
++-1. Redistributions of source code must retain the above copyright notice,
++-this list of conditions and the following disclaimer.
+++modification, are permitted provided that the following conditions
+++are met:
++ 
++-2. Redistributions in binary form must reproduce the above copyright notice,
++-this list of conditions and the following disclaimer in the documentation
++-and/or other materials provided with the distribution.
+++* Redistributions of source code must retain the above copyright
+++notice, this list of conditions and the following disclaimer.
++ 
++-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+++* Redistributions in binary form must reproduce the above copyright
+++notice, this list of conditions and the following disclaimer in
+++the documentation and/or other materials provided with the
+++distribution.
+++
+++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+++"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+++LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+++FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+++COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+++INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+++BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+++LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+++CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+++LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+++ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ POSSIBILITY OF SUCH DAMAGE.
++ 
++ ********************************************************************************
++ 
++-libavcodec/riscv/startcode_rvv.S
++-
++-Copyright © 2024 Rémi Denis-Courmont.
++-
++-Redistribution and use in source and binary forms, with or without
++-modification, are permitted provided that the following conditions are met:
++-
++-1. Redistributions of source code must retain the above copyright notice,
++-this list of conditions and the following disclaimer.
++-
++-2. Redistributions in binary form must reproduce the above copyright notice,
++-this list of conditions and the following disclaimer in the documentation
++-and/or other materials provided with the distribution.
+++libavcodec/wels/codec_ver.h
++ 
++-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++-POSSIBILITY OF SUCH DAMAGE.
+++The current file is auto-generated by script: generate_codec_ver.sh
++ 
++ ********************************************************************************
++ 
++diff --git a/chromium/config/Chrome/linux/x64/config.asm b/chromium/config/Chrome/linux/x64/config.asm
++index 0fec966fb0aa5f27dcd867bce0f5946c601bce92..9bca66804123435ced87512c4e16af9d4f305b4c 100644
++--- a/chromium/config/Chrome/linux/x64/config.asm
+++++ b/chromium/config/Chrome/linux/x64/config.asm
++@@ -264,8 +264,8 @@
++ %define HAVE_TERMIOS_H 1
++ %define HAVE_UDPLITE_H 0
++ %define HAVE_UNISTD_H 1
++-%define HAVE_VALGRIND_MEMCHECK_H 1
++-%define HAVE_VALGRIND_VALGRIND_H 0 ; %define HAVE_VALGRIND_VALGRIND_H 1 -- forced to 0. See https://crbug.com/590440
+++%define HAVE_VALGRIND_MEMCHECK_H 0
+++%define HAVE_VALGRIND_VALGRIND_H 0 ; %define HAVE_VALGRIND_VALGRIND_H 0 -- forced to 0. See https://crbug.com/590440
++ %define HAVE_WINDOWS_H 0
++ %define HAVE_WINSOCK2_H 0
++ %define HAVE_SPIRV_HEADERS_SPIRV_H 0
++@@ -374,7 +374,7 @@
++ %define HAVE_INLINE_ASM_DIRECT_SYMBOL_REFS 0
++ %define HAVE_INLINE_ASM_NONLOCAL_LABELS 1
++ %define HAVE_PRAGMA_DEPRECATED 1
++-%define HAVE_RSYNC_CONTIMEOUT 1
+++%define HAVE_RSYNC_CONTIMEOUT 0
++ %define HAVE_SYMVER_ASM_LABEL 1
++ %define HAVE_SYMVER_GNU_ASM 1
++ %define HAVE_VFP_ARGS 0
++@@ -438,7 +438,7 @@
++ %define HAVE_PERL 1
++ %define HAVE_POD2MAN 1
++ %define HAVE_TEXI2HTML 0
++-%define HAVE_XMLLINT 1
+++%define HAVE_XMLLINT 0
++ %define HAVE_ZLIB_GZIP 0
++ %define HAVE_OPENVINO2 0
++ %define CONFIG_DOC 0
++@@ -534,7 +534,7 @@
++ %define CONFIG_LIBONNXRUNTIME 0
++ %define CONFIG_LIBOPENCV 0
++ %define CONFIG_LIBOPENCOLORIO 0
++-%define CONFIG_LIBOPENH264 0
+++%define CONFIG_LIBOPENH264 1
++ %define CONFIG_LIBOPENJPEG 0
++ %define CONFIG_LIBOPENMPT 0
++ %define CONFIG_LIBOPENVINO 0
++@@ -679,29 +679,29 @@
++ %define CONFIG_XMM_CLOBBER_TEST 0
++ %define CONFIG_BSFS 0
++ %define CONFIG_DECODERS 1
++-%define CONFIG_ENCODERS 0
+++%define CONFIG_ENCODERS 1
++ %define CONFIG_HWACCELS 0
++ %define CONFIG_PARSERS 1
++ %define CONFIG_INDEVS 0
++ %define CONFIG_OUTDEVS 0
++ %define CONFIG_FILTERS 0
++ %define CONFIG_DEMUXERS 1
++-%define CONFIG_MUXERS 0
++-%define CONFIG_PROTOCOLS 0
+++%define CONFIG_MUXERS 1
+++%define CONFIG_PROTOCOLS 1
++ %define CONFIG_AANDCTTABLES 0
++ %define CONFIG_AC3DSP 0
++ %define CONFIG_ADTS_HEADER 1
++-%define CONFIG_ATSC_A53 1
++-%define CONFIG_AUDIO_FRAME_QUEUE 0
+++%define CONFIG_ATSC_A53 0
+++%define CONFIG_AUDIO_FRAME_QUEUE 1
++ %define CONFIG_AUDIODSP 0
++ %define CONFIG_BLOCKDSP 0
++-%define CONFIG_BSWAPDSP 1
++-%define CONFIG_CABAC 1
+++%define CONFIG_BSWAPDSP 0
+++%define CONFIG_CABAC 0
++ %define CONFIG_CBS 0
++ %define CONFIG_CBS_APV 0
++-%define CONFIG_CBS_APV_LAVF 0
+++%define CONFIG_CBS_APV_LAVF 1
++ %define CONFIG_CBS_AV1 0
++-%define CONFIG_CBS_AV1_LAVF 0
+++%define CONFIG_CBS_AV1_LAVF 1
++ %define CONFIG_CBS_H264 0
++ %define CONFIG_CBS_H265 0
++ %define CONFIG_CBS_H266 0
++@@ -719,24 +719,24 @@
++ %define CONFIG_DEFLATE_WRAPPER 0
++ %define CONFIG_DIRAC_PARSE 1
++ %define CONFIG_DNN 0
++-%define CONFIG_DOVI_RPUDEC 1
+++%define CONFIG_DOVI_RPUDEC 0
++ %define CONFIG_DOVI_RPUENC 0
++ %define CONFIG_DVPROFILE 0
++ %define CONFIG_EVCPARSE 0
++ %define CONFIG_FAANDCT 0
++ %define CONFIG_FAANIDCT 0
++ %define CONFIG_FDCTDSP 0
++-%define CONFIG_FRAME_THREAD_ENCODER 0
+++%define CONFIG_FRAME_THREAD_ENCODER 1
++ %define CONFIG_G722DSP 0
++ %define CONFIG_GOLOMB 1
++ %define CONFIG_GPLV3 0
++ %define CONFIG_H263DSP 0
++-%define CONFIG_H264CHROMA 1
++-%define CONFIG_H264DSP 1
++-%define CONFIG_H264PARSE 1
++-%define CONFIG_H264PRED 1
++-%define CONFIG_H264QPEL 1
++-%define CONFIG_H264_SEI 1
+++%define CONFIG_H264CHROMA 0
+++%define CONFIG_H264DSP 0
+++%define CONFIG_H264PARSE 0
+++%define CONFIG_H264PRED 0
+++%define CONFIG_H264QPEL 0
+++%define CONFIG_H264_SEI 0
++ %define CONFIG_HEVCPARSE 0
++ %define CONFIG_HEVC_SEI 0
++ %define CONFIG_HPELDSP 0
++@@ -749,8 +749,8 @@
++ %define CONFIG_INFLATE_WRAPPER 0
++ %define CONFIG_INTRAX8 0
++ %define CONFIG_ISO_MEDIA 1
++-%define CONFIG_ISO_WRITER 0
++-%define CONFIG_ITUT_T35 1
+++%define CONFIG_ISO_WRITER 1
+++%define CONFIG_ITUT_T35 0
++ %define CONFIG_IVIDSP 0
++ %define CONFIG_JPEGTABLES 0
++ %define CONFIG_LGPLV3 0
++@@ -759,7 +759,7 @@
++ %define CONFIG_LLAUDDSP 0
++ %define CONFIG_LLVIDDSP 0
++ %define CONFIG_LLVIDENCDSP 0
++-%define CONFIG_LPC 0
+++%define CONFIG_LPC 1
++ %define CONFIG_LZF 0
++ %define CONFIG_ME_CMP 0
++ %define CONFIG_MPEG_ER 0
++@@ -782,16 +782,16 @@
++ %define CONFIG_QSVVPP 0
++ %define CONFIG_RANGECODER 0
++ %define CONFIG_RIFFDEC 1
++-%define CONFIG_RIFFENC 0
+++%define CONFIG_RIFFENC 1
++ %define CONFIG_RTPDEC 0
++-%define CONFIG_RTPENC_CHAIN 0
+++%define CONFIG_RTPENC_CHAIN 1
++ %define CONFIG_RV34DSP 0
++ %define CONFIG_SCENE_SAD 0
++ %define CONFIG_SINEWIN 1
++ %define CONFIG_SMPTE_436M 0
++ %define CONFIG_SNAPPY 0
++ %define CONFIG_SRTP 0
++-%define CONFIG_STARTCODE 1
+++%define CONFIG_STARTCODE 0
++ %define CONFIG_TEXTUREDSP 0
++ %define CONFIG_TEXTUREDSPENC 0
++ %define CONFIG_TPELDSP 0
++@@ -799,7 +799,7 @@
++ %define CONFIG_VAAPI_ENCODE 0
++ %define CONFIG_VULKAN_1_4 0
++ %define CONFIG_VC1DSP 0
++-%define CONFIG_VIDEODSP 1
+++%define CONFIG_VIDEODSP 0
++ %define CONFIG_VP3DSP 0
++ %define CONFIG_VP8DSP 0
++ %define CONFIG_VULKAN_ENCODE 0
++diff --git a/chromium/config/Chrome/linux/x64/config.h b/chromium/config/Chrome/linux/x64/config.h
++index 6e1c55318d252f86f11fa5f01a09d557054c0b51..c7c5db287761eebe67f415f84eca4d7f42c67e03 100644
++--- a/chromium/config/Chrome/linux/x64/config.h
+++++ b/chromium/config/Chrome/linux/x64/config.h
++@@ -1,12 +1,12 @@
++ /* Automatically generated by configure - do not modify! */
++ #ifndef FFMPEG_CONFIG_H
++ #define FFMPEG_CONFIG_H
++-/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-checkasm --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/liberato/src/release_chrome/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
+++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-checkasm --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw,gif' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov,gif' --enable-parser='opus,vorbis,flac,mpegaudio,vp9,gif' --extra-cflags=-I/work/build-cache/prerelease/dd7a728ac83324f12c069a8250d3fb93ca921d9d63795452b8744f0758667bbf/checkout/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-libopenh264 --enable-decoder=libopenh264 --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld' --enable-decoder=aac --enable-demuxer=aac --enable-parser=aac --enable-muxer=mp4 --enable-encoder=aac --enable-protocol=file" -- elide long configuration string from binary */
++ #define FFMPEG_LICENSE "LGPL version 2.1 or later"
++ #define CONFIG_THIS_YEAR 2026
++ #define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
++ #define AVCONV_DATADIR "/usr/local/share/ffmpeg"
++-#define CC_IDENT "clang version 24.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 86922d51225db089fffb99475eefc4904f79e3c8)"
+++#define CC_IDENT "clang version 24.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project e063be79adf127cce301fe5948273102a33012b6)"
++ #define OS_NAME linux
++ #define EXTERN_PREFIX ""
++ #define EXTERN_ASM 
++@@ -278,8 +278,8 @@
++ #define HAVE_TERMIOS_H 1
++ #define HAVE_UDPLITE_H 0
++ #define HAVE_UNISTD_H 1
++-#define HAVE_VALGRIND_MEMCHECK_H 1
++-#define HAVE_VALGRIND_VALGRIND_H 0 /* #define HAVE_VALGRIND_VALGRIND_H 1 -- forced to 0. See https://crbug.com/590440 */
+++#define HAVE_VALGRIND_MEMCHECK_H 0
+++#define HAVE_VALGRIND_VALGRIND_H 0 /* #define HAVE_VALGRIND_VALGRIND_H 0 -- forced to 0. See https://crbug.com/590440 */
++ #define HAVE_WINDOWS_H 0
++ #define HAVE_WINSOCK2_H 0
++ #define HAVE_SPIRV_HEADERS_SPIRV_H 0
++@@ -388,7 +388,7 @@
++ #define HAVE_INLINE_ASM_DIRECT_SYMBOL_REFS 0
++ #define HAVE_INLINE_ASM_NONLOCAL_LABELS 1
++ #define HAVE_PRAGMA_DEPRECATED 1
++-#define HAVE_RSYNC_CONTIMEOUT 1
+++#define HAVE_RSYNC_CONTIMEOUT 0
++ #define HAVE_SYMVER_ASM_LABEL 1
++ #define HAVE_SYMVER_GNU_ASM 1
++ #define HAVE_VFP_ARGS 0
++@@ -452,7 +452,7 @@
++ #define HAVE_PERL 1
++ #define HAVE_POD2MAN 1
++ #define HAVE_TEXI2HTML 0
++-#define HAVE_XMLLINT 1
+++#define HAVE_XMLLINT 0
++ #define HAVE_ZLIB_GZIP 0
++ #define HAVE_OPENVINO2 0
++ #define CONFIG_DOC 0
++@@ -548,7 +548,7 @@
++ #define CONFIG_LIBONNXRUNTIME 0
++ #define CONFIG_LIBOPENCV 0
++ #define CONFIG_LIBOPENCOLORIO 0
++-#define CONFIG_LIBOPENH264 0
+++#define CONFIG_LIBOPENH264 1
++ #define CONFIG_LIBOPENJPEG 0
++ #define CONFIG_LIBOPENMPT 0
++ #define CONFIG_LIBOPENVINO 0
++@@ -693,29 +693,29 @@
++ #define CONFIG_XMM_CLOBBER_TEST 0
++ #define CONFIG_BSFS 0
++ #define CONFIG_DECODERS 1
++-#define CONFIG_ENCODERS 0
+++#define CONFIG_ENCODERS 1
++ #define CONFIG_HWACCELS 0
++ #define CONFIG_PARSERS 1
++ #define CONFIG_INDEVS 0
++ #define CONFIG_OUTDEVS 0
++ #define CONFIG_FILTERS 0
++ #define CONFIG_DEMUXERS 1
++-#define CONFIG_MUXERS 0
++-#define CONFIG_PROTOCOLS 0
+++#define CONFIG_MUXERS 1
+++#define CONFIG_PROTOCOLS 1
++ #define CONFIG_AANDCTTABLES 0
++ #define CONFIG_AC3DSP 0
++ #define CONFIG_ADTS_HEADER 1
++-#define CONFIG_ATSC_A53 1
++-#define CONFIG_AUDIO_FRAME_QUEUE 0
+++#define CONFIG_ATSC_A53 0
+++#define CONFIG_AUDIO_FRAME_QUEUE 1
++ #define CONFIG_AUDIODSP 0
++ #define CONFIG_BLOCKDSP 0
++-#define CONFIG_BSWAPDSP 1
++-#define CONFIG_CABAC 1
+++#define CONFIG_BSWAPDSP 0
+++#define CONFIG_CABAC 0
++ #define CONFIG_CBS 0
++ #define CONFIG_CBS_APV 0
++-#define CONFIG_CBS_APV_LAVF 0
+++#define CONFIG_CBS_APV_LAVF 1
++ #define CONFIG_CBS_AV1 0
++-#define CONFIG_CBS_AV1_LAVF 0
+++#define CONFIG_CBS_AV1_LAVF 1
++ #define CONFIG_CBS_H264 0
++ #define CONFIG_CBS_H265 0
++ #define CONFIG_CBS_H266 0
++@@ -733,24 +733,24 @@
++ #define CONFIG_DEFLATE_WRAPPER 0
++ #define CONFIG_DIRAC_PARSE 1
++ #define CONFIG_DNN 0
++-#define CONFIG_DOVI_RPUDEC 1
+++#define CONFIG_DOVI_RPUDEC 0
++ #define CONFIG_DOVI_RPUENC 0
++ #define CONFIG_DVPROFILE 0
++ #define CONFIG_EVCPARSE 0
++ #define CONFIG_FAANDCT 0
++ #define CONFIG_FAANIDCT 0
++ #define CONFIG_FDCTDSP 0
++-#define CONFIG_FRAME_THREAD_ENCODER 0
+++#define CONFIG_FRAME_THREAD_ENCODER 1
++ #define CONFIG_G722DSP 0
++ #define CONFIG_GOLOMB 1
++ #define CONFIG_GPLV3 0
++ #define CONFIG_H263DSP 0
++-#define CONFIG_H264CHROMA 1
++-#define CONFIG_H264DSP 1
++-#define CONFIG_H264PARSE 1
++-#define CONFIG_H264PRED 1
++-#define CONFIG_H264QPEL 1
++-#define CONFIG_H264_SEI 1
+++#define CONFIG_H264CHROMA 0
+++#define CONFIG_H264DSP 0
+++#define CONFIG_H264PARSE 0
+++#define CONFIG_H264PRED 0
+++#define CONFIG_H264QPEL 0
+++#define CONFIG_H264_SEI 0
++ #define CONFIG_HEVCPARSE 0
++ #define CONFIG_HEVC_SEI 0
++ #define CONFIG_HPELDSP 0
++@@ -763,8 +763,8 @@
++ #define CONFIG_INFLATE_WRAPPER 0
++ #define CONFIG_INTRAX8 0
++ #define CONFIG_ISO_MEDIA 1
++-#define CONFIG_ISO_WRITER 0
++-#define CONFIG_ITUT_T35 1
+++#define CONFIG_ISO_WRITER 1
+++#define CONFIG_ITUT_T35 0
++ #define CONFIG_IVIDSP 0
++ #define CONFIG_JPEGTABLES 0
++ #define CONFIG_LGPLV3 0
++@@ -773,7 +773,7 @@
++ #define CONFIG_LLAUDDSP 0
++ #define CONFIG_LLVIDDSP 0
++ #define CONFIG_LLVIDENCDSP 0
++-#define CONFIG_LPC 0
+++#define CONFIG_LPC 1
++ #define CONFIG_LZF 0
++ #define CONFIG_ME_CMP 0
++ #define CONFIG_MPEG_ER 0
++@@ -796,16 +796,16 @@
++ #define CONFIG_QSVVPP 0
++ #define CONFIG_RANGECODER 0
++ #define CONFIG_RIFFDEC 1
++-#define CONFIG_RIFFENC 0
+++#define CONFIG_RIFFENC 1
++ #define CONFIG_RTPDEC 0
++-#define CONFIG_RTPENC_CHAIN 0
+++#define CONFIG_RTPENC_CHAIN 1
++ #define CONFIG_RV34DSP 0
++ #define CONFIG_SCENE_SAD 0
++ #define CONFIG_SINEWIN 1
++ #define CONFIG_SMPTE_436M 0
++ #define CONFIG_SNAPPY 0
++ #define CONFIG_SRTP 0
++-#define CONFIG_STARTCODE 1
+++#define CONFIG_STARTCODE 0
++ #define CONFIG_TEXTUREDSP 0
++ #define CONFIG_TEXTUREDSPENC 0
++ #define CONFIG_TPELDSP 0
++@@ -813,7 +813,7 @@
++ #define CONFIG_VAAPI_ENCODE 0
++ #define CONFIG_VULKAN_1_4 0
++ #define CONFIG_VC1DSP 0
++-#define CONFIG_VIDEODSP 1
+++#define CONFIG_VIDEODSP 0
++ #define CONFIG_VP3DSP 0
++ #define CONFIG_VP8DSP 0
++ #define CONFIG_VULKAN_ENCODE 0
++diff --git a/chromium/config/Chrome/linux/x64/config_components.asm b/chromium/config/Chrome/linux/x64/config_components.asm
++index fabbfbff069cd62b832247e2f1acbbe8446c6ea7..39e9a173de19b15409e17a58933f58b90832a554 100644
++--- a/chromium/config/Chrome/linux/x64/config_components.asm
+++++ b/chromium/config/Chrome/linux/x64/config_components.asm
++@@ -1,5 +1,5 @@
++ ; Automatically generated by configure - do not modify!
++-%define CONFIG_AAC_ADTSTOASC_BSF 0
+++%define CONFIG_AAC_ADTSTOASC_BSF 1
++ %define CONFIG_AHX_TO_MP2_BSF 0
++ %define CONFIG_APV_METADATA_BSF 0
++ %define CONFIG_AV1_FRAME_MERGE_BSF 0
++@@ -18,7 +18,7 @@
++ %define CONFIG_EXTRACT_EXTRADATA_BSF 0
++ %define CONFIG_FILTER_UNITS_BSF 0
++ %define CONFIG_H264_METADATA_BSF 0
++-%define CONFIG_H264_MP4TOANNEXB_BSF 0
+++%define CONFIG_H264_MP4TOANNEXB_BSF 1
++ %define CONFIG_H264_REDUNDANT_PPS_BSF 0
++ %define CONFIG_HAPQA_EXTRACT_BSF 0
++ %define CONFIG_HEVC_METADATA_BSF 0
++@@ -48,7 +48,7 @@
++ %define CONFIG_TRUEHD_CORE_BSF 0
++ %define CONFIG_VP9_METADATA_BSF 0
++ %define CONFIG_VP9_RAW_REORDER_BSF 0
++-%define CONFIG_VP9_SUPERFRAME_BSF 0
+++%define CONFIG_VP9_SUPERFRAME_BSF 1
++ %define CONFIG_VP9_SUPERFRAME_SPLIT_BSF 0
++ %define CONFIG_VVC_METADATA_BSF 0
++ %define CONFIG_VVC_MP4TOANNEXB_BSF 0
++@@ -130,13 +130,13 @@
++ %define CONFIG_G2M_DECODER 0
++ %define CONFIG_GDV_DECODER 0
++ %define CONFIG_GEM_DECODER 0
++-%define CONFIG_GIF_DECODER 0
+++%define CONFIG_GIF_DECODER 1
++ %define CONFIG_H261_DECODER 0
++ %define CONFIG_H263_DECODER 0
++ %define CONFIG_H263I_DECODER 0
++ %define CONFIG_H263P_DECODER 0
++ %define CONFIG_H263_V4L2M2M_DECODER 0
++-%define CONFIG_H264_DECODER 1
+++%define CONFIG_H264_DECODER 0
++ %define CONFIG_H264_V4L2M2M_DECODER 0
++ %define CONFIG_H264_MEDIACODEC_DECODER 0
++ %define CONFIG_H264_MMAL_DECODER 0
++@@ -632,9 +632,10 @@
++ %define CONFIG_AV1_MEDIACODEC_DECODER 0
++ %define CONFIG_AV1_QSV_DECODER 0
++ %define CONFIG_AV1_AMF_DECODER 0
++-%define CONFIG_LIBOPENH264_DECODER 0
+++%define CONFIG_LIBOPENH264_DECODER 1
++ %define CONFIG_H264_AMF_DECODER 0
++ %define CONFIG_H264_CUVID_DECODER 0
+++%define CONFIG_H264_MF_DECODER 0
++ %define CONFIG_H264_OH_DECODER 0
++ %define CONFIG_HEVC_AMF_DECODER 0
++ %define CONFIG_HEVC_CUVID_DECODER 0
++@@ -754,7 +755,7 @@
++ %define CONFIG_YUV4_ENCODER 0
++ %define CONFIG_ZLIB_ENCODER 0
++ %define CONFIG_ZMBV_ENCODER 0
++-%define CONFIG_AAC_ENCODER 0
+++%define CONFIG_AAC_ENCODER 1
++ %define CONFIG_AC3_ENCODER 0
++ %define CONFIG_AC3_FIXED_ENCODER 0
++ %define CONFIG_ALAC_ENCODER 0
++@@ -1021,7 +1022,7 @@
++ %define CONFIG_WMV3_VDPAU_HWACCEL 0
++ %define CONFIG_AAC_PARSER 1
++ %define CONFIG_AAC_LATM_PARSER 0
++-%define CONFIG_AC3_PARSER 0
+++%define CONFIG_AC3_PARSER 1
++ %define CONFIG_ADX_PARSER 0
++ %define CONFIG_AHX_PARSER 0
++ %define CONFIG_AMR_PARSER 0
++@@ -1049,11 +1050,11 @@
++ %define CONFIG_FFV1_PARSER 0
++ %define CONFIG_G723_1_PARSER 0
++ %define CONFIG_G729_PARSER 0
++-%define CONFIG_GIF_PARSER 0
+++%define CONFIG_GIF_PARSER 1
++ %define CONFIG_GSM_PARSER 0
++ %define CONFIG_H261_PARSER 0
++ %define CONFIG_H263_PARSER 0
++-%define CONFIG_H264_PARSER 1
+++%define CONFIG_H264_PARSER 0
++ %define CONFIG_HEVC_PARSER 0
++ %define CONFIG_HDR_PARSER 0
++ %define CONFIG_IPU_PARSER 0
++@@ -1822,7 +1823,7 @@
++ %define CONFIG_G729_DEMUXER 0
++ %define CONFIG_GDV_DEMUXER 0
++ %define CONFIG_GENH_DEMUXER 0
++-%define CONFIG_GIF_DEMUXER 0
+++%define CONFIG_GIF_DEMUXER 1
++ %define CONFIG_GSM_DEMUXER 0
++ %define CONFIG_GXF_DEMUXER 0
++ %define CONFIG_H261_DEMUXER 0
++@@ -2177,10 +2178,10 @@
++ %define CONFIG_MJPEG_MUXER 0
++ %define CONFIG_MLP_MUXER 0
++ %define CONFIG_MMF_MUXER 0
++-%define CONFIG_MOV_MUXER 0
+++%define CONFIG_MOV_MUXER 1
++ %define CONFIG_MP2_MUXER 0
++ %define CONFIG_MP3_MUXER 0
++-%define CONFIG_MP4_MUXER 0
+++%define CONFIG_MP4_MUXER 1
++ %define CONFIG_MPEG1SYSTEM_MUXER 0
++ %define CONFIG_MPEG1VCD_MUXER 0
++ %define CONFIG_MPEG1VIDEO_MUXER 0
++@@ -2283,7 +2284,7 @@
++ %define CONFIG_FD_PROTOCOL 0
++ %define CONFIG_FFRTMPCRYPT_PROTOCOL 0
++ %define CONFIG_FFRTMPHTTP_PROTOCOL 0
++-%define CONFIG_FILE_PROTOCOL 0
+++%define CONFIG_FILE_PROTOCOL 1
++ %define CONFIG_FTP_PROTOCOL 0
++ %define CONFIG_GOPHER_PROTOCOL 0
++ %define CONFIG_GOPHERS_PROTOCOL 0
++diff --git a/chromium/config/Chrome/linux/x64/config_components.h b/chromium/config/Chrome/linux/x64/config_components.h
++index 88f6b26f2495f39a20855f251f1e9e3a221ac94c..12c027be6ff713765ab714825a49bc65c9acf172 100644
++--- a/chromium/config/Chrome/linux/x64/config_components.h
+++++ b/chromium/config/Chrome/linux/x64/config_components.h
++@@ -1,7 +1,7 @@
++ /* Automatically generated by configure - do not modify! */
++ #ifndef FFMPEG_CONFIG_COMPONENTS_H
++ #define FFMPEG_CONFIG_COMPONENTS_H
++-#define CONFIG_AAC_ADTSTOASC_BSF 0
+++#define CONFIG_AAC_ADTSTOASC_BSF 1
++ #define CONFIG_AHX_TO_MP2_BSF 0
++ #define CONFIG_APV_METADATA_BSF 0
++ #define CONFIG_AV1_FRAME_MERGE_BSF 0
++@@ -20,7 +20,7 @@
++ #define CONFIG_EXTRACT_EXTRADATA_BSF 0
++ #define CONFIG_FILTER_UNITS_BSF 0
++ #define CONFIG_H264_METADATA_BSF 0
++-#define CONFIG_H264_MP4TOANNEXB_BSF 0
+++#define CONFIG_H264_MP4TOANNEXB_BSF 1
++ #define CONFIG_H264_REDUNDANT_PPS_BSF 0
++ #define CONFIG_HAPQA_EXTRACT_BSF 0
++ #define CONFIG_HEVC_METADATA_BSF 0
++@@ -50,7 +50,7 @@
++ #define CONFIG_TRUEHD_CORE_BSF 0
++ #define CONFIG_VP9_METADATA_BSF 0
++ #define CONFIG_VP9_RAW_REORDER_BSF 0
++-#define CONFIG_VP9_SUPERFRAME_BSF 0
+++#define CONFIG_VP9_SUPERFRAME_BSF 1
++ #define CONFIG_VP9_SUPERFRAME_SPLIT_BSF 0
++ #define CONFIG_VVC_METADATA_BSF 0
++ #define CONFIG_VVC_MP4TOANNEXB_BSF 0
++@@ -132,13 +132,13 @@
++ #define CONFIG_G2M_DECODER 0
++ #define CONFIG_GDV_DECODER 0
++ #define CONFIG_GEM_DECODER 0
++-#define CONFIG_GIF_DECODER 0
+++#define CONFIG_GIF_DECODER 1
++ #define CONFIG_H261_DECODER 0
++ #define CONFIG_H263_DECODER 0
++ #define CONFIG_H263I_DECODER 0
++ #define CONFIG_H263P_DECODER 0
++ #define CONFIG_H263_V4L2M2M_DECODER 0
++-#define CONFIG_H264_DECODER 1
+++#define CONFIG_H264_DECODER 0
++ #define CONFIG_H264_V4L2M2M_DECODER 0
++ #define CONFIG_H264_MEDIACODEC_DECODER 0
++ #define CONFIG_H264_MMAL_DECODER 0
++@@ -634,9 +634,10 @@
++ #define CONFIG_AV1_MEDIACODEC_DECODER 0
++ #define CONFIG_AV1_QSV_DECODER 0
++ #define CONFIG_AV1_AMF_DECODER 0
++-#define CONFIG_LIBOPENH264_DECODER 0
+++#define CONFIG_LIBOPENH264_DECODER 1
++ #define CONFIG_H264_AMF_DECODER 0
++ #define CONFIG_H264_CUVID_DECODER 0
+++#define CONFIG_H264_MF_DECODER 0
++ #define CONFIG_H264_OH_DECODER 0
++ #define CONFIG_HEVC_AMF_DECODER 0
++ #define CONFIG_HEVC_CUVID_DECODER 0
++@@ -756,7 +757,7 @@
++ #define CONFIG_YUV4_ENCODER 0
++ #define CONFIG_ZLIB_ENCODER 0
++ #define CONFIG_ZMBV_ENCODER 0
++-#define CONFIG_AAC_ENCODER 0
+++#define CONFIG_AAC_ENCODER 1
++ #define CONFIG_AC3_ENCODER 0
++ #define CONFIG_AC3_FIXED_ENCODER 0
++ #define CONFIG_ALAC_ENCODER 0
++@@ -1023,7 +1024,7 @@
++ #define CONFIG_WMV3_VDPAU_HWACCEL 0
++ #define CONFIG_AAC_PARSER 1
++ #define CONFIG_AAC_LATM_PARSER 0
++-#define CONFIG_AC3_PARSER 0
+++#define CONFIG_AC3_PARSER 1
++ #define CONFIG_ADX_PARSER 0
++ #define CONFIG_AHX_PARSER 0
++ #define CONFIG_AMR_PARSER 0
++@@ -1051,11 +1052,11 @@
++ #define CONFIG_FFV1_PARSER 0
++ #define CONFIG_G723_1_PARSER 0
++ #define CONFIG_G729_PARSER 0
++-#define CONFIG_GIF_PARSER 0
+++#define CONFIG_GIF_PARSER 1
++ #define CONFIG_GSM_PARSER 0
++ #define CONFIG_H261_PARSER 0
++ #define CONFIG_H263_PARSER 0
++-#define CONFIG_H264_PARSER 1
+++#define CONFIG_H264_PARSER 0
++ #define CONFIG_HEVC_PARSER 0
++ #define CONFIG_HDR_PARSER 0
++ #define CONFIG_IPU_PARSER 0
++@@ -1824,7 +1825,7 @@
++ #define CONFIG_G729_DEMUXER 0
++ #define CONFIG_GDV_DEMUXER 0
++ #define CONFIG_GENH_DEMUXER 0
++-#define CONFIG_GIF_DEMUXER 0
+++#define CONFIG_GIF_DEMUXER 1
++ #define CONFIG_GSM_DEMUXER 0
++ #define CONFIG_GXF_DEMUXER 0
++ #define CONFIG_H261_DEMUXER 0
++@@ -2179,10 +2180,10 @@
++ #define CONFIG_MJPEG_MUXER 0
++ #define CONFIG_MLP_MUXER 0
++ #define CONFIG_MMF_MUXER 0
++-#define CONFIG_MOV_MUXER 0
+++#define CONFIG_MOV_MUXER 1
++ #define CONFIG_MP2_MUXER 0
++ #define CONFIG_MP3_MUXER 0
++-#define CONFIG_MP4_MUXER 0
+++#define CONFIG_MP4_MUXER 1
++ #define CONFIG_MPEG1SYSTEM_MUXER 0
++ #define CONFIG_MPEG1VCD_MUXER 0
++ #define CONFIG_MPEG1VIDEO_MUXER 0
++@@ -2285,7 +2286,7 @@
++ #define CONFIG_FD_PROTOCOL 0
++ #define CONFIG_FFRTMPCRYPT_PROTOCOL 0
++ #define CONFIG_FFRTMPHTTP_PROTOCOL 0
++-#define CONFIG_FILE_PROTOCOL 0
+++#define CONFIG_FILE_PROTOCOL 1
++ #define CONFIG_FTP_PROTOCOL 0
++ #define CONFIG_GOPHER_PROTOCOL 0
++ #define CONFIG_GOPHERS_PROTOCOL 0
++diff --git a/chromium/config/Chrome/linux/x64/libavcodec/bsf_list.c b/chromium/config/Chrome/linux/x64/libavcodec/bsf_list.c
++index 8434c0d5aa9349974a234c6d631af7fd75787078..aa670b4ae3b9c8375964d72f408dcff75d51fa5d 100644
++--- a/chromium/config/Chrome/linux/x64/libavcodec/bsf_list.c
+++++ b/chromium/config/Chrome/linux/x64/libavcodec/bsf_list.c
++@@ -1,4 +1,7 @@
++ static const FFBitStreamFilter * const bitstream_filters[] = {
+++    &ff_aac_adtstoasc_bsf,
+++    &ff_h264_mp4toannexb_bsf,
+++    &ff_vp9_superframe_bsf,
++     &ff_source_bsf,
++     &ff_sink_bsf,
++     NULL };
++diff --git a/chromium/config/Chrome/linux/x64/libavcodec/codec_list.c b/chromium/config/Chrome/linux/x64/libavcodec/codec_list.c
++index fe5adb0d923023e0c408627e324f4c799489a1da..6343ce6e4b477a8a0d280e6e6f86fe99e9be8f44 100644
++--- a/chromium/config/Chrome/linux/x64/libavcodec/codec_list.c
+++++ b/chromium/config/Chrome/linux/x64/libavcodec/codec_list.c
++@@ -1,5 +1,6 @@
++ static const FFCodec * const codec_list[] = {
++-    &ff_h264_decoder,
+++    &ff_aac_encoder,
+++    &ff_gif_decoder,
++     &ff_aac_decoder,
++     &ff_flac_decoder,
++     &ff_mp3_decoder,
++@@ -14,4 +15,5 @@ static const FFCodec * const codec_list[] = {
++     &ff_pcm_s32le_decoder,
++     &ff_pcm_u8_decoder,
++     &ff_libopus_decoder,
+++    &ff_libopenh264_decoder,
++     NULL };
++diff --git a/chromium/config/Chrome/linux/x64/libavcodec/parser_list.c b/chromium/config/Chrome/linux/x64/libavcodec/parser_list.c
++index e3684b3b3d3328e09f744ad750f97b330ea9cccd..ee2bde61d06bfe51aeef982b316642150e9a2c34 100644
++--- a/chromium/config/Chrome/linux/x64/libavcodec/parser_list.c
+++++ b/chromium/config/Chrome/linux/x64/libavcodec/parser_list.c
++@@ -1,7 +1,8 @@
++ static const FFCodecParser * const parser_list[] = {
++     &ff_aac_parser,
+++    &ff_ac3_parser,
++     &ff_flac_parser,
++-    &ff_h264_parser,
+++    &ff_gif_parser,
++     &ff_mpegaudio_parser,
++     &ff_opus_parser,
++     &ff_vorbis_parser,
++diff --git a/chromium/config/Chrome/linux/x64/libavformat/demuxer_list.c b/chromium/config/Chrome/linux/x64/libavformat/demuxer_list.c
++index 29f1f5938185eb39ecb89b8d75da5004c274f075..55ea90c0209f62a0ed038e79bc6b4d1ac7760a00 100644
++--- a/chromium/config/Chrome/linux/x64/libavformat/demuxer_list.c
+++++ b/chromium/config/Chrome/linux/x64/libavformat/demuxer_list.c
++@@ -1,6 +1,7 @@
++ static const FFInputFormat * const demuxer_list[] = {
++     &ff_aac_demuxer,
++     &ff_flac_demuxer,
+++    &ff_gif_demuxer,
++     &ff_matroska_demuxer,
++     &ff_mov_demuxer,
++     &ff_mp3_demuxer,
++diff --git a/chromium/config/Chrome/linux/x64/libavformat/muxer_list.c b/chromium/config/Chrome/linux/x64/libavformat/muxer_list.c
++index ae54c39f23d86d82a59e5c06ac66f9d5cc99056a..cb3015ce2162ca9e33b8ec455d072a8bbdd1b180 100644
++--- a/chromium/config/Chrome/linux/x64/libavformat/muxer_list.c
+++++ b/chromium/config/Chrome/linux/x64/libavformat/muxer_list.c
++@@ -1,2 +1,4 @@
++ static const FFOutputFormat * const muxer_list[] = {
+++    &ff_mov_muxer,
+++    &ff_mp4_muxer,
++     NULL };
++diff --git a/chromium/config/Chrome/linux/x64/libavformat/protocol_list.c b/chromium/config/Chrome/linux/x64/libavformat/protocol_list.c
++index 247e1e4c3a2895996fbe9d6bc51ac6fcca38f751..2f36e9687a8f7a3ae934980697674f3989649d43 100644
++--- a/chromium/config/Chrome/linux/x64/libavformat/protocol_list.c
+++++ b/chromium/config/Chrome/linux/x64/libavformat/protocol_list.c
++@@ -1,2 +1,3 @@
++ static const URLProtocol * const url_protocols[] = {
+++    &ff_file_protocol,
++     NULL };
++diff --git a/chromium/config/Chrome/linux/x64/libavutil/ffversion.h b/chromium/config/Chrome/linux/x64/libavutil/ffversion.h
++index 8aa97ecf44cdd57babe93bc76dc8dc9362cdc89f..86a5b53c6e5161a97afecac192fe9298c53ab1a3 100644
++--- a/chromium/config/Chrome/linux/x64/libavutil/ffversion.h
+++++ b/chromium/config/Chrome/linux/x64/libavutil/ffversion.h
++@@ -1,5 +1,5 @@
++ /* Automatically generated by version.sh, do not manually edit! */
++ #ifndef AVUTIL_FFVERSION_H
++ #define AVUTIL_FFVERSION_H
++-#define FFMPEG_VERSION "git-2026-10-02-bb6ce62622"
+++#define FFMPEG_VERSION "git-2026-10-23-a0ff314"
++ #endif /* AVUTIL_FFVERSION_H */
++diff --git a/ffmpeg_generated.gni b/ffmpeg_generated.gni
++index 0e09e039e6b91cc2843a694183a944cbf495e9db..38d107879504592ff27791429b1327df5e0cba10 100644
++--- a/ffmpeg_generated.gni
+++++ b/ffmpeg_generated.gni
++@@ -621,3 +621,364 @@ if ((is_android && (current_cpu == "arm64" || current_cpu == "arm64e")) ||
++     (is_android && current_cpu == "x86")) {
++   ffmpeg_c_sources += [ "compat/strtod.c" ]
++ }
+++
+++# Regenerated Discord codec selection for the supported Linux x64 target.
+++if (use_linux_config && current_cpu == "x64" && ffmpeg_branding == "Chrome") {
+++  # Declare empty versions of each variable for easier +=ing later.
+++  ffmpeg_c_sources = []
+++  ffmpeg_gas_sources = []
+++  ffmpeg_asm_sources = []
+++  ffmpeg_asm_include_dirs = []
+++  ffmpeg_nasm_include_dirs = []
+++  ffmpeg_c_deps = []
+++  ffmpeg_asm_deps = []
+++
+++  ffmpeg_asm_deps += [
+++    "libavcodec/x86/aacencdsp.asm",
+++    "libavcodec/x86/flacdsp.asm",
+++    "libavcodec/x86/lpc.asm",
+++    "libavcodec/x86/sbrdsp.asm",
+++    "libavcodec/x86/vorbisdsp.asm",
+++    "libavutil/x86/aes.asm",
+++    "libavutil/x86/crc.asm",
+++    "libavutil/x86/fixed_dsp.asm",
+++    "libavutil/x86/float_dsp.asm",
+++    "libavutil/x86/imgutils.asm",
+++    "libavutil/x86/lls.asm",
+++    "libavutil/x86/tx_float.asm",
+++  ]
+++  ffmpeg_c_deps += [
+++    "libavcodec/parser.c",
+++    "libavcodec/x86/mpegaudiodsp.c",
+++    "libavformat/aacdec.c",
+++    "libavformat/flacdec.c",
+++    "libavformat/gifdec.c",
+++    "libavformat/options.c",
+++    "libavformat/pcm.c",
+++    "libavformat/utils.c",
+++    "libavformat/version.c",
+++    "libavutil/utils.c",
+++    "libavutil/version.c",
+++    "libavutil/x86/cpu.c",
+++  ]
+++
+++  ffmpeg_asm_include_dirs += [
+++    "//third_party/ffmpeg/libavcodec/x86",
+++    "//third_party/ffmpeg/libavutil/x86",
+++  ]
+++
+++  if (use_linux_config && current_cpu == "x64" && ffmpeg_branding == "Chrome") {
+++    ffmpeg_c_sources += [
+++      "libavcodec/aac/aacdec.c",
+++      "libavcodec/aac/aacdec_ac.c",
+++      "libavcodec/aac/aacdec_float.c",
+++      "libavcodec/aac/aacdec_lpd.c",
+++      "libavcodec/aac/aacdec_tab.c",
+++      "libavcodec/aac/aacdec_usac.c",
+++      "libavcodec/aac/aacdec_usac_mps212.c",
+++      "libavcodec/aac_ac3_parser.c",
+++      "libavcodec/aac_parser.c",
+++      "libavcodec/aaccoder.c",
+++      "libavcodec/aacenc.c",
+++      "libavcodec/aacenc_is.c",
+++      "libavcodec/aacenc_tns.c",
+++      "libavcodec/aacencdsp.c",
+++      "libavcodec/aacenctab.c",
+++      "libavcodec/aacps_common.c",
+++      "libavcodec/aacps_float.c",
+++      "libavcodec/aacpsdsp_float.c",
+++      "libavcodec/aacpsy.c",
+++      "libavcodec/aacsbr.c",
+++      "libavcodec/aactab.c",
+++      "libavcodec/ac3_channel_layout_tab.c",
+++      "libavcodec/ac3_parser.c",
+++      "libavcodec/ac3tab.c",
+++      "libavcodec/adts_header.c",
+++      "libavcodec/adts_parser.c",
+++      "libavcodec/allcodecs.c",
+++      "libavcodec/audio_frame_queue.c",
+++      "libavcodec/autorename_libavcodec_parser.c",
+++      "libavcodec/avcodec.c",
+++      "libavcodec/avdct.c",
+++      "libavcodec/bitstream.c",
+++      "libavcodec/bitstream_filters.c",
+++      "libavcodec/bitstreamfilter.c",
+++      "libavcodec/bsf.c",
+++      "libavcodec/bsf/aac_adtstoasc.c",
+++      "libavcodec/bsf/h264_mp4toannexb.c",
+++      "libavcodec/bsf/packetsync.c",
+++      "libavcodec/bsf/sink.c",
+++      "libavcodec/bsf/source.c",
+++      "libavcodec/bsf/vp9_superframe.c",
+++      "libavcodec/bsfgraph.c",
+++      "libavcodec/cbrt_data.c",
+++      "libavcodec/cbrt_tablegen_common.c",
+++      "libavcodec/codec_desc.c",
+++      "libavcodec/codec_par.c",
+++      "libavcodec/d3d11va.c",
+++      "libavcodec/dct32_fixed.c",
+++      "libavcodec/dct32_float.c",
+++      "libavcodec/decode.c",
+++      "libavcodec/dirac.c",
+++      "libavcodec/dv_profile.c",
+++      "libavcodec/encode.c",
+++      "libavcodec/exif.c",
+++      "libavcodec/flac.c",
+++      "libavcodec/flac_parser.c",
+++      "libavcodec/flacdata.c",
+++      "libavcodec/flacdec.c",
+++      "libavcodec/flacdsp.c",
+++      "libavcodec/frame_thread_encoder.c",
+++      "libavcodec/get_buffer.c",
+++      "libavcodec/gif_parser.c",
+++      "libavcodec/gifdec.c",
+++      "libavcodec/golomb.c",
+++      "libavcodec/h2645_parse.c",
+++      "libavcodec/imgconvert.c",
+++      "libavcodec/jni.c",
+++      "libavcodec/kbdwin.c",
+++      "libavcodec/lcevctab.c",
+++      "libavcodec/libopenh264.c",
+++      "libavcodec/libopenh264dec.c",
+++      "libavcodec/libopus.c",
+++      "libavcodec/libopusdec.c",
+++      "libavcodec/lpc.c",
+++      "libavcodec/lzw.c",
+++      "libavcodec/mathtables.c",
+++      "libavcodec/mediacodec.c",
+++      "libavcodec/mpeg12framerate.c",
+++      "libavcodec/mpeg4audio.c",
+++      "libavcodec/mpeg4audio_sample_rates.c",
+++      "libavcodec/mpegaudio.c",
+++      "libavcodec/mpegaudio_parser.c",
+++      "libavcodec/mpegaudiodata.c",
+++      "libavcodec/mpegaudiodec_common.c",
+++      "libavcodec/mpegaudiodec_fixed.c",
+++      "libavcodec/mpegaudiodecheader.c",
+++      "libavcodec/mpegaudiodsp.c",
+++      "libavcodec/mpegaudiodsp_data.c",
+++      "libavcodec/mpegaudiodsp_fixed.c",
+++      "libavcodec/mpegaudiodsp_float.c",
+++      "libavcodec/mpegaudiotabs.c",
+++      "libavcodec/options.c",
+++      "libavcodec/opus/frame_duration_tab.c",
+++      "libavcodec/opus/parse.c",
+++      "libavcodec/opus/parser.c",
+++      "libavcodec/packet.c",
+++      "libavcodec/parsers.c",
+++      "libavcodec/pcm.c",
+++      "libavcodec/profiles.c",
+++      "libavcodec/psymodel.c",
+++      "libavcodec/pthread.c",
+++      "libavcodec/pthread_frame.c",
+++      "libavcodec/pthread_slice.c",
+++      "libavcodec/qsv_api.c",
+++      "libavcodec/raw.c",
+++      "libavcodec/sbrdsp.c",
+++      "libavcodec/sinewin.c",
+++      "libavcodec/threadprogress.c",
+++      "libavcodec/tiff_common.c",
+++      "libavcodec/to_upper4.c",
+++      "libavcodec/utils.c",
+++      "libavcodec/version.c",
+++      "libavcodec/vlc.c",
+++      "libavcodec/vorbis.c",
+++      "libavcodec/vorbis_data.c",
+++      "libavcodec/vorbis_parser.c",
+++      "libavcodec/vorbisdec.c",
+++      "libavcodec/vorbisdsp.c",
+++      "libavcodec/vp9_parser.c",
+++      "libavcodec/x86/aacencdsp_init.c",
+++      "libavcodec/x86/aacpsdsp_init.c",
+++      "libavcodec/x86/autorename_libavcodec_x86_mpegaudiodsp.c",
+++      "libavcodec/x86/constants.c",
+++      "libavcodec/x86/flacdsp_init.c",
+++      "libavcodec/x86/lpc_init.c",
+++      "libavcodec/x86/sbrdsp_init.c",
+++      "libavcodec/x86/vorbisdsp_init.c",
+++      "libavcodec/xiph.c",
+++      "libavformat/allformats.c",
+++      "libavformat/apetag.c",
+++      "libavformat/apv.c",
+++      "libavformat/autorename_libavformat_aacdec.c",
+++      "libavformat/autorename_libavformat_flacdec.c",
+++      "libavformat/autorename_libavformat_gifdec.c",
+++      "libavformat/autorename_libavformat_options.c",
+++      "libavformat/autorename_libavformat_pcm.c",
+++      "libavformat/autorename_libavformat_utils.c",
+++      "libavformat/autorename_libavformat_version.c",
+++      "libavformat/av1.c",
+++      "libavformat/avc.c",
+++      "libavformat/avformat.c",
+++      "libavformat/avio.c",
+++      "libavformat/aviobuf.c",
+++      "libavformat/avlanguage.c",
+++      "libavformat/cbs.c",
+++      "libavformat/cbs_apv.c",
+++      "libavformat/cbs_av1.c",
+++      "libavformat/codecstring.c",
+++      "libavformat/demux.c",
+++      "libavformat/demux_utils.c",
+++      "libavformat/dovi_isom.c",
+++      "libavformat/dump.c",
+++      "libavformat/dv.c",
+++      "libavformat/dvdclut.c",
+++      "libavformat/evc.c",
+++      "libavformat/file.c",
+++      "libavformat/flac_picture.c",
+++      "libavformat/format.c",
+++      "libavformat/hevc.c",
+++      "libavformat/id3v1.c",
+++      "libavformat/id3v2.c",
+++      "libavformat/img2.c",
+++      "libavformat/isom.c",
+++      "libavformat/isom_tags.c",
+++      "libavformat/lcevc.c",
+++      "libavformat/matroska.c",
+++      "libavformat/matroskadec.c",
+++      "libavformat/metadata.c",
+++      "libavformat/mov.c",
+++      "libavformat/mov_chan.c",
+++      "libavformat/mov_esds.c",
+++      "libavformat/movenc.c",
+++      "libavformat/movenc_ttml.c",
+++      "libavformat/movenccenc.c",
+++      "libavformat/movenchint.c",
+++      "libavformat/mp3dec.c",
+++      "libavformat/mux.c",
+++      "libavformat/mux_utils.c",
+++      "libavformat/nal.c",
+++      "libavformat/oggdec.c",
+++      "libavformat/oggparseflac.c",
+++      "libavformat/oggparseogm.c",
+++      "libavformat/oggparseopus.c",
+++      "libavformat/oggparseskeleton.c",
+++      "libavformat/oggparsetheora.c",
+++      "libavformat/oggparsevorbis.c",
+++      "libavformat/oggparsevp8.c",
+++      "libavformat/os_support.c",
+++      "libavformat/packet_list.c",
+++      "libavformat/protocols.c",
+++      "libavformat/qtpalette.c",
+++      "libavformat/rawdec.c",
+++      "libavformat/rawutils.c",
+++      "libavformat/replaygain.c",
+++      "libavformat/riff.c",
+++      "libavformat/riffdec.c",
+++      "libavformat/riffenc.c",
+++      "libavformat/rmsipr.c",
+++      "libavformat/rtp.c",
+++      "libavformat/rtpenc_chain.c",
+++      "libavformat/sdp.c",
+++      "libavformat/seek.c",
+++      "libavformat/url.c",
+++      "libavformat/urldecode.c",
+++      "libavformat/vorbiscomment.c",
+++      "libavformat/vpcc.c",
+++      "libavformat/vvc.c",
+++      "libavformat/wavdec.c",
+++      "libavutil/aes.c",
+++      "libavutil/aes_ctr.c",
+++      "libavutil/ambient_viewing_environment.c",
+++      "libavutil/autorename_libavutil_utils.c",
+++      "libavutil/autorename_libavutil_version.c",
+++      "libavutil/avstring.c",
+++      "libavutil/base64.c",
+++      "libavutil/bprint.c",
+++      "libavutil/buffer.c",
+++      "libavutil/camellia.c",
+++      "libavutil/channel_layout.c",
+++      "libavutil/container_fifo.c",
+++      "libavutil/cpu.c",
+++      "libavutil/crc.c",
+++      "libavutil/csp.c",
+++      "libavutil/detection_bbox.c",
+++      "libavutil/dict.c",
+++      "libavutil/display.c",
+++      "libavutil/dovi_meta.c",
+++      "libavutil/downmix_info.c",
+++      "libavutil/encryption_info.c",
+++      "libavutil/error.c",
+++      "libavutil/eval.c",
+++      "libavutil/executor.c",
+++      "libavutil/fifo.c",
+++      "libavutil/file_open.c",
+++      "libavutil/film_grain_params.c",
+++      "libavutil/fixed_dsp.c",
+++      "libavutil/float_dsp.c",
+++      "libavutil/float_scalarproduct.c",
+++      "libavutil/frame.c",
+++      "libavutil/gain_map.c",
+++      "libavutil/hdr_dynamic_metadata.c",
+++      "libavutil/hdr_dynamic_vivid_metadata.c",
+++      "libavutil/hwcontext.c",
+++      "libavutil/hwcontext_stub.c",
+++      "libavutil/iamf.c",
+++      "libavutil/imgutils.c",
+++      "libavutil/integer.c",
+++      "libavutil/intmath.c",
+++      "libavutil/lfg.c",
+++      "libavutil/lls.c",
+++      "libavutil/log.c",
+++      "libavutil/log2_tab.c",
+++      "libavutil/lzo.c",
+++      "libavutil/mastering_display_metadata.c",
+++      "libavutil/mathematics.c",
+++      "libavutil/md5.c",
+++      "libavutil/mem.c",
+++      "libavutil/opt.c",
+++      "libavutil/parseutils.c",
+++      "libavutil/pixdesc.c",
+++      "libavutil/pixelutils.c",
+++      "libavutil/random_seed.c",
+++      "libavutil/rational.c",
+++      "libavutil/raw_color_params.c",
+++      "libavutil/refstruct.c",
+++      "libavutil/reverse.c",
+++      "libavutil/samplefmt.c",
+++      "libavutil/sha.c",
+++      "libavutil/side_data.c",
+++      "libavutil/slicethread.c",
+++      "libavutil/spherical.c",
+++      "libavutil/stereo3d.c",
+++      "libavutil/tdrdi.c",
+++      "libavutil/tea.c",
+++      "libavutil/threadmessage.c",
+++      "libavutil/time.c",
+++      "libavutil/timecode.c",
+++      "libavutil/timecode_internal.c",
+++      "libavutil/timestamp.c",
+++      "libavutil/twofish.c",
+++      "libavutil/tx.c",
+++      "libavutil/tx_float.c",
+++      "libavutil/uuid.c",
+++      "libavutil/video_enc_params.c",
+++      "libavutil/video_hint.c",
+++      "libavutil/x86/aes_init.c",
+++      "libavutil/x86/autorename_libavutil_x86_cpu.c",
+++      "libavutil/x86/fixed_dsp_init.c",
+++      "libavutil/x86/float_dsp_init.c",
+++      "libavutil/x86/imgutils_init.c",
+++      "libavutil/x86/lls_init.c",
+++      "libavutil/x86/tx_float_init.c",
+++    ]
+++    ffmpeg_asm_sources += [
+++      "libavcodec/x86/aacpsdsp.asm",
+++      "libavcodec/x86/autorename_libavcodec_x86_aacencdsp.asm",
+++      "libavcodec/x86/autorename_libavcodec_x86_flacdsp.asm",
+++      "libavcodec/x86/autorename_libavcodec_x86_lpc.asm",
+++      "libavcodec/x86/autorename_libavcodec_x86_sbrdsp.asm",
+++      "libavcodec/x86/autorename_libavcodec_x86_vorbisdsp.asm",
+++      "libavcodec/x86/dct32.asm",
+++      "libavcodec/x86/imdct36.asm",
+++      "libavutil/x86/autorename_libavutil_x86_aes.asm",
+++      "libavutil/x86/autorename_libavutil_x86_crc.asm",
+++      "libavutil/x86/autorename_libavutil_x86_fixed_dsp.asm",
+++      "libavutil/x86/autorename_libavutil_x86_float_dsp.asm",
+++      "libavutil/x86/autorename_libavutil_x86_imgutils.asm",
+++      "libavutil/x86/autorename_libavutil_x86_lls.asm",
+++      "libavutil/x86/autorename_libavutil_x86_tx_float.asm",
+++      "libavutil/x86/cpuid.asm",
+++    ]
+++  }
+++}
++diff --git a/libavcodec/autorename_libavcodec_parser.c b/libavcodec/autorename_libavcodec_parser.c
++index 5a85311e518fb9d2cd6e72bc552219b435d411fb..1b07a79002d05ef5edb32751bc157ea26a879236 100644
++--- a/libavcodec/autorename_libavcodec_parser.c
+++++ b/libavcodec/autorename_libavcodec_parser.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavcodec/parser.c"
++diff --git a/libavcodec/x86/autorename_libavcodec_x86_aacencdsp.asm b/libavcodec/x86/autorename_libavcodec_x86_aacencdsp.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..be33ea4f6762e934d7603ba9bd865e411b38cfbe
++--- /dev/null
+++++ b/libavcodec/x86/autorename_libavcodec_x86_aacencdsp.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavcodec/x86/aacencdsp.asm"
++diff --git a/libavcodec/x86/autorename_libavcodec_x86_flacdsp.asm b/libavcodec/x86/autorename_libavcodec_x86_flacdsp.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..adfc3b6731363974ba65eb98159f74e65c845cd6
++--- /dev/null
+++++ b/libavcodec/x86/autorename_libavcodec_x86_flacdsp.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavcodec/x86/flacdsp.asm"
++diff --git a/libavcodec/x86/autorename_libavcodec_x86_lpc.asm b/libavcodec/x86/autorename_libavcodec_x86_lpc.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..a625f48e758bd8422cdc611994bc1ae77278b8ca
++--- /dev/null
+++++ b/libavcodec/x86/autorename_libavcodec_x86_lpc.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavcodec/x86/lpc.asm"
++diff --git a/libavcodec/x86/autorename_libavcodec_x86_mpegaudiodsp.c b/libavcodec/x86/autorename_libavcodec_x86_mpegaudiodsp.c
++new file mode 100644
++index 0000000000000000000000000000000000000000..5957442ca9ad87272d4ae7a583ee09159dbd5ca2
++--- /dev/null
+++++ b/libavcodec/x86/autorename_libavcodec_x86_mpegaudiodsp.c
++@@ -0,0 +1,2 @@
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++#include "../../third_party/ffmpeg/libavcodec/x86/mpegaudiodsp.c"
++diff --git a/libavcodec/x86/autorename_libavcodec_x86_sbrdsp.asm b/libavcodec/x86/autorename_libavcodec_x86_sbrdsp.asm
++index b98504fda267ca2687c87e59f965f17400f41ea2..943b0de43113c9a8802e869a11e81bfbfc6bd4c7 100644
++--- a/libavcodec/x86/autorename_libavcodec_x86_sbrdsp.asm
+++++ b/libavcodec/x86/autorename_libavcodec_x86_sbrdsp.asm
++@@ -1,2 +1,2 @@
++-; Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ %include "../../third_party/ffmpeg/libavcodec/x86/sbrdsp.asm"
++diff --git a/libavcodec/x86/autorename_libavcodec_x86_vorbisdsp.asm b/libavcodec/x86/autorename_libavcodec_x86_vorbisdsp.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..ec905d8d4ccf1acd7e619d14075d75d90f4cb109
++--- /dev/null
+++++ b/libavcodec/x86/autorename_libavcodec_x86_vorbisdsp.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavcodec/x86/vorbisdsp.asm"
++diff --git a/libavformat/autorename_libavformat_aacdec.c b/libavformat/autorename_libavformat_aacdec.c
++index 0659ac96b32564eeda51aab989abefe5add0b879..a9491da72b30dd6ae979c10b57079581efbc9314 100644
++--- a/libavformat/autorename_libavformat_aacdec.c
+++++ b/libavformat/autorename_libavformat_aacdec.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavformat/aacdec.c"
++diff --git a/libavformat/autorename_libavformat_flacdec.c b/libavformat/autorename_libavformat_flacdec.c
++index 8baa12072f2b086b3788a14c7c9c5b837fbd2977..02cc764ec6b8378f416d9b418e3e961a747208c3 100644
++--- a/libavformat/autorename_libavformat_flacdec.c
+++++ b/libavformat/autorename_libavformat_flacdec.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavformat/flacdec.c"
++diff --git a/libavformat/autorename_libavformat_gifdec.c b/libavformat/autorename_libavformat_gifdec.c
++new file mode 100644
++index 0000000000000000000000000000000000000000..b15f723ad4e55152a67fef0c8cb2834b94a446ca
++--- /dev/null
+++++ b/libavformat/autorename_libavformat_gifdec.c
++@@ -0,0 +1,2 @@
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++#include "../../third_party/ffmpeg/libavformat/gifdec.c"
++diff --git a/libavformat/autorename_libavformat_options.c b/libavformat/autorename_libavformat_options.c
++index 78a88db5b2b3da6a787ff04e330d123449d67c1b..1dffab46473c7b9fc8bfaf0584d9853bc87d16cf 100644
++--- a/libavformat/autorename_libavformat_options.c
+++++ b/libavformat/autorename_libavformat_options.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavformat/options.c"
++diff --git a/libavformat/autorename_libavformat_pcm.c b/libavformat/autorename_libavformat_pcm.c
++index 96efd99456788a7f67e9fab2407b9ae9c738d9f6..8de7476a1ecc0e898e25a2d287e48177bccc1212 100644
++--- a/libavformat/autorename_libavformat_pcm.c
+++++ b/libavformat/autorename_libavformat_pcm.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavformat/pcm.c"
++diff --git a/libavformat/autorename_libavformat_utils.c b/libavformat/autorename_libavformat_utils.c
++index 04442b156f1db48ecf45e48a6407e73262a27699..887adff4364569fdd56c7baf3812fea79a021a96 100644
++--- a/libavformat/autorename_libavformat_utils.c
+++++ b/libavformat/autorename_libavformat_utils.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavformat/utils.c"
++diff --git a/libavformat/autorename_libavformat_version.c b/libavformat/autorename_libavformat_version.c
++index 19579f0389d7828a13a7e6431150a2db966f6143..51d544938b055f4c7bdcdd6d5ceab8c9b0598802 100644
++--- a/libavformat/autorename_libavformat_version.c
+++++ b/libavformat/autorename_libavformat_version.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavformat/version.c"
++diff --git a/libavutil/autorename_libavutil_utils.c b/libavutil/autorename_libavutil_utils.c
++index 5dec32d84c586d7dad27800da99d064c2ee345ba..61845677c9089ef5d8d30368a5c3c0027917ec86 100644
++--- a/libavutil/autorename_libavutil_utils.c
+++++ b/libavutil/autorename_libavutil_utils.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavutil/utils.c"
++diff --git a/libavutil/autorename_libavutil_version.c b/libavutil/autorename_libavutil_version.c
++index 54a2354a52ea29ffc07b7e83b5d5c717033f1855..97db5e5337775069ba636831310c8fd38da224ac 100644
++--- a/libavutil/autorename_libavutil_version.c
+++++ b/libavutil/autorename_libavutil_version.c
++@@ -1,2 +1,2 @@
++-// Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ #include "../../third_party/ffmpeg/libavutil/version.c"
++diff --git a/libavutil/x86/autorename_libavutil_x86_aes.asm b/libavutil/x86/autorename_libavutil_x86_aes.asm
++index c070b260420c421a9bce3fea10c4bcd9027d887d..141e8d9cb8686d612637dd5aa4dbbeca2de25ecd 100644
++--- a/libavutil/x86/autorename_libavutil_x86_aes.asm
+++++ b/libavutil/x86/autorename_libavutil_x86_aes.asm
++@@ -1,2 +1,2 @@
++-; Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ %include "../../third_party/ffmpeg/libavutil/x86/aes.asm"
++diff --git a/libavutil/x86/autorename_libavutil_x86_cpu.c b/libavutil/x86/autorename_libavutil_x86_cpu.c
++new file mode 100644
++index 0000000000000000000000000000000000000000..446e6fa4ec58813cea55694216f12d00029fc8e7
++--- /dev/null
+++++ b/libavutil/x86/autorename_libavutil_x86_cpu.c
++@@ -0,0 +1,2 @@
+++// Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++#include "../../third_party/ffmpeg/libavutil/x86/cpu.c"
++diff --git a/libavutil/x86/autorename_libavutil_x86_crc.asm b/libavutil/x86/autorename_libavutil_x86_crc.asm
++index 73dd66f26d588236a0394247f2814cfb0a637868..dbe6d85192174969117782f4f274aab091abeae7 100644
++--- a/libavutil/x86/autorename_libavutil_x86_crc.asm
+++++ b/libavutil/x86/autorename_libavutil_x86_crc.asm
++@@ -1,2 +1,2 @@
++-; Automatically generated on Mon Oct  5 16:46:26 2026. See crbug.com/495833.
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
++ %include "../../third_party/ffmpeg/libavutil/x86/crc.asm"
++diff --git a/libavutil/x86/autorename_libavutil_x86_fixed_dsp.asm b/libavutil/x86/autorename_libavutil_x86_fixed_dsp.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..86cc848ecf9c304e5a823b4f275890a87b585629
++--- /dev/null
+++++ b/libavutil/x86/autorename_libavutil_x86_fixed_dsp.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavutil/x86/fixed_dsp.asm"
++diff --git a/libavutil/x86/autorename_libavutil_x86_float_dsp.asm b/libavutil/x86/autorename_libavutil_x86_float_dsp.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..201caa0129bfa734daa6aa0350627abafae93672
++--- /dev/null
+++++ b/libavutil/x86/autorename_libavutil_x86_float_dsp.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavutil/x86/float_dsp.asm"
++diff --git a/libavutil/x86/autorename_libavutil_x86_imgutils.asm b/libavutil/x86/autorename_libavutil_x86_imgutils.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..cd0fd44111ad2912db86ecd74c2dd466bf0b8e4b
++--- /dev/null
+++++ b/libavutil/x86/autorename_libavutil_x86_imgutils.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavutil/x86/imgutils.asm"
++diff --git a/libavutil/x86/autorename_libavutil_x86_lls.asm b/libavutil/x86/autorename_libavutil_x86_lls.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..1227841140667bd501e880436bdf58b79f4bc5ab
++--- /dev/null
+++++ b/libavutil/x86/autorename_libavutil_x86_lls.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavutil/x86/lls.asm"
++diff --git a/libavutil/x86/autorename_libavutil_x86_tx_float.asm b/libavutil/x86/autorename_libavutil_x86_tx_float.asm
++new file mode 100644
++index 0000000000000000000000000000000000000000..ff9fa98f0786df3dfd02a08a57d15b5c7719a2b8
++--- /dev/null
+++++ b/libavutil/x86/autorename_libavutil_x86_tx_float.asm
++@@ -0,0 +1,2 @@
+++; Automatically generated on Fri Oct 23 23:28:13 2026. See crbug.com/495833.
+++%include "../../third_party/ffmpeg/libavutil/x86/tx_float.asm"

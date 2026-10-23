@@ -15,6 +15,13 @@ from assemble import validate_port
 
 
 class SourceLocks(unittest.TestCase):
+    def test_dependency_followups_are_checksum_pinned(self):
+        sources = read_json(ROOT / "config/sources.lock.json")
+        port = copy.deepcopy(sources["ports"]["46"])
+        port["followup_patches"][0]["patch_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "Follow-up compatibility patch"):
+            validate_port(port, ROOT / sources["fork"]["patch"])
+
     def test_port_exclusions_are_fully_accounted_for(self):
         sources = read_json(ROOT / "config/sources.lock.json")
         for port in sources["ports"].values():

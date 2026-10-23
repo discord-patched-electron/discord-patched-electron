@@ -130,6 +130,15 @@ def reset_patch_repositories(source: Path, bases: dict):
         run("git", "-C", repo, "reset", "--hard", commit)
 
 
+def verify_source(electron: Path, report: dict):
+    def git(*args):
+        return subprocess.check_output(["git", "-C", str(electron), *args], text=True).strip()
+    if git("rev-parse", "HEAD") != report["upstream_commit"] or git("write-tree") != report["tree"]:
+        raise ValueError("Cached Electron source differs from its assembly report")
+    if subprocess.run(["git", "-C", str(electron), "diff", "--quiet"]).returncode:
+        raise ValueError("Cached Electron source contains unrecorded edits")
+
+
 def build(output: Path, target: str = "reference", *, prepare_only: bool = False):
     started = time.monotonic()
     config = build_config(target)
@@ -174,6 +183,7 @@ def build(output: Path, target: str = "reference", *, prepare_only: bool = False
     if (not report.exists() or read_json(report).get("upstream_commit") != spec["commit"]
             or read_json(report).get("source_assembled") is not True):
         raise ValueError("Incomplete or mismatched cached source assembly; inspect the cache")
+    verify_source(electron, read_json(report))
     shutil.copy2(report, output / "source.json")
     (source / ".gclient").write_text("solutions = " + repr([{"name": "src/electron", "url": spec["repository"],
         "managed": False, "custom_deps": {}, "custom_vars": {}}]) + "\ntarget_os = ['linux']\n")
@@ -184,9 +194,7 @@ def build(output: Path, target: str = "reference", *, prepare_only: bool = False
         write_json(work / "patch-bases.json", patch_repositories(source))
         write_json(synced, {"identity": identity})
     # unmanaged means gclient must preserve the exact source assembled above.
-    actual = subprocess.check_output(["git", "-C", str(electron), "rev-parse", "HEAD"], text=True).strip()
-    if actual != read_json(report)["upstream_commit"]:
-        raise ValueError("gclient changed the locked Electron source")
+    verify_source(electron, read_json(report))
     if not prepared.exists():
         installed = work / "dependencies-installed.json"
         if not installed.exists():

@@ -42,7 +42,20 @@
     },
     "46": {
       "anchor_commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
-      "candidate_tree": "18b65eaf2c51b016e2f5a0b208aeb482a46bdeeb",
+      "candidate_tree": "14c81830c613fc70de24784655d3dab572e0ba99",
+      "dependency_notes": {
+        "chromium/add_missing_lock_annotation.patch": "Omitted from dependency series: upstream Environment::Create already has EXCLUSIVE_LOCKS_REQUIRED(GetLock()).",
+        "chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch": "Preserve frame-scoped audio authorization and resolve every pending RestrictionTarget resolver with the Discord capture token.",
+        "chromium/fix_validate_locale_exists_before_trying_to_use_it.patch": "Use upstream CheckAndResolveLocale fallback and retain Discord empty-localization guard.",
+        "ffmpeg/fix_openh264_opaque_for_bframes.patch": "Keep upstream decoder NULL cleanup, flush handler and failed-reinitialization guard; add Discord packet metadata caching without duplicating the upstream flush callback.",
+        "ffmpeg/roll_ffmpeg.patch": "Replaced in the dependency series with roll_ffmpeg_linux_x64.patch generated from the current patched FFmpeg sources. Non-Linux GN lists are preserved; only Linux x64 codec configuration is qualified."
+      },
+      "followup_patches": [
+        {
+          "patch": "patches/ports/46/dependency-context.patch",
+          "patch_sha256": "f926fb6ce48a5c45bf78a04111897871fc095035be5e17bb578a3ededba9d50f"
+        }
+      ],
       "patch": "patches/ports/46/compatibility.patch",
       "patch_sha256": "af5730624e303b93f16f6180643b4fa2619f501c0475c8e73857f3af0d65fe4a",
       "replaced_paths": [
