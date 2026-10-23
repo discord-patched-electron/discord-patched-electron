@@ -8,13 +8,13 @@ Build a current Electron with Discord's native streaming extensions, run the off
 
 Interpret **stable, prerelease and nightly as Electron channels**, independent of Discord's **stable, PTB and canary client channels**. Support the full three-by-three combination. Pin each Discord channel's own client and modules; never substitute Stable payloads into a PTB or Canary package.
 
-Package names use `discord-<discord-channel>-<electron-channel>-patched-electron-bin` (confirm AUR availability before submission). The Discord channels are `stable`, `ptb` and `canary`; Electron channels are `stable`, `prerelease` and `nightly`. The repository is `discord-patched-electron/discord-patched-electron`, in the organization selected for Blacksmith support.
+Package names use `discord-<discord-channel>-<electron-channel>-patched-electron-bin` (confirm AUR availability before submission). The Discord channels are `stable`, `ptb` and `canary`; Electron channels are `stable`, `prerelease` and `nightly`. The repository is `discord-patched-electron/discord-patched-electron`, in the organization selected by the maintainer.
 
 Each package is a usable Discord installation with its own runtime and launcher. Also publish standalone runtime archives. No extra integration package is required.
 
 Nine packages must not imply nine Chromium compilations. Build once per distinct runtime key, then reuse that artifact across the three Discord channels. Only a proven difference in compiled compatibility patches should create a separate runtime variant. Keep discovery, packaging and publication driven by channel configuration and one template.
 
-Use one small public GitHub repository, GitHub Actions for orchestration, a suitable free compile runner from Depot, Blacksmith or another provider, GitHub Releases for binary downloads, and AUR Git for package recipes. Keep the build scripts runner-independent; provider preference is secondary to adequate free capacity. If no suitable ongoing free CI is available, pause the dependent build/deployment work and ask the user how to proceed. Do not silently choose a paid plan or reduce the requested release coverage.
+Use one small public GitHub repository, GitHub Actions for orchestration, the maintainer's containerized self-hosted compile runner, GitHub Releases for binary downloads, and AUR Git for package recipes. Keep the build scripts runner-independent; provider preference is secondary to adequate free capacity. If no suitable ongoing free CI is available, pause the dependent build/deployment work and ask the user how to proceed. Do not silently choose a paid plan or reduce the requested release coverage.
 
 Base the packaging on the current `discord_arch_electron` recipe, launcher and existing compatibility patches, adapting its established behavior to the custom runtime and nine channel combinations. Working **Krisp noise suppression is required**, alongside native streaming and application-specific screen-share audio. Reuse the existing Krisp patcher rather than inventing a replacement.
 
@@ -123,6 +123,8 @@ For repeated conflicts, recorded, reviewed resolutions can help, but initially p
 **Expected maintenance:** patch/minor updates may apply cleanly; Chromium/Blink changes can require real porting. This design removes recurring merge bookkeeping, not upstream API changes. Nightly is likely to expose those changes first. On a conflict, record the affected release, preserve the last working package and resume after a fix.
 
 ## 4. Free CI feasibility and runner selection
+
+**Implementation decision (23 October 2026):** Blacksmith suspended the account. The maintainer explicitly chose their PC as the runner. Use a dedicated Ubuntu container with only the build workspace mounted on `/mnt/storage`, four CPUs, 12 GiB RAM and two compiler tasks initially. Keep builds serialized and persistent so they can resume. See `docs/ci-setup.md` for deployment. The hosted-provider research below is retained for a possible future migration, not an active setup requirement. No Blacksmith key or quota policy is needed.
 
 Evaluate Depot and Blacksmith on equal terms: sufficient disk/RAM/job duration, sustainable included compute, storage charges and enforceable usage limits. Start with the same build scripts on GitHub Actions-compatible runners; do not introduce a second orchestration platform just to switch providers. A time-limited trial can support a bounded feasibility experiment, but does not establish a free recurring service.
 
@@ -338,7 +340,8 @@ If GitHub publication succeeds and AUR fails, retry only AUR using the existing 
 
 - [ ] Create the small project repository and pin a reference Discord fork/client/module combination.
 - [ ] Import and pin the current AUR packaging baseline, launcher, Krisp patcher and relevant compatibility fixes.
-- [ ] Compare suitable free Depot/Blacksmith/other runner capacity and execute the bounded experiment; if no option qualifies, pause dependent work and ask the user how to proceed.
+- [x] Select compiler capacity: user-authorized local PC, after Blacksmith account suspension.
+- [ ] Execute the bounded reference experiment and measure local resource use.
 - [ ] Build the reference fork, then port the bridge to current stable Electron.
 - [ ] Demonstrate a real Discord stream starts, can be joined and stops without the missing custom API failure.
 - [ ] Demonstrate working Krisp initialization and effective microphone noise suppression with the current package baseline and custom runtime.

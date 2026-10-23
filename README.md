@@ -20,8 +20,9 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
   complete**. Source-application diagnostics are in [docs/evidence](docs/evidence).
 - A full custom runtime has **not been compiled**. Successful Krisp binary patching
   is **not** a claim that noise suppression has been tested on the new runtime.
-- Full compilation and AUR publication remain disabled pending free-runner setup,
-  source compatibility and runtime validation. No binary releases exist yet.
+- The reference build workflow uses a containerized runner on the maintainer's PC.
+  Recurring compilation and AUR publication remain disabled pending source
+  compatibility and runtime validation. No binary releases exist yet.
 
 ## Local checks
 

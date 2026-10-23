@@ -1,42 +1,75 @@
-# Free CI setup
+# Local CI runner
 
 Repository: `discord-patched-electron/discord-patched-electron`.
-Ordinary checks run on free standard GitHub-hosted runners for this public repo.
-Compilation requires substantially more disk than those runners provide.
+The maintainer selected their PC after Blacksmith suspended the new account.
+Standard GitHub-hosted runners still run checks. Compilation runs inside a
+dedicated Ubuntu 24.04 container on the PC; no hosted compiler billing is enabled.
 
-## Blacksmith
+## Installed configuration
 
-1. Sign in at <https://app.blacksmith.sh> with GitHub.
-2. Select the `discord-patched-electron` organization and install its GitHub App.
-3. Grant access only to this repository. Skip the migration wizard: this project
-   owns its workflow files. Do not enable sticky disks or Docker build caching.
-4. Check the billing screen for the free allowance, runner-size conversion and
-   what happens when the allowance runs out. A spending alert is not a hard cap.
-5. Confirm these account details before enabling the capacity build. No payment
-   method or paid plan is required by this project; do not add one for this step.
+- Container: `discord-electron-runner`; GitHub runner: `he3als-pc-container`.
+- Only host mount: `/mnt/storage/discord-patched-electron-ci` → `/work`.
+  The personal home directory and Docker socket are not mounted.
+- Limits: four CPUs, 12 GiB RAM, 20 GiB RAM plus swap, two compiler tasks.
+  ThinLTO is disabled to reduce linking memory for this initial configuration.
+- Build cache: `/work/build-cache`, outside Actions' disposable checkout.
+  Identical source/configuration/script inputs resume the same build directory.
+  Changed inputs create another directory; the script never deletes other builds.
+- The runner restarts with Docker unless explicitly stopped. It has no host
+  services, GitHub login files or AUR credentials mounted.
+- The compile workflow is manually dispatched from `main`, uses a `main`-only
+  `local-compiler` environment and a repository-specific runner label. Pull request
+  checks use standard GitHub runners; all external contributors require approval.
 
-The runner integration uses Blacksmith's GitHub App, so it does not require a PAT
-or a token pasted into chat. A future usage-reporting token, if needed, must be
-entered through a private secret prompt or directly in GitHub Actions secrets.
+Start/stop the runner:
 
-Blacksmith's current quickstart requires an organization-owned repository:
-<https://docs.blacksmith.sh/introduction/quickstart>.
-The documented runner inventory is at
-<https://docs.blacksmith.sh/blacksmith-runners/overview>.
-An 80 GB runner is below Chromium's documented disk requirement. Start with a
-runner that actually fits, bounded by confirmed free-account capacity; slower is
-acceptable but insufficient disk is not.
+```sh
+docker stop --time 60 discord-electron-runner
+docker start discord-electron-runner
+docker logs --tail 30 discord-electron-runner
+```
 
-Do not enable recurring compilation until one cold build establishes disk/RAM,
-elapsed time and allowance consumption. If sustainable free capacity is not
-available, ask the user how to proceed before choosing a paid service or cutting
-the requested channels/release cadence.
+To stop an active build cleanly, cancel its GitHub Actions run before stopping the
+container. Partial object files remain in the dedicated build cache. Dispatching
+the same reference workflow again resumes them. A changed build identity creates
+a fresh checkout; never automatically delete large caches without checking them.
+
+## Reference build
+
+```sh
+gh workflow run capacity.yml --ref main \
+  --repo discord-patched-electron/discord-patched-electron
+```
+
+Each run stops compilation after 21 hours, leaving an hour for reporting before
+the 22-hour job deadline and GitHub's 24-hour token lifetime. Resume through a new
+dispatch if needed. Reports include wall time, sampled minimum free disk, cgroup
+peak RAM/swap and artifact checksums. A compiled reference is retained for one day
+as a CI artifact and remains in the local cache; it is not a public release.
+This first build measures capacity and tests Discord's original fork. It is not
+the requested newer-Electron port.
+
+## Recreating the runner
+
+`python3 scripts/setup_local_runner.py` builds the pinned image and registers one
+repository runner using an existing authenticated `gh` session. It obtains a
+short-lived registration token internally; no API key needs to be pasted into
+chat. The script refuses an existing container to prevent duplicate runners.
+For another PC, adjust the host workspace and UID first. Remove an old runner in
+GitHub settings before replacing it.
+
+The Ubuntu base and downloaded Actions runner archive are pinned by digest.
+Runner self-updates remain enabled to keep GitHub connectivity supported.
 
 ## Later AUR setup
 
 After runtime and package validation, create or select an AUR maintainer account
-and register a dedicated SSH public key with it. Store the private key in the
-repository's `AUR_SSH_PRIVATE_KEY` Actions secret, never in source or chat. Verify
-the AUR host key through Arch's published information. The publisher will only
-receive that credential in its separate publication job. No AUR submission is
-appropriate before a working downloadable runtime exists.
+and register a dedicated SSH public key. Store the private key in the repository's
+`AUR_SSH_PRIVATE_KEY` Actions secret, never in source or chat. Verify the AUR host
+key against Arch's published information. Only the separate GitHub-hosted
+publication job receives that credential. No submission is appropriate before a
+working downloadable runtime exists.
+
+References: [GitHub runner setup](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners),
+[job limits](https://docs.github.com/en/actions/reference/limits),
+[token lifetime](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes).

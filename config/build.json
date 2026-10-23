@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "depot_tools_commit": "08328c3e239aa5e869da9ac98de765c6541395bf",
+  "runner": "discord-electron-compiler",
+  "minimum_disk_gb": 100,
+  "minimum_memory_gb": 8,
+  "parallel_jobs": 2,
+  "maximum_minutes": 1320,
+  "gn_args": [
+    "import(\"//electron/build/args/release.gn\")",
+    "target_cpu=\"x64\"",
+    "is_debug=false",
+    "symbol_level=0",
+    "blink_symbol_level=0",
+    "v8_symbol_level=0",
+    "use_remoteexec=false",
+    "use_thin_lto=false"
+  ]
+}

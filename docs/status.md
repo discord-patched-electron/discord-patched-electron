@@ -17,9 +17,9 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 
 ## Outstanding before a release
 
-1. Connect Blacksmith to the new organization/repository and confirm free billing
-   limits, overage behavior and the runner-size multiplier.
-2. Run the bounded reference capacity build on a runner with sufficient disk.
+1. Verify the containerized local GitHub Actions runner end to end. Blacksmith
+   suspended the account; the maintainer explicitly chose their PC instead.
+2. Run the bounded reference capacity build on the storage SSD.
 3. Port the Discord integration to Electron 45, 46 and 47. Source probes currently
    stop on conflicts, including moved sandboxed renderer exports and Chromium
    patch changes. A textual apply check does not validate dependency patches or C++.
@@ -28,8 +28,10 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 6. Trace the live screen-share audio arguments and implement the verified native
    audio adapter; no unproven per-app fix is enabled.
 
-The current standard GitHub Actions workflow runs checks only. No compilation
-quota is consumed, no AUR key is configured and no public binary is advertised.
+The standard GitHub Actions workflow runs checks. The manual reference build uses
+the local container with four CPUs, 12 GiB RAM, up to 8 GiB additional swap and two
+compiler tasks. No paid compiler is configured, no AUR key is configured and no
+public binary is advertised.
 
 ## Probe incident
 

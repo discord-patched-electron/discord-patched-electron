@@ -7,10 +7,10 @@
   "poll_cron": "17 * * * *",
   "compiler": {
     "enabled": false,
-    "provider": null,
-    "runner": null,
+    "provider": "self-hosted",
+    "runner": "discord-electron-compiler",
     "minimum_disk_gb": 100,
-    "minimum_memory_gb": 16,
+    "minimum_memory_gb": 8,
     "paid_usage_allowed": false
   }
 }
