@@ -338,8 +338,8 @@ If GitHub publication succeeds and AUR fails, retry only AUR using the existing 
 
 ### Phase 1 — prove the two expensive assumptions
 
-- [ ] Create the small project repository and pin a reference Discord fork/client/module combination.
-- [ ] Import and pin the current AUR packaging baseline, launcher, Krisp patcher and relevant compatibility fixes.
+- [x] Create the small project repository and pin a reference Discord fork/client/module combination.
+- [x] Import and pin the current AUR packaging baseline, launcher, Krisp patcher and relevant compatibility fixes.
 - [x] Select initial compiler capacity: local PC fallback and bounded Blacksmith experiment after account unlock; recurring hosted capacity remains unproven.
 - [ ] Execute the bounded reference experiment and measure local resource use.
 - [ ] Build the reference fork, then port the bridge to current stable Electron.
@@ -352,7 +352,7 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 ### Phase 2 — stable automation and packaging
 
 - [ ] Implement discovery, canonical hashes, durable state and bounded retry behavior.
-- [ ] Derive the shared package template and stable launcher/layout from the imported current package, retaining its resource/bootstrap and Krisp fixes.
+- [x] Derive the shared package template and stable launcher/layout from the imported current package, retaining its resource/bootstrap and Krisp fixes.
 - [ ] Implement compile/validate/release/AUR jobs with publication-only credentials.
 - [ ] Register the package and configure its AUR access during deployment setup.
 - [ ] Demonstrate a successful automatic AUR update from a new stable target.
@@ -361,12 +361,12 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 
 ### Phase 3 — full Electron and Discord channel matrix
 
-- [ ] Add Electron prerelease/nightly and Discord PTB/Canary configuration, producing all nine packages through the same scripts/template.
-- [ ] Verify the PTB and Canary manifests, channel identity, resource paths and module layouts; lock their inputs separately.
+- [x] Add Electron prerelease/nightly and Discord PTB/Canary configuration, producing all nine packages through the same scripts/template.
+- [x] Verify the PTB and Canary manifests, channel identity, resource paths and module layouts; lock their inputs separately.
 - [ ] Validate each channel's Krisp patch applicability and effective suppression on its supported Electron runtimes; reject broken combinations without blocking healthy ones.
 - [ ] Demonstrate one shared runtime build feeding three Discord packages when compiled inputs match.
 - [ ] Demonstrate a Canary-only client/module update reuses runtimes and updates only compatible Canary packages.
-- [ ] Verify all nine packages have distinct installation paths, launchers, desktop entries and profiles.
+- [x] Verify all nine packages have distinct installation paths, launchers, desktop entries and profiles.
 - [ ] Validate actual nightly tag-to-source resolution and prerelease version ordering.
 - [ ] Prove a broken Electron nightly or Discord channel cannot block unrelated package publication or downgrade any channel pair.
 - [ ] Simulate multiple stable releases between polls and an older-major maintenance release.
@@ -386,6 +386,14 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 - [ ] Publish a compatibility matrix and documented last-good-version recovery procedure.
 - [ ] Add selective caching only when measured savings justify it and storage remains free or sponsored.
 - [ ] Remove patches absorbed by upstream and reuse Discord's newer ports as they appear.
+
+
+Implementation evidence (23 October 2026): `docs/packaging.md` and
+`docs/evidence/packaging-arch.json` cover recipe/layout checks with real client
+payloads and an explicit dummy runtime. Nine-combination CI run `40004302310` at `09395d0` passed all package checks
+and retained the reports; see `docs/evidence/packaging-ci.json`. These checks do not satisfy native
+streaming, effective Krisp suppression or per-app audio acceptance. Static native
+audio findings are recorded in `docs/audio-investigation.md`.
 
 ## 10. Completion definition and remaining uncertainties
 

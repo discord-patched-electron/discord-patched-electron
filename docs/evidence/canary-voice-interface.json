@@ -1,0 +1,122 @@
+{
+  "binary_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5",
+  "functions": {
+    "connection_transport_options": {
+      "address": "0x2fe410",
+      "pulse_calls": [],
+      "referenced_fields": [
+        {
+          "instruction_address": "0x2ff95a",
+          "name": "soundsharePid"
+        },
+        {
+          "instruction_address": "0x2ff999",
+          "name": "soundshareLoopback"
+        },
+        {
+          "instruction_address": "0x2ff9af",
+          "name": "soundshareDiscardRearChannels"
+        }
+      ],
+      "size": 12503,
+      "symbol": "_ZN22VoiceConnectionWrapper19SetTransportOptionsEN7discord8node_api6ObjectE"
+    },
+    "desktop_source_options": {
+      "address": "0x302cf0",
+      "pulse_calls": [],
+      "referenced_fields": [
+        {
+          "instruction_address": "0x302d32",
+          "name": "sourceId"
+        },
+        {
+          "instruction_address": "0x302da0",
+          "name": "type"
+        }
+      ],
+      "size": 2270,
+      "symbol": "_ZN22VoiceConnectionWrapper27SetDesktopSourceWithOptionsEN7discord8node_api6ObjectE"
+    },
+    "go_live_devices": {
+      "address": "0x302550",
+      "pulse_calls": [],
+      "referenced_fields": [
+        {
+          "instruction_address": "0x30258f",
+          "name": "videoInputDeviceId"
+        },
+        {
+          "instruction_address": "0x3025f0",
+          "name": "audioInputDeviceId"
+        }
+      ],
+      "size": 978,
+      "symbol": "_ZN22VoiceConnectionWrapper16SetGoLiveDevicesEN7discord8node_api6ObjectE"
+    },
+    "pulse_attach": {
+      "address": "0x462820",
+      "pulse_calls": [
+        "pa_context_get_sink_input_info_list",
+        "pa_context_get_state",
+        "pa_operation_unref",
+        "pa_threaded_mainloop_lock",
+        "pa_threaded_mainloop_unlock"
+      ],
+      "referenced_fields": [],
+      "size": 230,
+      "symbol": "_ZN7discord5media10soundshare20PulseAudioController6AttachEjNSt4__Cr12basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEE"
+    },
+    "pulse_client_identification": {
+      "address": "0x461eb0",
+      "pulse_calls": [
+        "pa_proplist_gets"
+      ],
+      "referenced_fields": [
+        {
+          "instruction_address": "0x461ed1",
+          "name": "application.process.id"
+        },
+        {
+          "instruction_address": "0x461eeb",
+          "name": "pipewire.sec.pid"
+        }
+      ],
+      "size": 751,
+      "symbol": "_ZN7discord5media10soundshare20PulseAudioController13GotClientInfoEPK14pa_client_info"
+    },
+    "pulse_sink_identification": {
+      "address": "0x4621a0",
+      "pulse_calls": [
+        "pa_context_get_client_info",
+        "pa_operation_unref",
+        "pa_proplist_free",
+        "pa_proplist_gets"
+      ],
+      "referenced_fields": [
+        {
+          "instruction_address": "0x4621cd",
+          "name": "application.process.id"
+        }
+      ],
+      "size": 1449,
+      "symbol": "_ZN7discord5media10soundshare20PulseAudioController14SinkIdentifiedEPK18pa_sink_input_info"
+    },
+    "pulse_stream_monitor": {
+      "address": "0x461550",
+      "pulse_calls": [
+        "pa_context_errno",
+        "pa_stream_connect_record",
+        "pa_stream_new",
+        "pa_stream_set_monitor_stream",
+        "pa_stream_set_read_callback",
+        "pa_strerror"
+      ],
+      "referenced_fields": [],
+      "size": 940,
+      "symbol": "_ZN7discord5media10soundshare20PulseAudioController16MonitorSinkInputEPK18pa_sink_input_info"
+    }
+  },
+  "per_app_audio_verified": false,
+  "runtime_validated": false,
+  "schema": 1
+}

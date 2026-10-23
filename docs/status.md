@@ -22,16 +22,23 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 - The PC runner is online and has fetched Chromium and installed dependencies.
   Its first attempt stopped on an optional Sentry CLI download; the corrected
   workflow resumes the existing checkout. See [capacity measurements](build-capacity.md).
+- Blacksmith's first reference attempt completed fetching and hooks, then failed
+  at the depot_tools Python launcher before C++ compilation. Explicit tool
+  bootstrap fixes the launcher locally without moving the pinned tool revision.
 - Current 45, 46 and 47 source candidates assemble reproducibly using the imported
   delta plus separate explicit compatibility patches. All skipped imported file
   changes have replacement patches or documented upstream equivalents.
+- Static inspection of all three voice modules finds soundshare PID/loopback
+  options and a native PulseAudio stream-monitoring path. This narrows the next
+  audio experiment; it does not establish working isolation. See
+  [native audio investigation](audio-investigation.md).
 
 ## Outstanding before a release
 
 1. Finish the bounded reference capacity build and inspect its diagnostics.
    Blacksmith has unlocked the account and the maintainer reports an unused
-   3,000-minute allowance. A single hosted experiment is capped at 2,400 equivalent
-   minutes; the installed PC runner remains available with its persistent cache.
+   3,000-minute allowance. The first hosted experiment failed before compilation;
+   use the installed PC runner's persistent cache to qualify the launcher fix.
 2. Confirm cold-build disk/memory use and successful incremental resumption.
 3. Finish the Discord integration ports to Electron 45, 46 and 47: their source
    candidates assemble, but Chromium/dependency patches and C++ still need builds.
