@@ -230,13 +230,13 @@ function traceBoundary(instance, { trace = process.env.DPE_APP_AUDIO_TRACE === '
 }
 
 function wrap(instance, options = {}) {
-  // Trace the caller's original arguments, before any experimental correction.
-  // TRACE alone leaves audio selection unchanged and can inspect Wayland first.
-  const enabled = options.enabled ?? process.env.DPE_APP_AUDIO === '1';
+  // Trace original arguments before routing. Wayland is enabled by default;
+  // DPE_APP_AUDIO=0 explicitly restores the upstream path (including for tracing).
   const wayland = options.wayland ?? Boolean(process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
+  const enabled = options.enabled ?? (wayland ? process.env.DPE_APP_AUDIO !== '0' : process.env.DPE_APP_AUDIO === '1');
   const wrapped = enabled && wayland
     ? require('./dpe-wayland-audio.cjs').wrap(instance, options)
-    : wrapCapture(instance, options);
+    : wrapCapture(instance, { ...options, enabled });
   return traceBoundary(wrapped, options);
 }
 

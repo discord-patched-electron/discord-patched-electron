@@ -20,7 +20,9 @@ class AppAudioPatch(unittest.TestCase):
             adapter = ROOT / 'integration/audio/app-audio.cjs'
             report = patch(directory, adapter)
             content = wrapper.read_bytes()
-            self.assertFalse(report['enabled_by_default'])
+            self.assertTrue(report['enabled_by_default'])
+            self.assertEqual(report['default_sessions'], ['wayland'])
+            self.assertEqual(report['disable_environment'], 'DPE_APP_AUDIO=0')
             self.assertEqual(patch(directory, adapter)['output_sha256'], report['output_sha256'])
             self.assertEqual(wrapper.read_bytes(), content)
             wrapper.write_text('function changedConnection(instance) {}\n')

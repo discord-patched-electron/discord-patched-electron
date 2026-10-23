@@ -9,6 +9,7 @@ from common import read_json, sha256, write_json
 from patch_krisp import patch
 from prepare_app import prepare
 from patch_app_audio import patch as patch_audio
+from camera_scope import write_scope
 
 
 def stage(inputs: dict, directory: Path, asar: str):
@@ -19,6 +20,7 @@ def stage(inputs: dict, directory: Path, asar: str):
     runtime = inputs["runtime"]
     client = inputs["client"]
     archives = {"runtime.zip": runtime["sha256"]}
+    archives["libdpe-camera-probe.so"] = inputs["camera_support"]["sha256"]
     archives.update({name + ".tar.br": source["sha256"] for name, source in client["sources"].items()})
     for name, expected in archives.items():
         if sha256(directory / name) != expected:
@@ -43,6 +45,7 @@ def stage(inputs: dict, directory: Path, asar: str):
     write_json(destination / "krisp-patch.json", report)
     audio = patch_audio(destination / "modules/discord_voice", directory / "app-audio.cjs")
     write_json(destination / "app-audio-patch.json", audio)
+    write_scope(destination / "modules/discord_voice/discord_voice.node", destination)
     for name in ("electron", "chrome-sandbox", "resources.pak", "icudtl.dat", "LICENSE", "LICENSES.chromium.html"):
         if not (destination / "runtime" / name).is_file():
             raise ValueError(f"Incomplete Electron distribution: {name}")

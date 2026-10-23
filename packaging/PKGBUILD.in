@@ -25,7 +25,7 @@ noextract=(
 
 prepare() {
   mkdir -p support/scripts support/packaging/upstream
-  cp common.py prepare_app.py patch_krisp.py patch_app_audio.py stage_package.py support/scripts/
+  cp common.py prepare_app.py patch_krisp.py patch_app_audio.py camera_scope.py stage_package.py support/scripts/
   cp krisp-patcher.py provenance.json support/packaging/upstream/
   python support/scripts/stage_package.py --inputs package-inputs.json --asar /usr/bin/asar
 }
@@ -41,7 +41,11 @@ package() {
   install -Dm644 LICENSE.html "$pkgdir/usr/share/licenses/$pkgname/LICENSE.html"
   install -Dm644 OSS-LICENSES.html "$pkgdir/usr/share/licenses/$pkgname/OSS-LICENSES.html"
   install -Dm644 THIRD_PARTY.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY.md"
+  install -Dm644 PROJECT-LICENSE "$pkgdir/usr/share/licenses/$pkgname/PROJECT-LICENSE"
   install -Dm644 package-inputs.json "$root/package-inputs.json"
   install -Dm644 stage/krisp-patch.json "$root/krisp-patch.json"
   install -Dm644 stage/app-audio-patch.json "$root/app-audio-patch.json"
+  install -Dm755 libdpe-camera-probe.so "$root/libdpe-camera-probe.so"
+  install -Dm644 stage/camera-probe.json "$root/camera-probe.json"
+  install -Dm644 stage/camera-probe.conf "$root/camera-probe.conf"
 }

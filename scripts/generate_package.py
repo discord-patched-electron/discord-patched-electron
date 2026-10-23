@@ -20,6 +20,7 @@ SUPPORT = {
     "prepare_app.py": "scripts/prepare_app.py",
     "patch_krisp.py": "scripts/patch_krisp.py",
     "patch_app_audio.py": "scripts/patch_app_audio.py",
+    "camera_scope.py": "scripts/camera_scope.py",
     "app-audio.cjs": "integration/audio/app-audio.cjs",
     "wayland-audio.cjs": "integration/audio/wayland-audio.cjs",
     "pipewire_audio.py": "integration/audio/pipewire_audio.py",
@@ -27,6 +28,7 @@ SUPPORT = {
     "krisp-patcher.py": "packaging/upstream/krisp-patcher.py",
     "provenance.json": "packaging/upstream/provenance.json",
     "THIRD_PARTY.md": "THIRD_PARTY.md",
+    "PROJECT-LICENSE": "LICENSE",
 }
 
 
@@ -55,7 +57,7 @@ def write_file(path: Path, data: bytes):
         path.write_bytes(data)
 
 
-def generate(runtime: dict, client: dict, channel: str, revision: int, output: Path) -> dict:
+def generate(runtime: dict, client: dict, channel: str, revision: int, output: Path, *, camera: dict) -> dict:
     name = package_name(client["channel"], channel)
     validate_client(client)
     if electron_channel(runtime["version"]) != channel:
@@ -70,6 +72,11 @@ def generate(runtime: dict, client: dict, channel: str, revision: int, output: P
             or not re.fullmatch(r"/discord-patched-electron/discord-patched-electron/releases/download/[A-Za-z0-9._+-]+/[A-Za-z0-9._+-]+\.zip", parsed.path)
             or "/latest/" in parsed.path):
         raise ValueError("Runtime URL must identify a fixed repository release asset")
+    checksum = camera.get("sha256", "")
+    expected_url = f"https://github.com/discord-patched-electron/discord-patched-electron/releases/download/camera-{checksum}/libdpe-camera-probe.so"
+    if (camera.get("schema") != 1 or not re.fullmatch(r"[a-f0-9]{64}", checksum)
+            or camera.get("url") != expected_url or camera.get("minimum_cpu") != "x86-64-v3"):
+        raise ValueError("Camera helper must identify a checksum-pinned CI binary")
     output.mkdir(parents=True, exist_ok=True)
     for filename, source in SUPPORT.items():
         write_file(output / filename, (ROOT / source).read_bytes())
@@ -82,10 +89,11 @@ def generate(runtime: dict, client: dict, channel: str, revision: int, output: P
     # must not silently change which client receives the user's Discord links.
     write_file(output / "discord.desktop", desktop.encode())
     inputs = {"schema": 1, "package": name, "electron_channel": channel,
-              "runtime": runtime, "client": client,
-              "integration_key": integration_key(runtime["runtime_key"], client, channel)}
+              "runtime": runtime, "client": client, "camera_support": camera,
+              "integration_key": integration_key(runtime["runtime_key"], client, channel, camera)}
     write_json(output / "package-inputs.json", inputs)
     sources = [("runtime.zip::" + runtime["url"], runtime["sha256"])]
+    sources += [("libdpe-camera-probe.so::" + camera["url"], checksum)]
     sources += [(name + ".tar.br::" + source["url"], source["sha256"])
                 for name, source in sorted(client["sources"].items())]
     archives = [source.split("::")[0] for source, _ in sources]
@@ -109,13 +117,14 @@ def generate(runtime: dict, client: dict, channel: str, revision: int, output: P
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("runtime", type=Path)
+    parser.add_argument("--camera-support", type=Path, required=True, help="CI-built camera-support.json")
     parser.add_argument("--discord", required=True, choices=["stable", "ptb", "canary"])
     parser.add_argument("--electron", required=True, choices=["stable", "prerelease", "nightly"])
     parser.add_argument("--pkgrel", type=int, default=1)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     generate(read_json(args.runtime), read_json(ROOT / "config/clients.lock.json")["clients"][args.discord],
-             args.electron, args.pkgrel, args.output)
+             args.electron, args.pkgrel, args.output, camera=read_json(args.camera_support))
 
 
 if __name__ == "__main__":

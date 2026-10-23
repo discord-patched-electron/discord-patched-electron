@@ -96,7 +96,7 @@ test("native picker callbacks stop capture while choosing and after cancellation
   const previous = process.env.DPE_APP_AUDIO;
   const previousLatency = process.env.PULSE_LATENCY_MSEC;
   delete process.env.PULSE_LATENCY_MSEC;
-  process.env.DPE_APP_AUDIO = "1";
+  delete process.env.DPE_APP_AUDIO;
   try {
     let selected, cancelled, failed;
     let forwarded = 0;
@@ -122,10 +122,19 @@ test("native picker callbacks stop capture while choosing and after cancellation
       () => forwarded++,
     );
     const f = fixture();
+    const idle = fixture();
+    const microphoneOptions = {
+      echoCancellation: true,
+      noiseCancellation: true,
+    };
+    idle.adapter.setTransportOptions(microphoneOptions);
+    assert.equal(idle.calls[0], microphoneOptions);
     f.adapter.setDesktopSource("screen:0:0");
     f.adapter.setTransportOptions({ soundsharePid: 1 });
     f.ready(f.children[0], 2500);
     assert.equal(voice.presentNativeScreenSharePicker("window"), 17);
+    assert.equal(idle.calls.length, 1);
+    assert.equal(idle.children.length, 0);
     assert.equal(f.calls.at(-1).soundsharePid, 0);
     selected(false, null);
     assert.equal(forwarded, 1);
@@ -137,9 +146,27 @@ test("native picker callbacks stop capture while choosing and after cancellation
     failed("cancelled");
     assert.equal(forwarded, 3);
     f.adapter.destroy();
+    idle.adapter.destroy();
   } finally {
     if (previousLatency === undefined) delete process.env.PULSE_LATENCY_MSEC;
     else process.env.PULSE_LATENCY_MSEC = previousLatency;
+    if (previous === undefined) delete process.env.DPE_APP_AUDIO;
+    else process.env.DPE_APP_AUDIO = previous;
+  }
+});
+
+test("explicit Wayland opt-out leaves picker methods and buffer settings alone", () => {
+  const previous = process.env.DPE_APP_AUDIO;
+  const latency = process.env.PULSE_LATENCY_MSEC;
+  process.env.DPE_APP_AUDIO = "0";
+  try {
+    const voice = {};
+    installVoice(voice);
+    assert.deepEqual(voice, {});
+    assert.equal(process.env.PULSE_LATENCY_MSEC, latency);
+    const { wrap: entry } = require("../../integration/audio/app-audio.cjs");
+    assert.equal(entry(voice, { wayland: true }), voice);
+  } finally {
     if (previous === undefined) delete process.env.DPE_APP_AUDIO;
     else process.env.DPE_APP_AUDIO = previous;
   }

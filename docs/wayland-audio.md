@@ -11,16 +11,18 @@ client tools (`pipewire-audio` on Arch) and a running PipeWire session manager
 such as WirePlumber are required for graph linking. The package does not replace
 PulseAudio with PipeWire-Pulse or enable/disable system services.
 
-The feature is packaged but opt-in with `DPE_APP_AUDIO=1` until the custom-runtime
-and live-call release checks pass. For example, once the package is available:
-
-```sh
-DPE_APP_AUDIO=1 discord-stable-stable-patched-electron-bin
-```
-
-Close that package's existing instance first so the new environment is used.
-`DPE_APP_AUDIO_TRACE=1` additionally enables the bounded module diagnostics.
+The adapter is enabled by default on Wayland. No environment variable is needed.
+`DPE_APP_AUDIO=0` explicitly restores upstream audio routing for troubleshooting;
+`DPE_APP_AUDIO=1` is still accepted and enables the optional X11 adapter.
+Close an existing instance before changing launcher environment variables.
+`DPE_APP_AUDIO_TRACE=1` enables bounded module diagnostics. To trace upstream
+behavior, combine it with `DPE_APP_AUDIO=0`.
 A missing dependency or unresolved automatic selection leaves share audio off.
+
+The maintainer requested default enablement after local native verification;
+custom-runtime and real-call qualification remain release checks, not an opt-in
+requirement. Ordinary microphone/webcam transport updates pass through unchanged,
+and picker events do not start routes on idle voice connections.
 
 ## Source selection
 
@@ -68,7 +70,7 @@ separate entries. Flatpak/PID namespace remapping is not yet qualified.
    also clean up after an uncatchable helper crash.
 
 The native libpulse capture path otherwise requests a two-second default buffer
-on PulseAudio. When enabled, the adapter supplies `PULSE_LATENCY_MSEC=40` only if
+on PulseAudio. The adapter supplies `PULSE_LATENCY_MSEC=40` only if
 unset. This is a process-local buffer request, including other libpulse streams
 created in that native process; it changes no server configuration. An explicit
 user value is preserved. Helper subprocesses use their own explicit buffer sizes.
@@ -115,3 +117,19 @@ and routing in that environment, not an end-to-end Discord call. Custom-runtime
 qualification, live UI arguments, microphone/Krisp during a real share, and actual
 GNOME/KDE sessions remain release checks. See [implementation status](status.md)
 for the latest completed checks and evidence.
+
+## Local interactive verification
+
+`check_wayland_audio.py --selection interactive` pauses after each video choice
+so an operator can inspect and operate the actual audio dialog. The disposable
+container writes `operator-env.json` for `niri msg`/`wtype`; after selecting a row
+or cancelling, create `audio-choice-done` in its output directory. The harness
+then measures captured tones. `manual` remains the automated selector test used
+by CI. Neither mode mounts the host desktop or audio sockets.
+
+On 23 October the actual dialog was visually inspected and operated for both
+apps, system sharing, cancellation and re-enabling. All nine audio phases and
+crash cleanup passed with `DPE_APP_AUDIO` absent. An additional automatic niri
+case passed with real PulseAudio plus PipeWire. See
+[local evidence](evidence/camera-wayland-local.json). These are native module tests
+with a controlled portal, not an account-connected Discord call.

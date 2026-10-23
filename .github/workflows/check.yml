@@ -27,6 +27,14 @@ jobs:
         run: python scripts/check_compiler_cache.py --compiler /usr/bin/clang
       - name: Validate launcher syntax
         run: bash -n integration/launcher/discord-launcher.sh
+      - name: Compile the independent camera support binary
+        run: python scripts/build_camera_support.py --output out/camera-support
+      - name: Retain the camera binary and build identity
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: camera-support
+          path: out/camera-support/
+          retention-days: 7
   native-baselines:
     permissions:
       contents: read

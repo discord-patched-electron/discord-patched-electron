@@ -129,7 +129,6 @@ def session(output, pulse, selection):
             "XAUTHORITY": os.environ.get("XAUTHORITY", ""),
             "LIBGL_ALWAYS_SOFTWARE": "1",
             "DPE_AUDIO_OUTPUT": str(output),
-            "DPE_APP_AUDIO": "1",
             "DPE_APP_AUDIO_TRACE": "1",
         }
 
@@ -308,8 +307,10 @@ def session(output, pulse, selection):
             if selection == "manual":
                 threading.Thread(target=select_audio, daemon=True).start()
             client_env = {**env, "DPE_FIXTURE_SELECTION": selection}
-            if selection == "manual":
+            if selection in {"manual", "interactive"}:
                 client_env.pop("NIRI_SOCKET")
+            if selection == "interactive":
+                write_json(output / "operator-env.json", env)
             child = spawn(
                 [
                     str(output / "runtime" / executable),
@@ -320,7 +321,7 @@ def session(output, pulse, selection):
                 "native",
                 client_env,
             )
-            child.wait(timeout=100)
+            child.wait(timeout=610 if selection == "interactive" else 100)
             if child.returncode:
                 raise ValueError(
                     "Native Wayland fixture failed; inspect fixture.json/native.log"
@@ -550,7 +551,7 @@ def check(
             str(output),
         ],
         check=True,
-        timeout=130,
+        timeout=650 if selection == "interactive" else 130,
     )
     fixture = read_json(output / "fixture.json")
     if not fixture["passed"]:
@@ -601,7 +602,7 @@ if __name__ == "__main__":
         "--pulse", choices=["pipewire", "pulseaudio"], default="pipewire"
     )
     parser.add_argument("--download-only", action="store_true")
-    parser.add_argument("--selection", choices=["auto", "manual"], default="auto")
+    parser.add_argument("--selection", choices=["auto", "manual", "interactive"], default="auto")
     parser.add_argument("--runtime", type=Path)
     parser.add_argument("--provenance", type=Path)
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)

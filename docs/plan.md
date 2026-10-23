@@ -266,9 +266,10 @@ phase. Start with native Wayland window selection through the portal on niri
 (the current desktop), keep portal and compositor identity distinct from X11
 window IDs, and qualify additional compositor backends explicitly. Require
 Wayland two-application isolation, source switching, cancellation, multi-process
-handling and microphone independence before enabling the fix by default.
+handling and microphone independence for release qualification. The maintainer
+subsequently requested default Wayland enablement after local native verification.
 
-The Wayland module adapter is now implemented as an opt-in feature. It follows
+The Wayland module adapter is now enabled by default (`DPE_APP_AUDIO=0` opts out). It follows
 Discord's actual native video consumer through the PipeWire graph to niri's
 cast/window/process identity. Private routes contain the selected app's playback
 processes and feed one helper/playback PID into the native soundshare API. Native
@@ -284,7 +285,7 @@ isolation, unrelated/Discord audio exclusion, switching, cancellation, audio
 off/on, cleanup, both Pulse server implementations and a forced helper crash.
 The compiled test compositor is cached on standard GitHub Actions runners.
 Custom-runtime and real-call/microphone/Krisp qualification remain release gates.
-Trace-only instrumentation (`DPE_APP_AUDIO_TRACE=1`, with `DPE_APP_AUDIO` unset)
+Trace-only instrumentation (`DPE_APP_AUDIO_TRACE=1`, with `DPE_APP_AUDIO=0`)
 remains available to inspect the live client's original arguments.
 
 ### First determine whether the existing module can be configured correctly
@@ -451,3 +452,19 @@ the custom-runtime, real-call, microphone or per-app-audio acceptance gates.
 The project is complete when all nine packages, derived from the current AUR packaging baseline, install the intended official Discord Stable, PTB or Canary client with the corresponding stable, prerelease or nightly custom Electron runtime; new stable Electron releases are detected and attempted without being lost; each Discord channel's updates are independently detected and packaged; successful newer combinations automatically update their AUR packages; identical runtime inputs are compiled once and reused across clients; unchanged builds and publication retries do not trigger unnecessary compilation; Krisp noise suppression demonstrably works; and the per-app audio feature demonstrably excludes other applications for the supported combinations.
 
 The remaining research questions are concrete: actual cold-build cost within a suitable provider's free allowance, private voice/Krisp-module compatibility across Electron majors and client channels, live-client UI behavior on supported desktops, and microphone/Krisp behavior during an actual native share. Keep them visible as feasibility gates. Existing packaging patches provide the starting implementation, but do not by themselves prove compatibility with a newly compiled runtime. Neither unlimited free compilation nor permanently conflict-free Chromium ports has been established. If no suitable free CI can be established, the authorized next step is to pause dependent work and ask the user, not to incur charges.
+
+## Native camera startup and runner control follow-up
+
+The physical webcam delay was traced to the proprietary voice module's legacy
+V4L2 format matrix, not Electron's screen-capture path. Ship the small independent
+`libdpe-camera-probe.so` CI artifact. During package preparation derive the exact
+`FillCapabilities` ELF function range for that locked module; the launcher supplies
+its path/range, and the shim skips only unadvertised formats in that function.
+Supported/unknown formats and other callers retain upstream behavior. No binary
+rewrite, Electron rebuild or continuing fork merge is needed. Include helper source,
+compiler metadata and checksum in package identity. Publish its immutable asset
+before auto-pushing the AUR recipe; never compile it in makepkg. See
+`docs/camera-startup.md` for physical measurements and validation limits.
+
+Docker CPU/RAM limits apply live. Ninja concurrency is chosen on a new dispatch
+using `parallel_jobs`, preserving incremental objects; see `docs/ci-setup.md`.

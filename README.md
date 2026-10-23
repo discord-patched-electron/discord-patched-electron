@@ -6,11 +6,14 @@ with working Krisp and application-specific screen-share audio. Package names us
 Discord Stable/PTB/Canary × Electron stable/prerelease/nightly (nine packages).
 
 **Wayland is the primary desktop target; X11 is additional support.** The current
-opt-in audio adapter now supports native Wayland capture with a private PipeWire
+audio adapter is enabled by default on Wayland and supports native Wayland capture with a private PipeWire
 mix, including PulseAudio applications and multiple audio processes. niri has
 automatic window matching; other compositors get an audio-app picker. See
 [Wayland audio](docs/wayland-audio.md) for usage, tests and remaining live-call
 and custom-runtime qualification.
+
+A separately compiled [camera probe fix](docs/camera-startup.md) reduces native
+webcam startup time without rebuilding Electron. [Runner controls](docs/ci-setup.md#changing-local-limits-while-the-build-runs) explain live CPU/RAM limits.
 
 Published binaries will require **x86-64-v3** (AVX2, including Haswell/first Ryzen;
 no AVX-512 requirement). See [CPU targeting and build reuse](docs/build-caching.md)

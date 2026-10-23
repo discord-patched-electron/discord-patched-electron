@@ -37,7 +37,7 @@ audio validation using the completed artifact, without compiling it again.
 [Wayland implementation](wayland-audio.md) documents the native picker hooks,
 exact niri/PipeWire source matching, private multi-process audio mix, PulseAudio
 compatibility, explicit selector on other compositors, and crash cleanup.
-`DPE_APP_AUDIO=1` enables it. The remote UI and native video path remain intact.
+Wayland routing is now enabled by default; `DPE_APP_AUDIO=0` disables it. The remote UI and native video path remain intact.
 The fixtures run without an account, network, physical microphone or host sockets.
 They are not a real Discord call or a completed custom-runtime qualification.
 
@@ -69,3 +69,20 @@ See [retained audio reports](evidence/wayland-audio-ci.json) and
 
 No binary release or AUR update has been published. The nine recipes exist, but
 the compile/release/AUR coordinator is still unfinished and no AUR key is configured.
+
+## Camera and local controls
+
+The [camera fix](camera-startup.md) was verified on the physical webcam with the
+current installed Canary module and bundled Electron, independently of the active
+compiler. The helper is compiled separately on standard GitHub Actions and supplied
+as a checksum-pinned binary to makepkg; its source does not invalidate Electron
+objects. The release publisher must upload the helper's content-addressed asset
+before publishing recipes referencing it, alongside its existing runtime gates.
+[Live runner controls](ci-setup.md#changing-local-limits-while-the-build-runs) use
+`docker update`; both compile workflows accept `parallel_jobs` on the next dispatch.
+
+The follow-up local checks pass: 61 Python tests, 11 JavaScript tests, actionlint,
+three Stable-client Arch packages, physical-camera A/B measurements, default-on
+Wayland routing on both audio servers and manually operated audio dialogs.
+`docs/evidence/camera-wayland-local.json` retains these results. Full GitHub
+validation for this follow-up is separate from the earlier green CI run above.

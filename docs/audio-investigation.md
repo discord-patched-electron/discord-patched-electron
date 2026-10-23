@@ -141,12 +141,11 @@ provided the reference for the explicit selection path on other compositors.
 ### Collecting the module trace when a real test package is ready
 
 The packaged wrapper now supports `DPE_APP_AUDIO_TRACE=1` independently of
-`DPE_APP_AUDIO=1`. To observe the original client arguments, leave the correction
-off. After closing that same package's existing instance, launch it from a
+`DPE_APP_AUDIO=1`. To observe the original client arguments, explicitly set `DPE_APP_AUDIO=0`. After closing that same package's existing instance, launch it from a
 terminal, for example **once that package exists**:
 
 ```sh
-env -u DPE_APP_AUDIO DPE_APP_AUDIO_TRACE=1 \
+DPE_APP_AUDIO=0 DPE_APP_AUDIO_TRACE=1 \
   discord-stable-stable-patched-electron-bin 2>&1 \
   | rg --line-buffered '^\[dpe-app-audio-trace\]' \
   | tee wayland-audio-trace.log

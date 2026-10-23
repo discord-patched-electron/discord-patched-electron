@@ -20,6 +20,10 @@ def runtime(channel):
         "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/test-fixture/runtime.zip"}
 
 
+CAMERA = {"schema": 1, "sha256": "c" * 64, "minimum_cpu": "x86-64-v3",
+    "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/camera-" + "c" * 64 + "/libdpe-camera-probe.so"}
+
+
 class Recipes(unittest.TestCase):
     def test_makepkg_source_symlink_keeps_staging_inside_srcdir(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -39,7 +43,7 @@ class Recipes(unittest.TestCase):
             for discord, client in clients.items():
                 for electron in ("stable", "prerelease", "nightly"):
                     directory = Path(temp) / (discord + "-" + electron)
-                    result = generate(runtime(electron), client, electron, 1, directory)
+                    result = generate(runtime(electron), client, electron, 1, directory, camera=CAMERA)
                     names.add(result["package"])
                     launcher = (directory / "discord-launcher.sh").read_text()
                     self.assertIn("root=/usr/lib/" + result["package"], launcher)
@@ -51,8 +55,8 @@ class Recipes(unittest.TestCase):
                         "check", str(directory / "PKGBUILD")], text=True)
                     lines = metadata.splitlines()
                     self.assertEqual(lines[0], result["package"])
-                    binary_lines = [line for line in lines[2:] if "full.distro" in line or "runtime.zip::" in line]
-                    self.assertEqual(len(binary_lines), len(client["sources"]) + 1)
+                    binary_lines = [line for line in lines[2:] if "full.distro" in line or "runtime.zip::" in line or "libdpe-camera-probe.so::" in line]
+                    self.assertEqual(len(binary_lines), len(client["sources"]) + 2)
                     self.assertTrue(all(len(line.split()[0]) == 64 for line in binary_lines))
                     if shutil.which("makepkg"):
                         srcinfo = subprocess.check_output(["makepkg", "--printsrcinfo"], cwd=directory, text=True)
@@ -60,7 +64,7 @@ class Recipes(unittest.TestCase):
                         self.assertNotIn("conflicts =", srcinfo)
                         self.assertNotIn("depends = electron", srcinfo)
                     before = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()}
-                    generate(runtime(electron), client, electron, 1, directory)
+                    generate(runtime(electron), client, electron, 1, directory, camera=CAMERA)
                     self.assertEqual(before, {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()})
             self.assertEqual(len(names), 9)
 
@@ -68,14 +72,17 @@ class Recipes(unittest.TestCase):
         client = read_json(ROOT / "config/clients.lock.json")["clients"]["ptb"]
         with tempfile.TemporaryDirectory() as temp:
             with self.assertRaises(ValueError):
-                generate(runtime("stable"), client, "nightly", 1, Path(temp))
+                generate(runtime("stable"), client, "nightly", 1, Path(temp), camera=CAMERA)
             wrong = copy.deepcopy(client)
             wrong["sources"]["discord_voice"]["module_version"] += 1
             with self.assertRaises(ValueError):
-                generate(runtime("stable"), wrong, "stable", 1, Path(temp))
+                generate(runtime("stable"), wrong, "stable", 1, Path(temp), camera=CAMERA)
             for url in ("https://github.com/a/b/releases/latest/download/runtime.zip", "file:///tmp/runtime.zip"):
                 with self.assertRaises(ValueError):
-                    generate({**runtime("stable"), "url": url}, client, "stable", 1, Path(temp))
+                    generate({**runtime("stable"), "url": url}, client, "stable", 1, Path(temp), camera=CAMERA)
+            for camera in ({**CAMERA, "sha256": "SKIP"}, {**CAMERA, "url": "https://github.com/a/b/releases/latest/download/helper.so"}):
+                with self.assertRaisesRegex(ValueError, "Camera helper"):
+                    generate(runtime("stable"), client, "stable", 1, Path(temp), camera=camera)
 
 
 if __name__ == "__main__":

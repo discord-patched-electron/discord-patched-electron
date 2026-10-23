@@ -9,7 +9,7 @@ function picker(event) {
 }
 const installed = new WeakSet();
 function installVoice(voice) {
-  if (installed.has(voice) || process.env.DPE_APP_AUDIO !== "1") return;
+  if (installed.has(voice) || process.env.DPE_APP_AUDIO === "0") return;
   installed.add(voice);
   // The native game-capture stream otherwise requests PulseAudio's two-second
   // default fragment size. Keep its buffer usable for live sharing, and respect
@@ -165,6 +165,9 @@ function wrap(
     );
   }
   function onPicker(event) {
+    // Global picker events also reach ordinary voice/webcam connections. They
+    // have no share to reconfigure and must not acquire audio routes.
+    if (!source && !requested && !helper) return;
     if (event === "cancel") source = false;
     configure();
   }
@@ -179,6 +182,14 @@ function wrap(
   const methods = {
     setTransportOptions(options) {
       if (disposed) return;
+      if (
+        !source &&
+        !requested &&
+        !helper &&
+        !Object.hasOwn(options, "soundsharePid") &&
+        !Object.hasOwn(options, "soundshareLoopback")
+      )
+        return nativeTransport(options);
       let changed = false;
       if (Object.hasOwn(options, "soundsharePid")) {
         const value =

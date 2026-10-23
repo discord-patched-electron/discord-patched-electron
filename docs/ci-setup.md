@@ -68,7 +68,49 @@ container. Partial object files remain in the dedicated build cache. Dispatching
 the same reference workflow again resumes them. A changed build identity creates
 a fresh checkout; never automatically delete large caches without checking them.
 
-## Reference build
+## Changing local limits while the build runs
+
+Docker applies CPU/RAM limits immediately, without restarting the runner or
+discarding compiler objects. For example, to set a six-CPU cap and 16 GiB RAM
+with another 8 GiB available as swap:
+
+```sh
+docker update --cpus 6 --memory 16g --memory-swap 24g discord-electron-runner
+docker stats discord-electron-runner
+```
+
+`--cpus` is an aggregate logical-CPU allowance, not affinity. `--memory-swap`
+is **RAM plus swap**, so `24g` minus `16g` permits 8 GiB swap. Check current
+usage before lowering memory; setting a hard limit below usage can kill compiler
+processes. The limits persist across container restarts. Recreating the container
+uses `scripts/setup_local_runner.py` defaults (4 CPUs, 12 GiB RAM, 20 GiB combined).
+
+To restore those limits, or inspect the exact saved configuration:
+
+```sh
+docker update --cpus 4 --memory 12g --memory-swap 20g discord-electron-runner
+docker inspect --format 'CPUs={{.HostConfig.NanoCpus}} RAM={{.HostConfig.Memory}} RAM+swap={{.HostConfig.MemorySwap}}' discord-electron-runner
+```
+
+The current Ninja process runs **two compiler tasks**. Raising Docker's cap
+alone does not raise `-j`; changing environment variables cannot reconfigure an
+already-running process. Both build workflows now accept `parallel_jobs` for a
+new dispatch. After the current run finishes (or is deliberately cancelled and
+has stopped), an incremental reference build with four tasks can be started with:
+
+```sh
+gh workflow run capacity.yml --ref main -f parallel_jobs=4 \
+  --repo discord-patched-electron/discord-patched-electron
+```
+
+For a candidate, use `build.yml -f target=stable -f parallel_jobs=4`. Job count
+does not change compiler flags or invalidate saved native objects. Give the
+container enough memory for the chosen concurrency. Do not start Ninja manually
+in the active build directory; the workflow serializes compilation.
+
+Source: [Docker's live update command](https://docs.docker.com/reference/cli/docker/container/update/).
+
+## Reference build dispatch
 
 ```sh
 gh workflow run capacity.yml --ref main \

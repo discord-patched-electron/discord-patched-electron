@@ -3,13 +3,15 @@ from common import digest, hash_files, package_name
 from runtime_fingerprints import runtime_key
 
 
-def integration_key(runtime: str, client: dict, electron_channel: str) -> str:
+def integration_key(runtime: str, client: dict, electron_channel: str, camera: dict | None = None) -> str:
     return digest({"runtime": runtime, "client": client,
+                   "camera_support": camera,
                    "package": package_name(client["channel"], electron_channel),
                    "inputs": hash_files(["scripts/prepare_app.py", "scripts/patch_krisp.py",
                                          "scripts/patch_app_audio.py", "integration/audio/app-audio.cjs",
                                          "integration/audio/wayland-audio.cjs", "integration/audio/pipewire_audio.py",
+                                         "integration/camera/v4l2-probe.c", "scripts/camera_scope.py", "scripts/build_camera_support.py",
                                          "packaging/upstream/krisp-patcher.py", "requirements.txt",
                                          "integration/launcher/discord-launcher.sh", "package-lock.json",
                                          "scripts/generate_package.py", "scripts/stage_package.py",
-                                         "packaging/PKGBUILD.in", "packaging/upstream/provenance.json", "THIRD_PARTY.md"])})
+                                         "packaging/PKGBUILD.in", "packaging/upstream/provenance.json", "THIRD_PARTY.md", "LICENSE"])})

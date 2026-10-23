@@ -55,7 +55,7 @@ test('source-ended callback stops capture and still reaches the client', () => {
   f.adapter.destroy();
 });
 
-test('adapter remains opt-in', () => {
+test('explicit disable preserves the upstream instance', () => {
   const native={}; assert.equal(wrap(native,{enabled:false}),native);
 });
 

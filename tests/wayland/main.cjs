@@ -36,5 +36,5 @@ app.whenReady().then(() => {
 });
 setTimeout(
   () => finish({ passed: false, error: "Wayland fixture timed out" }),
-  90000,
+  process.env.DPE_FIXTURE_SELECTION === "interactive" ? 600000 : 90000,
 );

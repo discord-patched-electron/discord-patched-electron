@@ -1,7 +1,7 @@
 # Binary package candidates
 
 `scripts/generate_package.py` generates one AUR recipe from a locked Discord
-client, an immutable runtime asset descriptor and a package revision. The shared
+client, immutable runtime/camera-helper asset descriptors and a package revision. The shared
 template derives from the imported `discord_arch_electron` package. The nine
 Discord/Electron combinations have distinct executable names, desktop files,
 installation directories and default profiles. They do not provide or conflict
@@ -13,6 +13,7 @@ All three Discord packages using the same runtime reuse that URL and checksum.
 
 ```sh
 python3 scripts/generate_package.py out/runtime.json \
+  --camera-support out/camera-support/camera-support.json \
   --discord ptb --electron stable --pkgrel 1 --output out/aur/ptb-stable
 cd out/aur/ptb-stable
 makepkg --printsrcinfo > .SRCINFO
@@ -55,3 +56,19 @@ Those checks must run again with the compiled custom runtime before release.
 The initial local host check is recorded in
 [`evidence/packaging-local.json`](evidence/packaging-local.json); clean Arch CI
 provides the stronger ongoing packaging check.
+
+## Independent camera support binary
+
+`python scripts/build_camera_support.py --output out/camera-support` runs in the
+standard GitHub Actions checks, separately from the Electron compiler. Its small
+x86-64-v3 library and compiler/source manifest are retained as `camera-support`.
+The publisher must upload `libdpe-camera-probe.so` at the manifest's immutable
+`camera-<binary-sha256>` release before using that manifest for an AUR update.
+This publication step remains part of the unfinished release coordinator.
+
+`makepkg` downloads and verifies the precompiled helper; it does not invoke a C
+compiler. Preparation identifies the exact capability-probing function in each
+locked voice ELF, retains its hash/range, and fails on unknown layouts. The launcher
+scopes interception to that path and range. Package inspection checks the helper,
+unchanged voice binary and scope metadata. An integration/helper update changes
+package identity while preserving Electron compilation inputs.

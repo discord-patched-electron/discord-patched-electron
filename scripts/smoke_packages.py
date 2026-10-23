@@ -20,6 +20,7 @@ import zipfile
 from client_inputs import load_clients, validate_channel
 from common import ROOT, digest, download, read_json, sha256, write_json
 from generate_package import generate
+from build_camera_support import build as build_camera
 
 
 def missing_libraries(relative: str, checksum: str, listing: str) -> list[str]:
@@ -66,8 +67,10 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
         audio = json.load(tar.extractfile(root + "/app-audio-patch.json"))
         adapter_hash = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/dpe-app-audio.cjs"), "sha256").hexdigest()
         wrapper_hash = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/index.js"), "sha256").hexdigest()
-        if adapter_hash != audio["adapter_sha256"] or wrapper_hash != audio["output_sha256"] or audio["enabled_by_default"]:
-            raise ValueError("Packaged experimental audio adapter differs from its preparation report")
+        if (adapter_hash != audio["adapter_sha256"] or wrapper_hash != audio["output_sha256"]
+                or audio["enabled_by_default"] is not True or audio["default_sessions"] != ["wayland"]
+                or audio["disable_environment"] != "DPE_APP_AUDIO=0"):
+            raise ValueError("Packaged audio adapter differs from its preparation report")
         for helper, expected in audio["helper_sha256"].items():
             actual = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/" + helper), "sha256").hexdigest()
             if actual != expected:
@@ -75,9 +78,17 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
         for filename in ("package-inputs.json", "runtime/LICENSE", "runtime/LICENSES.chromium.html"):
             if root + "/" + filename not in members:
                 raise ValueError(f"Missing runtime provenance/license: {filename}")
+        camera_hash = hashlib.file_digest(tar.extractfile(root + "/libdpe-camera-probe.so"), "sha256").hexdigest()
+        scope = json.load(tar.extractfile(root + "/camera-probe.json"))
+        voice_hash = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/discord_voice.node"), "sha256").hexdigest()
+        config = tar.extractfile(root + "/camera-probe.conf").read().decode()
+        if (camera_hash != inputs["camera_support"]["sha256"] or scope["voice_sha256"] != voice_hash
+                or config != f"{scope['start']:#x} {scope['end']:#x}\n"):
+            raise ValueError("Packaged camera helper or native scope differs from preparation")
     return {"package": name, "client_version": inputs["client"]["version"],
             "electron_channel": inputs["electron_channel"], "package_sha256": sha256(archive),
             "package_bytes": archive.stat().st_size, "krisp_patch": patch, "app_audio_patch": audio,
+            "camera_support_sha256": camera_hash, "camera_scope": scope,
             "runtime_is_test_fixture": True, "runtime_validated": False, "publishable": False}
 
 
@@ -86,8 +97,8 @@ def package_one(directory: Path, downloads: Path, discord: str, client: dict, el
     runtime = {"version": target["version"], "runtime_key": "a" * 64,
         "sha256": sha256(fixture), "test_fixture": True,
         "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/test-fixture/runtime.zip"}
-    inputs = generate(runtime, client, electron, 1, directory)
-    for filename in ("runtime.zip", "LICENSE.html", "OSS-LICENSES.html"):
+    inputs = generate(runtime, client, electron, 1, directory, camera=read_json(downloads / "camera-support.json"))
+    for filename in ("runtime.zip", "LICENSE.html", "OSS-LICENSES.html", "libdpe-camera-probe.so"):
         os.link(downloads / filename, directory / filename)
     for name in client["sources"]:
         os.link(downloads / (discord + "-" + name + ".tar.br"), directory / (name + ".tar.br"))
@@ -113,6 +124,9 @@ def package_one(directory: Path, downloads: Path, discord: str, client: dict, el
         checked.append(relative)
     report["native_library_dependencies_checked"] = checked
     report["native_library_exceptions"] = exceptions
+    libraries = subprocess.check_output(["ldd", str(directory / "libdpe-camera-probe.so")], text=True)
+    missing_libraries("libdpe-camera-probe.so", sha256(directory / "libdpe-camera-probe.so"), libraries)
+    report["camera_library_dependencies_checked"] = True
     return report
 
 
@@ -123,6 +137,7 @@ def smoke(output: Path, clients_file: Path = ROOT / "config/clients.lock.json",
     output.mkdir(parents=True, exist_ok=True)
     downloads = output / "downloads"
     downloads.mkdir()
+    build_camera(downloads)
     clients = load_clients(clients_file, channels)
     targets = read_json(ROOT / "config/sources.lock.json")["targets"]
     errors = {}

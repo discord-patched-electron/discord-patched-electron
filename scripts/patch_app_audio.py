@@ -1,4 +1,4 @@
-"""Install an opt-in module adapter; reject an unknown native wrapper layout."""
+"""Install the module adapter; reject an unknown native wrapper layout."""
 from pathlib import Path
 import shutil
 
@@ -33,7 +33,8 @@ def patch(directory: Path, adapter: Path) -> dict:
     for name, destination in SIDECARS.items():
         shutil.copy2(adapter.with_name(name), directory / destination)
     return {'input_sha256': before, 'output_sha256': sha256(wrapper),
-            'adapter_sha256': sha256(adapter), 'enabled_by_default': False,
+            'adapter_sha256': sha256(adapter), 'enabled_by_default': True,
+            'default_sessions': ['wayland'], 'disable_environment': 'DPE_APP_AUDIO=0',
             'helper_sha256': {destination: sha256(adapter.with_name(name)) for name, destination in SIDECARS.items()},
-            'requires_environment': 'DPE_APP_AUDIO=1',
+            'x11_enable_environment': 'DPE_APP_AUDIO=1',
             'trace_requires_environment': 'DPE_APP_AUDIO_TRACE=1', 'publishable': False}

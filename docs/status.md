@@ -54,13 +54,14 @@ reports niri; its portal path is the first live qualification target.
   delta plus separate explicit compatibility patches. All skipped imported file
   changes have replacement patches or documented upstream equivalents.
 - Static inspection of all three voice modules finds soundshare PID/loopback
-  options and a native PulseAudio stream-monitoring path. The opt-in module
+  options and a native PulseAudio stream-monitoring path. The module
   adapter retains that path and adds a private PipeWire mix for Wayland. Exact
   niri cast/window matching, multiple audio processes, native PipeWire and
   PulseAudio playback, source switching, cancellation, and crash cleanup now
   have real native Wayland fixtures. Other compositors have an explicit audio
   selector. See [Wayland audio](wayland-audio.md); custom-runtime and live-call/
-  microphone qualification remain open.
+  microphone qualification remain open. The Wayland adapter is now enabled by
+  default; `DPE_APP_AUDIO=0` restores upstream behavior.
 - Candidate builds now select x86-64-v3 through a project-owned GN toolchain.
   Real compiler fixtures verify cache hits, header/CPU invalidation and reuse
   across checkout paths/server restarts. Incremental reference objects remain
@@ -68,7 +69,22 @@ reports niri; its portal path is the first live qualification target.
   checks](build-caching.md). Candidate CI is wired for each Electron channel,
   followed by automatic native/Krisp checks against all three Discord clients.
 
-## Current audio validation
+## Current local verification
+
+- A physical Logitech UVC webcam with the installed Canary 1.0.2360 module and
+  its bundled Electron 44.9.3 reached the first 1280×720 frame in 1.74 seconds
+  with the camera fix, versus 6.05–7.78 seconds upstream (two alternating pairs).
+  No camera images were saved and no microphone or call was used.
+  See [camera startup](camera-startup.md).
+- Wayland is default-enabled. Local native capture tests passed without the old
+  opt-in variable on PipeWire-Pulse (operator-driven selector) and real PulseAudio
+  plus PipeWire (automatic niri identity). All nine phases and crash cleanup passed.
+  See [retained local evidence](evidence/camera-wayland-local.json).
+- Ordinary voice/webcam connections keep unrelated transport options unchanged.
+  The camera helper has fake-driver tests for exact caller scope, supported formats,
+  unavailable enumeration, changed capabilities and explicit disablement.
+
+## Previous full CI audio validation
 
 [Checks 40030377851](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40030377851)
 passed at `d6ad1ab`: 58 Python tests, ten JavaScript tests, source assembly,
@@ -101,8 +117,8 @@ qualification false. No binary release is advertised on this evidence.
    compiler coordinator, release ledger and automatic AUR publisher. Discovery
    and the durable backlog are implemented; no publishable runtime exists yet.
 6. Qualify the completed Wayland audio adapter with the real client's UI and a
-   custom runtime, including a call with microphone/Krisp active. It remains
-   opt-in until those checks pass. Test actual GNOME/KDE desktops and sandboxed
+   custom runtime, including a call with microphone/Krisp active. These are release
+   checks; Wayland routing is enabled by default. Test actual GNOME/KDE desktops and sandboxed
    applications separately; automated identity is currently niri-specific.
 
 The standard GitHub Actions workflow runs checks. The local reference workflow

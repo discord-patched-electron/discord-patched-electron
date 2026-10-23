@@ -7,6 +7,11 @@ on:
         type: choice
         options: [stable, prerelease, nightly]
         default: stable
+      parallel_jobs:
+        description: Ninja tasks (takes effect on this dispatch; CPU/RAM caps are controlled by Docker)
+        type: choice
+        options: ['1', '2', '3', '4', '6', '8']
+        default: '2'
 permissions:
   contents: read
 concurrency:
@@ -21,6 +26,7 @@ jobs:
     env:
       ELECTRON_BUILD_CACHE: /work/build-cache
       ELECTRON_COMPILER_CACHE_SIZE: '32G'
+      ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || '2' }}
       SENTRYCLI_SKIP_DOWNLOAD: '1'
       PYTHONUNBUFFERED: '1'
       TARGET: ${{ inputs.target }}
