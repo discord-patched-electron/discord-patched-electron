@@ -1,0 +1,14 @@
+# Project-owned toolchain: keep Chromium's pinned Clang, sysroot and tool rules.
+# No edit to an upstream file is required. Host tools keep their normal toolchain.
+import("//build/toolchain/gcc_toolchain.gni")
+
+clang_toolchain("clang_x64_v3") {
+  enable_linker_map = true
+  extra_cppflags = "@CPU_FLAGS@"
+  extra_asmflags = "@CPU_FLAGS@"
+  extra_ldflags = "@CPU_FLAGS@"
+  toolchain_args = {
+    current_cpu = "x64"
+    current_os = "linux"
+  }
+}

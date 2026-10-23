@@ -5,6 +5,10 @@ with working Krisp and application-specific screen-share audio. Package names us
 `discord-<discord-channel>-<electron-channel>-patched-electron-bin`:
 Discord Stable/PTB/Canary × Electron stable/prerelease/nightly (nine packages).
 
+Published binaries will require **x86-64-v3** (AVX2, including Haswell/first Ryzen;
+no AVX-512 requirement). See [CPU targeting and build reuse](docs/build-caching.md)
+for incremental Ninja builds, compiler caching and completed-artifact reuse.
+
 The implementation follows [the plan](docs/plan.md). Packaging is based on the
 pinned current `discord_arch_electron` AUR recipe, not a replacement client.
 

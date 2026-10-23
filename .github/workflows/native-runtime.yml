@@ -3,19 +3,19 @@ on:
   workflow_call:
     inputs:
       reference_run:
-        description: Successful reference compiler run ID; empty checks bundled runtimes
+        description: Successful reference or candidate compiler run ID; empty checks bundled runtimes
         type: string
         required: false
         default: ''
   workflow_dispatch:
     inputs:
       reference_run:
-        description: Successful reference compiler run ID; empty checks bundled runtimes
+        description: Successful reference or candidate compiler run ID; empty checks bundled runtimes
         type: string
         required: false
         default: ''
   workflow_run:
-    workflows: [Reference build capacity, Blacksmith reference capacity]
+    workflows: [Reference build capacity, Blacksmith reference capacity, Candidate Electron build]
     types: [completed]
     branches: [main]
 permissions:
@@ -63,7 +63,7 @@ jobs:
           }
           EOF
           sudo apparmor_parser -r /etc/apparmor.d/discord-native-fixture
-      - name: Download and verify a completed reference build
+      - name: Download and verify a completed custom build
         if: env.REFERENCE_RUN != ''
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,7 +74,7 @@ jobs:
         run: |
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
-            args+=(--runtime out/reference-download/runtime)
+            args+=(--runtime out/reference-download/runtime --provenance out/reference-download/artifact-provenance.json)
           fi
           python scripts/check_runtime_clients.py --output out/native-runtime "${args[@]}"
       - name: Retain native fixture diagnostics

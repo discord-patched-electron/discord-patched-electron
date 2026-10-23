@@ -1,0 +1,58 @@
+name: Candidate Electron build
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Locked Electron channel to compile and validate
+        type: choice
+        options: [stable, prerelease, nightly]
+        default: stable
+permissions:
+  contents: read
+concurrency:
+  group: electron-compilation
+  cancel-in-progress: false
+jobs:
+  compile:
+    if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main'
+    environment: local-compiler
+    runs-on: [self-hosted, linux, x64, discord-electron-compiler]
+    timeout-minutes: 1320
+    env:
+      ELECTRON_BUILD_CACHE: /work/build-cache
+      ELECTRON_COMPILER_CACHE_SIZE: '32G'
+      SENTRYCLI_SKIP_DOWNLOAD: '1'
+      PYTHONUNBUFFERED: '1'
+      TARGET: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Build or reuse the locked runtime
+        shell: bash
+        run: |
+          mkdir -p out/capacity
+          set -o pipefail
+          /usr/bin/time -v timeout --signal=INT --kill-after=60s 21h \
+            python3 scripts/build_reference.py --target "$TARGET" 2>&1 | tee out/capacity/build.log
+      - name: Retain diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: candidate-capacity-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            out/capacity/*.json
+            out/capacity/*.log
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Retain binary for all three client compatibility tests
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: candidate-runtime-${{ github.run_id }}
+          path: out/capacity/runtime-dist.zip
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error

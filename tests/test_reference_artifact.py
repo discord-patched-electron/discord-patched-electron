@@ -9,8 +9,10 @@ from unittest.mock import patch
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from common import sha256
-from fetch_reference import extract, fetch
+from common import ROOT, read_json, sha256
+from build_reference import build_config
+from fingerprints import runtime_key
+from fetch_reference import extract, fetch, validate_capacity
 
 
 class ReferenceArtifact(unittest.TestCase):
@@ -43,6 +45,21 @@ class ReferenceArtifact(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "archive path"):
                     extract(self.archive, self.output, sha256(self.archive))
                 self.assertFalse(self.output.exists())
+
+    def test_candidate_provenance_requires_current_cpu_source_and_key(self):
+        sources = read_json(ROOT / "config/sources.lock.json")
+        spec = sources["targets"]["stable"]
+        config = build_config("stable")
+        key = runtime_key(spec, sources, config)
+        capacity = {"source": {"target": "stable", "upstream_commit": spec["commit"],
+            "source_assembled": True, "dependencies_patched": True, "compiled": True},
+            "config": config, "runtime_key": key, "build_key": key, "compiled_version": spec["version"]}
+        validate_capacity(capacity, candidate=True)
+        for changed in [{"runtime_key": "b" * 64}, {"compiled_version": "44.0.0"},
+                        {"config": {**config, "cpu_baseline": "x86-64"}},
+                        {"source": {**capacity["source"], "compiled": False}}]:
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                validate_capacity({**capacity, **changed}, candidate=True)
 
     @patch.dict(os.environ, {"GH_REPO": "discord-patched-electron/discord-patched-electron"})
     @patch("fetch_reference.run")

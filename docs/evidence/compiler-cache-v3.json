@@ -1,0 +1,25 @@
+{
+  "avx512_required": false,
+  "cache_config_sha256": "c974d1819c4ab70595adb7800258526189f5d9086ea1ef4df6375d32215a52be",
+  "cache_hits": 1,
+  "cache_misses": 4,
+  "compiler_version": "clang version 23.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 53d18800eda3b7407e53366f27ca78e922c6e0db)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /mnt/storage/discord-patched-electron-ci/build-cache/reference/be92ed7160913c8b53ae06e6003e6de864d292f1199af9420a8c6dd22ec72aa4/checkout/src/third_party/llvm-build/Release+Asserts/bin",
+  "cpu_baseline": "x86-64-v3",
+  "cpu_config_sha256": "af5a2ed6733c9abefbee8e42e33b04964833abcc70e584267bcc5a129461c593",
+  "cpu_flag_invalidation": true,
+  "cross_checkout_hit_after_server_restart": true,
+  "date": "2026-10-23",
+  "flags": [
+    "-march=x86-64-v3",
+    "-mtune=generic"
+  ],
+  "full_electron_build_tested": false,
+  "gn_c_and_cxx_use_cache_and_v3": true,
+  "gn_reference_generation_passed": true,
+  "header_invalidation": true,
+  "identical_cached_object": true,
+  "live_build_modified": false,
+  "new_header_invalidation": true,
+  "reference_source_read_only": true,
+  "toolchain_template_sha256": "4c69275b151fa67163c5711145e0625ff85ae64dad8a4faf004e54f7aaeb7d67"
+}

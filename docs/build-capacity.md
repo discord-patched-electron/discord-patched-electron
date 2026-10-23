@@ -80,8 +80,9 @@ bootstrap exited successfully, `gn --version` returned `2486 (641ace93dd95)`, an
 depot_tools HEAD remained `08328c3e239aa5e869da9ac98de765c6541395bf`.
 
 The hosted job ran from 18:15:39 to 18:35:57 UTC (20 minutes 18 seconds). At 8x,
-rounding up to 21 minutes estimates 168 allowance minutes, not an account billing
-reading. Its command reported 1,202 seconds, minimum available RAM about 58 GiB
+rounding up to 21 minutes estimates 168 allowance minutes. The maintainer has
+since confirmed 168 minutes used in the account, leaving 2,832 of 3,000 before
+further usage. Its command reported 1,202 seconds, minimum available RAM about 58 GiB
 and minimum free disk about 605 GiB. No reference binary was produced, and these
 preparation numbers do not establish linker capacity. The one-shot hosted guard
 remains in force; the local cache is used to qualify further build-stage fixes.
@@ -91,3 +92,9 @@ at `ee31072` successfully completed GN generation and entered actual C++
 compilation. The [checks for that commit](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40005415844)
 passed. The local compile is still in progress; compilation/link time and final
 resource peaks remain unmeasured.
+
+The v3 candidate toolchain and bounded compiler caches are now implemented;
+see [build reuse](build-caching.md). They do not change the running reference
+process or discard its incremental output. The original Blacksmith attempt had
+no persistent compiler cache; restore/save is wired for a future authorized run,
+while its one-shot allowance guard still rejects repeat experiments.

@@ -14,6 +14,7 @@ jobs:
     timeout-minutes: 1320
     env:
       ELECTRON_BUILD_CACHE: /work/build-cache
+      ELECTRON_COMPILER_CACHE_SIZE: '32G'
       # Sentry's CLI only uploads debug symbols; no symbol upload is performed.
       # Its optional CDN download must not block a runtime-only build.
       SENTRYCLI_SKIP_DOWNLOAD: '1'

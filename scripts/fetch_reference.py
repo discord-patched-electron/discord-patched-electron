@@ -11,6 +11,29 @@ import subprocess
 import zipfile
 
 from common import ROOT, read_json, run, sha256, write_json
+from build_reference import build_config
+from fingerprints import runtime_key
+
+
+def validate_capacity(capacity: dict, candidate: bool):
+    source = capacity["source"]
+    sources = read_json(ROOT / "config/sources.lock.json")
+    if not all(source.get(key) is True for key in ("source_assembled", "dependencies_patched", "compiled")):
+        raise ValueError("Compiler report lacks a completed build")
+    if not candidate:
+        if source.get("target") != "reference" or source.get("upstream_commit") != sources["fork"]["commit"]:
+            raise ValueError("Compiler report does not establish the current reference build")
+    else:
+        channel = source.get("target")
+        if channel not in sources["targets"]:
+            raise ValueError("Unknown candidate channel")
+        spec = sources["targets"][channel]
+        config = build_config(channel)
+        expected = runtime_key(spec, sources, config)
+        if (source.get("upstream_commit") != spec["commit"] or capacity.get("compiled_version") != spec["version"]
+                or capacity.get("config") != config or capacity.get("runtime_key") != expected
+                or capacity.get("build_key") != expected):
+            raise ValueError("Candidate differs from current source, CPU or compiler configuration")
 
 
 def extract(archive: Path, destination: Path, expected: str):
@@ -47,24 +70,22 @@ def fetch(run_id: str, output: Path):
         ["gh", "api", f"repos/{repository}/actions/runs/{run_id}"], text=True))
     if (metadata["conclusion"] != "success" or metadata["head_branch"] != "main"
             or metadata["head_repository"]["full_name"] != repository
-            or metadata["path"] not in {".github/workflows/capacity.yml", ".github/workflows/blacksmith-capacity.yml"}):
-        raise ValueError("Expected a successful main-branch reference compiler run")
+            or metadata["path"] not in {".github/workflows/capacity.yml", ".github/workflows/blacksmith-capacity.yml", ".github/workflows/build.yml"}):
+        raise ValueError("Expected a successful main-branch compiler run")
     output.mkdir(parents=True, exist_ok=True)
     attempt = metadata["run_attempt"]
-    # The two compiler workflows use different diagnostic artifact names.
-    report_name = ("capacity-report" if metadata["path"].endswith("/capacity.yml")
-                   else "blacksmith-capacity")
+    candidate = metadata["path"] == ".github/workflows/build.yml"
+    report_name = {".github/workflows/capacity.yml": "capacity-report",
+                   ".github/workflows/blacksmith-capacity.yml": "blacksmith-capacity",
+                   ".github/workflows/build.yml": "candidate-capacity"}[metadata["path"]]
     run("gh", "run", "download", run_id, "--repo", repository,
         "--name", f"{report_name}-{run_id}-{attempt}", "--dir", output / "capacity")
     capacity = read_json(output / "capacity/capacity.json")
-    source = capacity["source"]
-    fork = read_json(ROOT / "config/sources.lock.json")["fork"]["commit"]
-    if (source.get("target") != "reference" or source.get("upstream_commit") != fork
-            or not all(source.get(key) is True for key in ("source_assembled", "dependencies_patched", "compiled"))):
-        raise ValueError("Compiler report does not establish the current reference build")
+    validate_capacity(capacity, candidate)
+    artifact = "candidate-runtime" if candidate else "reference-runtime"
     run("gh", "run", "download", run_id, "--repo", repository,
-        "--name", f"reference-runtime-{run_id}", "--dir", output / "binary")
-    archive = output / "binary/reference-dist.zip"
+        "--name", f"{artifact}-{run_id}", "--dir", output / "binary")
+    archive = output / "binary" / ("runtime-dist.zip" if candidate else "reference-dist.zip")
     extract(archive, output / "runtime", capacity["archive_sha256"])
     write_json(output / "artifact-provenance.json", {"compiler_run": metadata["html_url"],
         "compiler_commit": metadata["head_sha"], "compiler_attempt": attempt,

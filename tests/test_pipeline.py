@@ -121,6 +121,13 @@ class VersionsAndKeys(unittest.TestCase):
         changed["ports"]["45"]["candidate_tree"] = "f" * 40
         self.assertNotEqual(runtime_key(target, sources, {}), runtime_key(target, changed, {}))
 
+    def test_validation_evidence_does_not_invalidate_native_bytes(self):
+        sources = read_json(ROOT / "config/sources.lock.json")
+        target = sources["targets"]["stable"]
+        changed = copy.deepcopy(sources)
+        changed["ports"]["45"]["status"] = "runtime-validated"
+        self.assertEqual(runtime_key(target, sources, {}), runtime_key(target, changed, {}))
+
 
 class BootstrapPatches(unittest.TestCase):
     def test_exact_edit_and_unknown_layout(self):

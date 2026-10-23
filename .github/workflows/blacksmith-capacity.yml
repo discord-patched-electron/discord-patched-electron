@@ -44,13 +44,29 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
+      - name: Restore bounded compiler cache
+        id: compiler-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/electron-sccache
+          key: compiler-linux-x64-${{ hashFiles('config/compiler-cache.json', 'config/candidate-build.json', 'ci/gn/BUILD.gn.in') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            compiler-linux-x64-${{ hashFiles('config/compiler-cache.json', 'config/candidate-build.json', 'ci/gn/BUILD.gn.in') }}-
       - name: Build the locked reference fork
+        env:
+          ELECTRON_COMPILER_CACHE: ${{ runner.temp }}/electron-sccache
         shell: bash
         run: |
           export ELECTRON_BUILD_CACHE="$RUNNER_TEMP/electron-build"
           mkdir -p out/capacity
           set -o pipefail
           /usr/bin/time -v timeout --signal=INT --kill-after=60s 285m python3 scripts/build_reference.py 2>&1 | tee out/capacity/build.log
+      - name: Save compiler progress even after a failed build
+        if: always() && steps.compiler-cache.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/electron-sccache
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
       - name: Retain diagnostic logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

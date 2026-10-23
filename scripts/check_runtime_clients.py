@@ -11,7 +11,13 @@ from patch_krisp import patch
 from probe_runtime import probe
 
 
-def check(output: Path, custom_runtime: Path | None = None):
+def check(output: Path, custom_runtime: Path | None = None, provenance: Path | None = None):
+    expected_version = None
+    if provenance:
+        if not custom_runtime:
+            raise ValueError("Compiler provenance requires a custom runtime")
+        capacity = read_json(provenance)["capacity"]
+        expected_version = capacity.get("compiled_version", "44.0.0-reference.1")
     output = output.resolve()
     if output.exists() and any(output.iterdir()):
         raise ValueError("Use an empty runtime check directory")
@@ -43,6 +49,8 @@ def check(output: Path, custom_runtime: Path | None = None):
         result = probe(runtime, executable, directory / "modules", directory / "probe", fixture / "input")
         if not result["passed"]:
             raise ValueError(f"{channel}: native runtime fixture failed; inspect runtime-report.json")
+        if expected_version and result["versions"]["electron"] != expected_version:
+            raise ValueError(f"{channel}: loaded Electron version differs from the compiler report")
         audio = analyze(fixture, directory / "probe")
         write_json(directory / "audio-report.json", audio)
         if not audio["offline_krisp_verified"]:
@@ -62,8 +70,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--runtime", type=Path, help="Extracted custom Electron distribution; defaults to each bundled runtime")
+    parser.add_argument("--provenance", type=Path, help="Verified compiler artifact provenance for version checking")
     args = parser.parse_args()
-    check(args.output, args.runtime.resolve() if args.runtime else None)
+    check(args.output, args.runtime.resolve() if args.runtime else None, args.provenance)
 
 
 if __name__ == "__main__":

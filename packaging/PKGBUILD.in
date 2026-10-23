@@ -3,7 +3,7 @@
 pkgname=@PACKAGE@
 pkgver=@VERSION@
 pkgrel=@REVISION@
-pkgdesc='Discord @DISCORD@ with patched Electron @ELECTRON@'
+pkgdesc='Discord @DISCORD@ with patched Electron @ELECTRON@ (requires x86-64-v3 CPU)'
 arch=('x86_64')
 url='https://github.com/discord-patched-electron/discord-patched-electron'
 license=('LicenseRef-custom' 'MIT' 'BSD-3-Clause')

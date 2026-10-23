@@ -12,6 +12,8 @@ Package names use `discord-<discord-channel>-<electron-channel>-patched-electron
 
 Each package is a usable Discord installation with its own runtime and launcher. Also publish standalone runtime archives. No extra integration package is required.
 
+The maintainer selected **x86-64-v3** as the minimum CPU baseline for published binaries: AVX2, with no AVX-512 requirement. Use generic tuning, never `-march=native`. Keep this policy in the runtime and cache identities. Preserve incremental Ninja objects, reuse verified completed artifacts, and use compiler caching across releases. The PC compiler cache is bounded to 32 GiB; hosted snapshots are bounded to 3 GiB without paid cache expansion. Implementation and measured cache checks are in [build-caching.md](build-caching.md). The running reference capacity build retains its original flags.
+
 Nine packages must not imply nine Chromium compilations. Build once per distinct runtime key, then reuse that artifact across the three Discord channels. Only a proven difference in compiled compatibility patches should create a separate runtime variant. Keep discovery, packaging and publication driven by channel configuration and one template.
 
 Use one small public GitHub repository, GitHub Actions for orchestration, the maintainer's containerized self-hosted compile runner, GitHub Releases for binary downloads, and AUR Git for package recipes. Keep the build scripts runner-independent; provider preference is secondary to adequate free capacity. If no suitable ongoing free CI is available, pause the dependent build/deployment work and ask the user how to proceed. Do not silently choose a paid plan or reduce the requested release coverage.

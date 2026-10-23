@@ -1,0 +1,5 @@
+{
+  "cpu_baseline": "x86-64-v3",
+  "cpu_flags": ["-march=x86-64-v3", "-mtune=generic"],
+  "gn_args": ["custom_toolchain=\"//dpe_build:clang_x64_v3\""]
+}
