@@ -3,7 +3,8 @@
 Repository: `discord-patched-electron/discord-patched-electron`.
 Standard GitHub-hosted runners run checks. The maintainer's containerized PC
 runner remains available. Blacksmith unlocked the organization on 23 October
-2026; the maintainer reports 0/3,000 minutes used and the organization connected.
+2026. The last reported allowance use is 168/3,000 minutes. Current builds use
+only the PC; no further Blacksmith compiler is authorized for the overnight task.
 
 ## Blacksmith capacity experiment
 
@@ -42,9 +43,9 @@ Sources: [runner specifications and free-minute conversion](https://docs.blacksm
 - Container: `discord-electron-runner`; GitHub runner: `he3als-pc-container`.
 - Only host mount: `/mnt/storage/discord-patched-electron-ci` → `/work`.
   The personal home directory and Docker socket are not mounted.
-- Limits: four CPUs, 12 GiB RAM, 20 GiB RAM plus swap. The current run retains two compiler
-  tasks; future runs default to auto, selecting four under these limits.
-  ThinLTO is disabled to reduce linking memory for this initial configuration.
+- Current limits: all 20 logical CPUs available, 26 GiB RAM and 36 GiB RAM plus
+  swap. The reference and queued prerelease dispatches explicitly use 16 Ninja
+  tasks and one concurrent linker. ThinLTO remains disabled.
 - Build cache: `/work/build-cache`, outside Actions' disposable checkout.
   Identical native source/configuration/container inputs resume the same reference
   directory even after a driver-only recovery fix. The report records the exact
@@ -93,16 +94,28 @@ docker update --cpus 4 --memory 12g --memory-swap 20g discord-electron-runner
 docker inspect --format 'CPUs={{.HostConfig.NanoCpus}} RAM={{.HostConfig.Memory}} RAM+swap={{.HostConfig.MemorySwap}}' discord-electron-runner
 ```
 
-The current Ninja process runs **two compiler tasks**. Raising Docker's cap
+To restore the current unrestricted CPU quota and overnight memory headroom:
+
+```sh
+docker update --cpu-quota -1 --memory 26g --memory-swap 36g discord-electron-runner
+docker exec discord-electron-runner cat /sys/fs/cgroup/cpu.max
+```
+
+The effective quota should read `max 100000`. On this daemon, `--cpus 0` did not
+clear the old quota and `NanoCpus` retained a stale value after clearing it;
+inspect the cgroup value to confirm what the kernel enforces.
+
+The current Ninja process runs **16 compiler tasks**. Raising Docker's cap
 alone does not raise `-j`; changing environment variables cannot reconfigure an
 already-running process. Both build workflows default to `parallel_jobs=auto` for a
 new dispatch, using CPU affinity, visible cgroup v2 quotas and RAM capacity.
-Explicit job counts remain available. The current limits select four tasks;
-`out/capacity/resources.json` records the decision. After the current run finishes (or is deliberately cancelled and
-has stopped), an incremental reference build with four tasks can be started with:
+Explicit job counts remain available; `out/capacity/resources.json` records the
+decision. Auto is deliberately conservative about per-task RAM. The overnight
+dispatches override it with 16 after observing ample memory headroom. After a
+failed run has stopped and its failure is fixed, resume with:
 
 ```sh
-gh workflow run capacity.yml --ref main -f parallel_jobs=4 \
+gh workflow run capacity.yml --ref main -f parallel_jobs=16 \
   --repo discord-patched-electron/discord-patched-electron
 ```
 

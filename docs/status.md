@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 23 October 2026. This is a bootstrap implementation, not a working binary release.
+Updated 24 October 2026. This is a bootstrap implementation, not a working binary release.
 
 Wayland is the primary target, as clarified by the maintainer. X11 fixture success
 does not satisfy the application-audio release requirement. The current desktop
@@ -42,8 +42,9 @@ reports niri; its portal path is the first live qualification target.
 - Blacksmith's first reference attempt completed fetching and hooks, then failed
   at the depot_tools Python launcher before C++ compilation. Explicit tool
   bootstrap fixes the launcher locally without moving the pinned tool revision.
-- The corrected local reference run `40005436647` has reached C++ compilation.
-  It remains in progress; no completed custom runtime exists yet.
+- The local reference run `40036898682` is compiling with 16 tasks and retained
+  incremental objects. Prerelease run `40040828617` is queued behind it; no
+  completed custom runtime exists yet.
 - All three bundled runtimes pass synthetic native frame delivery and teardown,
   module loading, and an offline Krisp off/on/off comparison (53.6 dB reduction
   in the noise-only interval, retained speech). See [runtime checks](runtime-validation.md).
@@ -67,7 +68,7 @@ reports niri; its portal path is the first live qualification target.
   Real compiler fixtures verify cache hits, header/CPU invalidation and reuse
   across checkout paths/server restarts. Incremental reference objects remain
   intact; verified completed archives skip the compiler. See [CPU and caching
-  checks](build-caching.md). Candidate CI is wired for each Electron channel,
+  checks](build-caching.md). Candidate CI is wired for prerelease Electron,
   followed by automatic native/Krisp checks against all three Discord clients.
 
 ## Current local verification
@@ -84,6 +85,14 @@ reports niri; its portal path is the first live qualification target.
 - Ordinary voice/webcam connections keep unrelated transport options unchanged.
   The camera helper has fake-driver tests for exact caller scope, supported formats,
   unavailable enumeration, changed capabilities and explicit disablement.
+
+The complete Canary bootstrap now reaches its real login form with a fresh profile
+on native Wayland. The bundled runtime also passes AMD hardware WebGL and VA-API
+H.264 decoding checks without extra feature flags. The latest physical camera
+pair measured 8.33 seconds upstream versus 2.33 seconds with the helper. These are
+bundled-runtime baselines; the queued custom runtime still needs qualification.
+No webcam frames were displayed, saved or uploaded. See
+[Linux runtime checks](linux-runtime.md).
 
 ## Previous full CI audio validation
 
@@ -111,8 +120,9 @@ qualification false. No binary release is advertised on this evidence.
    3,000 allowance minutes used. The first hosted experiment failed before compilation;
    use the installed PC runner's persistent cache to qualify the launcher fix.
 2. Confirm cold-build disk/memory use and successful incremental resumption.
-3. Finish the Discord integration ports to Electron 45, 46 and 47: their source
-   candidates assemble, but Chromium/dependency patches and C++ still need builds.
+3. Finish compiling the enabled Electron 46 prerelease port. Its source tree,
+   Chromium/dependency patches, gclient hooks and GN generation now pass on the
+   PC. Disabled Electron 45/stable and 47/nightly are outside the active scope.
 4. Prove native streaming and Krisp behavior on the custom runtime.
 5. Validate the generated packages with real custom runtimes, then finish the
    compiler coordinator, release ledger and automatic AUR publisher. Discovery
@@ -122,11 +132,11 @@ qualification false. No binary release is advertised on this evidence.
    checks; Wayland routing is enabled by default. Test actual GNOME/KDE desktops and sandboxed
    applications separately; automated identity is currently niri-specific.
 
-The standard GitHub Actions workflow runs checks. The local reference workflow
-uses four CPUs, 12 GiB RAM, up to 8 GiB additional swap and two compiler tasks.
-The separate Blacksmith experiment uses 16 CPUs, 64 GB RAM and 12 compiler tasks
-within the reported free allowance. Recurring Blacksmith compilation is disabled;
-no AUR key is configured and no public binary is advertised.
+The standard GitHub Actions workflow runs checks. Current local compilation has
+all 20 logical CPUs available, 26 GiB RAM and 36 GiB RAM plus swap, with 16 Ninja
+tasks and one linker. No Blacksmith compiler is running or queued. No AUR key is
+configured and no public binary is advertised. See [current handoff](handoff.md)
+and [overnight baseline evidence](evidence/linux-overnight-baselines.json).
 
 ## Probe incident
 

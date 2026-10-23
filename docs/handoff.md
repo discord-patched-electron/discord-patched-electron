@@ -1,99 +1,82 @@
 # Handoff and build monitoring
 
-The Wayland audio implementation is saved. Keep the existing reference compiler
-running; do not restart it to update the agent checkout. Its Ninja objects and
-compiler cache are valuable. No additional Blacksmith compiler was started after
-the maintainer's confirmed 168 allowance minutes.
+Updated 24 October 2026. The unattended task is to finish a working local Canary
+build, check its native Wayland launch, camera, screen sharing/audio and Krisp,
+then hibernate only after the checks and launch instructions are saved.
+Physical webcam frames must never be saved or uploaded. Camera tests keep timing,
+dimensions and version metadata only; do not take desktop screenshots during them.
 
-## Watch the PC build
+## Current compiler queue
 
-[Reference build 40005436647](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40005436647)
-uses runner `he3als-pc-container` in Docker container `discord-electron-runner`.
-Expand **compile → Build the locked reference fork**.
+- [Reference 40036898682](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40036898682)
+  is compiling incrementally after the earlier two-task run was cancelled. It
+  retains its original CPU flags and all usable objects.
+- [Prerelease 40040828617](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40040828617)
+  is queued behind it at `ab9f0c2`: Electron 46.0.0-alpha.1 with x86-64-v3,
+  16 Ninja tasks, one linker and 32 GiB sccache. Source assembly, all dependency
+  patches, gclient hooks and GN generation already pass on the PC. GN generated
+  38,464 targets. No candidate C++ compilation has completed yet.
+
+Both use runner `he3als-pc-container` in Docker container `discord-electron-runner`.
+The container has all 20 logical CPUs available, a 26 GiB RAM limit and 36 GiB
+RAM-plus-swap limit. Both dispatches select 16 tasks. No Blacksmith compiler is
+running or queued. The last reported Blacksmith allowance use remains 168 minutes.
 
 ```sh
 tail -f /mnt/storage/discord-patched-electron-ci/actions/discord-patched-electron/discord-patched-electron/out/capacity/build.log
+gh run view 40036898682 --repo discord-patched-electron/discord-patched-electron
+gh run view 40040828617 --repo discord-patched-electron/discord-patched-electron
+docker stats discord-electron-runner
 ```
 
-Or query GitHub:
+The log path is shared by successive Actions checkouts; check the run ID before
+interpreting it. Ninja's resumed-task counter is not a percentage of elapsed time.
+Leave the PC/container running. No terminal must remain open. Do not restart a
+healthy compiler or delete its persistent build cache. See [live runner controls](ci-setup.md#changing-local-limits-while-the-build-runs).
 
-```sh
-gh run view 40005436647 --repo discord-patched-electron/discord-patched-electron
-```
+## Checks already passed
 
-A moving `[completed/45993]` counter means Ninja is progressing; it is not a linear
-time estimate. A quiet log alone does not establish a hang. Leave the PC and
-runner container running. No terminal must remain open. Send the run URL and
-success/failure status when returning; the final 30–50 log lines help on failure.
-Do not delete the cache mount or repeatedly rerun a failed build before diagnosis.
+The [overnight baseline evidence](evidence/linux-overnight-baselines.json) records:
 
-The reference checkout retains its original CPU flags. Published candidate builds
-use the approved x86-64-v3 baseline. See [CPU and cache settings](build-caching.md).
-Successful compiler runs automatically trigger native video/Krisp and application
-audio validation using the completed artifact, without compiling it again.
+- Real Canary bootstrap reaches the login form with a fresh profile on native
+  Wayland. The package-managed updater fix prevents a mandatory host update from
+  blocking launch. This still uses bundled Electron, not the pending custom build.
+- AMD hardware WebGL and H.264 VA-API decoding work with default Wayland selection.
+- The physical UVC webcam reaches its first frame in 2.33 seconds with the helper,
+  versus 8.33 seconds upstream in the latest alternating pair. No frames retained.
+- Isolated real native Wayland/audio tests pass on PipeWire-Pulse and real
+  PulseAudio plus PipeWire, including process exit, source changes and cleanup.
+- All three generated Arch packages pass preparation/packaging with real Discord
+  payloads and an explicitly nonfunctional runtime fixture.
 
-## Saved audio work
+The dependency port passes 72 Python tests and source reconstruction; the audio
+adapters pass 12 JavaScript tests. CI checks use standard GitHub runners. Native
+video/offline Krisp and audio CI baselines use Discord's bundled runtimes until a
+successful compiler artifact triggers the custom-runtime jobs.
 
-[Wayland implementation](wayland-audio.md) documents the native picker hooks,
-exact niri/PipeWire source matching, private multi-process audio mix, PulseAudio
-compatibility, explicit selector on other compositors, and crash cleanup.
-Wayland routing is now enabled by default; `DPE_APP_AUDIO=0` disables it. The remote UI and native video path remain intact.
-The fixtures run without an account, network, physical microphone or host sockets.
-They are not a real Discord call or a completed custom-runtime qualification.
+## Completion sequence
 
-[Checks 40030377851](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40030377851)
-passed for audio implementation `d6ad1ab`: 58 Python tests, ten JavaScript tests,
-source assembly, compiler-cache checks, native video/Krisp, all nine package
-recipes and the Wayland/X11 audio fixtures. Wayland runs Stable/PTB/Canary against
-both PipeWire-Pulse and real PulseAudio, plus a real audio-picker interaction case.
-[Package validation 40029330180](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40029330180)
-checks the subsequent explicit `pipewire-audio` dependency at `07b2eb2`.
-These workflows use standard GitHub runners, not Blacksmith or the PC compiler.
-See [retained audio reports](evidence/wayland-audio-ci.json) and
-[implementation status](status.md) for the final results and remaining gates.
+1. Inspect the reference result and automatic native/audio validation. Diagnose
+   concrete failures before resuming; a quiet log is not itself a failure.
+2. Let the queued prerelease compiler reuse the prepared workspace. Its identity
+   is `f775fe99a963381720338a1ad78e7d72ef5f3444acedc3725394752f61f0cc31` under
+   `/mnt/storage/discord-patched-electron-ci/build-cache/prerelease/`.
+3. Fetch the successful artifact using `scripts/fetch_reference.py`. Build the
+   actual Canary folder with `scripts/build_local_app.py --artifact ...`, then
+   run `scripts/check_desktop_launch.py`; see [exact commands](linux-runtime.md).
+4. Check native video/Krisp, isolated Wayland audio, local graphics and physical
+   camera metadata against the custom runtime. Use the camera probe's
+   `--provenance` argument so its report identifies the completed compiler run.
+   Never use an account, send messages or join a call unattended.
+5. Save the runnable path and results before hibernating. Disable any scheduled
+   monitor first. Hibernate only with a working build and no pending compiler.
 
-## Resume after the compiler completes
+Wayland audio is enabled by default; `DPE_APP_AUDIO=0` disables the adapter.
+Exact automatic application matching is currently niri-specific. Other desktops
+use an explicit audio picker. Real GNOME/KDE sessions, sandboxed applications and
+microphone/Krisp calls remain separate release qualification work.
 
-1. Inspect the reference compile result and automatic validation artifacts.
-2. If it failed, fix the concrete compiler failure and resume its retained
-   workspace. An observation timeout does not itself mean compilation failed.
-3. If it passed, inspect disk/memory/cache evidence and build the current prerelease
-   x86-64-v3 candidate on the existing runner.
-4. Run a real native Wayland share with the new runtime and microphone/Krisp
-   active. Qualify actual GNOME/KDE sessions and sandboxed apps separately;
-   automatic identity is currently niri-specific.
-5. Finish queue-to-compiler reconciliation, the release ledger and automatic AUR
-   publication after runtime qualification. Discovery already preserves every
-   prerelease and skips unchanged inputs. Configure AUR credentials privately
-   when the publisher is concrete and reviewable.
-
-No binary release or AUR update has been published. The three prerelease-Electron recipes exist, but
-the compile/release/AUR coordinator is still unfinished and no AUR key is configured.
-
-## Camera and local controls
-
-The [camera fix](camera-startup.md) was verified on the physical webcam with the
-current installed Canary module and bundled Electron, independently of the active
-compiler. The helper is compiled separately on standard GitHub Actions and supplied
-as a checksum-pinned binary to makepkg; its source does not invalidate Electron
-objects. The release publisher must upload the helper's content-addressed asset
-before publishing recipes referencing it, alongside its existing runtime gates.
-[Live runner controls](ci-setup.md#changing-local-limits-while-the-build-runs) use
-`docker update`; both compile workflows accept `parallel_jobs` on the next dispatch.
-
-The follow-up local checks pass: 61 Python tests, 11 JavaScript tests, actionlint,
-three Stable-client Arch packages, physical-camera A/B measurements, default-on
-Wayland routing on both audio servers and manually operated audio dialogs.
-`docs/evidence/camera-wayland-local.json` retains these results. Full GitHub
-validation for this follow-up is separate from the earlier green CI run above.
-
-## Scope and scheduling update
-
-The maintainer now wants prerelease Electron only, retaining Discord Stable, PTB
-and Canary. Old stable/nightly pending builds are retired without cancelling any
-running work. Future dispatches default to resource-aware auto parallelism (four
-Ninja tasks with the current limits) and one linker at a time. The current
-reference run and its cached workspace are untouched. See `build-caching.md`.
-
-[Camera/audio follow-up CI 40034425231](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40034425231)
-passed all five jobs at `1552ff6`, including all then-enabled package combinations.
+No public binary release or AUR update has been published. The three
+prerelease-Electron recipes exist, but the compile/release/AUR coordinator is
+unfinished and no AUR key is configured. The immediate overnight deliverable is
+a local Canary test build; do not label it as a fully qualified public release.

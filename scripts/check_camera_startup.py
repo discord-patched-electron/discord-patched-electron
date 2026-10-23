@@ -1,6 +1,6 @@
 """Measure real webcam startup in an isolated local test app; never save images.
 
-Requires an explicitly selected physical camera and a Discord-bundled runtime.
+Requires an explicitly selected physical camera and a Discord-compatible runtime.
 Does not start a call, load a profile, record a microphone or display camera pixels.
 """
 
@@ -14,6 +14,7 @@ import subprocess
 from build_camera_support import build
 from camera_scope import write_scope
 from common import ROOT, read_json, sha256, write_json
+from fetch_reference import validate_capacity
 
 
 def main():
@@ -22,7 +23,7 @@ def main():
         "--runtime",
         type=Path,
         required=True,
-        help="Path to the bundled Discord executable",
+        help="Path to a bundled Discord or compiled Electron executable",
     )
     parser.add_argument(
         "--voice", type=Path, required=True, help="Path to discord_voice.node"
@@ -30,9 +31,14 @@ def main():
     parser.add_argument("--device", required=True, help="Exact webcam name from V4L2")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--samples", type=int, default=2)
+    parser.add_argument("--provenance", type=Path, help="Verified compiler artifact provenance for a custom runtime")
     args = parser.parse_args()
     if not 1 <= args.samples <= 5:
         parser.error("--samples must be between 1 and 5")
+    provenance = read_json(args.provenance) if args.provenance else None
+    if provenance is not None:
+        capacity = provenance["capacity"]
+        validate_capacity(capacity, capacity["source"]["target"] != "reference")
     output = args.output.resolve()
     if output.exists():
         parser.error("Use a new output directory")
@@ -100,6 +106,8 @@ def main():
                     check=True,
                 )
             result = read_json(run / "result.json")
+            if provenance is not None and result["versions"]["electron"] != capacity["compiled_version"]:
+                raise ValueError("Loaded Electron version differs from the compiler report")
             result.update(patched=enabled, sample=sample + 1)
             # Retain measurements, not raw logs (which include device paths).
             log = (run / "discord-webrtc_0").read_text(errors="replace")
@@ -127,7 +135,8 @@ def main():
                     "images_saved": False,
                     "microphone_used": False,
                     "real_discord_call_verified": False,
-                    "custom_runtime_verified": False,
+                    "custom_runtime_verified": provenance is not None,
+                    "compiler_run": provenance.get("compiler_run") if provenance else None,
                     "runs": results,
                 },
             )

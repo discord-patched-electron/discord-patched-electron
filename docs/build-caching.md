@@ -99,14 +99,17 @@ running reference checkout or discard its Ninja outputs.
 
 ## Parallelism and further speedups
 
-The next dispatch defaults to `ELECTRON_BUILD_JOBS=auto`. The scheduling helper
+New dispatches default to `ELECTRON_BUILD_JOBS=auto`. The scheduling helper
 uses CPU affinity and all visible cgroup v2 ancestor CPU/RAM limits; it does not
 blindly use the host’s 20 logical CPUs inside a four-CPU container. With four CPUs
-and 12 GiB RAM it selects **four Ninja tasks**, up from the current run’s two.
+and 12 GiB RAM it selects **four Ninja tasks**. Those were the earlier limits;
+the overnight run now has all 20 logical CPUs and 26 GiB RAM available, with an
+explicit 16-task override based on observed memory headroom.
 It reserves 2 GiB and budgets 2 GiB per task, with a 32-task ceiling. This is an
 initial heuristic: large individual source files can need more memory. Overrides
 accept 1–32 tasks. Docker caps apply live; the selected Ninja task count changes
-on the next dispatch. No compiler was restarted for this change.
+on the next dispatch. Changing a task count requires a new Ninja invocation; the current reference
+run was deliberately resumed with 16 tasks while preserving existing objects.
 
 GN uses `concurrent_links=1` to avoid several memory-heavy links competing with
 compilation. This changes Ninja scheduling, not CPU optimization flags. Dependency
@@ -142,3 +145,8 @@ resource helper selected four tasks inside the actual runner. GN generated
 one-deep link pool. A copy of the real discovery ledger migrated to prerelease
 only and was unchanged on the second reconciliation. See
 [retained evidence](evidence/prerelease-scheduling-local.json).
+
+The Electron 46.0.0-alpha.1 candidate now also passes complete dependency patching,
+gclient hooks and GN generation in its own prepared workspace (38,464 targets).
+Its generated `args.gn` selects the v3 toolchain, sccache and one-deep link pool.
+This validates the current port configuration, not yet its C++ compilation.
