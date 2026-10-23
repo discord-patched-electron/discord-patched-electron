@@ -9,7 +9,10 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
   state branch uses content-based no-ops and fast-forward writes without merges.
   Local tests cover racing writers, nightly coalescing and independent Discord
   updates. See [discovery](discovery.md); compiler dispatch and AUR publication
-  are not yet connected to the queue.
+  are not yet connected to the queue. The first two CI polls passed and the
+  unchanged second poll left the remote state commit untouched. Discovered PTB
+  1.0.224 and Canary 1.0.2357 await validation; the bootstrap locks below retain
+  the previously checked versions.
 - The vendored AUR files match commit `3b290dffd5eb840faed445bdc2bdb18572839471`.
 - Current manifests lock Stable 1.0.166, PTB 1.0.223 and Canary 1.0.2354 separately.
 - The existing Krisp patcher applies to each channel's real native binary. The

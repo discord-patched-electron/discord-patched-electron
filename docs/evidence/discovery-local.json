@@ -15,8 +15,13 @@
   },
   "compiled": false,
   "date": "2026-10-23",
+  "enumerated_release_records": {
+    "electron/electron": 2075,
+    "electron/nightlies": 1528
+  },
   "mode": "local read-only upstream probe; not the CI activation baseline",
   "publishable": false,
+  "second_poll_state_digest": "acafbb69c19857e897aa1fa06b9bd80499cb4034bb5ede06119f0cf7d070fcd9",
   "source_tags": {
     "v45.0.0": "54f961b44b83e4ece81065ab60a182fd0c38c01e",
     "v46.0.0-alpha.1": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
@@ -35,5 +40,6 @@
     ],
     "state_digest": "acafbb69c19857e897aa1fa06b9bd80499cb4034bb5ede06119f0cf7d070fcd9",
     "tracked_releases": 3
-  }
+  },
+  "unchanged_second_poll": true
 }

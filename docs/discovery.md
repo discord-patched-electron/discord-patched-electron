@@ -71,6 +71,14 @@ Tests exercise missed releases, maintenance lines, unchanged polls, native/clien
 deduplication, annotated tags, moved/replaced/withdrawn releases, invalid source
 objects, nightly coalescing, pagination and competing Git state writers.
 
+The first two CI runs succeeded. The second reported no input change and left
+the remote `ci-state` commit exactly unchanged, with no compiler job allocated.
+The activation baseline is **2026-10-23 19:59:51 UTC**. Both runs discovered
+Stable 1.0.166, PTB 1.0.224 and Canary 1.0.2357; the new PTB/Canary revisions
+still require runtime/package validation before replacing the bootstrap locks.
+See [CI evidence](evidence/discovery-ci.json). The accompanying source, unit,
+native-baseline and nine-package checks passed at `c006ba1`.
+
 API references: [release pagination](https://docs.github.com/en/rest/releases/releases#list-releases),
 [Git references](https://docs.github.com/en/rest/git/refs#get-a-reference),
 [annotated tags](https://docs.github.com/en/rest/git/tags#get-a-tag).
