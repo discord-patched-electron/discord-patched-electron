@@ -82,6 +82,13 @@ The first successful sandbox launch also identified `libpulse.so.0` as a require
 voice-module dependency. The package now declares `libpulse` as required, rather
 than relying on a system Electron package to bring it in. Clean Arch packaging
 checks inspect the native modules for unresolved shared libraries.
+There is one explicit exception: the unchanged `discord_dispatch.node` shipped in
+all three locks needs `libssl.so.1.1` and `libcrypto.so.1.1`. [Nixpkgs' merged fix](https://github.com/NixOS/nixpkgs/pull/517309)
+documents this module as effectively unused and omits that legacy dependency.
+The packaging check records these missing libraries and permits them only for
+the inspected module SHA-256, never for voice/Krisp or a changed dispatch binary.
+This preserves the existing package's module contents; it does not establish
+working dispatch functionality on a machine without OpenSSL 1.1.
 
 The shared `Native runtime validation` workflow also starts after a successful
 local or Blacksmith reference build. It downloads that run's artifact, verifies

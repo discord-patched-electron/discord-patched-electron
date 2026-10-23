@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tarfile
@@ -18,6 +19,18 @@ import zipfile
 
 from common import ROOT, download, read_json, sha256, write_json
 from generate_package import generate
+
+
+def missing_libraries(relative: str, checksum: str, listing: str) -> list[str]:
+    missing = sorted(set(re.findall(r"^\s*(\S+)\s+=> not found\s*$", listing, re.MULTILINE)))
+    # Nixpkgs #517309 documents the shipped, effectively unused dispatch module.
+    # Keep its unchanged bytes, but never generalize this exception to new modules.
+    exception = (relative == "discord_dispatch/discord_dispatch.node"
+        and checksum == "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd"
+        and set(missing) <= {"libssl.so.1.1", "libcrypto.so.1.1"})
+    if missing and not exception:
+        raise ValueError(f"Unresolved native module libraries in {relative}: {missing}")
+    return missing
 
 
 def inspect_package(archive: Path, inputs: dict) -> dict:
@@ -102,12 +115,17 @@ def smoke(output: Path):
             # The old system-Electron dependency brought libraries transitively.
             # Our private runtime must declare what Discord's own addons need.
             checked = []
+            exceptions = {}
             for module in sorted((directory / "src/stage/modules").rglob("*.node")):
                 libraries = subprocess.run(["ldd", str(module)], capture_output=True, text=True, check=True).stdout
-                if "not found" in libraries:
-                    raise ValueError(f"Unresolved native module libraries in {module}:\n{libraries}")
-                checked.append(str(module.relative_to(directory / "src/stage/modules")))
+                relative = str(module.relative_to(directory / "src/stage/modules"))
+                missing = missing_libraries(relative, sha256(module), libraries)
+                if missing:
+                    exceptions[relative] = {"sha256": sha256(module), "missing": missing,
+                        "source": "https://github.com/NixOS/nixpkgs/pull/517309"}
+                checked.append(relative)
             report["native_library_dependencies_checked"] = checked
+            report["native_library_exceptions"] = exceptions
             write_json(directory / "packaging-report.json", report)
             results.append(report)
             print(inputs["package"] + ": packaging passed (dummy runtime, not publishable)", flush=True)
