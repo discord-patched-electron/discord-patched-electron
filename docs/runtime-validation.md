@@ -78,6 +78,10 @@ Ubuntu's CI image requires an AppArmor user-namespace exception for these copied
 executables. The workflow scopes that exception to its private test paths using
 [Chromium's documented profile approach](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md),
 and keeps Chromium's sandbox enabled.
+The first successful sandbox launch also identified `libpulse.so.0` as a required
+voice-module dependency. The package now declares `libpulse` as required, rather
+than relying on a system Electron package to bring it in. Clean Arch packaging
+checks inspect the native modules for unresolved shared libraries.
 
 The shared `Native runtime validation` workflow also starts after a successful
 local or Blacksmith reference build. It downloads that run's artifact, verifies

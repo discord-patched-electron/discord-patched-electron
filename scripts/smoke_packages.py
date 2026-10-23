@@ -99,6 +99,15 @@ def smoke(output: Path):
             subprocess.run(["desktop-file-validate", str(directory / "discord.desktop")], check=True)
             package = next(directory.glob("*.pkg.tar"))
             report = inspect_package(package, inputs)
+            # The old system-Electron dependency brought libraries transitively.
+            # Our private runtime must declare what Discord's own addons need.
+            checked = []
+            for module in sorted((directory / "src/stage/modules").rglob("*.node")):
+                libraries = subprocess.run(["ldd", str(module)], capture_output=True, text=True, check=True).stdout
+                if "not found" in libraries:
+                    raise ValueError(f"Unresolved native module libraries in {module}:\n{libraries}")
+                checked.append(str(module.relative_to(directory / "src/stage/modules")))
+            report["native_library_dependencies_checked"] = checked
             write_json(directory / "packaging-report.json", report)
             results.append(report)
             print(inputs["package"] + ": packaging passed (dummy runtime, not publishable)", flush=True)

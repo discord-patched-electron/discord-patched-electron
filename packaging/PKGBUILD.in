@@ -8,10 +8,9 @@ arch=('x86_64')
 url='https://github.com/discord-patched-electron/discord-patched-electron'
 license=('LicenseRef-custom' 'MIT' 'BSD-3-Clause')
 options=('!strip')
-depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa')
+depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse')
 makedepends=('asar' 'brotli' 'unzip' 'python-capstone' 'python-pyelftools')
-optdepends=('libpulse: PulseAudio support'
-            'pipewire: screen sharing under Wayland'
+optdepends=('pipewire: screen sharing under Wayland'
             'xdg-utils: open links and files')
 source=(
 @SOURCES@

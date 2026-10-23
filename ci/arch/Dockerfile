@@ -4,7 +4,7 @@ FROM archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23a
 # pinned Chromium toolchain; Arch supplies makepkg and the AUR dependencies.
 RUN pacman -Syu --noconfirm --needed base-devel asar brotli unzip \
     python-capstone python-pyelftools desktop-file-utils \
-    alsa-lib gtk3 libcups libxss libxtst nss libdrm mesa \
+    alsa-lib gtk3 libcups libxss libxtst nss libdrm mesa libpulse \
     && pacman -Scc --noconfirm \
     && useradd --uid 1000 --create-home builder
 USER builder
