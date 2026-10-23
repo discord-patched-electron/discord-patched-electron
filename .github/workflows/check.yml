@@ -19,11 +19,48 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-      - run: python -m pip install -r requirements.txt
+      - run: python -m pip install -r requirements-test.txt
       - run: npm ci --ignore-scripts
       - run: python -m unittest discover -s tests -v
       - name: Validate launcher syntax
         run: bash -n integration/launcher/discord-launcher.sh
+  native-baselines:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Install native fixture dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libnode-dev xvfb xauth brotli \
+            libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libxss1 libxtst6
+          python -m pip install -r requirements-test.txt
+          npm ci --ignore-scripts
+      - name: Check native video and offline Krisp for every client channel
+        run: python scripts/check_runtime_clients.py --output out/native-baselines
+      - name: Retain native fixture diagnostics
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: native-baseline-diagnostics
+          path: |
+            out/native-baselines/runtime-checks.json
+            out/native-baselines/*/audio-report.json
+            out/native-baselines/*/krisp-patch.json
+            out/native-baselines/*/probe/runtime-report.json
+            out/native-baselines/*/probe/runtime.log
+            out/native-baselines/*/probe/profile/voice/discord-webrtc_*
+          retention-days: 7
+          if-no-files-found: warn
   source-assembly:
     runs-on: ubuntu-24.04
     steps:

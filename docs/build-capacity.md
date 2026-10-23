@@ -85,3 +85,9 @@ reading. Its command reported 1,202 seconds, minimum available RAM about 58 GiB
 and minimum free disk about 605 GiB. No reference binary was produced, and these
 preparation numbers do not establish linker capacity. The one-shot hosted guard
 remains in force; the local cache is used to qualify further build-stage fixes.
+
+The corrected [local run 40005436647](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40005436647)
+at `ee31072` successfully completed GN generation and entered actual C++
+compilation. The [checks for that commit](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40005415844)
+passed. The local compile is still in progress; compilation/link time and final
+resource peaks remain unmeasured.

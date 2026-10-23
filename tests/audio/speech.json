@@ -1,0 +1,9 @@
+{
+  "sha256": "8cf294342c4b0b6be0630c806f49dc72d63b1d1177877d739d2c558380bf6a10",
+  "sample_rate": 48000,
+  "channels": 1,
+  "sample_width_bytes": 2,
+  "generator": "espeak-ng 1.52.0-1, en-gb voice, speed 150; ffmpeg resampled to 48 kHz PCM16 mono",
+  "phrase": "This is a microphone test. The voice should remain clear while background noise is removed.",
+  "ffmpeg_version": "ffmpeg version n9.0.2 Copyright (c) 2000-2026 the FFmpeg developers"
+}

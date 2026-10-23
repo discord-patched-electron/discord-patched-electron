@@ -21,6 +21,9 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
   are **not yet validated**. See [source ports](docs/source-ports.md).
 - A full custom runtime has **not been compiled**. Successful Krisp binary patching
   is **not** a claim that noise suppression has been tested on the new runtime.
+- Native video delivery/teardown and offline Krisp suppression pass on all three
+  bundled-runtime baselines. The reusable [runtime checks](docs/runtime-validation.md)
+  still need to pass on the custom builds, alongside real call/audio checks.
 - A shared generator produces all nine binary package recipes. Arch packaging
   checks use real client/modules and a dummy runtime; see [packaging](docs/packaging.md).
 - The reference build can use the containerized PC runner or a single bounded
@@ -32,7 +35,7 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements-test.txt
 npm ci --ignore-scripts
 .venv/bin/python -m unittest discover -s tests -v
 python3 scripts/lock_clients.py

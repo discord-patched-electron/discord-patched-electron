@@ -25,6 +25,12 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 - Blacksmith's first reference attempt completed fetching and hooks, then failed
   at the depot_tools Python launcher before C++ compilation. Explicit tool
   bootstrap fixes the launcher locally without moving the pinned tool revision.
+- The corrected local reference run `40005436647` has reached C++ compilation.
+  It remains in progress; no completed custom runtime exists yet.
+- All three bundled runtimes pass synthetic native frame delivery and teardown,
+  module loading, and an offline Krisp off/on/off comparison (53.6 dB reduction
+  in the noise-only interval, retained speech). See [runtime checks](runtime-validation.md).
+  This does not establish custom-runtime, live-call or microphone behavior.
 - Current 45, 46 and 47 source candidates assemble reproducibly using the imported
   delta plus separate explicit compatibility patches. All skipped imported file
   changes have replacement patches or documented upstream equivalents.

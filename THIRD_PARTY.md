@@ -15,3 +15,9 @@ assembled distribution must retain all its upstream licenses and notices.
 Discord client and native module binaries are proprietary. They are fetched from
 Discord with locked checksums for local tests and packaging, not committed to
 this repository. This project's code does not grant rights to those binaries.
+
+`tests/audio/speech.wav` is synthesized test speech generated with eSpeak NG
+1.52.0, then resampled with FFmpeg. Its phrase and generation metadata are recorded
+in `tests/audio/speech.json`. It contains no recorded personal audio. The native
+frame test downloads Discord's public header using its pinned URL and checksum;
+that header retains its upstream license and is not vendored here.

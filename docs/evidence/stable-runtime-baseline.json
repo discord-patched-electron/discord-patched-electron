@@ -1,0 +1,169 @@
+{
+  "analyzer_sha256": "58a0344f48ab84fc58ff5119b483d2a080f70e2af67b37d4a59401128d83eeba",
+  "batches": [
+    {
+      "enabled": false,
+      "lag_samples": 45,
+      "noise_rms_pcm16": 1471.8377652668194,
+      "samples": 477120,
+      "sha256": "7a58090c8aaed980d314b6f545bb72d5b0531988aaaebae9dcf82afcb575afc5",
+      "speech_correlation": 0.6308373605389248,
+      "speech_gain": 0.7220172720940587
+    },
+    {
+      "enabled": true,
+      "lag_samples": 1326,
+      "noise_rms_pcm16": 3.076464759535962,
+      "samples": 477120,
+      "sha256": "a1b2e522076964dd3107a9ff1fff6c1de847c805ef550587d6b4cd1994ee8dbc",
+      "speech_correlation": 0.7475200915105221,
+      "speech_gain": 0.6828530751572988
+    },
+    {
+      "enabled": false,
+      "lag_samples": 45,
+      "noise_rms_pcm16": 1471.8387774736063,
+      "samples": 477120,
+      "sha256": "acf93d29167f2503687ec1d147f4f812e1aa7918f2a2130ca3700071497894d9",
+      "speech_correlation": 0.6308377202608176,
+      "speech_gain": 0.7220168624471139
+    }
+  ],
+  "bridge": {
+    "counts": {
+      "released": 11,
+      "sent": 11
+    },
+    "dimensions": [
+      64,
+      48
+    ],
+    "missing_stream_released": true,
+    "pixel": [
+      255,
+      1,
+      1,
+      255
+    ],
+    "stopped_stream_released": true,
+    "track_ended": true
+  },
+  "checks": {
+    "disabled_noise_restored": true,
+    "disabled_speech_restored": true,
+    "krisp_initialization_logged": true,
+    "noise_reduction_at_least_15db": true,
+    "speech_correlation_at_least_0_6": true,
+    "speech_correlation_improved": true,
+    "speech_gain_retained": true
+  },
+  "custom_runtime_verified": false,
+  "discord_channel": "stable",
+  "fixture": {
+    "input_sha256": "368c9bd926aece551f736fc2cc0efeb8151f1e101c0a65abe74f4d170cb9451b",
+    "noise_seed": 42,
+    "noise_standard_deviation_pcm16": 1800,
+    "padding_seconds": 2,
+    "reference_sha256": "375dbbf551923bcd4b5eaf9e33c7c203e3f10032faa4837b3091a282e83f630c",
+    "speech": {
+      "channels": 1,
+      "ffmpeg_version": "ffmpeg version n9.0.2 Copyright (c) 2000-2026 the FFmpeg developers",
+      "generator": "espeak-ng 1.52.0-1, en-gb voice, speed 150; ffmpeg resampled to 48 kHz PCM16 mono",
+      "phrase": "This is a microphone test. The voice should remain clear while background noise is removed.",
+      "sample_rate": 48000,
+      "sample_width_bytes": 2,
+      "sha256": "8cf294342c4b0b6be0630c806f49dc72d63b1d1177877d739d2c558380bf6a10"
+    },
+    "speech_gain": 0.7
+  },
+  "frame_addon_sha256": "bff41c85491ab24c2ee073889360db1531850da8349839292a7c9e8d5984b222",
+  "human_intelligibility_verified": false,
+  "krisp_module": {
+    "exports": [
+      "_getNcModelFilename",
+      "_getNcModels",
+      "_getVadModels",
+      "_initialize",
+      "getNcModelFilename",
+      "getNcModels",
+      "getSdkVersion",
+      "getSuppressionLevel",
+      "getVadModels",
+      "setNcModel",
+      "setSuppressionLevel",
+      "setVadModel"
+    ],
+    "initialization_call_completed": true,
+    "loaded": true,
+    "models": [
+      "small_NC_8k",
+      "small_NC",
+      "full_NC",
+      "c6_BVC"
+    ]
+  },
+  "noise_reduction_db": 53.59615994882603,
+  "numpy_version": "2.5.4",
+  "offline_krisp_verified": true,
+  "original_inputs": {
+    "executable": "37d7e3540277d878985c8f973e2313ada9601adb5bd8116e29f5bb4201ca2809",
+    "krisp": "e589f3db4b3ea8140e7961233b0ff35eeb1b1b94be3caa441ebee79d830e557b",
+    "voice": "1a3fa65e21242ca84a27b6b654ba342c7ebf6c964fa3c1e1ee41682b9717fa24"
+  },
+  "per_app_audio_verified": false,
+  "process_exit": 0,
+  "public_header": {
+    "sha256": "010c11f6a27cf558bd1650798a943ac5d772ea44be8b8650e4da49e77d5b6622",
+    "url": "https://raw.githubusercontent.com/discord/electron/aade2a4ea35e538d1be93207233c4269459a4561/discord/public/electron_video_shared.h"
+  },
+  "publishable": false,
+  "real_discord_call_verified": false,
+  "real_microphone_verified": false,
+  "runtime_fixture_inputs": {
+    "scripts/probe_runtime.py": "2ac0f0369a83b97dd1032420d25e7e80ab0a68a883f61299c27e4eb1427c5d1f",
+    "tests/runtime/frame_addon.cc": "0b647ea9069fbc4bb69c8cb1f7d64b57dc63a27d4f34a0fa08b68fdc15e9691c",
+    "tests/runtime/header.lock.json": "3d2f44820f27bcf7112c93aed38fe4c0d199008d60f15782e1ae26150d9b8dc4",
+    "tests/runtime/index.html": "d46406dcfdb4fef0d5e712d6810195f47bcfce0e3b01793ac99f763c1553fbcd",
+    "tests/runtime/main.cjs": "c3a1c22b005c834f6e04d21c0633583b60cf12d8ab1d55f79c661f74d5575efc",
+    "tests/runtime/package.json": "78c655cdd77f057fb75ffa18785fae2400066829ebd7f5743e873d91244b39a4",
+    "tests/runtime/preload.cjs": "4ed9c530d97ce8888a17edb221ff50e47e11d5fd97360b57667b4da7f90f13b5",
+    "tests/runtime/renderer.js": "17ff4a43fc54f03e6f114b74d040e07d5a85cec405f996b52ef138db925469ef"
+  },
+  "runtime_kind": "official Discord bundled baseline",
+  "runtime_probe_passed": true,
+  "runtime_versions": {
+    "acorn": "8.17.0",
+    "ada": "3.4.4",
+    "ares": "1.34.6",
+    "brotli": "1.2.0",
+    "chrome": "148.0.7778.280",
+    "cldr": "48.0",
+    "electron": "42.11.15",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "146",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.69.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "node": "24.19.0",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.4",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.3",
+    "tz": "2026d",
+    "undici": "7.29.0",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "14.8.178.38-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0"
+  },
+  "schema": 1,
+  "timed_out": false,
+  "voice_module_loaded": true
+}

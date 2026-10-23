@@ -1,0 +1,76 @@
+# Native runtime checks
+
+The isolated fixture in `tests/runtime/` exercises Discord's public native video
+bridge and the actual proprietary voice/Krisp modules. It uses a copied runtime,
+replaces that copy's `app.asar`, and gives it a private profile, HOME, XDG paths,
+display and unavailable audio/DBus endpoints. It never invokes the normal Discord
+bootstrap, signs into an account or relies on `ELECTRON_RUN_AS_NODE`.
+
+## Baseline measured on 23 October 2026
+
+| Discord payload | Bundled Electron | Native frame and teardown | Offline Krisp noise reduction |
+| --- | --- | --- | --- |
+| Stable 1.0.166 | 42.11.15 | Pass | 53.6 dB |
+| PTB 1.0.223 | 44.9.3 | Pass | 53.6 dB |
+| Canary 1.0.2354 | 44.9.3 | Pass | 53.6 dB |
+
+The input modules are the real channel-specific modules with the existing AUR
+Krisp patch applied. Evidence is in `evidence/*-runtime-baseline.json`, including
+executable/module hashes, runtime versions, fixture hashes and measurements.
+**These are bundled-runtime baselines, not compiled custom-runtime results.**
+
+The native helper compiles against the pinned Discord public frame header and
+resolves `DeliverDiscordFrame` from the runtime. A real renderer calls
+`electron.discord.install('createDiscordStream')` through its preload, creates a
+MediaStream, and receives a synthetic 64×48 I420 red frame. Canvas readback measured
+RGBA `[255, 1, 1, 255]`. All 11 frames were released, including the checks for a
+missing stream and a stopped stream. The fixture also loads each channel's native
+voice module and enumerates four Krisp models.
+
+The optional audio test initializes the native voice engine with fake capture
+devices and calls its offline `processBatchAudioFiles` API. It processes the same
+synthetic speech/noise file with Krisp **off, on, then off again**, while disabling
+ordinary noise suppression, gain control and echo cancellation. Each pass
+processed one file with zero failures, and the processing error callback stayed
+empty. Native logs confirmed Krisp initialization.
+
+The analyzer permits up to 200 ms of processing latency. It requires at least
+15 dB reduction in a noise-only interval, speech correlation of at least 0.6 with
+the clean reference and an improvement of at least 0.03, retention of at least
+half the disabled speech gain, and restoration of the disabled behavior. Negative
+tests demonstrate that unchanged noisy output and fully muted output fail. This
+is a reproducible regression signal, not a human intelligibility assessment.
+
+## Reproduction
+
+Install `requirements-test.txt`, the pinned npm dependencies, a C++ compiler,
+Node development headers at `/usr/include/node`, Xvfb and `xauth`. Use an extracted
+distribution and staged, patched modules from the same locked Discord channel:
+
+```sh
+python3 scripts/check_krisp_audio.py generate .work/audio-fixture
+python3 scripts/probe_runtime.py /path/to/runtime \
+  --executable electron --modules /path/to/staged/modules \
+  --audio-fixtures .work/audio-fixture/input --output .work/runtime-test
+python3 scripts/check_krisp_audio.py analyze \
+  .work/audio-fixture .work/runtime-test --report .work/runtime-test/audio-report.json
+```
+
+For a bundled baseline, use `Discord`, `DiscordPTB` or `DiscordCanary` as the
+executable name. Every probe requires a fresh output directory. It copies inputs,
+uses a bounded subprocess group, and retains reports and logs on failure. The
+speech fixture was generated with eSpeak NG; its phrase, generator and checksum
+are recorded in `tests/audio/speech.json`. No recorded user speech is used.
+
+Run the same fixture for each custom runtime and channel combination before
+publication. Additional acceptance remains necessary: starting/joining/stopping
+real Discord streams, microphone noise suppression, hardware/GPU paths, X11 and
+Wayland capture, and two-application screen-share audio isolation. The reports
+explicitly leave those claims false and are not publication authorization.
+
+`scripts/check_runtime_clients.py --output <fresh-directory>` downloads the locked
+core/voice/Krisp payloads, verifies their channel identity, patches Krisp and runs
+both checks for all three clients. Pass `--runtime <extracted-custom-runtime>` to
+reuse a custom runtime across the three module sets. The `native-baselines` job
+in the Checks workflow runs the bundled baseline on standard GitHub runners,
+without spending Blacksmith compiler minutes. Failures retain diagnostics.
