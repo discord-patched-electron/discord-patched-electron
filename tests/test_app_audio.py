@@ -16,7 +16,7 @@ class AppAudioPatch(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
             wrapper = directory / 'index.js'
-            wrapper.write_text(ANCHOR + '    return instance;\n}\n')
+            wrapper.write_text(ANCHOR + '    return instance;\n}\nmodule.exports = VoiceEngine;\n')
             adapter = ROOT / 'integration/audio/app-audio.cjs'
             report = patch(directory, adapter)
             content = wrapper.read_bytes()

@@ -30,7 +30,7 @@ jobs:
     env:
       REFERENCE_RUN: ${{ github.event.workflow_run.id || inputs.reference_run || '' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -59,11 +59,46 @@ jobs:
           fi
           for channel in stable ptb canary; do
             python scripts/check_app_audio.py --discord "$channel" --output "out/app-audio/$channel" --download-only "${args[@]}"
+            for server in pipewire pulseaudio; do
+              mkdir -p "out/wayland-audio/$channel/$server"
+              cp out/app-audio/"$channel"/*.tar.br "out/wayland-audio/$channel/$server/"
+            done
           done
       - name: Build disposable audio environment
         run: |
           docker build -t discord-electron-arch-packaging ci/arch
           docker build -t discord-electron-audio-fixture ci/audio
+      - name: Restore the compiled test compositor
+        id: compositor-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            out/wayland-test-tools/niri
+            out/wayland-test-tools/niri-source
+            out/wayland-test-tools/niri.sha256
+          key: wayland-test-niri-${{ runner.arch }}-${{ hashFiles('scripts/build_test_compositor.sh', 'ci/audio/niri.Dockerfile') }}
+      - name: Build or verify the pinned GPU-free test compositor
+        run: |
+          mkdir -p out/wayland-test-tools
+          if [ -x out/wayland-test-tools/niri ] && docker run --rm --network none \
+            -v "$GITHUB_WORKSPACE/out/wayland-test-tools:/build:ro" \
+            discord-electron-audio-fixture sh -c 'cd /build && sha256sum -c niri.sha256 && ./niri --version'; then
+            exit 0
+          fi
+          docker build -t discord-electron-test-compositor -f ci/audio/niri.Dockerfile .
+          sudo chown -R 1000:1000 out/wayland-test-tools
+          docker run --rm --cpus 2 --memory 5g \
+            -v "$GITHUB_WORKSPACE:/repo:ro" -v "$GITHUB_WORKSPACE/out/wayland-test-tools:/build" \
+            discord-electron-test-compositor bash /repo/scripts/build_test_compositor.sh
+      - name: Save the completed compositor without caching Rust build objects
+        if: steps.compositor-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            out/wayland-test-tools/niri
+            out/wayland-test-tools/niri-source
+            out/wayland-test-tools/niri.sha256
+          key: ${{ steps.compositor-cache.outputs.cache-primary-key }}
       - name: Test every channel with isolated audio and no network
         shell: bash
         run: |
@@ -83,11 +118,36 @@ jobs:
             fi
           done
           exit "$failed"
+      - name: Validate native Wayland video and application audio with both servers
+        shell: bash
+        run: |
+          sudo chown -R 1000:1000 out/wayland-audio
+          args=()
+          if [ -n "$REFERENCE_RUN" ]; then
+            args+=(--runtime /repo/out/reference-download/runtime --provenance /repo/out/reference-download/artifact-provenance.json)
+          fi
+          failed=0
+          for channel in stable ptb canary; do
+            for server in pipewire pulseaudio; do
+              if ! docker run --rm --network none --cpus 2 --memory 4g \
+                -v "$GITHUB_WORKSPACE:/repo:ro" \
+                -v "$GITHUB_WORKSPACE/out/wayland-test-tools/niri:/usr/bin/niri:ro" \
+                -v "$GITHUB_WORKSPACE/out/wayland-audio/$channel/$server:/audio" \
+                discord-electron-audio-fixture python /repo/scripts/check_wayland_audio.py \
+                --discord "$channel" --pulse "$server" --output /audio "${args[@]}"; then
+                failed=1
+              fi
+            done
+          done
+          exit "$failed"
       - name: Return diagnostics to the Actions user
         if: always()
         run: |
           if [ -d out/app-audio ]; then
             sudo chown -R "$(id -u):$(id -g)" out/app-audio
+          fi
+          if [ -d out/wayland-audio ]; then
+            sudo chown -R "$(id -u):$(id -g)" out/wayland-audio
           fi
       - name: Retain synthetic audio diagnostics
         if: always()
@@ -101,5 +161,13 @@ jobs:
             out/app-audio/*/fixture.json
             out/app-audio/*/*.log
             out/app-audio/*/discord-webrtc_*
+            out/wayland-test-tools/niri-source
+            out/wayland-test-tools/niri.sha256
+            out/wayland-audio/*/*/audio-report.json
+            out/wayland-audio/*/*/identity.json
+            out/wayland-audio/*/*/fixture.json
+            out/wayland-audio/*/*/lifecycle.json
+            out/wayland-audio/*/*/*.log
+            out/wayland-audio/*/*/discord-webrtc_*
           retention-days: 7
           if-no-files-found: warn

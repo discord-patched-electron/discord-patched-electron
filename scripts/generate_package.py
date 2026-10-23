@@ -21,6 +21,8 @@ SUPPORT = {
     "patch_krisp.py": "scripts/patch_krisp.py",
     "patch_app_audio.py": "scripts/patch_app_audio.py",
     "app-audio.cjs": "integration/audio/app-audio.cjs",
+    "wayland-audio.cjs": "integration/audio/wayland-audio.cjs",
+    "pipewire_audio.py": "integration/audio/pipewire_audio.py",
     "stage_package.py": "scripts/stage_package.py",
     "krisp-patcher.py": "packaging/upstream/krisp-patcher.py",
     "provenance.json": "packaging/upstream/provenance.json",

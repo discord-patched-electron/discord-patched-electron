@@ -232,7 +232,17 @@ function traceBoundary(instance, { trace = process.env.DPE_APP_AUDIO_TRACE === '
 function wrap(instance, options = {}) {
   // Trace the caller's original arguments, before any experimental correction.
   // TRACE alone leaves audio selection unchanged and can inspect Wayland first.
-  return traceBoundary(wrapCapture(instance, options), options);
+  const enabled = options.enabled ?? process.env.DPE_APP_AUDIO === '1';
+  const wayland = options.wayland ?? Boolean(process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
+  const wrapped = enabled && wayland
+    ? require('./dpe-wayland-audio.cjs').wrap(instance, options)
+    : wrapCapture(instance, options);
+  return traceBoundary(wrapped, options);
 }
 
-module.exports = { wrap, resolve, processIdentity, windowPid, descendant, sourceKind };
+function installVoice(voice) {
+  if (process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland')
+    require('./dpe-wayland-audio.cjs').installVoice(voice);
+}
+
+module.exports = { wrap, installVoice, resolve, processIdentity, windowPid, descendant, sourceKind };

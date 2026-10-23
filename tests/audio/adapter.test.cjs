@@ -11,7 +11,7 @@ function fixture() {
     setSelfMute(value) { assert.equal(this, native); calls.push({selfMute:value}); },
   };
   const resolved = new Map([['window:10:0', {pid:100, start:'1'}], ['window:20:0', {pid:200, start:'2'}]]);
-  const adapter = wrap(native, {enabled:true, resolvePid: source => resolved.get(source.id), warn() {}});
+  const adapter = wrap(native, {enabled:true, wayland:false, resolvePid: source => resolved.get(source.id), warn() {}});
   return {adapter, native, calls, end: () => end?.('ended')};
 }
 

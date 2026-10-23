@@ -68,6 +68,10 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
         wrapper_hash = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/index.js"), "sha256").hexdigest()
         if adapter_hash != audio["adapter_sha256"] or wrapper_hash != audio["output_sha256"] or audio["enabled_by_default"]:
             raise ValueError("Packaged experimental audio adapter differs from its preparation report")
+        for helper, expected in audio["helper_sha256"].items():
+            actual = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/" + helper), "sha256").hexdigest()
+            if actual != expected:
+                raise ValueError("Packaged application audio helper differs from its preparation report")
         for filename in ("package-inputs.json", "runtime/LICENSE", "runtime/LICENSES.chromium.html"):
             if root + "/" + filename not in members:
                 raise ValueError(f"Missing runtime provenance/license: {filename}")

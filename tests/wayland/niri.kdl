@@ -1,0 +1,5 @@
+input { keyboard { xkb { layout "us"; }; }; }
+animations { off; }
+prefer-no-csd
+hotkey-overlay { skip-at-startup; }
+debug { dbus-interfaces-in-non-session-instances; }
