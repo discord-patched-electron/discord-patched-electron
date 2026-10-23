@@ -14,12 +14,16 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 - The imported Discord patch exactly reconstructs the fork tree from its base.
 - Unit tests cover source integrity, cross-channel isolation, fingerprints,
   byte-preserving failure paths, patch idempotency and Arch prerelease ordering.
+- The PC runner is online and has executed the reference workflow's checkout and
+  Node setup. Its first build is fetching Chromium. The updated standard GitHub
+  checks pass. See [capacity measurements](build-capacity.md).
 
 ## Outstanding before a release
 
-1. Verify the containerized local GitHub Actions runner end to end. Blacksmith
-   suspended the account; the maintainer explicitly chose their PC instead.
-2. Run the bounded reference capacity build on the storage SSD.
+1. Finish the bounded reference capacity build on the storage SSD and inspect its
+   diagnostics. Blacksmith suspended the account; the maintainer explicitly chose
+   their PC instead. The local runner has been installed and exercised through CI.
+2. Confirm cold-build disk/memory use and successful incremental resumption.
 3. Port the Discord integration to Electron 45, 46 and 47. Source probes currently
    stop on conflicts, including moved sandboxed renderer exports and Chromium
    patch changes. A textual apply check does not validate dependency patches or C++.
