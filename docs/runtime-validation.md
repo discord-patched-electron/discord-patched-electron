@@ -19,6 +19,11 @@ Krisp patch applied. Evidence is in `evidence/*-runtime-baseline.json`, includin
 executable/module hashes, runtime versions, fixture hashes and measurements.
 **These are bundled-runtime baselines, not compiled custom-runtime results.**
 
+The same checks passed for all three channels in GitHub Actions run
+[`40010461967`](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40010461967),
+at `3933811`, on Ubuntu 24.04. [CI evidence](evidence/native-ci.json) records each
+runtime's input hashes, native frame result, fixture identity and audio checks.
+
 The native helper compiles against the pinned Discord public frame header and
 resolves `DeliverDiscordFrame` from the runtime. A real renderer calls
 `electron.discord.install('createDiscordStream')` through its preload, creates a

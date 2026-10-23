@@ -394,6 +394,11 @@ payloads and an explicit dummy runtime. Nine-combination CI run `40004302310` at
 and retained the reports; see `docs/evidence/packaging-ci.json`. These checks do not satisfy native
 streaming, effective Krisp suppression or per-app audio acceptance. Static native
 audio findings are recorded in `docs/audio-investigation.md`.
+Native video-frame delivery/teardown and offline Krisp suppression now pass
+for all three bundled-runtime baselines, locally and in GitHub CI; see
+`docs/runtime-validation.md` and `docs/evidence/native-ci.json`. The custom
+reference build remains in progress. These baseline results do not satisfy
+the custom-runtime, real-call, microphone or per-app-audio acceptance gates.
 
 ## 10. Completion definition and remaining uncertainties
 

@@ -15,7 +15,9 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
   and separate installation/profile paths. Real Stable, PTB and Canary payloads
   pass the generated makepkg preparation and packaging steps in a clean Arch
   container with an explicitly nonfunctional runtime fixture. This is packaging
-  evidence only; see [packaging checks](packaging.md).
+  evidence only; see [packaging checks](packaging.md). The updated nine-package
+  checks also pass with native shared-library validation, including the narrowly
+  documented dispatch exception; see [CI evidence](evidence/packaging-native-dependencies-ci.json).
 - The imported Discord patch exactly reconstructs the fork tree from its base.
 - Unit tests cover source integrity, cross-channel isolation, fingerprints,
   byte-preserving failure paths, patch idempotency and Arch prerelease ordering.
@@ -31,6 +33,9 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
   module loading, and an offline Krisp off/on/off comparison (53.6 dB reduction
   in the noise-only interval, retained speech). See [runtime checks](runtime-validation.md).
   This does not establish custom-runtime, live-call or microphone behavior.
+  The same three-channel checks pass on standard GitHub runners; see
+  [CI evidence](evidence/native-ci.json). Successful compiler jobs now trigger
+  automatic validation of their reference artifact without another compile.
 - Current 45, 46 and 47 source candidates assemble reproducibly using the imported
   delta plus separate explicit compatibility patches. All skipped imported file
   changes have replacement patches or documented upstream equivalents.

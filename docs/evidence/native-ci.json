@@ -1,0 +1,265 @@
+{
+  "blacksmith_minutes_used": 0,
+  "ci_commit": "393381143c78f95612509b488d22fbb59db8a587",
+  "ci_conclusion": "success",
+  "ci_job": "native-baselines / validate",
+  "ci_run": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40010461967",
+  "combinations": [
+    {
+      "analyzer_sha256": "58a0344f48ab84fc58ff5119b483d2a080f70e2af67b37d4a59401128d83eeba",
+      "audio_checks": {
+        "disabled_noise_restored": true,
+        "disabled_speech_restored": true,
+        "krisp_initialization_logged": true,
+        "noise_reduction_at_least_15db": true,
+        "speech_correlation_at_least_0_6": true,
+        "speech_correlation_improved": true,
+        "speech_gain_retained": true
+      },
+      "bridge": {
+        "counts": {
+          "released": 11,
+          "sent": 11
+        },
+        "dimensions": [
+          64,
+          48
+        ],
+        "missing_stream_released": true,
+        "pixel": [
+          255,
+          1,
+          1,
+          255
+        ],
+        "stopped_stream_released": true,
+        "track_ended": true
+      },
+      "channel": "canary",
+      "client_version": "1.0.2354",
+      "fixture_inputs": {
+        "scripts/probe_runtime.py": "2ac0f0369a83b97dd1032420d25e7e80ab0a68a883f61299c27e4eb1427c5d1f",
+        "tests/runtime/frame_addon.cc": "0b647ea9069fbc4bb69c8cb1f7d64b57dc63a27d4f34a0fa08b68fdc15e9691c",
+        "tests/runtime/header.lock.json": "3d2f44820f27bcf7112c93aed38fe4c0d199008d60f15782e1ae26150d9b8dc4",
+        "tests/runtime/index.html": "d46406dcfdb4fef0d5e712d6810195f47bcfce0e3b01793ac99f763c1553fbcd",
+        "tests/runtime/main.cjs": "c3a1c22b005c834f6e04d21c0633583b60cf12d8ab1d55f79c661f74d5575efc",
+        "tests/runtime/package.json": "78c655cdd77f057fb75ffa18785fae2400066829ebd7f5743e873d91244b39a4",
+        "tests/runtime/preload.cjs": "01e3babb30e83a366132ceea686d49a1d0c8761fe2ae0b599d43077804f69447",
+        "tests/runtime/renderer.js": "17ff4a43fc54f03e6f114b74d040e07d5a85cec405f996b52ef138db925469ef"
+      },
+      "native_fixture_passed": true,
+      "noise_reduction_db": 53.59615994882603,
+      "offline_krisp_verified": true,
+      "original_inputs": {
+        "executable": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "krisp": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+        "voice": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+      },
+      "runtime_versions": {
+        "acorn": "8.18.0",
+        "ada": "4.0.0",
+        "ares": "1.34.9",
+        "brotli": "1.2.0",
+        "chrome": "152.0.7977.167",
+        "cldr": "48.0",
+        "electron": "44.9.3",
+        "icu": "78.2",
+        "llhttp": "9.4.3",
+        "merve": "1.2.2",
+        "modules": "149",
+        "napi": "10",
+        "nbytes": "0.1.4",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.70.0",
+        "nghttp3": "",
+        "ngtcp2": "",
+        "node": "24.22.1",
+        "openssl": "0.0.0",
+        "simdjson": "4.6.11",
+        "simdutf": "7.7.0",
+        "sqlite": "3.53.4",
+        "tz": "2026d",
+        "undici": "7.30.1",
+        "unicode": "17.0",
+        "uv": "1.52.1",
+        "uvwasi": "0.0.23",
+        "v8": "15.2.124.43-electron.0",
+        "zlib": "1.3.2.1-motley",
+        "zstd": "1.6.0"
+      }
+    },
+    {
+      "analyzer_sha256": "58a0344f48ab84fc58ff5119b483d2a080f70e2af67b37d4a59401128d83eeba",
+      "audio_checks": {
+        "disabled_noise_restored": true,
+        "disabled_speech_restored": true,
+        "krisp_initialization_logged": true,
+        "noise_reduction_at_least_15db": true,
+        "speech_correlation_at_least_0_6": true,
+        "speech_correlation_improved": true,
+        "speech_gain_retained": true
+      },
+      "bridge": {
+        "counts": {
+          "released": 11,
+          "sent": 11
+        },
+        "dimensions": [
+          64,
+          48
+        ],
+        "missing_stream_released": true,
+        "pixel": [
+          255,
+          1,
+          1,
+          255
+        ],
+        "stopped_stream_released": true,
+        "track_ended": true
+      },
+      "channel": "ptb",
+      "client_version": "1.0.223",
+      "fixture_inputs": {
+        "scripts/probe_runtime.py": "2ac0f0369a83b97dd1032420d25e7e80ab0a68a883f61299c27e4eb1427c5d1f",
+        "tests/runtime/frame_addon.cc": "0b647ea9069fbc4bb69c8cb1f7d64b57dc63a27d4f34a0fa08b68fdc15e9691c",
+        "tests/runtime/header.lock.json": "3d2f44820f27bcf7112c93aed38fe4c0d199008d60f15782e1ae26150d9b8dc4",
+        "tests/runtime/index.html": "d46406dcfdb4fef0d5e712d6810195f47bcfce0e3b01793ac99f763c1553fbcd",
+        "tests/runtime/main.cjs": "c3a1c22b005c834f6e04d21c0633583b60cf12d8ab1d55f79c661f74d5575efc",
+        "tests/runtime/package.json": "78c655cdd77f057fb75ffa18785fae2400066829ebd7f5743e873d91244b39a4",
+        "tests/runtime/preload.cjs": "01e3babb30e83a366132ceea686d49a1d0c8761fe2ae0b599d43077804f69447",
+        "tests/runtime/renderer.js": "17ff4a43fc54f03e6f114b74d040e07d5a85cec405f996b52ef138db925469ef"
+      },
+      "native_fixture_passed": true,
+      "noise_reduction_db": 53.59615994882603,
+      "offline_krisp_verified": true,
+      "original_inputs": {
+        "executable": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "krisp": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+        "voice": "48384e58d61c4aea163128bcb5b0ec74141828810f5f41a6120ec2b46b2a3245"
+      },
+      "runtime_versions": {
+        "acorn": "8.18.0",
+        "ada": "4.0.0",
+        "ares": "1.34.9",
+        "brotli": "1.2.0",
+        "chrome": "152.0.7977.167",
+        "cldr": "48.0",
+        "electron": "44.9.3",
+        "icu": "78.2",
+        "llhttp": "9.4.3",
+        "merve": "1.2.2",
+        "modules": "149",
+        "napi": "10",
+        "nbytes": "0.1.4",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.70.0",
+        "nghttp3": "",
+        "ngtcp2": "",
+        "node": "24.22.1",
+        "openssl": "0.0.0",
+        "simdjson": "4.6.11",
+        "simdutf": "7.7.0",
+        "sqlite": "3.53.4",
+        "tz": "2026d",
+        "undici": "7.30.1",
+        "unicode": "17.0",
+        "uv": "1.52.1",
+        "uvwasi": "0.0.23",
+        "v8": "15.2.124.43-electron.0",
+        "zlib": "1.3.2.1-motley",
+        "zstd": "1.6.0"
+      }
+    },
+    {
+      "analyzer_sha256": "58a0344f48ab84fc58ff5119b483d2a080f70e2af67b37d4a59401128d83eeba",
+      "audio_checks": {
+        "disabled_noise_restored": true,
+        "disabled_speech_restored": true,
+        "krisp_initialization_logged": true,
+        "noise_reduction_at_least_15db": true,
+        "speech_correlation_at_least_0_6": true,
+        "speech_correlation_improved": true,
+        "speech_gain_retained": true
+      },
+      "bridge": {
+        "counts": {
+          "released": 11,
+          "sent": 11
+        },
+        "dimensions": [
+          64,
+          48
+        ],
+        "missing_stream_released": true,
+        "pixel": [
+          255,
+          1,
+          1,
+          255
+        ],
+        "stopped_stream_released": true,
+        "track_ended": true
+      },
+      "channel": "stable",
+      "client_version": "1.0.166",
+      "fixture_inputs": {
+        "scripts/probe_runtime.py": "2ac0f0369a83b97dd1032420d25e7e80ab0a68a883f61299c27e4eb1427c5d1f",
+        "tests/runtime/frame_addon.cc": "0b647ea9069fbc4bb69c8cb1f7d64b57dc63a27d4f34a0fa08b68fdc15e9691c",
+        "tests/runtime/header.lock.json": "3d2f44820f27bcf7112c93aed38fe4c0d199008d60f15782e1ae26150d9b8dc4",
+        "tests/runtime/index.html": "d46406dcfdb4fef0d5e712d6810195f47bcfce0e3b01793ac99f763c1553fbcd",
+        "tests/runtime/main.cjs": "c3a1c22b005c834f6e04d21c0633583b60cf12d8ab1d55f79c661f74d5575efc",
+        "tests/runtime/package.json": "78c655cdd77f057fb75ffa18785fae2400066829ebd7f5743e873d91244b39a4",
+        "tests/runtime/preload.cjs": "01e3babb30e83a366132ceea686d49a1d0c8761fe2ae0b599d43077804f69447",
+        "tests/runtime/renderer.js": "17ff4a43fc54f03e6f114b74d040e07d5a85cec405f996b52ef138db925469ef"
+      },
+      "native_fixture_passed": true,
+      "noise_reduction_db": 53.59615994882603,
+      "offline_krisp_verified": true,
+      "original_inputs": {
+        "executable": "37d7e3540277d878985c8f973e2313ada9601adb5bd8116e29f5bb4201ca2809",
+        "krisp": "e589f3db4b3ea8140e7961233b0ff35eeb1b1b94be3caa441ebee79d830e557b",
+        "voice": "1a3fa65e21242ca84a27b6b654ba342c7ebf6c964fa3c1e1ee41682b9717fa24"
+      },
+      "runtime_versions": {
+        "acorn": "8.17.0",
+        "ada": "3.4.4",
+        "ares": "1.34.6",
+        "brotli": "1.2.0",
+        "chrome": "148.0.7778.280",
+        "cldr": "48.0",
+        "electron": "42.11.15",
+        "icu": "78.2",
+        "llhttp": "9.4.3",
+        "merve": "1.2.2",
+        "modules": "146",
+        "napi": "10",
+        "nbytes": "0.1.4",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.69.0",
+        "nghttp3": "",
+        "ngtcp2": "",
+        "node": "24.19.0",
+        "openssl": "0.0.0",
+        "simdjson": "4.6.4",
+        "simdutf": "7.7.0",
+        "sqlite": "3.53.3",
+        "tz": "2026d",
+        "undici": "7.29.0",
+        "unicode": "17.0",
+        "uv": "1.52.1",
+        "uvwasi": "0.0.23",
+        "v8": "14.8.178.38-electron.0",
+        "zlib": "1.3.2.1-motley",
+        "zstd": "1.6.0"
+      }
+    }
+  ],
+  "note": "Bundled runtime baselines; no custom-runtime or live-call claim.",
+  "per_app_audio_verified": false,
+  "publishable": false,
+  "real_discord_call_verified": false,
+  "runner": "ubuntu-24.04",
+  "runtime_kind": "official bundled baseline",
+  "schema": 1
+}
