@@ -37,10 +37,10 @@ class SourceLocks(unittest.TestCase):
         fork = read_json(ROOT / "config/sources.lock.json")["fork"]
         self.assertEqual(sha256(ROOT / fork["patch"]), fork["patch_sha256"])
 
-    def test_nine_distinct_names(self):
-        names = {package_name(d, e) for d in ("stable", "ptb", "canary") for e in ("stable", "prerelease", "nightly")}
-        self.assertEqual(len(names), 9)
-        self.assertIn("discord-canary-nightly-patched-electron-bin", names)
+    def test_three_distinct_names(self):
+        names = {package_name(d, e) for d in ("stable", "ptb", "canary") for e in ("prerelease",)}
+        self.assertEqual(len(names), 3)
+        self.assertIn("discord-canary-prerelease-patched-electron-bin", names)
         with self.assertRaises(ValueError):
             package_name("../../bad", "stable")
 
@@ -104,28 +104,28 @@ class VersionsAndKeys(unittest.TestCase):
     def test_discord_changes_reuse_runtime_but_invalidate_integration(self):
         sources = read_json(ROOT / "config/sources.lock.json")
         clients = read_json(ROOT / "config/clients.lock.json")["clients"]
-        target = sources["targets"]["stable"]
+        target = sources["targets"]["prerelease"]
         runtime = runtime_key(target, sources, {"compiler": "pinned-example"})
-        before = integration_key(runtime, clients["stable"], "stable")
+        before = integration_key(runtime, clients["stable"], "prerelease")
         changed = copy.deepcopy(clients["stable"])
         changed["sources"]["discord_krisp"]["sha256"] = "b" * 64
-        self.assertNotEqual(before, integration_key(runtime, changed, "stable"))
+        self.assertNotEqual(before, integration_key(runtime, changed, "prerelease"))
         self.assertEqual(runtime, runtime_key(target, sources, {"compiler": "pinned-example"}))
-        self.assertNotEqual(before, integration_key(runtime, clients["canary"], "stable"))
+        self.assertNotEqual(before, integration_key(runtime, clients["canary"], "prerelease"))
 
     def test_changed_compile_inputs_rebuild(self):
         sources = read_json(ROOT / "config/sources.lock.json")
-        target = sources["targets"]["stable"]
+        target = sources["targets"]["prerelease"]
         self.assertNotEqual(runtime_key(target, sources, {"gn": "a"}), runtime_key(target, sources, {"gn": "b"}))
         changed = copy.deepcopy(sources)
-        changed["ports"]["45"]["candidate_tree"] = "f" * 40
+        changed["ports"]["46"]["candidate_tree"] = "f" * 40
         self.assertNotEqual(runtime_key(target, sources, {}), runtime_key(target, changed, {}))
 
     def test_validation_evidence_does_not_invalidate_native_bytes(self):
         sources = read_json(ROOT / "config/sources.lock.json")
-        target = sources["targets"]["stable"]
+        target = sources["targets"]["prerelease"]
         changed = copy.deepcopy(sources)
-        changed["ports"]["45"]["status"] = "runtime-validated"
+        changed["ports"]["46"]["status"] = "runtime-validated"
         self.assertEqual(runtime_key(target, sources, {}), runtime_key(target, changed, {}))
 
 

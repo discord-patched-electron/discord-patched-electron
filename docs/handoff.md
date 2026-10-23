@@ -57,17 +57,17 @@ See [retained audio reports](evidence/wayland-audio-ci.json) and
 1. Inspect the reference compile result and automatic validation artifacts.
 2. If it failed, fix the concrete compiler failure and resume its retained
    workspace. An observation timeout does not itself mean compilation failed.
-3. If it passed, inspect disk/memory/cache evidence and build the current stable
+3. If it passed, inspect disk/memory/cache evidence and build the current prerelease
    x86-64-v3 candidate on the existing runner.
 4. Run a real native Wayland share with the new runtime and microphone/Krisp
    active. Qualify actual GNOME/KDE sessions and sandboxed apps separately;
    automatic identity is currently niri-specific.
 5. Finish queue-to-compiler reconciliation, the release ledger and automatic AUR
    publication after runtime qualification. Discovery already preserves every
-   stable release and skips unchanged inputs. Configure AUR credentials privately
+   prerelease and skips unchanged inputs. Configure AUR credentials privately
    when the publisher is concrete and reviewable.
 
-No binary release or AUR update has been published. The nine recipes exist, but
+No binary release or AUR update has been published. The three prerelease-Electron recipes exist, but
 the compile/release/AUR coordinator is still unfinished and no AUR key is configured.
 
 ## Camera and local controls
@@ -86,3 +86,14 @@ three Stable-client Arch packages, physical-camera A/B measurements, default-on
 Wayland routing on both audio servers and manually operated audio dialogs.
 `docs/evidence/camera-wayland-local.json` retains these results. Full GitHub
 validation for this follow-up is separate from the earlier green CI run above.
+
+## Scope and scheduling update
+
+The maintainer now wants prerelease Electron only, retaining Discord Stable, PTB
+and Canary. Old stable/nightly pending builds are retired without cancelling any
+running work. Future dispatches default to resource-aware auto parallelism (four
+Ninja tasks with the current limits) and one linker at a time. The current
+reference run and its cached workspace are untouched. See `build-caching.md`.
+
+[Camera/audio follow-up CI 40034425231](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40034425231)
+passed all five jobs at `1552ff6`, including all then-enabled package combinations.

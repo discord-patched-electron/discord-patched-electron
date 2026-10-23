@@ -61,7 +61,7 @@ Each builder takes an exclusive lock on its compiler store, uses a private
 sccache socket, records cache statistics and stops its server before snapshot
 upload. All compiler workflows share the `electron-compilation` concurrency
 group. Candidate builds are manual until runtime/release gates are complete;
-`build.yml` selects stable, prerelease or nightly and automatically triggers
+`build.yml` accepts prerelease only and automatically triggers
 native validation against all three Discord channels after success.
 
 ## Verification and current limits
@@ -96,3 +96,49 @@ changes update integration keys without invalidating the C++ build identity.
 The one-time identity implementation migration supersedes old pending candidate
 keys through normal discovery reconciliation; it does not restart the already
 running reference checkout or discard its Ninja outputs.
+
+## Parallelism and further speedups
+
+The next dispatch defaults to `ELECTRON_BUILD_JOBS=auto`. The scheduling helper
+uses CPU affinity and all visible cgroup v2 ancestor CPU/RAM limits; it does not
+blindly use the host’s 20 logical CPUs inside a four-CPU container. With four CPUs
+and 12 GiB RAM it selects **four Ninja tasks**, up from the current run’s two.
+It reserves 2 GiB and budgets 2 GiB per task, with a 32-task ceiling. This is an
+initial heuristic: large individual source files can need more memory. Overrides
+accept 1–32 tasks. Docker caps apply live; the selected Ninja task count changes
+on the next dispatch. No compiler was restarted for this change.
+
+GN uses `concurrent_links=1` to avoid several memory-heavy links competing with
+compilation. This changes Ninja scheduling, not CPU optimization flags. Dependency
+sync uses the chosen job count capped at eight. The resource report records the
+limits and choices. Scheduling policy is deliberately excluded from the native
+key and workspace inputs; the old `config/build.json.parallel_jobs` remains only
+for compatibility with the existing reference identity, not as the job default.
+
+Source assembly fetches its selected target and the imported patch’s base (needed
+for three-way application); it skips disabled targets and the unneeded fork tip. The
+pinned depot_tools commit is fetched only when absent. Three independent Discord
+manifest downloads run concurrently. CI already runs source, native, packaging
+and audio checks independently; compilers remain serialized to protect their
+shared cache and budget. One runtime serves all three Discord clients.
+
+Research checked Chromium’s current build instructions and the pinned
+`build/toolchain/concurrent_links.gni` and `get_concurrent_links.py`. Zero debug
+symbols and disabled ThinLTO are already configured. A RAM-backed checkout is
+unsuitable while this host is swapping. The current instructions’ Git snapshot
+cache is a possible future fetch optimization, but it adds a sizeable mirror and
+changes the current shallow-fetch approach; it is not required here. No stale
+jumbo flag or unproven remote compiler service was enabled. These changes have
+not yet produced a measured full-build speedup.
+
+Sources: [Chromium Linux build and speed guidance](https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md),
+[Chromium link scheduling](https://chromium.googlesource.com/chromium/src/+/main/build/toolchain/concurrent_links.gni),
+[Linux cgroup v2 resource controls](https://docs.kernel.org/admin-guide/cgroup-v2.html).
+
+Local verification of this update passed 67 Python tests, 11 JavaScript tests,
+actionlint and all three real-client Arch recipes with a dummy runtime. The
+resource helper selected four tasks inside the actual runner. GN generated
+33,637 targets in a separate overlay against read-only source and produced a
+one-deep link pool. A copy of the real discovery ledger migrated to prerelease
+only and was unchanged on the second reconciliation. See
+[retained evidence](evidence/prerelease-scheduling-local.json).

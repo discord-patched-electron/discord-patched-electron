@@ -5,13 +5,13 @@ on:
       target:
         description: Locked Electron channel to compile and validate
         type: choice
-        options: [stable, prerelease, nightly]
-        default: stable
+        options: [prerelease]
+        default: prerelease
       parallel_jobs:
-        description: Ninja tasks (takes effect on this dispatch; CPU/RAM caps are controlled by Docker)
+        description: Ninja tasks (auto respects CPU/RAM limits; takes effect on this dispatch)
         type: choice
-        options: ['1', '2', '3', '4', '6', '8']
-        default: '2'
+        options: [auto, '1', '2', '3', '4', '6', '8']
+        default: auto
 permissions:
   contents: read
 concurrency:
@@ -26,7 +26,7 @@ jobs:
     env:
       ELECTRON_BUILD_CACHE: /work/build-cache
       ELECTRON_COMPILER_CACHE_SIZE: '32G'
-      ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || '2' }}
+      ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || 'auto' }}
       SENTRYCLI_SKIP_DOWNLOAD: '1'
       PYTHONUNBUFFERED: '1'
       TARGET: ${{ inputs.target }}

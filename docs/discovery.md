@@ -5,15 +5,13 @@ dispatch. It does not allocate Blacksmith or PC compiler capacity yet. Build,
 runtime/audio qualification and publication remain separate unfinished gates.
 
 The workflow reads every page of published release records from
-`electron/electron` and `electron/nightlies`. It uses `published_at`, not
-`created_at`, and does not assume pages are ordered by publication time. In the
-live nightly feed, current releases still have a 2020 creation timestamp.
-On activation it records the poll's start time and seeds the highest published
-version for each channel. It does not backfill all historical releases. Future
-polls retain every published stable and prerelease since that baseline, including
-older-major maintenance releases and multiple releases between polls.
+`electron/electron`, selecting alpha/beta prereleases only. It does not request
+`electron/nightlies`. It uses `published_at`, not `created_at`, and does not
+assume pages are ordered by publication time. On activation it seeds the highest
+published prerelease and records the baseline. Future polls retain every
+prerelease since that baseline, including multiple releases between polls.
 
-Source tags always come from `electron/electron`, including nightlies. A single
+Source tags come from `electron/electron`. A single
 Git tag advertisement supplies lightweight refs and peeled annotated refs;
 the GitHub commit endpoint verifies newly observed source objects. Every later
 poll compares tracked source tags with their pinned commits. A moved, missing,
@@ -23,7 +21,7 @@ formats that the parser cannot handle are recorded as issues rather than silentl
 dropped. A malformed new source object does not prevent healthy releases being
 queued; transient upstream API failures abort that poll without partial writes.
 
-The workflow separately downloads all three Discord distribution manifests.
+The workflow concurrently downloads all three Discord distribution manifests.
 Channel normalization and binary checksums use the existing lock implementation.
 A bad manifest retains that channel's previous lock and records `client_errors`,
 allowing healthy channels and Electron discovery to proceed. Consumers must keep
@@ -42,10 +40,12 @@ Runtime keys include source, compiled patches, CPU/toolchain settings and build
 implementation. Identical keys have one record, independent of Discord clients.
 A changed native input creates a new pending key. Failed identical keys remain
 failed, avoiding endless recompilation; explicit retry and abandoned-run
-reconciliation will be connected with the compiler coordinator. Only **pending
-nightlies** can be superseded by a newer nightly; old identities and reasons
-remain recorded. Stable and prerelease releases are never coalesced. Pending
-work is ordered stable, prerelease, nightly.
+reconciliation will be connected with the compiler coordinator. Prerelease entries are never coalesced and are ordered by version.
+Stable/nightly Electron are disabled in `config/channels.json`. Migration retires
+only pending work for those channels, preserving historical release metadata,
+attempts and running/completed/failed builds. `pending()` excludes disabled work
+even before migration. The reference build can finish normally. Source/build/
+packaging entry points reject disabled targets; old locked ports remain evidence.
 
 Canonical JSON excludes poll timestamps except the activation baseline. An
 unchanged poll neither changes the state file nor creates a Git commit/push.
@@ -67,9 +67,9 @@ integration validation, GitHub Releases and AUR transactions remains work in
 progress. The queue alone does not prove a release is compatible or publishable.
 No AUR recipe is advanced from a discovery status or an unvalidated binary.
 
-Tests exercise missed releases, maintenance lines, unchanged polls, native/client
+Tests exercise missed prereleases, disabled-channel migration, unchanged polls, native/client
 deduplication, annotated tags, moved/replaced/withdrawn releases, invalid source
-objects, nightly coalescing, pagination and competing Git state writers.
+objects, preserved running work, pagination and competing Git state writers.
 
 The first two CI runs succeeded. The second reported no input change and left
 the remote `ci-state` commit exactly unchanged, with no compiler job allocated.
@@ -102,7 +102,7 @@ job still fails if any selected check fails. A subset pass never implies that
 unselected clients passed.
 
 The Arch workflow shares the same packaging implementation as the main Checks
-workflow. It builds all three Electron-channel recipes for each selected client
+workflow. It builds the prerelease-Electron recipe for each selected client
 with an explicitly unusable dummy runtime. This verifies private installation
 paths, native library dependencies, preserved Krisp patch bytes, metadata and
 sandbox permissions, but cannot qualify a real runtime. Staging trees and dummy
@@ -110,7 +110,8 @@ package archives are removed after each attempt, including failures; recipes,
 logs and reports are retained.
 
 Local validation of the exact discovered PTB 1.0.224 and Canary 1.0.2357 snapshot
-passed all six packaging combinations. Both clients also passed native frame
+passed all six then-enabled packaging combinations. The current scope has one
+prerelease-Electron package per client. Both clients also passed native frame
 handoff/teardown and offline Krisp processing using their bundled Electron
 44.9.3, with 53.6 dB synthetic noise reduction. These are baseline results, not
 custom-runtime, live-call or per-application audio qualification. The existing

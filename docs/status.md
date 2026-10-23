@@ -8,11 +8,12 @@ reports niri; its portal path is the first live qualification target.
 
 ## Verified
 
-- Release discovery reads paginated official feeds, resolves nightly source tags,
-  detects moved tags and preserves missed stable/maintenance releases. The durable
+- Release discovery reads the paginated official Electron feed, detects moved
+  tags and preserves every new alpha/beta prerelease. Stable/nightly Electron
+  targets are now disabled; all three Discord clients remain enabled. The durable
   state branch uses content-based no-ops and fast-forward writes without merges.
-  Local tests cover racing writers, nightly coalescing and independent Discord
-  updates. See [discovery](discovery.md); compiler dispatch and AUR publication
+  Local tests cover racing writers, disabled-channel migration, preserved running
+  work and independent Discord updates. See [discovery](discovery.md); compiler dispatch and AUR publication
   are not yet connected to the queue. The first two CI polls passed and the
   unchanged second poll left the remote state commit untouched. Discovered PTB
   1.0.224 and Canary 1.0.2357 passed separate CI native/Krisp baseline and
@@ -25,12 +26,12 @@ reports niri; its portal path is the first live qualification target.
   changes and that repeating the patch is a no-op. Input/output hashes are in
   `evidence/*-krisp.json`; all explicitly say runtime validation is still false.
 - Existing AUR resource/bootstrap changes apply to the current Stable app.asar.
-- The shared generator produces all nine recipes, with fixed binary checksums
+- The shared generator produces the three prerelease-Electron recipes, with fixed binary checksums
   and separate installation/profile paths. Real Stable, PTB and Canary payloads
   pass the generated makepkg preparation and packaging steps in a clean Arch
   container with an explicitly nonfunctional runtime fixture. This is packaging
-  evidence only; see [packaging checks](packaging.md). The updated nine-package
-  checks also pass with native shared-library validation, including the narrowly
+  evidence only; see [packaging checks](packaging.md). The earlier nine-package
+  checks also passed with native shared-library validation, including the narrowly
   documented dispatch exception; see [CI evidence](evidence/packaging-native-dependencies-ci.json).
 - The imported Discord patch exactly reconstructs the fork tree from its base.
 - Unit tests cover source integrity, cross-channel isolation, fingerprints,

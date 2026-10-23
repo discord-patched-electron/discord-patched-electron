@@ -36,12 +36,12 @@ class AudioBuildIdentity(unittest.TestCase):
     def test_module_adapter_changes_cannot_invalidate_native_build_identity(self):
         sources = read_json(ROOT / 'config/sources.lock.json')
         client = read_json(ROOT / 'config/clients.lock.json')['clients']['stable']
-        target = sources['targets']['stable']
-        native = runtime_key(target, sources, build_config('stable'))
-        original = integration_key(native, client, 'stable')
+        target = sources['targets']['prerelease']
+        native = runtime_key(target, sources, build_config('prerelease'))
+        original = integration_key(native, client, 'prerelease')
         with mock_patch('fingerprints.hash_files', return_value={'application_audio': 'changed'}):
-            self.assertNotEqual(integration_key(native, client, 'stable'), original)
-            self.assertEqual(runtime_key(target, sources, build_config('stable')), native)
+            self.assertNotEqual(integration_key(native, client, 'prerelease'), original)
+            self.assertEqual(runtime_key(target, sources, build_config('prerelease')), native)
 
 
 class AudioEvidenceGate(unittest.TestCase):

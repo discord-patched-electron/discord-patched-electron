@@ -4,21 +4,21 @@ Research checked: 23 October 2026. Status: implementation plan; no custom runtim
 
 ## 1. Intended result and decisions
 
-Build a current Electron with Discord's native streaming extensions, run the official Discord desktop client on it, and publish nine automatically maintained AUR binary packages covering Discord Stable, PTB and Canary on each of three Electron channels. Compile everything that needs compilation in CI. Users should only download and install binaries.
+Build a current Electron with Discord's native streaming extensions, run the official Discord desktop client on it, and publish three automatically maintained AUR binary packages covering Discord Stable, PTB and Canary on prerelease Electron. Compile everything that needs compilation in CI. Users should only download and install binaries.
 
-Interpret **stable, prerelease and nightly as Electron channels**, independent of Discord's **stable, PTB and canary client channels**. Support the full three-by-three combination. Pin each Discord channel's own client and modules; never substitute Stable payloads into a PTB or Canary package.
+The maintainer narrowed the scope to **prerelease Electron only** on 23 October 2026. Keep Discord's **stable, PTB and canary client channels**. Disable stable/nightly Electron discovery, compilation and packaging; retain historical state and let existing compilation finish. Pin each Discord channel's own client and modules; never substitute Stable payloads into a PTB or Canary package.
 
-Package names use `discord-<discord-channel>-<electron-channel>-patched-electron-bin` (confirm AUR availability before submission). The Discord channels are `stable`, `ptb` and `canary`; Electron channels are `stable`, `prerelease` and `nightly`. The repository is `discord-patched-electron/discord-patched-electron`, in the organization selected by the maintainer.
+Package names use `discord-<discord-channel>-<electron-channel>-patched-electron-bin` (confirm AUR availability before submission). The Discord channels are `stable`, `ptb` and `canary`; the only enabled Electron channel is `prerelease` (alpha/beta; excludes stable and nightly). The repository is `discord-patched-electron/discord-patched-electron`, in the organization selected by the maintainer.
 
 Each package is a usable Discord installation with its own runtime and launcher. Also publish standalone runtime archives. No extra integration package is required.
 
 The maintainer selected **x86-64-v3** as the minimum CPU baseline for published binaries: AVX2, with no AVX-512 requirement. Use generic tuning, never `-march=native`. Keep this policy in the runtime and cache identities. Preserve incremental Ninja objects, reuse verified completed artifacts, and use compiler caching across releases. The PC compiler cache is bounded to 32 GiB; hosted snapshots are bounded to 3 GiB without paid cache expansion. Implementation and measured cache checks are in [build-caching.md](build-caching.md). The running reference capacity build retains its original flags.
 
-Nine packages must not imply nine Chromium compilations. Build once per distinct runtime key, then reuse that artifact across the three Discord channels. Only a proven difference in compiled compatibility patches should create a separate runtime variant. Keep discovery, packaging and publication driven by channel configuration and one template.
+Three packages must share one Chromium compilation for identical native inputs. Build once per distinct runtime key, then reuse that artifact across the three Discord channels. Only a proven difference in compiled compatibility patches should create a separate runtime variant. Keep discovery, packaging and publication driven by channel configuration and one template.
 
 Use one small public GitHub repository, GitHub Actions for orchestration, the maintainer's containerized self-hosted compile runner, GitHub Releases for binary downloads, and AUR Git for package recipes. Keep the build scripts runner-independent; provider preference is secondary to adequate free capacity. If no suitable ongoing free CI is available, pause the dependent build/deployment work and ask the user how to proceed. Do not silently choose a paid plan or reduce the requested release coverage.
 
-Base the packaging on the current `discord_arch_electron` recipe, launcher and existing compatibility patches, adapting its established behavior to the custom runtime and nine channel combinations. Working **Krisp noise suppression is required**, alongside native streaming and application-specific screen-share audio. Reuse the existing Krisp patcher rather than inventing a replacement.
+Base the packaging on the current `discord_arch_electron` recipe, launcher and existing compatibility patches, adapting its established behavior to the custom runtime and three Discord channel combinations. Working **Krisp noise suppression is required**, alongside native streaming and application-specific screen-share audio. Reuse the existing Krisp patcher rather than inventing a replacement.
 
 Preserve native Discord streaming. Do not substitute the browser/WebRTC fallback or turn this into a Vesktop-based client. Aim to fix application audio in a native helper or the module wrapper, without changing the remote Discord UI.
 
@@ -105,7 +105,7 @@ Use a separate `ci-state` branch containing small JSON records for attempts, res
 
 Pin the AUR Git commit and import its PKGBUILD, launcher, Krisp patcher and relevant install behavior with attribution. Create the shared template from those files. Keep a short documented delta: custom runtime asset/path, channel parameters, isolated package identities, CI-generated versions/checksums and publication metadata. Preserve the upstream resource/bootstrap fixes and Krisp handling before adding new behavior.
 
-Track later AUR changes as a small reviewed packaging update. Refresh the common baseline once and regenerate all nine recipes; do not maintain nine independently edited PKGBUILDs or repeatedly merge whole generated recipes. Preserve applicable fixes from the Canary work where its client layout differs. Remove obsolete migration messages when creating new package identities, rather than claiming they upgraded from the old package.
+Track later AUR changes as a small reviewed packaging update. Refresh the common baseline once and regenerate all three recipes; do not maintain three independently edited PKGBUILDs or repeatedly merge whole generated recipes. Preserve applicable fixes from the Canary work where its client layout differs. Remove obsolete migration messages when creating new package identities, rather than claiming they upgraded from the old package.
 
 ### Assemble from upstream, rather than repeatedly merge two forks
 
@@ -146,13 +146,13 @@ Before enabling recurring compilation:
 2. Confirm that the account cannot incur charges under the selected configuration. A workflow budget check is useful but is not a substitute for a provider-enforced billing limit where one is available.
 3. Run one budget-bounded cold build on a runner with sufficient disk. Measure fetch time, peak disk/RAM, compile time, archive size and charged minutes. Stop if the reserved free allowance is insufficient.
 4. Compare the smallest feasible size with a larger size only if free allowance remains. Choose the configuration consuming the fewest allowance units per successful build, not necessarily the fewest CPUs.
-5. Estimate a month of Electron stable/prerelease/nightly builds, validation across all nine combinations, Discord channel updates and retries using observed numbers. Count shared runtime builds once; account separately for any required compiled variants. Record measurements and the account's confirmed conversion rules in `docs/build-capacity.md`.
+5. Estimate a month of Electron prerelease builds, validation across all three combinations, Discord channel updates and retries using observed numbers. Count shared runtime builds once; account separately for any required compiled variants. Record measurements and the account's confirmed conversion rules in `docs/build-capacity.md`.
 
 For conservative planning, a 2-vCPU-equivalent accounting model would allow `3000 / (vCPUs / 2)` wall-clock minutes: 750 at 8 vCPU or 375 at 16 vCPU. Treat this calculation as a budget model until the account's actual rules are verified, not a promise of capacity.
 
 Use the selected provider's usage reporting and hard caps where available. For Blacksmith, its [CLI](https://docs.blacksmith.sh/blacksmith-cli/usage) provides JSON usage/cost reporting and a runner catalog. Query account-wide usage for the actual billing period before launching compilation. Reserve the job's worst-case allowance based on its timeout, including other in-flight work and a safety margin. Reconcile after completion; fail closed if usage cannot be read reliably. Serialize compilation initially to simplify both budgeting and state.
 
-When free capacity runs out, keep pending stable releases in the durable queue and report the delay. Prioritize stable over prerelease over nightly. Do not silently enable billing. If the evidence shows no suitable sustainable free CI, stop before allocating paid resources and ask the user to choose the next step. Present the measured requirements, available sponsorship/donated-runner options and any paid option's estimated cost. The user explicitly permits this pause; do not silently cut channels, skip stable releases or enter an indefinite quota-wait loop as a substitute for that decision.
+When free capacity runs out, keep pending prereleases in the durable queue and report the delay. Process them in version order. Do not silently enable billing. If the evidence shows no suitable sustainable free CI, stop before allocating paid resources and ask the user to choose the next step. Present the measured requirements, available sponsorship/donated-runner options and any paid option's estimated cost. The user explicitly permits this pause; do not silently cut Discord channels, skip enabled prereleases or enter an indefinite quota-wait loop as a substitute for that decision.
 
 ### Other CI options considered
 
@@ -164,7 +164,7 @@ When free capacity runs out, keep pending stable releases in the durable queue a
 - **BuildJet:** exclude; it announced a March 2026 shutdown. [Shutdown announcement](https://buildjet.com/for-github-actions/blog/we-are-shutting-down)
 - **Other OSS CI offers, including Cirrus:** potential follow-up only if needed. No unverified free allowance, disk allocation or sponsorship is part of the proposed system.
 
-Start with cold builds and modest caches within confirmed free limits. Do not make paid sticky disks, remote build execution, a cache server or a huge uploaded build directory prerequisites. Incremental compilation is an optimization to add after the cold path works.
+Start with cold builds and modest caches within confirmed free limits. Do not make paid sticky disks, remote build execution, a cache server or a huge uploaded build directory prerequisites. Persistent Ninja and compiler-cache reuse are now implemented; completed cold/warm build measurements remain outstanding.
 
 ## 5. Release discovery, no-op detection and retries
 
@@ -172,17 +172,14 @@ Run discovery hourly, offset from the top of the hour, plus `workflow_dispatch`.
 
 Use paginated official GitHub release data and verify source tags:
 
-- Stable: all newly published non-prerelease Electron releases since an explicit activation baseline, including maintenance releases on older major lines.
-- Prerelease: newly published alpha/beta releases, excluding nightly. Track the highest eligible prerelease version for the AUR package.
-- Nightly: published releases from [`electron/nightlies`](https://github.com/electron/nightlies/releases); resolve their corresponding source tags in `electron/electron`.
+- Prerelease: newly published alpha/beta releases in `electron/electron`, excluding stable and nightly. Track the highest successfully qualified prerelease for each AUR package.
+- The previously implemented stable/nightly source ports remain historical evidence. `config/channels.json` disables those targets across discovery, source assembly, compiler entry points and packaging. Do not fetch the nightly release feed.
 
-The nightly distinction was verified: `v47.0.0-nightly.20261023` has assets in the nightlies repository, while its [Electron source tag](https://api.github.com/repos/electron/electron/git/ref/tags/v47.0.0-nightly.20261023) peels to commit `0e77ca92cd373a1b145c1e10d83189c137ea1b3e`. Do not build the artifact repository's default branch or today's moving `main` for yesterday's nightly.
+On first activation, seed the latest prerelease and record the baseline; do not backfill Electron's entire history. Thereafter enumerate releases rather than relying on `/releases/latest`. Handle annotated tags by peeling them to commits. Retain every newly detected prerelease, including multiple releases between polls; do not coalesce this backlog. Withhold unavailable or moved sources and incompatible patches explicitly.
 
-On first activation, seed current channel targets and record the baseline; do not backfill Electron's entire history. Thereafter enumerate releases rather than relying solely on `/releases/latest`, which can miss intermediate and maintenance releases. Handle annotated tags by peeling them to commits.
+When migrating the existing ledger, retire only pending stable/nightly runtime entries with `electron-channel-disabled`. Preserve running/completed/failed entries and historical release metadata, and filter disabled entries before any dispatch even when reading an unmigrated ledger. Let the current reference build finish and retain its incremental checkout.
 
-Build every newly detected stable Electron release. If an older major gets a patch after a newer major has shipped, publish its successful artifact but do not downgrade any stable-Electron AUR package. Keep explicit statuses for releases whose compatibility patch set is unavailable. Queue all Electron prereleases by default; nightly may coalesce a backlog to the newest pending nightly, with skipped targets recorded. Do not coalesce away stable Electron releases.
-
-Independently poll Discord's official distribution manifests for `stable`, `ptb` and `canary`, verifying each endpoint and payload format during implementation. Store channel-specific client/module versions, checksums and patch applicability. An Electron update fans out to the three Discord channels after deduplicated compilation. A Discord channel update fans out only to that channel's three Electron packages, reusing existing runtimes unless a compiled compatibility change is required.
+Independently poll Discord's official distribution manifests for `stable`, `ptb` and `canary`, verifying each endpoint and payload format during implementation. Store channel-specific client/module versions, checksums and patch applicability. An Electron update fans out to the three Discord channels after deduplicated compilation. A Discord channel update fans out only to that channel's prerelease-Electron package, reusing existing runtimes unless a compiled compatibility change is required.
 
 ### Separate the expensive and cheap identities
 
@@ -229,7 +226,7 @@ Persist state transitions such as `pending`, `building`, `failed`, `validated`, 
 
 ## 6. Compilation and validation
 
-First build a pinned Discord fork revision without our ports to establish a reference. Then assemble the integration onto the selected current stable Electron source. Add prerelease and nightly only after the common build path works.
+First build a pinned Discord fork revision without our ports to establish a reference. Then assemble the integration onto the selected current prerelease Electron source. Stable and nightly Electron targets stay disabled.
 
 Follow Electron's [official build instructions](https://www.electronjs.org/docs/latest/development/build-instructions-gn) and [Linux prerequisites](https://www.electronjs.org/docs/latest/development/build-instructions-linux). Pin build-tools/depot_tools, use the target's DEPS/toolchain, and configure local compilation without requiring Google's remote execution credentials. Current instructions mention GN/Siso while retaining Ninja-compatible examples; use the backend supported by the pinned target.
 
@@ -336,23 +333,23 @@ Test with two applications generating different tones: selecting A must transmit
 
 ## 8. Nine AUR packages and automatic publication
 
-AUR hosts package recipes; **GitHub Releases hosts the compiled binaries**. Generate all nine package recipes from the template derived from the pinned current AUR package, with explicit Electron and Discord channel configuration. Reuse the same runtime asset URL and checksum wherever the runtime key matches. Follow [AUR submission guidance](https://wiki.archlinux.org/title/AUR_submission_guidelines) and [PKGBUILD conventions](https://wiki.archlinux.org/title/PKGBUILD).
+AUR hosts package recipes; **GitHub Releases hosts the compiled binaries**. Generate all three package recipes from the template derived from the pinned current AUR package, with explicit Electron and Discord channel configuration. Reuse the same runtime asset URL and checksum wherever the runtime key matches. Follow [AUR submission guidance](https://wiki.archlinux.org/title/AUR_submission_guidelines) and [PKGBUILD conventions](https://wiki.archlinux.org/title/PKGBUILD).
 
-Each package installs into a directory unique to its Electron/Discord channel pair and exposes a distinct executable/desktop entry. Do not overwrite system Electron or official Discord installations. Give each pair a separate default user-data directory so all nine packages can coexist without mutating one another's state. Configure Discord's release-channel identity, resource/module roots and updater settings from that client's channel configuration; confirm Stable, PTB and Canary each launch their intended client.
+Each package installs into a directory unique to its Electron/Discord channel pair and exposes a distinct executable/desktop entry. Do not overwrite system Electron or official Discord installations. Give each pair a separate default user-data directory so all three packages can coexist without mutating one another's state. Configure Discord's release-channel identity, resource/module roots and updater settings from that client's channel configuration; confirm Stable, PTB and Canary each launch their intended client.
 
 The PKGBUILD uses fixed URLs and checksums for our runtime/helper archive and the official Discord core/module distributions. It packages these into the private installation layout, applies the existing resource/bootstrap and Krisp patches plus our narrow integration changes, and configures local module loading. Download proprietary client payloads from Discord rather than pretending they are part of the open-source runtime. Users run `makepkg` only to assemble and patch downloaded files as the current package does; C++ compilation already happened in CI. CI must test the exact same packaging/patching steps that users execute.
 
 Do not execute Discord during `package()`, access a real user's home, use an unversioned `latest` URL, calculate `pkgver` by making a live API request, or use `SKIP` for downloaded binary checksums. Reproduce required bootstrap/resource settings from the working AUR research and test them against the pinned client.
 
-Control local desktop/module updates through packaging so the tested combination remains installed. Poll each Discord channel's distribution manifest: a client/module-only update should reuse the runtime, validate compatibility and publish revisions only for the affected packages. Track `pkgrel` independently for all nine package names. The remotely served Discord UI can still change; document this limit and retain diagnostic version information.
+Control local desktop/module updates through packaging so the tested combination remains installed. Poll each Discord channel's distribution manifest: a client/module-only update should reuse the runtime, validate compatibility and publish revisions only for the affected packages. Track `pkgrel` independently for all three package names. The remotely served Discord UI can still change; document this limit and retain diagnostic version information.
 
 ### Versions
 
 Use Electron's version as `pkgver`, normalized for Arch; use `pkgrel` for our revisions at the same Electron version. A changed patch/runtime, helper, client/module set or package recipe increments `pkgrel` when it changes the installed package. Reset `pkgrel` on a genuinely newer `pkgver`.
 
-Verify normalization and ordering with Arch's `vercmp`, including alpha-to-beta transitions, numeric suffixes and nightly dates. Arch `vercmp`-validated examples are `46.0.0beta.1` and `47.0.0nightly.20261023`; retain ordering regression tests, including promotion to stable. Keep upstream version strings unchanged in provenance metadata.
+Verify normalization and ordering with Arch's `vercmp`, including alpha-to-beta transitions and numeric suffixes. An Arch `vercmp`-validated example is `46.0.0beta.1`; retain ordering regression tests. Historical stable/nightly version parsing remains supported for provenance, without enabling those packages. Keep upstream version strings unchanged in provenance metadata.
 
-Each stable-Electron package selects the highest stable semantic version validated with its own Discord channel. Maintenance releases for older majors still get artifacts but never move AUR backwards. Electron prerelease excludes nightly, and stable promotion does not relabel an old beta as a stable build. Keep each package on its last good version until a newer eligible combination passes. A broken Canary module must not block Stable or PTB publication, and a failed package must never advertise another channel's validation result.
+Each package selects the highest prerelease version validated with its own Discord channel. A later completion for an older prerelease must never downgrade AUR. Stable promotion does not relabel a beta or enable a stable-Electron package. Keep each package on its last good version until a newer eligible combination passes. A broken Canary module must not block Stable or PTB publication, and a failed package must never advertise another channel's validation result.
 
 ### Publication transaction
 
@@ -365,7 +362,7 @@ For every successful new Electron/Discord channel combination, automatically, re
 5. Clone the relevant AUR repository over SSH, compare generated files, commit only a real change and push the fast-forward update.
 6. Confirm the remote commit and record `aur-published` against the integration key.
 
-The AUR publisher uses a dedicated maintained account/key with access to the nine package repositories. Store the key in Actions secrets, verify the AUR host key and expose credentials only to the publication job. Run source compilation without AUR credentials. Keep GitHub write permissions scoped to jobs that publish or update state; pin external actions.
+The AUR publisher uses a dedicated maintained account/key with access to the three package repositories. Store the key in Actions secrets, verify the AUR host key and expose credentials only to the publication job. Run source compilation without AUR credentials. Keep GitHub write permissions scoped to jobs that publish or update state; pin external actions.
 
 Serialize publication per package. Recheck the current channel head before pushing so an older completed job cannot overwrite a newer package. On a non-fast-forward push, fetch and regenerate from the current authoritative template/state; do not blindly merge generated PKGBUILD text or force-push.
 
@@ -379,14 +376,14 @@ If GitHub publication succeeds and AUR fails, retry only AUR using the existing 
 - [x] Import and pin the current AUR packaging baseline, launcher, Krisp patcher and relevant compatibility fixes.
 - [x] Select initial compiler capacity: local PC fallback and bounded Blacksmith experiment after account unlock; recurring hosted capacity remains unproven.
 - [ ] Execute the bounded reference experiment and measure local resource use.
-- [ ] Build the reference fork, then port the bridge to current stable Electron.
+- [ ] Build the reference fork, then port the bridge to current prerelease Electron.
 - [ ] Demonstrate a real Discord stream starts, can be joined and stops without the missing custom API failure.
 - [ ] Demonstrate working Krisp initialization and effective microphone noise suppression with the current package baseline and custom runtime.
 - [ ] Record native ABI behavior and actual compile resource usage.
 
 Exit: one working custom runtime, one reproducible build manifest, and a measured free-CI feasibility decision. If these fail, resolve them before building a large release pipeline.
 
-### Phase 2 — stable automation and packaging
+### Phase 2 — prerelease automation and packaging
 
 - [ ] Implement discovery, canonical hashes, durable state and bounded retry behavior.
   Discovery and durable backlog are implemented in `scripts/discover.py`,
@@ -396,21 +393,21 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 - [x] Derive the shared package template and stable launcher/layout from the imported current package, retaining its resource/bootstrap and Krisp fixes.
 - [ ] Implement compile/validate/release/AUR jobs with publication-only credentials.
 - [ ] Register the package and configure its AUR access during deployment setup.
-- [ ] Demonstrate a successful automatic AUR update from a new stable target.
+- [ ] Demonstrate a successful automatic AUR update from a new prerelease target.
 - [ ] Repeat unchanged inputs and prove no compile job starts and no Git/AUR commit is created.
 - [ ] Simulate a publish failure and prove recovery reuses the existing runtime.
 
-### Phase 3 — full Electron and Discord channel matrix
+### Phase 3 — all three Discord clients on prerelease Electron
 
-- [x] Add Electron prerelease/nightly and Discord PTB/Canary configuration, producing all nine packages through the same scripts/template.
+- [x] Use prerelease Electron and all three Discord channels, producing three packages through the same scripts/template; disable other Electron targets without cancelling existing work.
 - [x] Verify the PTB and Canary manifests, channel identity, resource paths and module layouts; lock their inputs separately.
 - [ ] Validate each channel's Krisp patch applicability and effective suppression on its supported Electron runtimes; reject broken combinations without blocking healthy ones.
 - [ ] Demonstrate one shared runtime build feeding three Discord packages when compiled inputs match.
 - [ ] Demonstrate a Canary-only client/module update reuses runtimes and updates only compatible Canary packages.
-- [x] Verify all nine packages have distinct installation paths, launchers, desktop entries and profiles.
-- [ ] Validate actual nightly tag-to-source resolution and prerelease version ordering.
-- [ ] Prove a broken Electron nightly or Discord channel cannot block unrelated package publication or downgrade any channel pair.
-- [ ] Simulate multiple stable releases between polls and an older-major maintenance release.
+- [x] Verify all three packages have distinct installation paths, launchers, desktop entries and profiles.
+- [ ] Validate prerelease tag-to-source resolution and alpha/beta version ordering.
+- [ ] Prove a broken prerelease or Discord channel cannot downgrade a package or publish another channel’s validation result.
+- [x] Simulate multiple prereleases between polls and migration of pending disabled channels.
 - [ ] Confirm the measured monthly free capacity supports the desired workload, or pause dependent work and ask the user to choose sponsorship, donated compute, an approved paid option or another direction.
 
 ### Phase 4 — application audio
@@ -449,7 +446,7 @@ the custom-runtime, real-call, microphone or per-app-audio acceptance gates.
 
 ## 10. Completion definition and remaining uncertainties
 
-The project is complete when all nine packages, derived from the current AUR packaging baseline, install the intended official Discord Stable, PTB or Canary client with the corresponding stable, prerelease or nightly custom Electron runtime; new stable Electron releases are detected and attempted without being lost; each Discord channel's updates are independently detected and packaged; successful newer combinations automatically update their AUR packages; identical runtime inputs are compiled once and reused across clients; unchanged builds and publication retries do not trigger unnecessary compilation; Krisp noise suppression demonstrably works; and the per-app audio feature demonstrably excludes other applications for the supported combinations.
+The project is complete when all three packages, derived from the current AUR packaging baseline, install the intended official Discord Stable, PTB or Canary client with the qualified prerelease custom Electron runtime; new Electron prereleases are detected and attempted without being lost; each Discord channel's updates are independently detected and packaged; successful newer combinations automatically update their AUR packages; identical runtime inputs are compiled once and reused across clients; unchanged builds and publication retries do not trigger unnecessary compilation; Krisp noise suppression demonstrably works; and the per-app audio feature demonstrably excludes other applications for the supported combinations.
 
 The remaining research questions are concrete: actual cold-build cost within a suitable provider's free allowance, private voice/Krisp-module compatibility across Electron majors and client channels, live-client UI behavior on supported desktops, and microphone/Krisp behavior during an actual native share. Keep them visible as feasibility gates. Existing packaging patches provide the starting implementation, but do not by themselves prove compatibility with a newly compiled runtime. Neither unlimited free compilation nor permanently conflict-free Chromium ports has been established. If no suitable free CI can be established, the authorized next step is to pause dependent work and ask the user, not to incur charges.
 
@@ -468,3 +465,29 @@ before auto-pushing the AUR recipe; never compile it in makepkg. See
 
 Docker CPU/RAM limits apply live. Ninja concurrency is chosen on a new dispatch
 using `parallel_jobs`, preserving incremental objects; see `docs/ci-setup.md`.
+
+## Prerelease scope and compiler scheduling
+
+The package names are `discord-stable-prerelease-patched-electron-bin`,
+`discord-ptb-prerelease-patched-electron-bin` and
+`discord-canary-prerelease-patched-electron-bin`. The initial reference compile
+is diagnostic and remains allowed. Its cache identity, checkout and running
+command must remain intact. Standard source checks now assemble only patch-base
+and prerelease. Historical stable/nightly ports and evidence are retained.
+
+Future builds use `parallel_jobs=auto`: respect visible cgroup v2 CPU quotas,
+CPU affinity and RAM limits, with 2 GiB reserved plus 2 GiB per Ninja task,
+capped at 32. Current 4-CPU/12-GiB limits select four tasks. Limit concurrent
+links to one and dependency sync to eight jobs maximum. Overrides select 1–32
+tasks; changing Docker caps during a run does not change Ninja's existing `-j`.
+Scheduling policy is separate from native identity; keep the legacy build config
+unchanged to preserve the reference workspace. Record effective scheduling in
+`resources.json`. Validate this policy against real cgroup readings before use.
+
+Retain completed-artifact checks, incremental Ninja objects, normalized sccache
+keys and 32-GiB local cache. Fetch only the selected source commit and required patch base, skip re-fetching
+a pinned depot_tools object already present, and download independent Discord
+manifests concurrently. Existing zero-symbol and no-ThinLTO settings reduce build
+cost. Avoid a RAM-backed source tree on this swapping host; do not add unverified
+jumbo flags, paid remote execution or a second compiler racing the same cache.
+See `docs/build-caching.md` for sources and validation.

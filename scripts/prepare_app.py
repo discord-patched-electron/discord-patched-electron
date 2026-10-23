@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tempfile
 
-from common import ROOT, package_name, read_json, write_json
+from common import enabled_electron_channels, ROOT, package_name, read_json, write_json
 
 
 def replace(text: str, before: str, after: str, *, exact: int | None = 1) -> str:
@@ -61,7 +61,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("core", type=Path)
     parser.add_argument("--discord", required=True, choices=["stable", "ptb", "canary"])
-    parser.add_argument("--electron", required=True, choices=["stable", "prerelease", "nightly"])
+    parser.add_argument("--electron", required=True, choices=enabled_electron_channels())
     parser.add_argument("--asar", default=str(ROOT / "node_modules/.bin/asar"))
     args = parser.parse_args()
     prepare(args.core, args.discord, args.electron, args.asar)

@@ -92,13 +92,13 @@ class CompletedBuild(unittest.TestCase):
         self.assertEqual(digest(reference_inputs(sources["fork"], reference)),
                          "be92ed7160913c8b53ae06e6003e6de864d292f1199af9420a8c6dd22ec72aa4")
         keys = set()
-        for target in ("stable", "prerelease", "nightly"):
+        for target in ("prerelease",):
             config = build_config(target)
             self.assertEqual(config["cpu_baseline"], "x86-64-v3")
             _, inputs, key = build_inputs(target, sources, config)
             self.assertNotEqual(inputs["config"], reference)
             keys.add(key)
-        self.assertEqual(len(keys), 3)
+        self.assertEqual(len(keys), 1)
 
 
 if __name__ == "__main__":

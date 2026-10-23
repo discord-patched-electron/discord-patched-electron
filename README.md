@@ -3,7 +3,8 @@
 Work in progress: preserve Discord's native desktop streaming on newer Electron,
 with working Krisp and application-specific screen-share audio. Package names use
 `discord-<discord-channel>-<electron-channel>-patched-electron-bin`:
-Discord Stable/PTB/Canary × Electron stable/prerelease/nightly (nine packages).
+Discord Stable/PTB/Canary × prerelease Electron (three packages). Stable and
+nightly Electron targets are disabled.
 
 **Wayland is the primary desktop target; X11 is additional support.** The current
 audio adapter is enabled by default on Wayland and supports native Wayland capture with a private PipeWire
@@ -29,20 +30,20 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
 - Implemented atomic source locks, strict channel validation, content fingerprints,
   the existing resource/bootstrap fixes and validated Krisp patch application.
 - Hourly [release discovery](docs/discovery.md) retains a durable queue on
-  `ci-state`, including stable maintenance releases and separate Discord updates.
+  `ci-state`, including every new prerelease and separate Discord updates.
   Identical polls create no commit; automatic compile/publication dispatch is
   still gated on the unfinished runtime and audio qualification.
 - Imported Discord's complete 44-branch delta and verified that applying it to its
   original upstream base reconstructs Discord's exact source tree.
-- Stable, prerelease and nightly source candidates now assemble with separate,
-  pinned compatibility patches. Their Chromium/dependency ports and compilation
+- The prerelease source candidate assembles with a pinned compatibility patch.
+  Historical stable/nightly ports are retained but disabled. Its Chromium/dependency port and compilation
   are **not yet validated**. See [source ports](docs/source-ports.md).
 - A full custom runtime has **not been compiled**. Successful Krisp binary patching
   is **not** a claim that noise suppression has been tested on the new runtime.
 - Native video delivery/teardown and offline Krisp suppression pass on all three
   bundled-runtime baselines. The reusable [runtime checks](docs/runtime-validation.md)
   still need to pass on the custom builds, alongside real call/audio checks.
-- A shared generator produces all nine binary package recipes. Arch packaging
+- A shared generator produces all three binary package recipes. Arch packaging
   checks use real client/modules and a dummy runtime; see [packaging](docs/packaging.md).
 - The reference build can use the containerized PC runner or a single bounded
   Blacksmith experiment within the newly unlocked account's free allowance.
@@ -67,11 +68,11 @@ To reproduce source assembly without downloading Chromium:
 ```sh
 python3 scripts/assemble.py patch-base \
   --destination .work/patch-base --report .work/patch-base.json
-python3 scripts/assemble.py stable \
-  --destination .work/stable --report .work/stable.json
+python3 scripts/assemble.py prerelease \
+  --destination .work/prerelease --report .work/prerelease.json
 ```
 
-Use a fresh destination each time. The current three candidate ports assemble;
+Use a fresh destination each time. The current prerelease port assembles;
 later conflicts still fail explicitly and preserve diagnostics. Textual assembly
 does not qualify a runtime for publication. `reference` assembles the exact Discord fork for the
 initial capacity build; it is not the requested latest-Electron product.

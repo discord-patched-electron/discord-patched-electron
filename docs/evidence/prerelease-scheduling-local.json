@@ -1,0 +1,66 @@
+{
+  "actionlint": "passed",
+  "active_compiler_restarted": false,
+  "active_reference_workspace": "be92ed7160913c8b53ae06e6003e6de864d292f1199af9420a8c6dd22ec72aa4",
+  "base_commit": "1552ff6fb4ad732fd4bbacfeda14bd810d63e821",
+  "changed_input_hashes": {
+    "config/channels.json": "57170ae5ecef6ec0a20afec7aa3480970797d82c0ed59ddc1a002213b0c7dd6d",
+    "scripts/assemble.py": "71a59d65323615336b2de8f9230d263a757a543bfc68b10872ab41cbbf99e7b7",
+    "scripts/build_reference.py": "d19ffb6ebc1dad6d30b70ec26ad2704626c4a8feef3e84e725324b537738d281",
+    "scripts/build_resources.py": "ba14d77d117058b8af99425eee6a5e2c50c6cb254a876aa199f385a4221efe01",
+    "scripts/discover.py": "5283f41182e05927dfe5693a1d0a2d868b243f13194bac19ff6077caf3aa38c6"
+  },
+  "date": "2026-10-23",
+  "full_build_speedup_measured": false,
+  "gn": {
+    "compile_started": false,
+    "link_pool_depth": 1,
+    "output": "isolated overlay",
+    "passed": true,
+    "source_mount": "read-only",
+    "targets": 33637
+  },
+  "javascript_tests": 11,
+  "packaging": [
+    {
+      "package": "discord-canary-prerelease-patched-electron-bin",
+      "passed": true,
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    },
+    {
+      "package": "discord-ptb-prerelease-patched-electron-bin",
+      "passed": true,
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    },
+    {
+      "package": "discord-stable-prerelease-patched-electron-bin",
+      "passed": true,
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    }
+  ],
+  "python_tests": 67,
+  "real_state_snapshot_migration": {
+    "pending_channels": [
+      "prerelease"
+    ],
+    "remote_state_written_by_local_test": false,
+    "repeated_snapshot_unchanged": true
+  },
+  "resource_selection_in_actual_runner": {
+    "automatic_jobs": 4,
+    "concurrent_links": 1,
+    "cpu_capacity": 4.0,
+    "memory_limit_bytes": 12884901888,
+    "parallel_jobs": 4,
+    "requested_jobs": "auto",
+    "sync_jobs": 4
+  },
+  "runner_limits_changed": false,
+  "schema": 1
+}

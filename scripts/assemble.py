@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from common import ROOT, read_json, run, sha256, write_json
+from common import ROOT, enabled_electron_channels, require_enabled_electron, read_json, run, sha256, write_json
 
 
 def git(cache: Path, *args) -> str:
@@ -38,13 +38,23 @@ def validate_port(port: dict, imported: Path) -> Path:
     return adapted
 
 
-def prepare_cache(cache: Path, lock: dict) -> None:
+def prepare_cache(cache: Path, lock: dict, target: str) -> None:
+    if target not in ("reference", "patch-base"):
+        require_enabled_electron(target)
     if not cache.exists():
         run("git", "init", "--bare", cache)
-    for remote, commits in (
-        (lock["fork"]["repository"], [lock["fork"]["base"], lock["fork"]["commit"]]),
-        (lock["upstream_repository"], [target["commit"] for target in lock["targets"].values()]),
-    ):
+    # Candidate three-way application still needs the import's base blobs.
+    # Only patch-base needs the fork tip to verify exact tree reconstruction.
+    # Disabled target commits are never fetched as a side effect.
+    if target in ("reference", "patch-base"):
+        commits = [lock["fork"]["commit"]]
+        if target == "patch-base":
+            commits.append(lock["fork"]["base"])
+        fetches = [(lock["fork"]["repository"], commits)]
+    else:
+        fetches = [(lock["fork"]["repository"], [lock["fork"]["base"]]),
+                   (lock["upstream_repository"], [lock["targets"][target]["commit"]])]
+    for remote, commits in fetches:
         for commit in commits:
             exists = subprocess.run(["git", "-C", str(cache), "cat-file", "-e", commit + "^{commit}"], capture_output=True)
             if exists.returncode:
@@ -59,7 +69,7 @@ def assemble(target: str, cache: Path, destination: Path, report: Path) -> bool:
         raise ValueError("Discord patch differs from its locked checksum")
     if destination.exists():
         raise ValueError(f"Refusing to overwrite checkout {destination}; choose a fresh destination")
-    prepare_cache(cache, lock)
+    prepare_cache(cache, lock, target)
     commit = fork["commit"] if target == "reference" else fork["base"] if target == "patch-base" else lock["targets"][target]["commit"]
     destination.parent.mkdir(parents=True, exist_ok=True)
     run("git", "-C", cache, "worktree", "add", "--detach", destination, commit)
@@ -103,7 +113,7 @@ def assemble(target: str, cache: Path, destination: Path, report: Path) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("target", choices=["reference", "patch-base", "stable", "prerelease", "nightly"])
+    parser.add_argument("target", choices=["reference", "patch-base", *enabled_electron_channels()])
     parser.add_argument("--cache", type=Path, default=ROOT / ".work/source.git")
     parser.add_argument("--destination", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)

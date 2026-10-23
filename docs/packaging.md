@@ -2,8 +2,8 @@
 
 `scripts/generate_package.py` generates one AUR recipe from a locked Discord
 client, immutable runtime/camera-helper asset descriptors and a package revision. The shared
-template derives from the imported `discord_arch_electron` package. The nine
-Discord/Electron combinations have distinct executable names, desktop files,
+template derives from the imported `discord_arch_electron` package. The three
+Discord clients on prerelease Electron have distinct executable names, desktop files,
 installation directories and default profiles. They do not provide or conflict
 with system Electron or the official Discord package.
 
@@ -14,8 +14,8 @@ All three Discord packages using the same runtime reuse that URL and checksum.
 ```sh
 python3 scripts/generate_package.py out/runtime.json \
   --camera-support out/camera-support/camera-support.json \
-  --discord ptb --electron stable --pkgrel 1 --output out/aur/ptb-stable
-cd out/aur/ptb-stable
+  --discord ptb --electron prerelease --pkgrel 1 --output out/aur/ptb-prerelease
+cd out/aur/ptb-prerelease
 makepkg --printsrcinfo > .SRCINFO
 makepkg
 ```
@@ -42,7 +42,7 @@ input traceability, not a claim of byte-for-byte package reproducibility.
 ## Packaging checks
 
 `Checks` includes an Arch container job that runs `scripts/smoke_packages.py` for
-all nine pairs. It downloads the real pinned clients/modules but supplies an
+all three Discord clients on prerelease Electron. It downloads the real pinned clients/modules but supplies an
 explicit, nonfunctional runtime fixture. The test runs the exact generated
 PKGBUILD with normal dependency checking, generates `.SRCINFO`, validates the
 desktop files and inspects the package archives. It checks private module roots,

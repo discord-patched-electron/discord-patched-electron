@@ -1,4 +1,4 @@
-"""Build all nine recipes in Arch with real locked clients and a dummy runtime.
+"""Build the three prerelease recipes in Arch with real locked clients and a dummy runtime.
 
 This verifies packaging only. Nothing produced by this test is publishable, and
 no client or runtime executable is launched. Run as a non-root makepkg user.
@@ -18,7 +18,7 @@ import tarfile
 import zipfile
 
 from client_inputs import load_clients, validate_channel
-from common import ROOT, digest, download, read_json, sha256, write_json
+from common import enabled_electron_channels, ROOT, digest, download, read_json, sha256, write_json
 from generate_package import generate
 from build_camera_support import build as build_camera
 
@@ -170,7 +170,8 @@ def smoke(output: Path, clients_file: Path = ROOT / "config/clients.lock.json",
     summary = {"schema": 1, "selected_channels": list(clients), "combinations": results,
         "all_selected_passed": False, "runtime_is_test_fixture": True, "runtime_validated": False, "publishable": False}
     for discord, client in clients.items():
-        for electron, target in targets.items():
+        for electron in enabled_electron_channels():
+            target = targets[electron]
             directory = output / (discord + "-" + electron)
             directory.mkdir()
             try:
@@ -184,7 +185,7 @@ def smoke(output: Path, clients_file: Path = ROOT / "config/clients.lock.json",
                           "error_type": type(error).__name__, "error": str(error)}
             finally:
                 # Fixture outputs are never release assets, including failures.
-                # Retain downloads, recipes and logs, not nine staging trees.
+                # Retain downloads, recipes and logs, not staging trees.
                 for package in directory.glob("*.pkg.tar"):
                     package.unlink()
                 for name in ("src", "pkg"):

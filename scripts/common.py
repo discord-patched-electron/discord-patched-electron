@@ -28,6 +28,18 @@ def read_json(path: Path):
     return json.loads(path.read_text())
 
 
+def enabled_electron_channels() -> tuple[str, ...]:
+    channels = read_json(ROOT / "config/channels.json")["electron_channels"]
+    if not channels or len(set(channels)) != len(channels) or any(channel not in ELECTRON_CHANNELS for channel in channels):
+        raise ValueError("Invalid enabled Electron channels")
+    return tuple(channels)
+
+
+def require_enabled_electron(channel: str) -> None:
+    if channel not in enabled_electron_channels():
+        raise ValueError(f"Disabled Electron channel: {channel}")
+
+
 def write_json(path: Path, data: object) -> None:
     """Atomic and byte-stable: unchanged inputs do not change a file's mtime."""
     encoded = (json.dumps(data, sort_keys=True, indent=2) + "\n").encode()
@@ -68,6 +80,8 @@ def download(url: str, target: Path, expected: str | None = None) -> Path:
 
 
 def package_name(discord: str, electron: str) -> str:
+    # Also copied into standalone AUR recipes: formatting must not require the
+    # automation repository's live channel configuration. Generators enforce it.
     if discord not in DISCORD_CHANNELS or electron not in ELECTRON_CHANNELS:
         raise ValueError("Unknown channel")
     return f"discord-{discord}-{electron}-patched-electron-bin"

@@ -16,7 +16,8 @@ import threading
 import time
 
 from assemble import assemble, validate_port
-from common import ROOT, digest, electron_channel, hash_files, read_json, run, sha256, write_json
+from common import ROOT, digest, electron_channel, enabled_electron_channels, require_enabled_electron, hash_files, read_json, run, sha256, write_json
+from build_resources import build_resources
 from fingerprints import runtime_key
 from compiler_cache import compiler_cache
 
@@ -25,6 +26,8 @@ IMPLEMENTATION = ["scripts/build_reference.py", "scripts/assemble.py", "scripts/
 
 
 def build_config(target: str) -> dict:
+    if target != "reference":
+        require_enabled_electron(target)
     config = read_json(ROOT / "config/build.json")
     if target != "reference":
         candidate = read_json(ROOT / "config/candidate-build.json")
@@ -50,14 +53,6 @@ def cache_root() -> Path:
     return Path(os.environ.get("ELECTRON_BUILD_CACHE", str(ROOT / ".work/build-cache"))).resolve()
 
 
-def memory_limit() -> int:
-    physical = int(next(line.split()[1] for line in Path("/proc/meminfo").read_text().splitlines() if line.startswith("MemTotal:"))) * 1024
-    cgroup = Path("/sys/fs/cgroup/memory.max")
-    if cgroup.exists() and cgroup.read_text().strip() != "max":
-        return min(physical, int(cgroup.read_text()))
-    return physical
-
-
 def reference_inputs(fork: dict, config: dict) -> dict:
     # This is a resumable workspace key, not the release/artifact identity.
     # Driver-only fixes must not discard a successfully fetched Chromium tree.
@@ -74,6 +69,7 @@ def build_inputs(target: str, sources: dict, config: dict) -> tuple[dict, dict, 
         spec = {"commit": fork["commit"], "version": "44.0.0-reference.1", "repository": fork["repository"]}
         key = digest({"inputs": inputs, "implementation": hash_files(IMPLEMENTATION)})
     else:
+        require_enabled_electron(target)
         spec = {**sources["targets"][target], "repository": sources["upstream_repository"]}
         if electron_channel(spec["version"]) != target:
             raise ValueError("Electron target version belongs to a different channel")
@@ -137,9 +133,6 @@ def reset_patch_repositories(source: Path, bases: dict):
 def build(output: Path, target: str = "reference"):
     started = time.monotonic()
     config = build_config(target)
-    jobs = int(os.environ.get("ELECTRON_BUILD_JOBS", config["parallel_jobs"]))
-    if not 1 <= jobs <= 32:
-        raise ValueError("ELECTRON_BUILD_JOBS must be between 1 and 32")
     cache = cache_root()
     cache.mkdir(parents=True, exist_ok=True)
     sources = read_json(ROOT / "config/sources.lock.json")
@@ -149,15 +142,21 @@ def build(output: Path, target: str = "reference"):
     work.mkdir(parents=True, exist_ok=True)
     if reuse_completed(work, output, key):
         return
+    resources = build_resources()
+    jobs = resources["parallel_jobs"]
+    write_json(output / "resources.json", resources)
+    print("Build scheduling: " + json.dumps(resources, sort_keys=True), flush=True)
     free = shutil.disk_usage(cache).free / 1_000_000_000
-    memory = memory_limit()
+    memory = resources["memory_limit_bytes"]
     if free < config["minimum_disk_gb"] or memory / 1_000_000_000 < config["minimum_memory_gb"]:
         raise ValueError(f"Insufficient build capacity: {free:.1f} GB free, {memory / 1_000_000_000:.1f} GB RAM")
     write_json(work / "native-inputs.json", inputs)
     tools = cache / ("depot_tools-" + config["depot_tools_commit"])
     if not tools.exists():
         run("git", "init", tools)
-    run("git", "-C", tools, "fetch", "--quiet", "--depth=1", "https://chromium.googlesource.com/chromium/tools/depot_tools.git", config["depot_tools_commit"])
+    present = subprocess.run(["git", "-C", str(tools), "cat-file", "-e", config["depot_tools_commit"] + "^{commit}"], capture_output=True)
+    if present.returncode:
+        run("git", "-C", tools, "fetch", "--quiet", "--depth=1", "https://chromium.googlesource.com/chromium/tools/depot_tools.git", config["depot_tools_commit"])
     run("git", "-C", tools, "checkout", "--detach", config["depot_tools_commit"])
     os.environ["PATH"] = str(tools) + os.pathsep + os.environ["PATH"]
     os.environ["DEPOT_TOOLS_UPDATE"] = "0"
@@ -181,7 +180,7 @@ def build(output: Path, target: str = "reference"):
     prepared = work / "prepared.json"
     synced = work / "synchronized.json"
     if not synced.exists():
-        run("gclient", "sync", "--nohooks", "--no-history", "--jobs=4", cwd=source)
+        run("gclient", "sync", "--nohooks", "--no-history", f"--jobs={resources['sync_jobs']}", cwd=source)
         write_json(work / "patch-bases.json", patch_repositories(source))
         write_json(synced, {"identity": identity})
     # unmanaged means gclient must preserve the exact source assembled above.
@@ -196,7 +195,8 @@ def build(output: Path, target: str = "reference"):
         reset_patch_repositories(source, read_json(work / "patch-bases.json"))
         run("gclient", "runhooks", cwd=source)
         write_json(prepared, {"identity": identity})
-    args = config["gn_args"] + ['override_electron_version="' + spec["version"] + '"']
+    args = config["gn_args"] + ['override_electron_version="' + spec["version"] + '"',
+                                f"concurrent_links={resources['concurrent_links']}"]
     if target != "reference":
         install_toolchain(source / "src", config)
     cached = enable_compiler_cache(target, source / "src/out/Release/args.gn")
@@ -220,6 +220,7 @@ def build(output: Path, target: str = "reference"):
         "build_key": key, "runtime_key": key if target != "reference" else None,
         "compiled_version": spec["version"], "implementation": hash_files(IMPLEMENTATION),
         "compiler_cache_enabled": cached,
+        "resources": resources,
         "parallel_jobs": jobs, "runner_name": os.environ.get("RUNNER_NAME"),
         "elapsed_seconds": round(time.monotonic() - started), "initial_free_disk_gb": free,
         "final_free_disk_gb": shutil.disk_usage(cache).free / 1_000_000_000,
@@ -231,7 +232,7 @@ def build(output: Path, target: str = "reference"):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target", choices=["reference", "stable", "prerelease", "nightly"], default="reference")
+    parser.add_argument("--target", choices=["reference", *enabled_electron_channels()], default="reference")
     parser.add_argument("--output", type=Path, default=ROOT / "out/capacity")
     args = parser.parse_args()
     cache = cache_root()

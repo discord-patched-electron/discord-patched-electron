@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "architecture": "x86_64",
-  "electron_channels": ["stable", "prerelease", "nightly"],
+  "electron_channels": ["prerelease"],
   "discord_channels": ["stable", "ptb", "canary"],
   "package_pattern": "discord-{discord}-{electron}-patched-electron-bin",
   "poll_cron": "17 * * * *",

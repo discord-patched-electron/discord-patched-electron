@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -11,11 +12,15 @@ import subprocess
 import time
 
 from build_reference import build_config
-from common import DISCORD_CHANNELS, ROOT, digest, download, electron_channel, read_json, version_key, write_json
+from common import DISCORD_CHANNELS, ROOT, digest, download, electron_channel, enabled_electron_channels, read_json, version_key, write_json
 from fingerprints import runtime_key
 from lock_clients import normalize
 
-REPOSITORIES = ("electron/electron", "electron/nightlies")
+def release_repositories() -> tuple[str, ...]:
+    channels = enabled_electron_channels()
+    return tuple(repository for repository, enabled in (
+        ("electron/electron", any(channel != "nightly" for channel in channels)),
+        ("electron/nightlies", "nightly" in channels)) if enabled)
 
 
 class GitHub:
@@ -107,6 +112,13 @@ def reconcile(previous: dict | None, releases: list[dict], tags: dict[str, str],
     state = copy.deepcopy(previous) if previous is not None else {
         "schema": 1, "activated_at": now, "releases": {}, "runtimes": {}, "issues": {}}
     baseline = timestamp(state["activated_at"])
+    channels = enabled_electron_channels()
+    state["enabled_electron_channels"] = list(channels)
+    # Preserve completed/running work and its provenance. Only undispatched
+    # jobs are retired; pending() also filters old state before migration.
+    for runtime in state["runtimes"].values():
+        if runtime["channel"] not in channels and runtime["status"] == "pending":
+            runtime.update(status="disabled", reason="electron-channel-disabled")
     eligible = {}
     seen_ids = {}
     for record in releases:
@@ -118,6 +130,8 @@ def reconcile(previous: dict | None, releases: list[dict], tags: dict[str, str],
             if timestamp(record["published_at"]) >= baseline:
                 identity = record["repository"] + ":" + str(record["id"])
                 state["issues"][identity] = {"release": record, "reason": str(error)}
+            continue
+        if release["channel"] not in channels:
             continue
         identity = release["channel"] + ":" + release["version"]
         if identity in eligible and eligible[identity] != release:
@@ -131,7 +145,7 @@ def reconcile(previous: dict | None, releases: list[dict], tags: dict[str, str],
                     for identity, item in state["releases"].items()}
     seeds = set()
     if previous is None:
-        for channel in ("stable", "prerelease", "nightly"):
+        for channel in channels:
             candidates = [(key, item) for key, item in eligible.items() if item["channel"] == channel]
             if not candidates:
                 raise ValueError(f"No published seed for {channel}")
@@ -170,10 +184,12 @@ def reconcile(previous: dict | None, releases: list[dict], tags: dict[str, str],
         old.pop("reason", None)
         old["status"] = "available"
     for identity, release in state["releases"].items():
+        if release["channel"] not in channels:
+            continue
         if identity not in eligible and release["status"] not in ("tag-moved", "release-replaced"):
             release["status"] = "withdrawn"
     for release in state["releases"].values():
-        if release["status"] != "available":
+        if release["channel"] not in channels or release["status"] != "available":
             continue
         spec = {name: release[name] for name in ("version", "commit")}
         key = runtime_key(spec, sources, build_config(release["channel"]))
@@ -198,8 +214,9 @@ def reconcile(previous: dict | None, releases: list[dict], tags: dict[str, str],
 
 
 def pending(state: dict) -> list[str]:
+    channels = enabled_electron_channels()
     available = {release["runtime_key"] for release in state["releases"].values()
-                 if release["status"] == "available" and release.get("runtime_key")}
+                 if release["channel"] in channels and release["status"] == "available" and release.get("runtime_key")}
     priority = {"stable": 0, "prerelease": 1, "nightly": 2}
     return sorted((key for key in available if state["runtimes"][key]["status"] == "pending"),
                   key=lambda key: (priority[state["runtimes"][key]["channel"]],
@@ -214,7 +231,7 @@ def main():
     now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     github = GitHub()
     releases = []
-    for repository in REPOSITORIES:
+    for repository in release_repositories():
         records = github.releases(repository)
         releases.extend(records)
         print(f"Read {len(records)} release records from {repository}", flush=True)
@@ -222,14 +239,19 @@ def main():
     previous = read_json(args.state) if args.state.exists() else None
     fallback = previous["clients"] if previous else read_json(ROOT / "config/clients.lock.json")["clients"]
     clients, client_errors = {}, {}
-    for channel in DISCORD_CHANNELS:
-        try:
-            path = download(f"https://updates.discord.com/distributions/app/manifests/latest?channel={channel}&platform=linux&arch=x64",
-                            args.output / (channel + "-manifest.json"))
-            clients[channel] = normalize(channel, read_json(path))
-        except (ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
-            clients[channel] = fallback[channel]
-            client_errors[channel] = str(error) if isinstance(error, ValueError) else type(error).__name__
+    def client_manifest(channel):
+        path = download(f"https://updates.discord.com/distributions/app/manifests/latest?channel={channel}&platform=linux&arch=x64",
+                        args.output / (channel + "-manifest.json"))
+        return normalize(channel, read_json(path))
+
+    with ThreadPoolExecutor(max_workers=len(DISCORD_CHANNELS)) as pool:
+        futures = {channel: pool.submit(client_manifest, channel) for channel in DISCORD_CHANNELS}
+        for channel, future in futures.items():
+            try:
+                clients[channel] = future.result()
+            except (ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
+                clients[channel] = fallback[channel]
+                client_errors[channel] = str(error) if isinstance(error, ValueError) else type(error).__name__
     state = reconcile(previous, releases, tags, clients, read_json(ROOT / "config/sources.lock.json"), now,
                       github.verify_commit)
     state["client_errors"] = client_errors

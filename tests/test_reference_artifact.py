@@ -48,10 +48,10 @@ class ReferenceArtifact(unittest.TestCase):
 
     def test_candidate_provenance_requires_current_cpu_source_and_key(self):
         sources = read_json(ROOT / "config/sources.lock.json")
-        spec = sources["targets"]["stable"]
-        config = build_config("stable")
+        spec = sources["targets"]["prerelease"]
+        config = build_config("prerelease")
         key = runtime_key(spec, sources, config)
-        capacity = {"source": {"target": "stable", "upstream_commit": spec["commit"],
+        capacity = {"source": {"target": "prerelease", "upstream_commit": spec["commit"],
             "source_assembled": True, "dependencies_patched": True, "compiled": True},
             "config": config, "runtime_key": key, "build_key": key, "compiled_version": spec["version"]}
         validate_capacity(capacity, candidate=True)

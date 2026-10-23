@@ -57,24 +57,24 @@ class ClientValidation(unittest.TestCase):
             (directory / "src").mkdir()
             (directory / "pkg").mkdir()
             (directory / "dummy.pkg.tar").write_bytes(b"fixture")
-            if electron == "prerelease":
+            if discord == "canary":
                 raise ValueError("recipe failed")
             return {}
 
         with patch("smoke_packages.download", side_effect=download) as downloads, \
                 patch("smoke_packages.subprocess.check_output", return_value="test packages\n"), \
                 patch("smoke_packages.package_one", side_effect=package) as recipes:
-            report = smoke(output, self.lock, ["ptb", "canary"])
+            report = smoke(output, self.lock, ["stable", "ptb", "canary"])
         self.assertFalse(report["all_selected_passed"])
-        self.assertEqual(len(report["combinations"]), 6)
-        self.assertEqual(recipes.call_count, 3)
-        self.assertTrue(all(call.args[2] == "canary" for call in recipes.call_args_list))
-        self.assertFalse(any(call.args[1].name.startswith("stable-") for call in downloads.call_args_list))
+        self.assertEqual(len(report["combinations"]), 3)
+        self.assertEqual(recipes.call_count, 2)
+        self.assertEqual([call.args[2] for call in recipes.call_args_list], ["stable", "canary"])
+        self.assertTrue(any(call.args[1].name.startswith("stable-") for call in downloads.call_args_list))
         for item in report["combinations"]:
             if item["discord_channel"] == "ptb":
                 self.assertEqual(item["phase"], "client-download")
             else:
-                self.assertEqual(item["passed"], item["electron_channel"] != "prerelease")
+                self.assertEqual(item["passed"], item["discord_channel"] == "stable")
             self.assertFalse(item["publishable"])
             self.assertFalse(item["runtime_validated"])
         self.assertFalse(list(output.glob("*/*.pkg.tar")))

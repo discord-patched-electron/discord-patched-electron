@@ -36,12 +36,12 @@ class Recipes(unittest.TestCase):
                 stage_package.main()
             stage.assert_called_once_with({}, source, "asar")
 
-    def test_all_nine_recipes_have_isolated_paths_and_pinned_binaries(self):
+    def test_all_three_recipes_have_isolated_paths_and_pinned_binaries(self):
         clients = read_json(ROOT / "config/clients.lock.json")["clients"]
         with tempfile.TemporaryDirectory() as temp:
             names = set()
             for discord, client in clients.items():
-                for electron in ("stable", "prerelease", "nightly"):
+                for electron in ("prerelease",):
                     directory = Path(temp) / (discord + "-" + electron)
                     result = generate(runtime(electron), client, electron, 1, directory, camera=CAMERA)
                     names.add(result["package"])
@@ -66,23 +66,26 @@ class Recipes(unittest.TestCase):
                     before = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()}
                     generate(runtime(electron), client, electron, 1, directory, camera=CAMERA)
                     self.assertEqual(before, {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()})
-            self.assertEqual(len(names), 9)
+            self.assertEqual(len(names), 3)
 
     def test_rejects_channel_and_module_revision_mismatches(self):
         client = read_json(ROOT / "config/clients.lock.json")["clients"]["ptb"]
         with tempfile.TemporaryDirectory() as temp:
+            for disabled in ("stable", "nightly"):
+                with self.assertRaisesRegex(ValueError, "Disabled Electron channel"):
+                    generate(runtime(disabled), client, disabled, 1, Path(temp), camera=CAMERA)
             with self.assertRaises(ValueError):
-                generate(runtime("stable"), client, "nightly", 1, Path(temp), camera=CAMERA)
+                generate(runtime("prerelease"), client, "nightly", 1, Path(temp), camera=CAMERA)
             wrong = copy.deepcopy(client)
             wrong["sources"]["discord_voice"]["module_version"] += 1
             with self.assertRaises(ValueError):
-                generate(runtime("stable"), wrong, "stable", 1, Path(temp), camera=CAMERA)
+                generate(runtime("prerelease"), wrong, "prerelease", 1, Path(temp), camera=CAMERA)
             for url in ("https://github.com/a/b/releases/latest/download/runtime.zip", "file:///tmp/runtime.zip"):
                 with self.assertRaises(ValueError):
-                    generate({**runtime("stable"), "url": url}, client, "stable", 1, Path(temp), camera=CAMERA)
+                    generate({**runtime("prerelease"), "url": url}, client, "prerelease", 1, Path(temp), camera=CAMERA)
             for camera in ({**CAMERA, "sha256": "SKIP"}, {**CAMERA, "url": "https://github.com/a/b/releases/latest/download/helper.so"}):
                 with self.assertRaisesRegex(ValueError, "Camera helper"):
-                    generate(runtime("stable"), client, "stable", 1, Path(temp), camera=camera)
+                    generate(runtime("prerelease"), client, "prerelease", 1, Path(temp), camera=camera)
 
 
 if __name__ == "__main__":

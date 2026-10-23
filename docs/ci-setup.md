@@ -32,7 +32,7 @@ gh workflow run blacksmith-capacity.yml --ref main \
 The GitHub App integration needs no API key. The first actual run verifies that
 the App has repository access. The dashboard's free allowance alone does not
 prove that overage is disabled. The build must complete before making any claims
-about monthly capacity for all three Electron channels.
+about monthly capacity for prerelease Electron updates.
 
 Sources: [runner specifications and free-minute conversion](https://docs.blacksmith.sh/blacksmith-runners/overview),
 [pricing and paid add-ons](https://www.blacksmith.sh/pricing).
@@ -42,7 +42,8 @@ Sources: [runner specifications and free-minute conversion](https://docs.blacksm
 - Container: `discord-electron-runner`; GitHub runner: `he3als-pc-container`.
 - Only host mount: `/mnt/storage/discord-patched-electron-ci` → `/work`.
   The personal home directory and Docker socket are not mounted.
-- Limits: four CPUs, 12 GiB RAM, 20 GiB RAM plus swap, two compiler tasks.
+- Limits: four CPUs, 12 GiB RAM, 20 GiB RAM plus swap. The current run retains two compiler
+  tasks; future runs default to auto, selecting four under these limits.
   ThinLTO is disabled to reduce linking memory for this initial configuration.
 - Build cache: `/work/build-cache`, outside Actions' disposable checkout.
   Identical native source/configuration/container inputs resume the same reference
@@ -94,8 +95,10 @@ docker inspect --format 'CPUs={{.HostConfig.NanoCpus}} RAM={{.HostConfig.Memory}
 
 The current Ninja process runs **two compiler tasks**. Raising Docker's cap
 alone does not raise `-j`; changing environment variables cannot reconfigure an
-already-running process. Both build workflows now accept `parallel_jobs` for a
-new dispatch. After the current run finishes (or is deliberately cancelled and
+already-running process. Both build workflows default to `parallel_jobs=auto` for a
+new dispatch, using CPU affinity, visible cgroup v2 quotas and RAM capacity.
+Explicit job counts remain available. The current limits select four tasks;
+`out/capacity/resources.json` records the decision. After the current run finishes (or is deliberately cancelled and
 has stopped), an incremental reference build with four tasks can be started with:
 
 ```sh
@@ -103,7 +106,7 @@ gh workflow run capacity.yml --ref main -f parallel_jobs=4 \
   --repo discord-patched-electron/discord-patched-electron
 ```
 
-For a candidate, use `build.yml -f target=stable -f parallel_jobs=4`. Job count
+For a candidate, use `build.yml -f target=prerelease -f parallel_jobs=auto`. Job count
 does not change compiler flags or invalidate saved native objects. Give the
 container enough memory for the chosen concurrency. Do not start Ninja manually
 in the active build directory; the workflow serializes compilation.

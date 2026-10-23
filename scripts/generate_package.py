@@ -11,7 +11,7 @@ import re
 import shlex
 from urllib.parse import urlparse
 
-from common import ROOT, arch_version, electron_channel, package_name, read_json, sha256, write_json
+from common import enabled_electron_channels, require_enabled_electron, ROOT, arch_version, electron_channel, package_name, read_json, sha256, write_json
 from fingerprints import integration_key
 from lock_clients import normalize
 
@@ -58,6 +58,7 @@ def write_file(path: Path, data: bytes):
 
 
 def generate(runtime: dict, client: dict, channel: str, revision: int, output: Path, *, camera: dict) -> dict:
+    require_enabled_electron(channel)
     name = package_name(client["channel"], channel)
     validate_client(client)
     if electron_channel(runtime["version"]) != channel:
@@ -119,7 +120,7 @@ def main():
     parser.add_argument("runtime", type=Path)
     parser.add_argument("--camera-support", type=Path, required=True, help="CI-built camera-support.json")
     parser.add_argument("--discord", required=True, choices=["stable", "ptb", "canary"])
-    parser.add_argument("--electron", required=True, choices=["stable", "prerelease", "nightly"])
+    parser.add_argument("--electron", required=True, choices=enabled_electron_channels())
     parser.add_argument("--pkgrel", type=int, default=1)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()

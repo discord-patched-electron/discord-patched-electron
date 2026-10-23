@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       parallel_jobs:
-        description: Ninja tasks (takes effect on this dispatch; CPU/RAM caps are controlled by Docker)
+        description: Ninja tasks (auto respects CPU/RAM limits; takes effect on this dispatch)
         type: choice
-        options: ['1', '2', '3', '4', '6', '8']
-        default: '2'
+        options: [auto, '1', '2', '3', '4', '6', '8']
+        default: auto
 permissions:
   contents: read
 concurrency:
@@ -21,7 +21,7 @@ jobs:
     env:
       ELECTRON_BUILD_CACHE: /work/build-cache
       ELECTRON_COMPILER_CACHE_SIZE: '32G'
-      ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || '2' }}
+      ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || 'auto' }}
       # Sentry's CLI only uploads debug symbols; no symbol upload is performed.
       # Its optional CDN download must not block a runtime-only build.
       SENTRYCLI_SKIP_DOWNLOAD: '1'
