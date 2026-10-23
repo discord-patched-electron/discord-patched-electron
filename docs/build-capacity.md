@@ -41,6 +41,14 @@ the pinned Electron HEAD and absence of compiled output. Electron's recorded
 pre-patch Git refs supply the reset bases for hook recovery. No user project or
 installed Discord files were reset or removed.
 
+[Attempt 3](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40001214705)
+at `130c58e` confirmed that the stage markers skip the redundant sync and that
+dependency patch recovery succeeds. Sentry's optional download was skipped;
+Yarn completed, and the Electron sysroots and PGO profiles downloaded. The job
+was explicitly canceled during Python environment preparation to hand compilation
+over to the newly unlocked Blacksmith account. It did not reach a completed
+runtime. Its persistent workspace remains available.
+
 The workflow saves `metrics.json`, `source.json`, `capacity.json` when compilation
 finishes, and the build log. Memory peaks come from cgroup counters; disk use is
 sampled every five seconds and can miss brief peaks. A canceled job can leave the
@@ -55,3 +63,11 @@ allowance minutes), and no paid storage or usage API credentials. Its guard runs
 on GitHub before allocating a hosted compiler. See [CI setup](ci-setup.md).
 The local cache and runner remain available; neither experiment proves recurring
 free hosted capacity until compilation finishes and its cost is measured.
+
+The [first hosted experiment](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40001600965)
+uses commit `f8bdaea`. Its [standard checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40001554946)
+passed all 19 tests and all source assembly targets. The workflow passed actionlint,
+and synthetic history checks verified that its allowance preflight accepts a first
+dispatch and rejects earlier runs even on later API pages. GitHub reports the
+Blacksmith App installed and not suspended. Compilation and the final measured
+allowance consumption are still pending.
