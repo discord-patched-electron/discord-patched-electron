@@ -78,7 +78,7 @@ def analyze(output):
             fraction = 0.0
         expected = (*expected, False)
         enough = (
-            len(samples) >= 24000 and fraction >= 0.6
+            len(samples) >= 24000 and fraction >= 0.9
             if any(expected)
             else (not len(samples) or float(np.sqrt(np.mean(samples**2))) < 100)
         )

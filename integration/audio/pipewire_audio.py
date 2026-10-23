@@ -237,6 +237,26 @@ class Route:
             time.sleep(0.05)
         raise ValueError("Private PipeWire sink did not appear")
 
+    def pulse_playback(self):
+        args = [
+            "/usr/bin/pacat",
+            "--playback",
+            "--device=" + self.prefix + "-native",
+            "--client-name=DPE-Private-Audio",
+            "--stream-name=DPE-Private-Mix",
+            "--raw",
+            "--rate=48000",
+            "--format=s16le",
+            "--channels=2",
+            "--latency-msec=80",
+        ]
+        if self.module is not None:
+            # PulseAudio identifies the owning application through this property.
+            # All workers belong to this helper; Discord can monitor every feed
+            # with one PID without crossing audio-server clocks twice.
+            args += ["--property=application.process.id=" + str(os.getpid())]
+        return args
+
     def start(self):
         try:
             self.mix = self.create_sink(self.prefix + "-mix")
@@ -288,23 +308,12 @@ class Route:
                 ],
                 stdout=sp.PIPE,
             )
-            self.playback = self.spawn(
-                [
-                    "/usr/bin/pacat",
-                    "--playback",
-                    "--device=" + self.prefix + "-native",
-                    "--client-name=DPE-Private-Audio",
-                    "--stream-name=DPE-Private-Mix",
-                    "--raw",
-                    "--rate=48000",
-                    "--format=s16le",
-                    "--channels=2",
-                    "--latency-msec=80",
-                ],
-                stdin=recording.stdout,
-            )
+            self.playback = self.spawn(self.pulse_playback(), stdin=recording.stdout)
             recording.stdout.close()
-            return self.playback.pid
+            self.capture_pid = (
+                os.getpid() if self.module is not None else self.playback.pid
+            )
+            return self.capture_pid
         except Exception:
             self.close()
             raise
@@ -392,7 +401,7 @@ class Route:
             )
             if monitor is None:
                 continue
-            desired[("pa", index, pid, process_identity(pid)[1])] = [
+            desired[("pa", index, pid, process_identity(pid)[1], sink)] = [
                 [
                     "/usr/bin/parec",
                     "--monitor-stream=" + str(index),
@@ -403,17 +412,7 @@ class Route:
                     "--channels=2",
                     "--latency-msec=20",
                 ],
-                [
-                    "/usr/bin/pw-cat",
-                    "--playback",
-                    "--target=" + self.mix,
-                    "--raw",
-                    "--rate=48000",
-                    "--format=s16",
-                    "--channels=2",
-                    "--latency=80ms",
-                    "-",
-                ],
+                self.pulse_playback(),
             ]
         for key in list(self.feeds):
             if key not in desired or any(p.poll() is not None for p in self.feeds[key]):
@@ -645,7 +644,7 @@ class Controller:
             route.start()
             self.route = route
         self.route.sync(objects, pulse, self.target, self.excluded)
-        self.emit(self.route.playback.pid, "ready", target["backend"])
+        self.emit(self.route.capture_pid, "ready", target["backend"])
 
     def close(self):
         self.reset()
