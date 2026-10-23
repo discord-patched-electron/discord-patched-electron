@@ -1,11 +1,43 @@
-# Local CI runner
+# CI runners
 
 Repository: `discord-patched-electron/discord-patched-electron`.
-The maintainer selected their PC after Blacksmith suspended the new account.
-Standard GitHub-hosted runners still run checks. Compilation runs inside a
-dedicated Ubuntu 24.04 container on the PC; no hosted compiler billing is enabled.
+Standard GitHub-hosted runners run checks. The maintainer's containerized PC
+runner remains available. Blacksmith unlocked the organization on 23 October
+2026; the maintainer reports 0/3,000 minutes used and the organization connected.
 
-## Installed configuration
+## Blacksmith capacity experiment
+
+`blacksmith-capacity.yml` is a manual, main-only, single-use experiment. Its
+GitHub-hosted preflight rejects any previous dispatch, and both jobs reject
+reruns. This intentionally conservative guard needs no billing API credential.
+Do not delete its run history: history is the guard's record. It does not track
+other repositories or manually deleted runs and is not an account-wide spending
+cap. Recurring hosted compilation needs a live allowance check or confirmed
+provider-enforced free-only limit before enabling it.
+
+The runner is `blacksmith-16vcpu-ubuntu-2404` (64 GB memory, 750 GB disk), with 12
+compiler tasks. Smaller tiers have 80 or 160 GB disk, so they are not the initial
+cold-build target. The 300-minute job limit consumes at most 2,400 equivalent
+2-vCPU minutes at Blacksmith's documented 8x conversion, leaving 600 of the
+reported free allowance as headroom. The command stops after 285 minutes to
+leave time for diagnostics. There are no paid caches, sticky disks or static IPs.
+The VM's source and object files are ephemeral; a failed experiment does not
+automatically start another paid-capable job. The PC retains its own cache.
+
+```sh
+gh workflow run blacksmith-capacity.yml --ref main \
+  --repo discord-patched-electron/discord-patched-electron
+```
+
+The GitHub App integration needs no API key. The first actual run verifies that
+the App has repository access. The dashboard's free allowance alone does not
+prove that overage is disabled. The build must complete before making any claims
+about monthly capacity for all three Electron channels.
+
+Sources: [runner specifications and free-minute conversion](https://docs.blacksmith.sh/blacksmith-runners/overview),
+[pricing and paid add-ons](https://www.blacksmith.sh/pricing).
+
+## Installed local configuration
 
 - Container: `discord-electron-runner`; GitHub runner: `he3als-pc-container`.
 - Only host mount: `/mnt/storage/discord-patched-electron-ci` → `/work`.

@@ -1,0 +1,71 @@
+name: Blacksmith reference capacity
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: electron-compilation
+  cancel-in-progress: false
+jobs:
+  allowance:
+    if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      # One bounded experiment, not a recurring paid runner. Checking before
+      # allocation avoids consuming Blacksmith minutes for rejected attempts.
+      - name: Reject repeat experiments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          gh api --paginate "repos/$GH_REPO/actions/workflows/blacksmith-capacity.yml/runs?per_page=100" > runs.json
+          jq -e -s --argjson current "$RUN_ID" \
+            '[.[].workflow_runs[] | select(.id != $current)] | length == 0' runs.json
+  compile:
+    needs: allowance
+    if: github.run_attempt == 1
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    # 300 real minutes * 8 = 2,400 of the 3,000 free 2-vCPU minutes.
+    # No sticky disks, Docker cache or other paid add-ons.
+    timeout-minutes: 300
+    env:
+      ELECTRON_BUILD_JOBS: '12'
+      SENTRYCLI_SKIP_DOWNLOAD: '1'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Build the locked reference fork
+        shell: bash
+        run: |
+          export ELECTRON_BUILD_CACHE="$RUNNER_TEMP/electron-build"
+          mkdir -p out/capacity
+          set -o pipefail
+          /usr/bin/time -v timeout --signal=INT --kill-after=60s 285m python3 scripts/build_reference.py 2>&1 | tee out/capacity/build.log
+      - name: Retain diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: blacksmith-capacity-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            out/capacity/*.json
+            out/capacity/*.log
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Retain reference binary for compatibility tests
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: reference-runtime-${{ github.run_id }}
+          path: out/capacity/reference-dist.zip
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error

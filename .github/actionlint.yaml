@@ -1,0 +1,4 @@
+self-hosted-runner:
+  labels:
+    - discord-electron-compiler
+    - blacksmith-16vcpu-ubuntu-2404

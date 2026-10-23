@@ -61,6 +61,9 @@ def reset_patch_repositories(source: Path, bases: dict):
 def build(output: Path):
     started = time.monotonic()
     config = read_json(ROOT / "config/build.json")
+    jobs = int(os.environ.get("ELECTRON_BUILD_JOBS", config["parallel_jobs"]))
+    if not 1 <= jobs <= 32:
+        raise ValueError("ELECTRON_BUILD_JOBS must be between 1 and 32")
     cache = cache_root()
     cache.mkdir(parents=True, exist_ok=True)
     free = shutil.disk_usage(cache).free / 1_000_000_000
@@ -110,7 +113,7 @@ def build(output: Path):
     # The version explicitly identifies this as a non-release capacity artifact.
     args = config["gn_args"] + ['override_electron_version="44.0.0-reference.1"']
     run("gn", "gen", "out/Release", "--args=" + " ".join(args), cwd=source / "src")
-    run("autoninja", "-C", "out/Release", "-j", str(config["parallel_jobs"]), "electron:electron_dist_zip", cwd=source / "src")
+    run("autoninja", "-C", "out/Release", "-j", str(jobs), "electron:electron_dist_zip", cwd=source / "src")
     archive = source / "src/out/Release/dist.zip"
     if not archive.is_file():
         raise ValueError("Electron distribution target did not produce dist.zip")
@@ -121,6 +124,7 @@ def build(output: Path):
     shutil.copy2(report, output / "source.json")
     write_json(output / "capacity.json", {"source": read_json(report), "config": config, "identity": identity,
         "implementation": hash_files(["scripts/build_reference.py", "scripts/assemble.py", "scripts/common.py"]),
+        "parallel_jobs": jobs, "runner_name": os.environ.get("RUNNER_NAME"),
         "elapsed_seconds": round(time.monotonic() - started), "initial_free_disk_gb": free,
         "final_free_disk_gb": shutil.disk_usage(cache).free / 1_000_000_000,
         "memory_limit_bytes": memory, "archive_sha256": sha256(archive), "archive_bytes": archive.stat().st_size,

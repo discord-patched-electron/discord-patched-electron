@@ -48,6 +48,10 @@ last metric marked `running`; the GitHub job conclusion is authoritative. Report
 last seven days, the reference binary artifact one day, and the local build cache
 persists. Record final measurements here after the experiment completes.
 
-No paid Blacksmith/Depot resources, paid storage, or usage API credentials are
-configured. Blacksmith's account suspension is the reason for the maintainer's
-explicit switch to local compilation.
+Blacksmith subsequently unlocked the account. The maintainer reports the
+organization connected and 0/3,000 free minutes used. A separate, single-use
+Blacksmith experiment uses a 16-vCPU runner, at most 300 real minutes (2,400
+allowance minutes), and no paid storage or usage API credentials. Its guard runs
+on GitHub before allocating a hosted compiler. See [CI setup](ci-setup.md).
+The local cache and runner remain available; neither experiment proves recurring
+free hosted capacity until compilation finishes and its cost is measured.

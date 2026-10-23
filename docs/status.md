@@ -23,9 +23,10 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 
 ## Outstanding before a release
 
-1. Finish the bounded reference capacity build on the storage SSD and inspect its
-   diagnostics. Blacksmith suspended the account; the maintainer explicitly chose
-   their PC instead. The local runner has been installed and exercised through CI.
+1. Finish the bounded reference capacity build and inspect its diagnostics.
+   Blacksmith has unlocked the account and the maintainer reports an unused
+   3,000-minute allowance. A single hosted experiment is capped at 2,400 equivalent
+   minutes; the installed PC runner remains available with its persistent cache.
 2. Confirm cold-build disk/memory use and successful incremental resumption.
 3. Finish the Discord integration ports to Electron 45, 46 and 47: their source
    candidates assemble, but Chromium/dependency patches and C++ still need builds.
@@ -34,10 +35,11 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 6. Trace the live screen-share audio arguments and implement the verified native
    audio adapter; no unproven per-app fix is enabled.
 
-The standard GitHub Actions workflow runs checks. The manual reference build uses
-the local container with four CPUs, 12 GiB RAM, up to 8 GiB additional swap and two
-compiler tasks. No paid compiler is configured, no AUR key is configured and no
-public binary is advertised.
+The standard GitHub Actions workflow runs checks. The local reference workflow
+uses four CPUs, 12 GiB RAM, up to 8 GiB additional swap and two compiler tasks.
+The separate Blacksmith experiment uses 16 CPUs, 64 GB RAM and 12 compiler tasks
+within the reported free allowance. Recurring Blacksmith compilation is disabled;
+no AUR key is configured and no public binary is advertised.
 
 ## Probe incident
 

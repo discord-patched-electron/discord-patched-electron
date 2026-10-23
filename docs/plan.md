@@ -124,7 +124,7 @@ For repeated conflicts, recorded, reviewed resolutions can help, but initially p
 
 ## 4. Free CI feasibility and runner selection
 
-**Implementation decision (23 October 2026):** Blacksmith suspended the account. The maintainer explicitly chose their PC as the runner. Use a dedicated Ubuntu container with only the build workspace mounted on `/mnt/storage`, four CPUs, 12 GiB RAM and two compiler tasks initially. Keep builds serialized and persistent so they can resume. See `docs/ci-setup.md` for deployment. The hosted-provider research below is retained for a possible future migration, not an active setup requirement. No Blacksmith key or quota policy is needed.
+**Implementation decision (23 October 2026):** Blacksmith unlocked the account after the initial suspension. The maintainer reports the organization connected and 0/3,000 free minutes used. Run one bounded hosted capacity experiment on the 16-vCPU/64-GB/750-GB runner: a 300-minute job cap consumes at most 2,400 equivalent allowance minutes. Reject repeated dispatches and reruns before hosted allocation; enable no paid storage. This one-time experiment relies on the reported unused allowance and is not an account-wide or recurring budget gate. Retain the explicitly authorized PC runner and its persistent cache as fallback. See `docs/ci-setup.md`. Before recurring hosted builds, implement the live account-wide allowance checks below or verify a provider-enforced free-only cap.
 
 Evaluate Depot and Blacksmith on equal terms: sufficient disk/RAM/job duration, sustainable included compute, storage charges and enforceable usage limits. Start with the same build scripts on GitHub Actions-compatible runners; do not introduce a second orchestration platform just to switch providers. A time-limited trial can support a bounded feasibility experiment, but does not establish a free recurring service.
 
@@ -340,7 +340,7 @@ If GitHub publication succeeds and AUR fails, retry only AUR using the existing 
 
 - [ ] Create the small project repository and pin a reference Discord fork/client/module combination.
 - [ ] Import and pin the current AUR packaging baseline, launcher, Krisp patcher and relevant compatibility fixes.
-- [x] Select compiler capacity: user-authorized local PC, after Blacksmith account suspension.
+- [x] Select initial compiler capacity: local PC fallback and bounded Blacksmith experiment after account unlock; recurring hosted capacity remains unproven.
 - [ ] Execute the bounded reference experiment and measure local resource use.
 - [ ] Build the reference fork, then port the bridge to current stable Electron.
 - [ ] Demonstrate a real Discord stream starts, can be joined and stops without the missing custom API failure.
