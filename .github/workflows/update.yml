@@ -1,0 +1,43 @@
+name: Discover upstream releases
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: electron-state-writer
+  cancel-in-progress: false
+jobs:
+  discover:
+    if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GIT_TERMINAL_PROMPT: '0'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Read the durable queue
+        run: python scripts/state_branch.py checkout out/state
+      - name: Discover releases and independent Discord module updates
+        run: python scripts/discover.py --state out/state/state.json
+      - name: Persist only real changes
+        run: python scripts/state_branch.py save out/state
+      # Compilation/publication are intentionally not dispatched until the
+      # reference, candidate and application-audio release gates are qualified.
+      - name: Retain discovery diagnostics
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: discovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/discovery/discovery.json
+          retention-days: 7
+          if-no-files-found: warn

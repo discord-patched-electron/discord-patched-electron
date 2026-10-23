@@ -4,6 +4,12 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 
 ## Verified
 
+- Release discovery reads paginated official feeds, resolves nightly source tags,
+  detects moved tags and preserves missed stable/maintenance releases. The durable
+  state branch uses content-based no-ops and fast-forward writes without merges.
+  Local tests cover racing writers, nightly coalescing and independent Discord
+  updates. See [discovery](discovery.md); compiler dispatch and AUR publication
+  are not yet connected to the queue.
 - The vendored AUR files match commit `3b290dffd5eb840faed445bdc2bdb18572839471`.
 - Current manifests lock Stable 1.0.166, PTB 1.0.223 and Canary 1.0.2354 separately.
 - The existing Krisp patcher applies to each channel's real native binary. The
@@ -61,7 +67,8 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
    candidates assemble, but Chromium/dependency patches and C++ still need builds.
 4. Prove native streaming and Krisp behavior on the custom runtime.
 5. Validate the generated packages with real custom runtimes, then finish the
-   release ledger and automatic AUR publisher.
+   compiler coordinator, release ledger and automatic AUR publisher. Discovery
+   and the durable backlog are implemented; no publishable runtime exists yet.
 6. Trace the live screen-share audio arguments and implement the verified native
    audio adapter; no unproven per-app fix is enabled.
 

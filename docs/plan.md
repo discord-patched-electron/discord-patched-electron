@@ -354,6 +354,10 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 ### Phase 2 — stable automation and packaging
 
 - [ ] Implement discovery, canonical hashes, durable state and bounded retry behavior.
+  Discovery and durable backlog are implemented in `scripts/discover.py`,
+  `scripts/state_branch.py` and hourly `update.yml`, with missed-release/tag/race
+  tests. Compiler-job reconciliation and explicit retry remain to be connected;
+  see [discovery](discovery.md).
 - [x] Derive the shared package template and stable launcher/layout from the imported current package, retaining its resource/bootstrap and Krisp fixes.
 - [ ] Implement compile/validate/release/AUR jobs with publication-only credentials.
 - [ ] Register the package and configure its AUR access during deployment setup.

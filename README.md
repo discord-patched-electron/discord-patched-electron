@@ -18,6 +18,10 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
 - Locked current Stable, PTB and Canary core/module distributions independently.
 - Implemented atomic source locks, strict channel validation, content fingerprints,
   the existing resource/bootstrap fixes and validated Krisp patch application.
+- Hourly [release discovery](docs/discovery.md) retains a durable queue on
+  `ci-state`, including stable maintenance releases and separate Discord updates.
+  Identical polls create no commit; automatic compile/publication dispatch is
+  still gated on the unfinished runtime and audio qualification.
 - Imported Discord's complete 44-branch delta and verified that applying it to its
   original upstream base reconstructs Discord's exact source tree.
 - Stable, prerelease and nightly source candidates now assemble with separate,
