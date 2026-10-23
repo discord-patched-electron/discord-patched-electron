@@ -17,7 +17,8 @@ import subprocess
 import tarfile
 import zipfile
 
-from common import ROOT, download, read_json, sha256, write_json
+from client_inputs import load_clients, validate_channel
+from common import ROOT, digest, download, read_json, sha256, write_json
 from generate_package import generate
 
 
@@ -71,18 +72,67 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
             "runtime_is_test_fixture": True, "runtime_validated": False, "publishable": False}
 
 
-def smoke(output: Path):
+def package_one(directory: Path, downloads: Path, discord: str, client: dict, electron: str, target: dict) -> dict:
+    fixture = downloads / "runtime.zip"
+    runtime = {"version": target["version"], "runtime_key": "a" * 64,
+        "sha256": sha256(fixture), "test_fixture": True,
+        "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/test-fixture/runtime.zip"}
+    inputs = generate(runtime, client, electron, 1, directory)
+    for filename in ("runtime.zip", "LICENSE.html", "OSS-LICENSES.html"):
+        os.link(downloads / filename, directory / filename)
+    for name in client["sources"]:
+        os.link(downloads / (discord + "-" + name + ".tar.br"), directory / (name + ".tar.br"))
+    with (directory / "makepkg.log").open("w") as log:
+        subprocess.run(["makepkg", "--nocheck", "--cleanbuild"], cwd=directory,
+            env={**os.environ, "PKGEXT": ".pkg.tar"}, stdout=log, stderr=subprocess.STDOUT, check=True)
+    with (directory / ".SRCINFO").open("w") as metadata:
+        subprocess.run(["makepkg", "--printsrcinfo"], cwd=directory, stdout=metadata, check=True)
+    subprocess.run(["desktop-file-validate", str(directory / "discord.desktop")], check=True)
+    package = next(directory.glob("*.pkg.tar"))
+    report = inspect_package(package, inputs)
+    # The old system-Electron dependency brought libraries transitively.
+    # Our private runtime must declare what Discord's own addons need.
+    checked = []
+    exceptions = {}
+    for module in sorted((directory / "src/stage/modules").rglob("*.node")):
+        libraries = subprocess.run(["ldd", str(module)], capture_output=True, text=True, check=True).stdout
+        relative = str(module.relative_to(directory / "src/stage/modules"))
+        missing = missing_libraries(relative, sha256(module), libraries)
+        if missing:
+            exceptions[relative] = {"sha256": sha256(module), "missing": missing,
+                "source": "https://github.com/NixOS/nixpkgs/pull/517309"}
+        checked.append(relative)
+    report["native_library_dependencies_checked"] = checked
+    report["native_library_exceptions"] = exceptions
+    return report
+
+
+def smoke(output: Path, clients_file: Path = ROOT / "config/clients.lock.json",
+          channels: list[str] | None = None) -> dict:
     if output.exists() and any(output.iterdir()):
         raise ValueError("Use an empty output directory for the packaging smoke test")
     output.mkdir(parents=True, exist_ok=True)
     downloads = output / "downloads"
     downloads.mkdir()
-    clients = read_json(ROOT / "config/clients.lock.json")["clients"]
+    clients = load_clients(clients_file, channels)
     targets = read_json(ROOT / "config/sources.lock.json")["targets"]
-    jobs = [(source["url"], downloads / (channel + "-" + name + ".tar.br"), source["sha256"])
-            for channel, client in clients.items() for name, source in client["sources"].items()]
+    errors = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        list(pool.map(lambda args: download(*args), jobs))
+        jobs = {}
+        for channel, client in clients.items():
+            try:
+                validate_channel(channel, client)
+            except Exception as error:
+                errors[channel] = {"error_type": type(error).__name__, "error": str(error)}
+                continue
+            for name, source in client["sources"].items():
+                future = pool.submit(download, source["url"], downloads / (channel + "-" + name + ".tar.br"), source["sha256"])
+                jobs[future] = channel
+        for future in concurrent.futures.as_completed(jobs):
+            try:
+                future.result()
+            except Exception as error:
+                errors[jobs[future]] = {"error_type": type(error).__name__, "error": str(error)}
     for filename, url in (("LICENSE.html", "https://discord.com/terms"), ("OSS-LICENSES.html", "https://discord.com/licenses")):
         download(url, downloads / filename)
     fixture = downloads / "runtime.zip"
@@ -93,56 +143,48 @@ def smoke(output: Path):
             archive.writestr(entry, "PACKAGING TEST FIXTURE. NOT AN ELECTRON RUNTIME.\n")
     (output / "arch-packages.txt").write_text(subprocess.check_output(["pacman", "-Q"], text=True))
     results = []
+    summary = {"schema": 1, "selected_channels": list(clients), "combinations": results,
+        "all_selected_passed": False, "runtime_is_test_fixture": True, "runtime_validated": False, "publishable": False}
     for discord, client in clients.items():
         for electron, target in targets.items():
             directory = output / (discord + "-" + electron)
-            runtime = {"version": target["version"], "runtime_key": "a" * 64,
-                "sha256": sha256(fixture), "test_fixture": True,
-                "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/test-fixture/runtime.zip"}
-            inputs = generate(runtime, client, electron, 1, directory)
-            for filename in ("runtime.zip", "LICENSE.html", "OSS-LICENSES.html"):
-                os.link(downloads / filename, directory / filename)
-            for name in client["sources"]:
-                os.link(downloads / (discord + "-" + name + ".tar.br"), directory / (name + ".tar.br"))
-            with (directory / "makepkg.log").open("w") as log:
-                subprocess.run(["makepkg", "--nocheck", "--cleanbuild"], cwd=directory,
-                    env={**os.environ, "PKGEXT": ".pkg.tar"}, stdout=log, stderr=subprocess.STDOUT, check=True)
-            with (directory / ".SRCINFO").open("w") as metadata:
-                subprocess.run(["makepkg", "--printsrcinfo"], cwd=directory, stdout=metadata, check=True)
-            subprocess.run(["desktop-file-validate", str(directory / "discord.desktop")], check=True)
-            package = next(directory.glob("*.pkg.tar"))
-            report = inspect_package(package, inputs)
-            # The old system-Electron dependency brought libraries transitively.
-            # Our private runtime must declare what Discord's own addons need.
-            checked = []
-            exceptions = {}
-            for module in sorted((directory / "src/stage/modules").rglob("*.node")):
-                libraries = subprocess.run(["ldd", str(module)], capture_output=True, text=True, check=True).stdout
-                relative = str(module.relative_to(directory / "src/stage/modules"))
-                missing = missing_libraries(relative, sha256(module), libraries)
-                if missing:
-                    exceptions[relative] = {"sha256": sha256(module), "missing": missing,
-                        "source": "https://github.com/NixOS/nixpkgs/pull/517309"}
-                checked.append(relative)
-            report["native_library_dependencies_checked"] = checked
-            report["native_library_exceptions"] = exceptions
+            directory.mkdir()
+            try:
+                if discord in errors:
+                    report = {"passed": False, "phase": "client-download", **errors[discord]}
+                else:
+                    report = package_one(directory, downloads, discord, client, electron, target)
+                    report["passed"] = True
+            except Exception as error:
+                report = {"passed": False, "phase": "package-validation",
+                          "error_type": type(error).__name__, "error": str(error)}
+            finally:
+                # Fixture outputs are never release assets, including failures.
+                # Retain downloads, recipes and logs, not nine staging trees.
+                for package in directory.glob("*.pkg.tar"):
+                    package.unlink()
+                for name in ("src", "pkg"):
+                    if (directory / name).exists():
+                        shutil.rmtree(directory / name)
+            report.update(discord_channel=discord, electron_channel=electron, client_version=client.get("version") if isinstance(client, dict) else None,
+                          client_digest=digest(client), runtime_is_test_fixture=True, runtime_validated=False, publishable=False)
             write_json(directory / "packaging-report.json", report)
             results.append(report)
-            print(inputs["package"] + ": packaging passed (dummy runtime, not publishable)", flush=True)
-            # These are disposable fixture artifacts, never release assets. Keep
-            # sources, generated recipes and reports; avoid nine full staging trees.
-            package.unlink()
-            shutil.rmtree(directory / "src")
-            shutil.rmtree(directory / "pkg")
-    write_json(output / "packaging-report.json", {"schema": 1, "combinations": results,
-        "runtime_is_test_fixture": True, "runtime_validated": False, "publishable": False})
+            write_json(output / "packaging-report.json", summary)
+            print(f"{discord}/{electron}: {'packaging passed (dummy runtime)' if report['passed'] else report['error']}", flush=True)
+    summary["all_selected_passed"] = all(report["passed"] for report in results)
+    write_json(output / "packaging-report.json", summary)
+    return summary
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--clients", type=Path, default=ROOT / "config/clients.lock.json")
+    parser.add_argument("--discord", action="append", choices=["stable", "ptb", "canary"])
     args = parser.parse_args()
-    smoke(args.output.absolute())
+    report = smoke(args.output.absolute(), args.clients, args.discord)
+    raise SystemExit(0 if report["all_selected_passed"] else 1)
 
 
 if __name__ == "__main__":

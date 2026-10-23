@@ -1,0 +1,87 @@
+name: Arch package validation
+on:
+  workflow_call:
+    inputs:
+      clients_state:
+        description: Immutable ci-state commit; empty uses bootstrap locks
+        type: string
+        required: false
+        default: ''
+      discord_channels:
+        description: Comma-separated Discord channels, or all
+        type: string
+        required: false
+        default: all
+  workflow_dispatch:
+    inputs:
+      clients_state:
+        description: Immutable ci-state commit; empty uses bootstrap locks
+        type: string
+        required: false
+        default: ''
+      discord_channels:
+        description: Comma-separated Discord channels, or all
+        type: string
+        required: false
+        default: all
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CLIENTS_STATE: ${{ inputs.clients_state || '' }}
+      DISCORD_CHANNELS: ${{ inputs.discord_channels || 'all' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Fetch the exact discovered client snapshot
+        if: env.CLIENTS_STATE != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
+      - name: Build the Arch packaging environment
+        run: docker build -t discord-electron-arch-packaging ci/arch
+      - name: Package selected channels with a dummy runtime
+        shell: bash
+        run: |
+          mkdir -p out/packaging
+          sudo chown 1000:1000 out/packaging
+          args=()
+          if [ -n "$CLIENTS_STATE" ]; then
+            args+=(--clients /repo/out/clients.lock.json)
+          fi
+          if [ "$DISCORD_CHANNELS" != all ]; then
+            IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
+            for channel in "${channels[@]}"; do
+              args+=(--discord "$channel")
+            done
+          fi
+          docker run --rm --cpus 2 --memory 4g \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -v "$GITHUB_WORKSPACE/out/packaging:/packages" \
+            discord-electron-arch-packaging \
+            python /repo/scripts/smoke_packages.py --output /packages "${args[@]}"
+      - name: Return diagnostic files to the Actions user
+        if: always()
+        run: |
+          if [ -d out/packaging ]; then
+            sudo chown -R "$(id -u):$(id -g)" out/packaging
+          fi
+      - name: Retain packaging diagnostics only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: arch-packaging-diagnostics
+          path: |
+            out/clients.lock.json
+            out/clients.lock.provenance.json
+            out/packaging/packaging-report.json
+            out/packaging/arch-packages.txt
+            out/packaging/*/packaging-report.json
+            out/packaging/*/makepkg.log
+          retention-days: 7
+          if-no-files-found: warn

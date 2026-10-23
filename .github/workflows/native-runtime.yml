@@ -7,6 +7,16 @@ on:
         type: string
         required: false
         default: ''
+      clients_state:
+        description: Immutable ci-state commit for discovered clients; empty uses bootstrap locks
+        type: string
+        required: false
+        default: ''
+      discord_channels:
+        description: Comma-separated Discord channels, or all
+        type: string
+        required: false
+        default: all
   workflow_dispatch:
     inputs:
       reference_run:
@@ -14,6 +24,16 @@ on:
         type: string
         required: false
         default: ''
+      clients_state:
+        description: Immutable ci-state commit for discovered clients; empty uses bootstrap locks
+        type: string
+        required: false
+        default: ''
+      discord_channels:
+        description: Comma-separated Discord channels, or all
+        type: string
+        required: false
+        default: all
   workflow_run:
     workflows: [Reference build capacity, Blacksmith reference capacity, Candidate Electron build]
     types: [completed]
@@ -30,6 +50,8 @@ jobs:
        github.event.workflow_run.head_repository.full_name == github.repository)
     env:
       REFERENCE_RUN: ${{ github.event.workflow_run.id || inputs.reference_run || '' }}
+      CLIENTS_STATE: ${{ inputs.clients_state || '' }}
+      DISCORD_CHANNELS: ${{ inputs.discord_channels || 'all' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -69,12 +91,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: python scripts/fetch_reference.py "$REFERENCE_RUN" --output out/reference-download
-      - name: Check native video and offline Krisp for every client channel
+      - name: Fetch the exact discovered client snapshot
+        if: env.CLIENTS_STATE != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
+      - name: Check native video and offline Krisp for selected client channels
         shell: bash
         run: |
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
             args+=(--runtime out/reference-download/runtime --provenance out/reference-download/artifact-provenance.json)
+          fi
+          if [ -n "$CLIENTS_STATE" ]; then
+            args+=(--clients out/clients.lock.json)
+          fi
+          if [ "$DISCORD_CHANNELS" != all ]; then
+            IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
+            for channel in "${channels[@]}"; do
+              args+=(--discord "$channel")
+            done
           fi
           python scripts/check_runtime_clients.py --output out/native-runtime "${args[@]}"
       - name: Retain native fixture diagnostics
@@ -84,7 +121,10 @@ jobs:
           name: native-runtime-diagnostics-${{ github.run_id }}
           path: |
             out/reference-download/artifact-provenance.json
+            out/clients.lock.json
+            out/clients.lock.provenance.json
             out/native-runtime/runtime-checks.json
+            out/native-runtime/*/client-check.json
             out/native-runtime/*/audio-report.json
             out/native-runtime/*/krisp-patch.json
             out/native-runtime/*/probe/runtime-report.json

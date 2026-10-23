@@ -75,10 +75,45 @@ The first two CI runs succeeded. The second reported no input change and left
 the remote `ci-state` commit exactly unchanged, with no compiler job allocated.
 The activation baseline is **2026-10-23 19:59:51 UTC**. Both runs discovered
 Stable 1.0.166, PTB 1.0.224 and Canary 1.0.2357; the new PTB/Canary revisions
-still require runtime/package validation before replacing the bootstrap locks.
+subsequently passed the selected-channel checks described below.
 See [CI evidence](evidence/discovery-ci.json). The accompanying source, unit,
 native-baseline and nine-package checks passed at `c006ba1`.
 
 API references: [release pagination](https://docs.github.com/en/rest/releases/releases#list-releases),
 [Git references](https://docs.github.com/en/rest/git/refs#get-a-reference),
 [annotated tags](https://docs.github.com/en/rest/git/tags#get-a-tag).
+
+
+## Validate a discovered client update without compiling
+
+`native-runtime.yml` and `package-check.yml` accept `clients_state`, the immutable
+40-character commit of `ci-state`, and `discord_channels`, a comma-separated
+selection such as `ptb,canary` (default `all`). Both fetch and retain exactly that
+snapshot and its provenance. A branch name is rejected. Omitting the commit uses
+the reviewed bootstrap locks. Discovery errors remain in the provenance; passing
+a retained older lock does not authorize advancing an affected client channel.
+
+The native workflow accepts an existing successful compiler run through
+`reference_run`. It checks the selected clients against that downloaded runtime;
+without it, it checks their official bundled runtimes as a baseline. Neither
+workflow compiles Electron. Each selected channel receives a separate report,
+and a failure does not prevent the remaining channels from being tested. The
+job still fails if any selected check fails. A subset pass never implies that
+unselected clients passed.
+
+The Arch workflow shares the same packaging implementation as the main Checks
+workflow. It builds all three Electron-channel recipes for each selected client
+with an explicitly unusable dummy runtime. This verifies private installation
+paths, native library dependencies, preserved Krisp patch bytes, metadata and
+sandbox permissions, but cannot qualify a real runtime. Staging trees and dummy
+package archives are removed after each attempt, including failures; recipes,
+logs and reports are retained.
+
+Local validation of the exact discovered PTB 1.0.224 and Canary 1.0.2357 snapshot
+passed all six packaging combinations. Both clients also passed native frame
+handoff/teardown and offline Krisp processing using their bundled Electron
+44.9.3, with 53.6 dB synthetic noise reduction. These are baseline results, not
+custom-runtime, live-call or per-application audio qualification. The existing
+narrow dispatch-library exception required no change. See
+[local evidence](evidence/client-updates-local.json). Bootstrap locks remain
+unchanged pending the CI snapshot checks.
