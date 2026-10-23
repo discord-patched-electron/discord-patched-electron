@@ -3,7 +3,7 @@ set -euo pipefail
 # Test-only compositor pin: includes PipeWire shared-memory capture without a GPU.
 revision=e19df12cf81ffe805609fee497da1a097066ad2f
 if [[ -x /build/niri && -f /build/niri-source && $(cat /build/niri-source) == "$revision" ]]; then
-  if /build/niri --version >/dev/null; then exit 0; fi
+  if (cd /build && sha256sum -c niri.sha256) && /build/niri --version >/dev/null; then exit 0; fi
 fi
 mkdir -p /build/source
 if [[ ! -d /build/source/.git ]]; then

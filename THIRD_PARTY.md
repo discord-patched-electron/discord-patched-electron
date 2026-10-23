@@ -21,3 +21,11 @@ this repository. This project's code does not grant rights to those binaries.
 in `tests/audio/speech.json`. It contains no recorded personal audio. The native
 frame test downloads Discord's public header using its pinned URL and checksum;
 that header retains its upstream license and is not vendored here.
+
+The Wayland fixture builds a pinned [niri](https://github.com/niri-wm/niri)
+revision under GPL-3.0-or-later. The test-only executable is cached in CI and is
+not included in the Discord runtime or AUR packages. Its exact source revision
+and build flags are recorded in `scripts/build_test_compositor.sh` and the
+fixture artifacts. The distro supplies PipeWire, PulseAudio and Zenity tools.
+Vesktop/venmic served as routing and source-selection references; their code or
+native addons are not bundled by this audio adapter.
