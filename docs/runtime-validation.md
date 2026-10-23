@@ -74,3 +74,7 @@ both checks for all three clients. Pass `--runtime <extracted-custom-runtime>` t
 reuse a custom runtime across the three module sets. The `native-baselines` job
 in the Checks workflow runs the bundled baseline on standard GitHub runners,
 without spending Blacksmith compiler minutes. Failures retain diagnostics.
+Ubuntu's CI image requires an AppArmor user-namespace exception for these copied
+executables. The workflow scopes that exception to its private test paths using
+[Chromium's documented profile approach](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md),
+and keeps Chromium's sandbox enabled.

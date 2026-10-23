@@ -45,6 +45,19 @@ jobs:
             libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libxss1 libxtst6
           python -m pip install -r requirements-test.txt
           npm ci --ignore-scripts
+      - name: Permit sandbox namespaces for the disposable test runtimes
+        shell: bash
+        run: |
+          # Ubuntu restricts user namespaces for downloaded Chromium executables.
+          # Scope its documented exception to this job's copied fixture binaries.
+          cat <<EOF | sudo tee /etc/apparmor.d/discord-native-fixture >/dev/null
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile discord-native-fixture "$GITHUB_WORKSPACE/out/native-baselines/*/probe/runtime/Discord*" flags=(unconfined) {
+            userns,
+          }
+          EOF
+          sudo apparmor_parser -r /etc/apparmor.d/discord-native-fixture
       - name: Check native video and offline Krisp for every client channel
         run: python scripts/check_runtime_clients.py --output out/native-baselines
       - name: Retain native fixture diagnostics
