@@ -91,7 +91,7 @@ def main():
                     [
                         str(output / "runtime" / args.runtime.name),
                         "--ozone-platform=wayland",
-                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
                     ],
                     env=env,
                     stdout=log,

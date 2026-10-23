@@ -22,17 +22,25 @@ def replace(text: str, before: str, after: str, *, exact: int | None = 1) -> str
     return text.replace(before, after)
 
 
-def patch_bundle(text: str, package: str) -> str:
-    resource = f"/usr/lib/{package}/resources"
-    text = replace(text, 'resourcesPath=path_1.default.join(require.main.filename,"..",".."),', f"resourcesPath='{resource}',")
-    text = replace(text, "process.resourcesPath", f"'{resource}'", exact=None)
+def patch_bundle(text: str, package: str, install_root: Path | None = None) -> str:
+    resource = json.dumps(str((install_root or Path(f"/usr/lib/{package}")) / "resources"))
+    text = replace(text, 'resourcesPath=path_1.default.join(require.main.filename,"..",".."),', f"resourcesPath={resource},")
+    text = replace(text, "process.resourcesPath", resource, exact=None)
+    # A package manager owns both host and modules. The legacy updater already
+    # skips module updates for localModulesRoot, but otherwise blocks the entire
+    # app whenever Discord publishes a newer host while CI is still compiling.
+    text = replace(text, 'skipHostUpdate=settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable',
+                   'skipHostUpdate=locallyInstalledModules||settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable')
     text = replace(text, "Exec=${exePath}", f"Exec=/usr/bin/{package}")
     text = replace(text, "Name=${appName}", f"Name={package}")
     return replace(text, "Icon=${iconPath}", f"Icon={package}")
 
 
-def prepare(core: Path, discord: str, electron: str, asar: str) -> None:
+def prepare(core: Path, discord: str, electron: str, asar: str, *, install_root: Path | None = None) -> None:
     package = package_name(discord, electron)
+    install_root = install_root or Path(f"/usr/lib/{package}")
+    if not install_root.is_absolute():
+        raise ValueError("Install root must be absolute")
     resources = core / "resources"
     archive = resources / "app.asar"
     info_path = resources / "build_info.json"
@@ -43,9 +51,9 @@ def prepare(core: Path, discord: str, electron: str, asar: str) -> None:
         extracted = Path(work) / "app"
         subprocess.run([asar, "extract", str(archive), str(extracted)], check=True)
         bundle = extracted / "bundle.js"
-        bundle.write_text(patch_bundle(bundle.read_text(), package))
+        bundle.write_text(patch_bundle(bundle.read_text(), package, install_root))
         splash = extracted / "splashScreenPreload.js"
-        splash.write_text(replace(splash.read_text(), "process.resourcesPath", f"'/usr/lib/{package}/resources'"))
+        splash.write_text(replace(splash.read_text(), "process.resourcesPath", json.dumps(str(install_root / "resources"))))
         metadata = read_json(extracted / "package.json")
         metadata["desktopName"] = f"{package}.desktop"
         write_json(extracted / "package.json", metadata)
@@ -53,7 +61,7 @@ def prepare(core: Path, discord: str, electron: str, asar: str) -> None:
         subprocess.run([asar, "pack", str(extracted), str(result)], check=True)
         result.replace(archive)
     info["newUpdater"] = False
-    info["localModulesRoot"] = f"/usr/lib/{package}/modules"
+    info["localModulesRoot"] = str(install_root / "modules")
     write_json(info_path, info)
 
 

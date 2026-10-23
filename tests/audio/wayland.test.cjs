@@ -48,8 +48,24 @@ function fixture() {
       "data",
       Buffer.from(JSON.stringify({ generation, pid, state: "ready" }) + "\n"),
     );
-  return { adapter, calls, children, ready, end: () => ended() };
+  return { adapter, native, calls, children, ready, end: () => ended() };
 }
+test("rejected native sources silence the old app and close its helper", () => {
+  for (const method of ["setDesktopSource", "setDesktopSourceWithOptions"]) {
+    const f = fixture();
+    f.adapter.setDesktopSource("screen:0:0");
+    f.adapter.setTransportOptions({ soundsharePid: 1 });
+    const first = f.children[0];
+    f.ready(first, 2500);
+    f.native[method] = () => { throw new Error("source disappeared"); };
+    assert.throws(() => f.adapter[method]("missing"), /source disappeared/);
+    assert.equal(first.closed, true);
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
+    f.ready(first, 2500);
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
+    f.adapter.destroy();
+  }
+});
 test("Wayland never forwards the system sentinel before the selected mix is ready", () => {
   const f = fixture();
   f.adapter.setDesktopSourceWithOptions({

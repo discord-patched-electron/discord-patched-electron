@@ -1,6 +1,7 @@
 from pathlib import Path
 import importlib.util
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
     "pipewire_audio",
@@ -11,6 +12,26 @@ spec.loader.exec_module(audio)
 
 
 class WaylandIdentity(unittest.TestCase):
+    def test_pulse_app_exit_or_pid_reuse_during_sink_lookup_stays_silent(self):
+        for replacement in (None, (200, "new-start-time", 1)):
+            with self.subTest(replacement=replacement):
+                route = audio.Route()
+                original = (200, "original-start-time", 1)
+                current = original
+
+                def sinks(_args):
+                    nonlocal current
+                    current = replacement
+                    return '[{"index":4,"monitor_source_name":"test.monitor"}]'
+
+                with patch.object(audio, "process_identity", side_effect=lambda pid: current if pid == 200 else (pid, "self", 1)), \
+                        patch.object(audio, "descendant", return_value=False), \
+                        patch.object(audio, "command", side_effect=sinks), \
+                        patch.object(route, "spawn") as spawn:
+                    route.sync([], [{"index":3, "sink":4, "properties":{"application.process.id":"200"}}], None, (100, "discord", 1))
+                    spawn.assert_not_called()
+                    self.assertEqual(route.feeds, {})
+
     def test_portal_broker_pid_is_not_confused_with_native_consumer(self):
         objects = [
             {

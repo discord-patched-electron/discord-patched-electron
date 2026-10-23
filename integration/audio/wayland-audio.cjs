@@ -179,6 +179,19 @@ function wrap(
     configure();
     return endedCallback?.(...args);
   });
+  function setSource(method, args) {
+    if (disposed) return;
+    source = true;
+    configure();
+    try {
+      return method.apply(instance, args);
+    } catch (error) {
+      // A rejected native source must not leave the previous app audible.
+      source = false;
+      configure();
+      throw error;
+    }
+  }
   const methods = {
     setTransportOptions(options) {
       if (disposed) return;
@@ -210,16 +223,10 @@ function wrap(
       if (changed) configure();
     },
     setDesktopSource(id, hook, type) {
-      if (disposed) return;
-      source = true;
-      configure();
-      return instance.setDesktopSource(id, hook, type);
+      return setSource(instance.setDesktopSource, [id, hook, type]);
     },
     setDesktopSourceWithOptions(options) {
-      if (disposed) return;
-      source = true;
-      configure();
-      return instance.setDesktopSourceWithOptions(options);
+      return setSource(instance.setDesktopSourceWithOptions, [options]);
     },
     clearDesktopSource() {
       if (disposed) return;

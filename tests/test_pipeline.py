@@ -130,6 +130,17 @@ class VersionsAndKeys(unittest.TestCase):
 
 
 class BootstrapPatches(unittest.TestCase):
+    def test_package_owned_host_ignores_manual_update_gate_without_rewriting_version(self):
+        source = ('resourcesPath=path_1.default.join(require.main.filename,"..",".."),'
+                  'process.resourcesPath;skipHostUpdate=settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable;'
+                  'Exec=${exePath};Name=${appName};Icon=${iconPath}')
+        patched = patch_bundle(source, "test-package", Path('/tmp/test "quoted" app'))
+        self.assertIn('skipHostUpdate=locallyInstalledModules||settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable', patched)
+        self.assertIn(json.dumps('/tmp/test "quoted" app/resources'), patched)
+        self.assertNotIn('buildInfo.version=', patched)
+        with self.assertRaisesRegex(ValueError, "Unsupported bootstrap"):
+            patch_bundle(source.replace('skipHostUpdate=', 'newHostUpdate='), 'test-package')
+
     def test_exact_edit_and_unknown_layout(self):
         self.assertEqual(replace("a X b", "X", "Y"), "a Y b")
         with self.assertRaises(ValueError):

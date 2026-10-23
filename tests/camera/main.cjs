@@ -9,7 +9,13 @@ function finish(result) {
   finished = true;
   fs.writeFileSync(
     path.join(output, "result.json"),
-    JSON.stringify({ ...result, versions: process.versions }, null, 2),
+    // Keep the persisted schema metadata-only even if a future fixture starts
+    // returning extra fields. Physical webcam pixels must never leave memory.
+    JSON.stringify({ passed: result.passed === true,
+      load_and_initialize_ms: result.load_and_initialize_ms,
+      first_frame_ms: result.first_frame_ms, width: result.width, height: result.height,
+      ...(result.error ? {error: String(result.error).slice(0, 500)} : {}),
+      versions: process.versions }, null, 2),
   );
   app.exit(result.passed ? 0 : 1);
 }

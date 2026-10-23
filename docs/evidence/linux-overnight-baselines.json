@@ -1,0 +1,638 @@
+{
+  "schema": 1,
+  "baseline_only": true,
+  "graphics": {
+    "additional_flags": [],
+    "executable_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+    "gpu": {
+      "auxAttributes": {
+        "amdSwitchable": false,
+        "canSupportThreadedTextureMailbox": false,
+        "glImplementationParts": "(gl=none,angle=none)",
+        "glResetNotificationStrategy": 0,
+        "hardwareSupportsVulkan": false,
+        "inProcessGpu": true,
+        "initializationTime": 0,
+        "isAsan": false,
+        "isClangCoverage": false,
+        "jpegDecodeAcceleratorSupported": false,
+        "optimus": false,
+        "passthroughCmdDecoder": false,
+        "sandboxed": false,
+        "skiaBackendType": "None",
+        "subpixelFontRendering": true,
+        "targetCpuBits": 64,
+        "visibilityCallbackCallCount": 0
+      },
+      "gpuDevice": [
+        {
+          "active": true,
+          "deviceId": 29772,
+          "gpuPreference": 0,
+          "vendorId": 4098
+        }
+      ]
+    },
+    "gpuFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "disabled_software",
+      "vulkan": "disabled_off",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webgpu_on_vk_via_gl_interop": "disabled_off",
+      "webnn": "disabled_off"
+    },
+    "hardwareAccelerationEnabled": true,
+    "native_wayland_connection": true,
+    "note": "Synthetic video and WebGL on the local GPU; no real Discord call.",
+    "ozoneSwitch": "wayland",
+    "passed": true,
+    "players": {
+      "34856213F14E0EC38DEF3AEF86C6F0E2": {
+        "kBitrate": "3034320",
+        "kFrameTitle": "Discord Electron graphics probe",
+        "kIsPlatformVideoDecoder": "true",
+        "kIsRangeHeaderSupported": "false",
+        "kIsSingleOrigin": "true",
+        "kIsStreaming": "false",
+        "kIsVideoDecryptingDemuxerStream": "false",
+        "kMaxDuration": "2.0",
+        "kRendererName": "RendererImpl",
+        "kResolution": "1280x720",
+        "kStartTime": "0.0",
+        "kTotalBytes": "0xb9334",
+        "kVideoDecoderName": "VaapiVideoDecoder",
+        "kVideoTracks": "[{\"alpha mode\":\"is_opaque\",\"codec\":\"h264\",\"coded size\":\"1280x720\",\"color space\":{\"matrix\":\"BT709\",\"primaries\":\"BT709\",\"range\":\"LIMITED\",\"transfer\":\"BT709\"},\"encryption scheme\":\"Unencrypted\",\"has extra data\":true,\"hdr metadata\":{},\"natural size\":\"1280x720\",\"orientation\":\"0\u00b0\",\"profile\":\"h264 high\",\"visible rect\":\"0,0 1280x720\"}]"
+      }
+    },
+    "process_exit": 0,
+    "rendering": {
+      "pixel": [
+        25,
+        128,
+        229,
+        255
+      ],
+      "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "videoFrames": 5,
+      "videoHeight": 720,
+      "videoWidth": 1280,
+      "webglPassed": true
+    },
+    "stage": "complete",
+    "versions": {
+      "acorn": "8.18.0",
+      "ada": "4.0.0",
+      "ares": "1.34.9",
+      "brotli": "1.2.0",
+      "chrome": "152.0.7977.167",
+      "cldr": "48.0",
+      "electron": "44.9.3",
+      "icu": "78.2",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "149",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.70.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "node": "24.22.1",
+      "openssl": "0.0.0",
+      "simdjson": "4.6.11",
+      "simdutf": "7.7.0",
+      "sqlite": "3.53.4",
+      "tz": "2026d",
+      "undici": "7.30.1",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "15.2.124.43-electron.0",
+      "zlib": "1.3.2.1-motley",
+      "zstd": "1.6.0"
+    }
+  },
+  "camera": {
+    "camera": "UVC Camera (046d:0825)",
+    "custom_runtime_verified": false,
+    "helper": {
+      "compiler": "cc (GCC) 16.2.1 20260810",
+      "flags": [
+        "-std=c11",
+        "-O2",
+        "-march=x86-64-v3",
+        "-mtune=generic",
+        "-fPIC",
+        "-fvisibility=hidden",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-shared",
+        "-Wl,-z,relro,-z,now",
+        "-Wl,--build-id=sha1"
+      ],
+      "minimum_cpu": "x86-64-v3",
+      "schema": 1,
+      "sha256": "a872dd73587c86379ed050371737f875bdb02deead161bd729e634affbbf5ce0",
+      "source_key": "9e1098fac8296a63a0a6dd15180dbd3bb53086df8c6edfc6b64384c8043a91f6",
+      "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/camera-a872dd73587c86379ed050371737f875bdb02deead161bd729e634affbbf5ce0/libdpe-camera-probe.so"
+    },
+    "images_saved": false,
+    "microphone_used": false,
+    "physical_camera_verified": true,
+    "real_discord_call_verified": false,
+    "runs": [
+      {
+        "capability_probe_ms": 5392.0,
+        "first_frame_ms": 8333,
+        "height": 720,
+        "load_and_initialize_ms": 31.899999991059303,
+        "passed": true,
+        "patched": false,
+        "sample": 1,
+        "versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "152.0.7977.167",
+          "cldr": "48.0",
+          "electron": "44.9.3",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "149",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026d",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.2.124.43-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        },
+        "width": 1280
+      },
+      {
+        "capability_probe_ms": 656.0,
+        "first_frame_ms": 2329.0999999940395,
+        "height": 720,
+        "load_and_initialize_ms": 31,
+        "passed": true,
+        "patched": true,
+        "sample": 1,
+        "versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "152.0.7977.167",
+          "cldr": "48.0",
+          "electron": "44.9.3",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "149",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026d",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.2.124.43-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        },
+        "width": 1280
+      }
+    ],
+    "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+    "schema": 1,
+    "scope": {
+      "end": 9855953,
+      "start": 9854784,
+      "symbol": "_ZN6webrtc18videocapturemodule14DeviceInfoV4l216FillCapabilitiesEi",
+      "voice_sha256": "eda9df3b0a64383e41743f2e81bfceb822a217b8f97af406926dc3a89a3b3b38"
+    }
+  },
+  "audio": {
+    "pipewire": {
+      "passed": true,
+      "native_fixture": {
+        "compositor": "niri",
+        "events": [
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "type": "screenshare_finish"
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 107,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 108,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 215,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 108,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "error": "Portal request was cancelled",
+            "event": "error"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "type": "screenshare_finish"
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 218,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          }
+        ],
+        "passed": true,
+        "pcmFormats": {
+          ":1:48000:12960": 1,
+          ":1:48000:1440": 182,
+          ":1:48000:25440": 1,
+          ":1:48000:5280": 1,
+          ":1:8000:160": 38,
+          ":1:8000:1600": 1,
+          ":1:8000:240": 109,
+          ":1:8000:320": 30,
+          ":1:8000:52960": 1,
+          ":1:8000:5600": 1,
+          ":1:8000:5840": 1,
+          ":1:8000:80": 2,
+          ":1:8000:99760": 1,
+          "app-a:1:48000:1440": 40,
+          "app-a:1:8000:160": 6,
+          "app-a:1:8000:240": 28,
+          "app-a:1:8000:320": 6,
+          "app-b:1:48000:1440": 40,
+          "app-b:1:8000:160": 9,
+          "app-b:1:8000:240": 24,
+          "app-b:1:8000:320": 8,
+          "re-enabled:1:48000:1440": 39,
+          "re-enabled:1:8000:160": 8,
+          "re-enabled:1:8000:240": 25,
+          "re-enabled:1:8000:320": 6,
+          "re-enabled:1:8000:80": 1,
+          "system:1:48000:1440": 40,
+          "system:1:8000:160": 7,
+          "system:1:8000:240": 26,
+          "system:1:8000:320": 6
+        },
+        "portal": "controlled test portal backed by real niri screencasts",
+        "real_discord_call_verified": false,
+        "versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "152.0.7977.167",
+          "cldr": "48.0",
+          "electron": "44.9.3",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "149",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026d",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.2.124.43-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        },
+        "wayland_video_verified": true
+      },
+      "identity": {
+        "adapter_patch": {
+          "adapter_sha256": "c01e157925f18dba0784bbfa47a5b6642ae4ddc985623a8e46ef5d87a8a2c2a0",
+          "default_sessions": [
+            "wayland"
+          ],
+          "disable_environment": "DPE_APP_AUDIO=0",
+          "enabled_by_default": true,
+          "helper_sha256": {
+            "dpe-pipewire-audio.py": "68e233374b46ca07519cbe40e86773bc58185c62748d5f27967d443178d0e131",
+            "dpe-wayland-audio.cjs": "464cff6af3df52256207d2e409760a2c61b6bca6cd2620c8c9ba48e4134e55ec"
+          },
+          "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+          "output_sha256": "e0c040697b4ff8704940fef2c1e4604503b164615115fba8833ca9b8b14f7180",
+          "publishable": false,
+          "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+          "x11_enable_environment": "DPE_APP_AUDIO=1"
+        },
+        "channel": "canary",
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "executable": "DiscordCanary",
+        "runtime_kind": "bundled",
+        "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "voice_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+      }
+    },
+    "pulseaudio": {
+      "passed": true,
+      "native_fixture": {
+        "compositor": "niri",
+        "events": [
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "type": "screenshare_finish"
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 106,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 108,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 215,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 107,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "error": "Portal request was cancelled",
+            "event": "error"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "type": "screenshare_finish"
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 215,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          }
+        ],
+        "passed": true,
+        "pcmFormats": {
+          ":1:48000:25920": 1,
+          ":1:48000:480": 5,
+          ":1:8000:56400": 1,
+          ":1:8000:80": 4,
+          "app-a:1:48000:1440": 1,
+          "app-a:1:48000:3360": 1,
+          "app-a:1:48000:37920": 1,
+          "app-a:1:48000:480": 14,
+          "app-a:1:48000:5280": 1,
+          "app-a:1:48000:960": 5,
+          "app-a:1:8000:160": 2,
+          "app-a:1:8000:16400": 1,
+          "app-a:1:8000:80": 15,
+          "app-b:1:48000:1440": 1,
+          "app-b:1:48000:480": 62,
+          "app-b:1:48000:960": 8,
+          "app-b:1:8000:160": 4,
+          "app-b:1:8000:26640": 1,
+          "app-b:1:8000:80": 60,
+          "re-enabled:1:48000:480": 53,
+          "re-enabled:1:48000:6240": 1,
+          "re-enabled:1:48000:6720": 1,
+          "re-enabled:1:48000:960": 3,
+          "re-enabled:1:8000:115200": 1,
+          "re-enabled:1:8000:160": 2,
+          "re-enabled:1:8000:80": 54,
+          "system:1:48000:480": 61,
+          "system:1:48000:960": 4,
+          "system:1:8000:160": 2,
+          "system:1:8000:22320": 1,
+          "system:1:8000:80": 60
+        },
+        "portal": "controlled test portal backed by real niri screencasts",
+        "real_discord_call_verified": false,
+        "versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "152.0.7977.167",
+          "cldr": "48.0",
+          "electron": "44.9.3",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "149",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026d",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.2.124.43-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        },
+        "wayland_video_verified": true
+      },
+      "identity": {
+        "adapter_patch": {
+          "adapter_sha256": "c01e157925f18dba0784bbfa47a5b6642ae4ddc985623a8e46ef5d87a8a2c2a0",
+          "default_sessions": [
+            "wayland"
+          ],
+          "disable_environment": "DPE_APP_AUDIO=0",
+          "enabled_by_default": true,
+          "helper_sha256": {
+            "dpe-pipewire-audio.py": "68e233374b46ca07519cbe40e86773bc58185c62748d5f27967d443178d0e131",
+            "dpe-wayland-audio.cjs": "464cff6af3df52256207d2e409760a2c61b6bca6cd2620c8c9ba48e4134e55ec"
+          },
+          "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+          "output_sha256": "e0c040697b4ff8704940fef2c1e4604503b164615115fba8833ca9b8b14f7180",
+          "publishable": false,
+          "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+          "x11_enable_environment": "DPE_APP_AUDIO=1"
+        },
+        "channel": "canary",
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "executable": "DiscordCanary",
+        "runtime_kind": "bundled",
+        "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "voice_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+      }
+    }
+  },
+  "desktop_launch": {
+    "passed": true,
+    "screenshots_saved": false,
+    "real_discord_call_verified": false,
+    "page": {
+      "loginForm": true,
+      "passwordField": true,
+      "ready": "complete",
+      "title": ""
+    },
+    "native_wayland_connection": true
+  }
+}

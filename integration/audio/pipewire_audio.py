@@ -326,6 +326,7 @@ class Route:
         ):
             raise ValueError("Audio bridge process exited")
         desired = {}
+        sinks = None
         native_pulse_serials = set()
         clients = {
             x["id"]: props(x)
@@ -377,8 +378,9 @@ class Route:
         for stream in pulse:
             p = stream.get("properties", {})
             pid = integer(p.get("application.process.id"))
+            identity = process_identity(pid)
             # pipewire-pulse exposes the same stream twice. Never mix it twice.
-            if str(p.get("object.serial")) in native_pulse_serials or not wanted(pid):
+            if identity is None or str(p.get("object.serial")) in native_pulse_serials or not wanted(pid):
                 continue
             if (
                 "object.serial" in p
@@ -388,9 +390,10 @@ class Route:
             sink = integer(stream.get("sink"))
             if min(index, sink) < 0:
                 continue
-            sinks = json.loads(
-                command(["/usr/bin/pactl", "-f", "json", "list", "sinks"])
-            )
+            if sinks is None:
+                sinks = json.loads(
+                    command(["/usr/bin/pactl", "-f", "json", "list", "sinks"])
+                )
             monitor = next(
                 (
                     s.get("monitor_source_name", s.get("monitor_source"))
@@ -399,9 +402,11 @@ class Route:
                 ),
                 None,
             )
-            if monitor is None:
+            # pactl runs out of process: an application can exit (or its PID
+            # can be reused) while we obtain the monitor. Stay silent then.
+            if monitor is None or process_identity(pid) != identity:
                 continue
-            desired[("pa", index, pid, process_identity(pid)[1], sink)] = [
+            desired[("pa", index, pid, identity[1], sink)] = [
                 [
                     "/usr/bin/parec",
                     "--monitor-stream=" + str(index),

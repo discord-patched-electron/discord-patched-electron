@@ -59,6 +59,12 @@ and saves only timings, dimensions and diagnostic logs. CI uses a fake driver to
 check caller scoping, supported-format passthrough, missing/failed enumeration,
 changed capabilities, multi-plane passthrough and explicit disablement.
 
+Physical webcam frames must never be serialized, displayed, recorded, uploaded,
+or included in screenshots. The fixture reads dimensions from each in-memory
+frame and discards it. Only measurement metadata belongs in retained evidence;
+physical-camera test directories are never CI upload inputs. Do not take desktop
+screenshots while a physical-camera test is running.
+
 ## Build and packaging
 
 The standard GitHub checks compile this small x86-64-v3 library and retain it with
