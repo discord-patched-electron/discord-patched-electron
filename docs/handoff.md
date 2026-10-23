@@ -74,3 +74,20 @@ On resume:
 
 No AUR credentials are currently configured. The nine package recipes and
 packaging tests exist; discovery alone never authorizes publishing them.
+
+## Checks saved at pause
+
+[Checks 40021843553](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40021843553)
+passed all jobs at `e481fa7`: source assembly, 54 Python tests, the initial four
+JavaScript tests, compiler-cache fixture, all nine Arch packages, all three
+native video/Krisp baselines and all three isolated X11 application-audio tests.
+The [retained audio reports](evidence/app-audio-ci.json) explicitly keep Wayland,
+custom-runtime and real-call qualification false.
+
+The subsequent Wayland trace/identity guard change at `83b9b0b` passed all 54
+Python tests and seven JavaScript tests locally. Its new
+[Checks 40022602060](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40022602060)
+was still running when this handoff was written; inspect its final result on
+resume. These jobs use standard GitHub runners, not the PC compiler or
+Blacksmith. The reference compile was still progressing around 21,380/45,993
+steps and must be left running.
