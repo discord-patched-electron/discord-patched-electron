@@ -1,0 +1,11 @@
+{
+  "repository": "https://aur.archlinux.org/discord_arch_electron.git",
+  "commit": "3b290dffd5eb840faed445bdc2bdb18572839471",
+  "files": {
+    "PKGBUILD": "4ef3d7ab8c7293bedc77c8cdfb2b266934c4940b78dfa7af17d3edac7f398e1c",
+    ".SRCINFO": "5521176532e612bd0df9942ab924d395f0303a9a96714794beb9f5058bc143f6",
+    "discord-launcher.sh": "7310588375ab962f0accd9f01a472e261a41dc38cdfd68db342fec6c640d3723",
+    "krisp-patcher.py": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+    "discord_arch_electron.install": "b170626d2a420bd350ac99a83d75bfa0905338dfb79701d628280ec6c14b532d"
+  }
+}

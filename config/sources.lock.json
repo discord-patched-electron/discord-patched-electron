@@ -1,0 +1,28 @@
+{
+  "fork": {
+    "base": "fd148b9908b83c8dc09924e45e6df44b83b6bfe7",
+    "commit": "aade2a4ea35e538d1be93207233c4269459a4561",
+    "patch": "patches/discord/44/integration.patch",
+    "patch_sha256": "de5c508fc9aac2d3fabe47ccb328e8d3a0a4beea124add663510acbebdeb014e",
+    "repository": "https://github.com/discord/electron.git"
+  },
+  "schema": 1,
+  "targets": {
+    "nightly": {
+      "commit": "0e77ca92cd373a1b145c1e10d83189c137ea1b3e",
+      "compatibility": "unverified",
+      "version": "47.0.0-nightly.20261023"
+    },
+    "prerelease": {
+      "commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
+      "compatibility": "unverified",
+      "version": "46.0.0-alpha.1"
+    },
+    "stable": {
+      "commit": "54f961b44b83e4ece81065ab60a182fd0c38c01e",
+      "compatibility": "unverified",
+      "version": "45.0.0"
+    }
+  },
+  "upstream_repository": "https://github.com/electron/electron.git"
+}

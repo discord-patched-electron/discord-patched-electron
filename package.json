@@ -1,0 +1,8 @@
+{
+  "name": "discord-native-electron-builds",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Build and package Discord's native Electron integration",
+  "engines": { "node": ">=22.12.0" },
+  "devDependencies": { "@electron/asar": "4.3.1" }
+}

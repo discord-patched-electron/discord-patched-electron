@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "architecture": "x86_64",
+  "electron_channels": ["stable", "prerelease", "nightly"],
+  "discord_channels": ["stable", "ptb", "canary"],
+  "package_pattern": "discord-{discord}-{electron}-patched-electron-bin",
+  "poll_cron": "17 * * * *",
+  "compiler": {
+    "enabled": false,
+    "provider": null,
+    "runner": null,
+    "minimum_disk_gb": 100,
+    "minimum_memory_gb": 16,
+    "paid_usage_allowed": false
+  }
+}

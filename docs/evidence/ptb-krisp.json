@@ -1,0 +1,9 @@
+{
+  "already_patched": false,
+  "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+  "offset": 4407835,
+  "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+  "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+  "runtime_validated": false,
+  "size": 6
+}
