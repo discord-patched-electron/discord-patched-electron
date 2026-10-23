@@ -63,6 +63,12 @@ jobs:
             -v "$GITHUB_WORKSPACE/out/packaging:/packages" \
             discord-electron-arch-packaging \
             python /repo/scripts/smoke_packages.py --output /packages
+      - name: Return diagnostic files to the Actions user
+        if: always()
+        run: |
+          if [ -d out/packaging ]; then
+            sudo chown -R "$(id -u):$(id -g)" out/packaging
+          fi
       - name: Retain packaging diagnostics only
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
