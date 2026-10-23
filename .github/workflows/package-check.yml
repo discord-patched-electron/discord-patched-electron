@@ -42,7 +42,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
+        run: |
+          python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
+          # Atomic JSON writes default to 0600; the container uses a different UID.
+          chmod 644 out/clients.lock.json
       - name: Build the Arch packaging environment
         run: docker build -t discord-electron-arch-packaging ci/arch
       - name: Package selected channels with a dummy runtime
