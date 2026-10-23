@@ -13,8 +13,10 @@ dedicated Ubuntu 24.04 container on the PC; no hosted compiler billing is enable
 - Limits: four CPUs, 12 GiB RAM, 20 GiB RAM plus swap, two compiler tasks.
   ThinLTO is disabled to reduce linking memory for this initial configuration.
 - Build cache: `/work/build-cache`, outside Actions' disposable checkout.
-  Identical source/configuration/script inputs resume the same build directory.
-  Changed inputs create another directory; the script never deletes other builds.
+  Identical native source/configuration/container inputs resume the same reference
+  directory even after a driver-only recovery fix. The report records the exact
+  driver hashes separately; release identities still include build scripts.
+  Changed native inputs create another directory; other builds are never deleted.
 - The runner restarts with Docker unless explicitly stopped. It has no host
   services, GitHub login files or AUR credentials mounted.
 - The compile workflow is manually dispatched from `main`, uses a `main`-only
@@ -43,7 +45,10 @@ gh workflow run capacity.yml --ref main \
 
 Each run stops compilation after 21 hours, leaving an hour for reporting before
 the 22-hour job deadline and GitHub's 24-hour token lifetime. Resume through a new
-dispatch if needed. Reports include wall time, sampled minimum free disk, cgroup
+dispatch if needed. Sync, dependency installation and hooks have separate completion
+markers. Before retrying failed hooks, the driver restores only the dedicated
+dependency repositories to their recorded post-sync commits so Electron's `git am`
+patch hook can run again. Reports include wall time, sampled minimum free disk, cgroup
 peak RAM/swap and artifact checksums. A compiled reference is retained for one day
 as a CI artifact and remains in the local cache; it is not a public release.
 This first build measures capacity and tests Discord's original fork. It is not

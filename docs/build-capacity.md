@@ -32,6 +32,15 @@ uses commit `00916a6` and the existing build directory. No completed runtime or
 compile-time estimate is available yet. Do not extrapolate preparation memory use
 to the linker.
 
+Attempt 2 was explicitly canceled after it re-entered `gclient sync` and started
+an unnecessary broad Git fetch. Sync and hook completion now have separate markers.
+The already synchronized checkout was adopted under its native-input identity
+`be92ed7160913c8b53ae06e6003e6de864d292f1199af9420a8c6dd22ec72aa4`,
+after checking the old directory's full input digest against commit `d517391`,
+the pinned Electron HEAD and absence of compiled output. Electron's recorded
+pre-patch Git refs supply the reset bases for hook recovery. No user project or
+installed Discord files were reset or removed.
+
 The workflow saves `metrics.json`, `source.json`, `capacity.json` when compilation
 finishes, and the build log. Memory peaks come from cgroup counters; disk use is
 sampled every five seconds and can miss brief peaks. A canceled job can leave the

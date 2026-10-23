@@ -27,6 +27,37 @@ def memory_limit() -> int:
     return physical
 
 
+def reference_inputs(fork: dict, config: dict) -> dict:
+    # This is a resumable workspace key, not the release/artifact identity.
+    # Driver-only fixes must not discard a successfully fetched Chromium tree.
+    return {"fork": fork, "config": config, "container": hash_files(["ci/runner/Dockerfile"])}
+
+
+def patch_repositories(source: Path) -> dict:
+    result = {}
+    for entry in read_json(source / "src/electron/patches/config.json"):
+        repo = (source / entry["repo"]).resolve()
+        if not repo.is_relative_to(source.resolve()):
+            raise ValueError("Dependency patch repository escapes the build workspace")
+        if (repo / ".git").exists():
+            result[entry["repo"]] = subprocess.check_output(
+                ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+    return result
+
+
+def reset_patch_repositories(source: Path, bases: dict):
+    # Electron's patch hook uses git am and is not idempotent. Only reset these
+    # generated, dedicated dependency checkouts to the recorded post-sync bases.
+    for relative, commit in bases.items():
+        repo = (source / relative).resolve()
+        if not repo.is_relative_to(source.resolve()) or not (repo / ".git").exists():
+            raise ValueError("Invalid cached dependency repository")
+        am_state = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "--path-format=absolute", "--git-path", "rebase-apply"], text=True).strip()
+        if Path(am_state).exists():
+            run("git", "-C", repo, "am", "--abort")
+        run("git", "-C", repo, "reset", "--hard", commit)
+
+
 def build(output: Path):
     started = time.monotonic()
     config = read_json(ROOT / "config/build.json")
@@ -37,10 +68,11 @@ def build(output: Path):
     if free < config["minimum_disk_gb"] or memory / 1_000_000_000 < config["minimum_memory_gb"]:
         raise ValueError(f"Insufficient build capacity: {free:.1f} GB free, {memory / 1_000_000_000:.1f} GB RAM")
     fork = read_json(ROOT / "config/sources.lock.json")["fork"]
-    identity = digest({"fork": fork, "config": config, "inputs": hash_files([
-        "scripts/build_reference.py", "scripts/assemble.py", "scripts/common.py", "ci/runner/Dockerfile"])})
+    inputs = reference_inputs(fork, config)
+    identity = digest(inputs)
     work = cache / "reference" / identity
     work.mkdir(parents=True, exist_ok=True)
+    write_json(work / "native-inputs.json", inputs)
     tools = cache / ("depot_tools-" + config["depot_tools_commit"])
     if not tools.exists():
         run("git", "init", tools)
@@ -58,14 +90,21 @@ def build(output: Path):
     shutil.copy2(report, output / "source.json")
     (source / ".gclient").write_text("solutions = [{'name': 'src/electron', 'url': 'https://github.com/discord/electron.git', 'managed': False, 'custom_deps': {}, 'custom_vars': {}}]\ntarget_os = ['linux']\n")
     prepared = work / "prepared.json"
-    if not prepared.exists():
+    synced = work / "synchronized.json"
+    if not synced.exists():
         run("gclient", "sync", "--nohooks", "--no-history", "--jobs=4", cwd=source)
+        write_json(work / "patch-bases.json", patch_repositories(source))
+        write_json(synced, {"identity": identity})
     # unmanaged means gclient must preserve the exact source assembled above.
     actual = subprocess.check_output(["git", "-C", str(electron), "rev-parse", "HEAD"], text=True).strip()
     if actual != read_json(report)["upstream_commit"]:
         raise ValueError("gclient changed the locked Electron source")
     if not prepared.exists():
-        run("sudo", "bash", "build/install-build-deps.sh", "--no-prompt", cwd=source / "src")
+        installed = work / "dependencies-installed.json"
+        if not installed.exists():
+            run("sudo", "bash", "build/install-build-deps.sh", "--no-prompt", cwd=source / "src")
+            write_json(installed, {"identity": identity})
+        reset_patch_repositories(source, read_json(work / "patch-bases.json"))
         run("gclient", "runhooks", cwd=source)
         write_json(prepared, {"identity": identity})
     # The version explicitly identifies this as a non-release capacity artifact.
@@ -81,6 +120,7 @@ def build(output: Path):
     write_json(report, source_report)
     shutil.copy2(report, output / "source.json")
     write_json(output / "capacity.json", {"source": read_json(report), "config": config, "identity": identity,
+        "implementation": hash_files(["scripts/build_reference.py", "scripts/assemble.py", "scripts/common.py"]),
         "elapsed_seconds": round(time.monotonic() - started), "initial_free_disk_gb": free,
         "final_free_disk_gb": shutil.disk_usage(cache).free / 1_000_000_000,
         "memory_limit_bytes": memory, "archive_sha256": sha256(archive), "archive_bytes": archive.stat().st_size,
