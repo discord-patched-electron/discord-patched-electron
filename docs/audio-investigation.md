@@ -1,5 +1,9 @@
 # Native application-audio investigation
 
+**Wayland is the primary target; X11 is additional support.** The maintainer
+clarified this on 23 October 2026. The X11 experiment below establishes a useful
+native audio capability, not completion of the requested Wayland feature.
+
 Static inspection on 23 October 2026 found an existing Linux application-audio
 path in all three locked `discord_voice.node` binaries. No module was loaded,
 no client was launched and no personal profile or microphone was accessed.
@@ -121,3 +125,86 @@ fit the existing native API. Testing with a custom runtime, a real call,
 microphone independence and supported multi-process/Wayland applications remains
 required before enabling the feature by default. The adapter never substitutes
 system audio for an unresolved application.
+
+## Wayland-first work order
+
+The official wrapper declares `native_screenshare_picker` when both the session
+type and display indicate Wayland. Its connection interface includes
+`presentDesktopSourcePicker` and source-status/soundshare callbacks. A portal
+selection can therefore happen inside the native module, beyond the earlier
+`setDesktopSource` call. Treat its original caller arguments and subsequent
+callbacks as separate observations.
+
+The [ScreenCast portal contract](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html)
+returns stream identifiers, source type and optional metadata; it does not
+guarantee the selected application's PID. Its `parent_window` identifies the
+requesting application's window, not the selected target. A video node's producer
+can be the compositor, not the application whose sound should be captured.
+Never interpret a portal node ID as a PID or an X11 window ID. The adapter now
+refuses X11 PID lookup whenever the session indicates Wayland, even when DISPLAY
+also exists for Xwayland.
+
+Vesktop's [audio source picker](https://github.com/Vencord/Vesktop/blob/da2121d7dc9d13fd58cdb4df4013b23027ee0d5b/src/renderer/components/ScreenSharePicker.tsx)
+provides explicit inclusion/exclusion selections separately from video. Its
+working audio routing does not establish automatic video-window-to-audio-PID
+mapping for the official client's picker. Reuse that routing design if needed;
+do not assume importing venmic alone solves the identity boundary.
+
+The current desktop reports niri 26.04 (v26.04-214-ge9804c1c), with a `casts` IPC
+request available. Upstream [niri IPC types](https://github.com/YaLTeR/niri/blob/main/niri-ipc/src/lib.rs)
+describe a cast's `pw_node_id`, session/stream IDs and target window ID; window
+records expose an optional PID. This suggests an exact mapping for niri once
+Discord's actual selected PipeWire node is established. It is not implemented
+or proven yet. Do not select the only active cast, the focused window, or a
+matching window title: another application or capture session could own it.
+Do not interpret the cast's consumer PID as the captured application's PID.
+
+Resume in this order:
+
+1. Trace the official native picker on Wayland with the audio correction off.
+   Establish whether a usable process hint or stream/session identity actually
+   crosses the existing wrapper boundary. Include selection, cancellation,
+   window-to-window and window-to-monitor switching, and audio off/on.
+2. If identity is missing, inspect the native portal response/capture boundary
+   and expose only the necessary identity through a narrow, verified module or
+   runtime change. A compositor-specific resolver must correlate the exact
+   selected stream and reject missing/reused identities. Do not guess from time
+   proximity or interpret an opaque `screen:` token as proof of monitor sharing.
+3. Use niri's explicit cast/window relation where supported; evaluate other
+   compositor backends separately. Preserve native video and microphone devices.
+   Resolve audio-owning descendants and use selective routing only if the native
+   single-PID capture path cannot represent the chosen application.
+4. Add a private Wayland compositor/portal fixture with native Wayland test
+   windows and two distinguishable audio streams. Assert the compositor backend
+   and portal selection actually used; Xvfb or setting WAYLAND_DISPLAY is not a
+   Wayland test. Include concurrent unrelated casts, source replacement, cancel,
+   restart, multi-process applications and cleanup, then verify a real call with
+   microphone/Krisp active on the custom runtime.
+
+### Collecting the module trace when a real test package is ready
+
+The packaged wrapper now supports `DPE_APP_AUDIO_TRACE=1` independently of
+`DPE_APP_AUDIO=1`. For the initial Wayland investigation leave the correction
+off. After closing that same package's existing instance, launch it from a
+terminal, for example **once that package exists**:
+
+```sh
+env -u DPE_APP_AUDIO DPE_APP_AUDIO_TRACE=1 \
+  discord-stable-stable-patched-electron-bin 2>&1 \
+  | rg --line-buffered '^\[dpe-app-audio-trace\]' \
+  | tee wayland-audio-trace.log
+```
+
+No installable custom runtime is available yet; this is a resume procedure, not
+a claim that the command can run today. A separately prepared disposable test
+client with the wrapper installed can use the same environment switch.
+The trace uses connection-local sequence numbers, numeric source/PID fields,
+known source types and audio-enabled/loopback values. Unknown strings, device
+names, titles and arbitrary objects are omitted or redacted. Callback values
+are restricted to the same scalar/source allowlist. Full transport options,
+credentials, keys, addresses, microphone samples and callback payloads are never
+serialized. Diagnostic-only calls preserve native arguments, returns and
+callbacks; logger failures cannot interrupt them. The trace is emitted by the
+module's JavaScript context; if that context's console is not forwarded to the
+terminal, inspect only the matching prefix in its development console. An empty
+terminal log is not evidence that the client supplied no source information.

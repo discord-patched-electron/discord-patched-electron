@@ -58,3 +58,54 @@ test('source-ended callback stops capture and still reaches the client', () => {
 test('adapter remains opt-in', () => {
   const native={}; assert.equal(wrap(native,{enabled:false}),native);
 });
+
+test('trace-only preserves native arguments and callbacks without logging secrets', () => {
+  const lines=[]; let received, callback;
+  const native={
+    setTransportOptions(options) { assert.equal(this,native); received=options; return 42; },
+    setDesktopSourceWithOptions(options) { received=options; },
+    presentDesktopSourcePicker(style) { received=style; },
+    setOnSoundshareFailed(value) { callback=value; },
+  };
+  const adapter=wrap(native,{enabled:false,trace:true,traceWrite:line=>lines.push(line)});
+  const options={soundsharePid:1,soundshareLoopback:true,encryptionKey:'secret-key',endpoint:'secret-address',
+    soundshareId:'private-source-title'};
+  assert.equal(adapter.setTransportOptions(options),42);
+  assert.equal(received,options);
+  const selection={sourceId:'private-window-title',type:'window',privateOption:'private-option'};
+  adapter.setDesktopSourceWithOptions(selection);
+  assert.equal(received,selection);
+  adapter.presentDesktopSourcePicker(2);
+  assert.equal(received,2);
+  const result={privateState:'private-callback'};
+  let forwarded;
+  adapter.setOnSoundshareFailed(value=>{forwarded=value;return 19;});
+  assert.equal(callback(result),19);
+  assert.equal(forwarded,result);
+  assert.match(lines.join('\n'),/"soundsharePid":1/);
+  assert.match(lines.join('\n'),/setOnSoundshareFailed:callback/);
+  assert.doesNotMatch(lines.join('\n'),/secret-|private-|encryptionKey|endpoint/);
+  const count=lines.length;
+  adapter.setTransportOptions({encryptionKey:'secret-key'});
+  assert.equal(lines.length,count);
+});
+
+test('trace failure cannot change a native return value or swallow native errors', () => {
+  const error=new Error('native failure');
+  const adapter=wrap({clearDesktopSource:()=>27,destroy:()=>{throw error;}},
+    {enabled:false,trace:true,traceWrite:()=>{throw new Error('logger failure');}});
+  assert.equal(adapter.clearDesktopSource(),27);
+  assert.throws(()=>adapter.destroy(),value=>value===error);
+});
+
+test('Wayland portal tokens never resolve through the Xwayland display', () => {
+  const {windowPid}=require('../../integration/audio/app-audio.cjs');
+  const previous=process.env.WAYLAND_DISPLAY;
+  try {
+    process.env.WAYLAND_DISPLAY='wayland-fixture';
+    assert.equal(windowPid({id:'window:10:0'}),null);
+  } finally {
+    if(previous===undefined) delete process.env.WAYLAND_DISPLAY;
+    else process.env.WAYLAND_DISPLAY=previous;
+  }
+});

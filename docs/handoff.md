@@ -49,6 +49,14 @@ are documented in [audio-investigation.md](audio-investigation.md). It is not a
 complete Wayland/multi-process/live-call feature, and no binary release or AUR
 update has been published.
 
+**Wayland is primary, X11 secondary.** The maintainer clarified this before the
+pause. The current session reports niri 26.04 (v26.04-214-ge9804c1c). Do not treat
+the X11 fixture as completion of the requested audio fix. Trace-only module
+instrumentation is now available independently of the audio correction; the
+[Wayland work order](audio-investigation.md#wayland-first-work-order) documents
+the exact remaining boundary and a promising niri IPC mapping. No live Discord
+session was opened to collect this trace.
+
 On resume:
 
 1. Inspect the reference compile result and automatic validation artifacts.
@@ -56,8 +64,10 @@ On resume:
    workspace; do not infer failure from an observation timeout.
 3. If it passed, inspect resource/cache evidence and validate the current stable
    candidate with x86-64-v3 using the same compiler runner.
-4. Establish live client source-selection arguments and the remaining Wayland,
-   multiple-process and microphone behavior before enabling application audio.
+4. Prioritize the live Wayland source-selection trace, then a private compositor/
+   portal fixture. Establish multiple-process and microphone behavior before
+   enabling application audio. Do not spend another round expanding X11 coverage
+   in place of the primary Wayland path.
 5. Finish queue-to-compiler reconciliation and the release/AUR publisher after
    the reference compatibility/free-capacity gates are established. Configure
    AUR credentials privately only when the publisher is concrete and reviewable.

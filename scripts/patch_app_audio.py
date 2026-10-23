@@ -22,4 +22,5 @@ def patch(directory: Path, adapter: Path) -> dict:
     shutil.copy2(adapter, directory / 'dpe-app-audio.cjs')
     return {'input_sha256': before, 'output_sha256': sha256(wrapper),
             'adapter_sha256': sha256(adapter), 'enabled_by_default': False,
-            'requires_environment': 'DPE_APP_AUDIO=1', 'publishable': False}
+            'requires_environment': 'DPE_APP_AUDIO=1',
+            'trace_requires_environment': 'DPE_APP_AUDIO_TRACE=1', 'publishable': False}

@@ -260,6 +260,19 @@ Reapply and revalidate when Discord changes Krisp or related voice-module payloa
 
 ## 7. Per-application screenshare audio
 
+**Wayland is the primary target; X11 support is secondary.** The maintainer
+clarified this on 23 October 2026. A passing X11 fixture does not complete this
+phase. Start with native Wayland window selection through the portal on niri
+(the current desktop), keep portal and compositor identity distinct from X11
+window IDs, and qualify additional compositor backends explicitly. Require
+Wayland two-application isolation, source switching, cancellation, multi-process
+handling and microphone independence before enabling the fix by default.
+
+The existing X11 correction is an opt-in experiment. Trace-only instrumentation
+(`DPE_APP_AUDIO_TRACE=1`, with `DPE_APP_AUDIO` unset) can now inspect the original
+local module arguments without changing capture. See `docs/audio-investigation.md`
+for the remaining Wayland work and exact limits of the existing evidence.
+
 ### First determine whether the existing module can be configured correctly
 
 Instrument only the relevant local module-wrapper calls in a development build. Capture source IDs, soundshare options, audio-enabled state and their lifecycle, without logging credentials or unrelated client state. Compare choosing a window versus a monitor, and audio enabled versus disabled.

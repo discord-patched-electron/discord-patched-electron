@@ -17,6 +17,9 @@ function processIdentity(pid) {
 
 function windowPid(source) {
   // A portal/PipeWire node ID is not an X11 window or an application PID.
+  // A Wayland session can also export DISPLAY for Xwayland. Numeric portal
+  // tokens must never accidentally resolve to an unrelated Xwayland window.
+  if (process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland') return null;
   const match = /^window:([1-9][0-9]*):[0-9]+$/.exec(String(source.id));
   if (!match || !/^(?:unix)?:[0-9]+(?:\.[0-9]+)?$/.test(process.env.DISPLAY || '')) return null;
   try {
@@ -63,7 +66,7 @@ function sourceKind(id, type) {
   return 'unknown';
 }
 
-function wrap(instance, { enabled = process.env.DPE_APP_AUDIO === '1', resolvePid = resolve,
+function wrapCapture(instance, { enabled = process.env.DPE_APP_AUDIO === '1', resolvePid = resolve,
   identity = processIdentity, interval = 1000, warn = message => console.warn('[dpe-app-audio]', message) } = {}) {
   if (!enabled) return instance;
   let source = null, requested = 0, hint = 0, loopback = false, selected = null, timer = null, disposed = false, warned = false;
@@ -162,6 +165,74 @@ function wrap(instance, { enabled = process.env.DPE_APP_AUDIO === '1', resolvePi
     const value = Reflect.get(target, name, target);
     return typeof value === 'function' ? value.bind(target) : value;
   } });
+}
+
+let traceConnection = 0;
+function traceBoundary(instance, { trace = process.env.DPE_APP_AUDIO_TRACE === '1',
+  traceWrite = line => console.warn(line) } = {}) {
+  if (!trace) return instance;
+  const connection = ++traceConnection;
+  let sequence = 0;
+  function emit(event, fields = {}) {
+    // Never pass entire options/callback objects to a logger: transport options
+    // can contain encryption keys, endpoint addresses and other client state.
+    try { traceWrite('[dpe-app-audio-trace] ' + JSON.stringify({ connection, sequence: ++sequence, event, ...fields })); }
+    catch { /* Diagnostic output must not interrupt native calls. */ }
+  }
+  function scalar(value, allowed = []) {
+    if (value === undefined) return undefined;
+    if (Number.isSafeInteger(value) || typeof value === 'boolean' || allowed.includes(value)) return value;
+    return 'redacted';
+  }
+  function source(id, type) {
+    return {
+      sourceId: typeof id === 'string' && /^(?:(?:window|screen):)?[0-9]+(?::[0-9]+)?$/.test(id) && id.length <= 64
+        ? id : scalar(id),
+      type: scalar(type, ['window', 'screen']),
+    };
+  }
+  const inspect = {
+    setTransportOptions: options => {
+      const fields = {};
+      for (const name of ['soundsharePid', 'soundshareLoopback', 'soundshareId', 'soundshareDiscardRearChannels']) {
+        if (options && Object.hasOwn(options, name)) fields[name] = scalar(options[name]);
+      }
+      return Object.keys(fields).length ? fields : null;
+    },
+    setDesktopSource: (id, hook, type) => ({ ...source(id, type), videoHook: scalar(hook) }),
+    setDesktopSourceWithOptions: options => source(options?.sourceId, options?.type),
+    presentDesktopSourcePicker: style => ({ style: scalar(style) }),
+    setGoLiveDevices: options => ({ audioDeviceSupplied: options?.audioInputDeviceId != null,
+      videoDeviceSupplied: options?.videoInputDeviceId != null }),
+    clearGoLiveDevices: () => ({}), clearDesktopSource: () => ({}), destroy: () => ({}),
+  };
+  const callbacks = new Set(['setOnDesktopSourceEnded', 'setOnSoundshare', 'setOnSoundshareEnded',
+    'setOnSoundshareFailed', 'setDesktopSourceStatusCallback']);
+  emit('connection', { wayland: Boolean(process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland'),
+    xDisplayAvailable: Boolean(process.env.DISPLAY) });
+  return new Proxy(instance, { get(target, name) {
+    const value = Reflect.get(target, name, target);
+    if (typeof value !== 'function') return value;
+    if (callbacks.has(name)) return function (callback, ...rest) {
+      return value.call(target, typeof callback === 'function' ? function (...args) {
+        emit(name + ':callback', { values: args.slice(0, 4).map(arg =>
+          arg && typeof arg === 'object' ? source(arg.sourceId, arg.type) : scalar(arg)) });
+        return callback.apply(this, args);
+      } : callback, ...rest);
+    };
+    if (Object.hasOwn(inspect, name)) return (...args) => {
+      const fields = inspect[name](...args);
+      if (fields) emit(name, fields);
+      return value.apply(target, args);
+    };
+    return value.bind(target);
+  } });
+}
+
+function wrap(instance, options = {}) {
+  // Trace the caller's original arguments, before any experimental correction.
+  // TRACE alone leaves audio selection unchanged and can inspect Wayland first.
+  return traceBoundary(wrapCapture(instance, options), options);
 }
 
 module.exports = { wrap, resolve, processIdentity, windowPid, descendant, sourceKind };

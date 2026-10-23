@@ -5,6 +5,11 @@ with working Krisp and application-specific screen-share audio. Package names us
 `discord-<discord-channel>-<electron-channel>-patched-electron-bin`:
 Discord Stable/PTB/Canary × Electron stable/prerelease/nightly (nine packages).
 
+**Wayland is the primary desktop target; X11 is additional support.** The current
+opt-in audio correction has passed X11 fixtures only. Wayland selection and
+audio isolation are required before calling the application-audio feature ready.
+See the [audio investigation](docs/audio-investigation.md).
+
 Published binaries will require **x86-64-v3** (AVX2, including Haswell/first Ryzen;
 no AVX-512 requirement). See [CPU targeting and build reuse](docs/build-caching.md)
 for incremental Ninja builds, compiler caching and completed-artifact reuse.

@@ -2,6 +2,10 @@
 
 Updated 23 October 2026. This is a bootstrap implementation, not a working binary release.
 
+Wayland is the primary target, as clarified by the maintainer. X11 fixture success
+does not satisfy the application-audio release requirement. The current desktop
+reports niri; its portal path is the first live qualification target.
+
 ## Verified
 
 - Release discovery reads paginated official feeds, resolves nightly source tags,
