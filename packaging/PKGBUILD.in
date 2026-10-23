@@ -1,0 +1,46 @@
+# Derived from discord_arch_electron; attribution is in THIRD_PARTY.md.
+# Generated from pinned inputs. C++ compilation happens in CI, not makepkg.
+pkgname=@PACKAGE@
+pkgver=@VERSION@
+pkgrel=@REVISION@
+pkgdesc='Discord @DISCORD@ with patched Electron @ELECTRON@'
+arch=('x86_64')
+url='https://github.com/discord-patched-electron/discord-patched-electron'
+license=('LicenseRef-custom' 'MIT' 'BSD-3-Clause')
+options=('!strip')
+depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa')
+makedepends=('asar' 'brotli' 'unzip' 'python-capstone' 'python-pyelftools')
+optdepends=('libpulse: PulseAudio support'
+            'pipewire: screen sharing under Wayland'
+            'xdg-utils: open links and files')
+source=(
+@SOURCES@
+)
+sha256sums=(
+@CHECKSUMS@
+)
+noextract=(
+@ARCHIVES@
+)
+
+prepare() {
+  mkdir -p support/scripts support/packaging/upstream
+  cp common.py prepare_app.py patch_krisp.py stage_package.py support/scripts/
+  cp krisp-patcher.py provenance.json support/packaging/upstream/
+  python support/scripts/stage_package.py --inputs package-inputs.json --asar /usr/bin/asar
+}
+
+package() {
+  local root="$pkgdir/usr/lib/$pkgname"
+  install -d "$root"
+  cp -a stage/runtime stage/core/resources stage/modules "$root/"
+  chmod 4755 "$root/runtime/chrome-sandbox"
+  install -Dm755 discord-launcher.sh "$pkgdir/usr/bin/$pkgname"
+  install -Dm644 discord.desktop "$pkgdir/usr/share/applications/$pkgname.desktop"
+  install -Dm644 stage/core/discord.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/$pkgname.png"
+  install -Dm644 LICENSE.html "$pkgdir/usr/share/licenses/$pkgname/LICENSE.html"
+  install -Dm644 OSS-LICENSES.html "$pkgdir/usr/share/licenses/$pkgname/OSS-LICENSES.html"
+  install -Dm644 THIRD_PARTY.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY.md"
+  install -Dm644 package-inputs.json "$root/package-inputs.json"
+  install -Dm644 stage/krisp-patch.json "$root/krisp-patch.json"
+}

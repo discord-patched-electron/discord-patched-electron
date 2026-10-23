@@ -11,6 +11,11 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
   changes and that repeating the patch is a no-op. Input/output hashes are in
   `evidence/*-krisp.json`; all explicitly say runtime validation is still false.
 - Existing AUR resource/bootstrap changes apply to the current Stable app.asar.
+- The shared generator produces all nine recipes, with fixed binary checksums
+  and separate installation/profile paths. Real Stable, PTB and Canary payloads
+  pass the generated makepkg preparation and packaging steps in a clean Arch
+  container with an explicitly nonfunctional runtime fixture. This is packaging
+  evidence only; see [packaging checks](packaging.md).
 - The imported Discord patch exactly reconstructs the fork tree from its base.
 - Unit tests cover source integrity, cross-channel isolation, fingerprints,
   byte-preserving failure paths, patch idempotency and Arch prerelease ordering.
@@ -31,7 +36,8 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 3. Finish the Discord integration ports to Electron 45, 46 and 47: their source
    candidates assemble, but Chromium/dependency patches and C++ still need builds.
 4. Prove native streaming and Krisp behavior on the custom runtime.
-5. Finish the shared nine-package generator, release ledger and AUR publisher.
+5. Validate the generated packages with real custom runtimes, then finish the
+   release ledger and automatic AUR publisher.
 6. Trace the live screen-share audio arguments and implement the verified native
    audio adapter; no unproven per-app fix is enabled.
 

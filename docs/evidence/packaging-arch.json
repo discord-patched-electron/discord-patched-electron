@@ -1,0 +1,79 @@
+{
+  "arch_base": "archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0",
+  "clean_arch_environment": true,
+  "combinations": [
+    {
+      "client_version": "1.0.166",
+      "electron_channel": "stable",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "dc535bb4c798fa16a5b2eab870cf8e186a5a9e48590c049bd8ad25915fedabb3",
+        "offset": 4407835,
+        "output_sha256": "e589f3db4b3ea8140e7961233b0ff35eeb1b1b94be3caa441ebee79d830e557b",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "package": "discord-stable-stable-patched-electron-bin",
+      "package_bytes": 380682240,
+      "package_sha256": "95291dcb6dd73a40893252e93f59e961a091abf9b93e65b0cf763f8ed3feccc1",
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    },
+    {
+      "client_version": "1.0.223",
+      "electron_channel": "prerelease",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+        "offset": 4407835,
+        "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "package": "discord-ptb-prerelease-patched-electron-bin",
+      "package_bytes": 380682240,
+      "package_sha256": "874d5ba1606c1424e34612ed4c9b5778d55a0c2b34aa5ff104ab67ea029e1d32",
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    },
+    {
+      "client_version": "1.0.2354",
+      "electron_channel": "nightly",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+        "offset": 4407835,
+        "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "package": "discord-canary-nightly-patched-electron-bin",
+      "package_bytes": 378746880,
+      "package_sha256": "b5d97733849194ef8acc44004e91bc59c93dbef792df967b76c3c2701b25afe4",
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    }
+  ],
+  "date": "2026-10-23",
+  "dockerfile_sha256": "ee1834c9a4d129966fd31f1015759e68be17ec6e54d67a8dad5dc6c301b25907",
+  "publishable": false,
+  "runtime_is_test_fixture": true,
+  "runtime_validated": false,
+  "schema": 1,
+  "tools": {
+    "asar": "4.3.1-1",
+    "brotli": "1.2.1-1",
+    "nodejs": "26.12.1-1",
+    "pacman": "7.1.0.r9.g54d9411-3",
+    "python": "3.14.8-1",
+    "python-capstone": "5.0.9-1",
+    "python-pyelftools": "0.33-1",
+    "unzip": "6.0-23"
+  }
+}

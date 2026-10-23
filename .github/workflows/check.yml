@@ -44,3 +44,34 @@ jobs:
           name: source-diagnostics
           path: out/source-*.json
           retention-days: 7
+  arch-packaging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build the Arch packaging environment
+        run: docker build -t discord-electron-arch-packaging ci/arch
+      - name: Package all nine combinations with a dummy runtime
+        shell: bash
+        run: |
+          mkdir -p out/packaging
+          sudo chown 1000:1000 out/packaging
+          docker run --rm --cpus 2 --memory 4g \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -v "$GITHUB_WORKSPACE/out/packaging:/packages" \
+            discord-electron-arch-packaging \
+            python /repo/scripts/smoke_packages.py --output /packages
+      - name: Retain packaging diagnostics only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: arch-packaging-diagnostics
+          path: |
+            out/packaging/packaging-report.json
+            out/packaging/arch-packages.txt
+            out/packaging/*/packaging-report.json
+            out/packaging/*/makepkg.log
+          retention-days: 7
+          if-no-files-found: warn

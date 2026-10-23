@@ -1,0 +1,68 @@
+{
+  "clean_arch_environment": false,
+  "combinations": [
+    {
+      "client_version": "1.0.166",
+      "desktop_validated": true,
+      "discord_channel": "stable",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "dc535bb4c798fa16a5b2eab870cf8e186a5a9e48590c049bd8ad25915fedabb3",
+        "offset": 4407835,
+        "output_sha256": "e589f3db4b3ea8140e7961233b0ff35eeb1b1b94be3caa441ebee79d830e557b",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "makepkg_completed": true,
+      "module_count": 14,
+      "package": "discord-stable-stable-patched-electron-bin",
+      "package_bytes": 380753920,
+      "package_sha256": "d4b91f90b8903c9a348044e088acb3a86f67a3d0b002595f525342b5726c0a95"
+    },
+    {
+      "client_version": "1.0.223",
+      "desktop_validated": true,
+      "discord_channel": "ptb",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+        "offset": 4407835,
+        "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "makepkg_completed": true,
+      "module_count": 14,
+      "package": "discord-ptb-prerelease-patched-electron-bin",
+      "package_bytes": 380753920,
+      "package_sha256": "3fc4fe030649d5e9991ee898b3e72866c76b9fe7c383c510e0698802ffc8e111"
+    },
+    {
+      "client_version": "1.0.2354",
+      "desktop_validated": true,
+      "discord_channel": "canary",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+        "offset": 4407835,
+        "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "makepkg_completed": true,
+      "module_count": 14,
+      "package": "discord-canary-nightly-patched-electron-bin",
+      "package_bytes": 378818560,
+      "package_sha256": "645cdf328ba38756357e328e7d36a9b92d9d32ab3a067bb5bdd319f6b2749ea1"
+    }
+  ],
+  "date": "2026-10-23",
+  "method": "Host makepkg --nodeps --nocheck; Python patch dependencies supplied by project venv; exact generated PKGBUILD preparation and packaging",
+  "publishable": false,
+  "runtime_is_test_fixture": true,
+  "runtime_validated": false,
+  "schema": 1
+}

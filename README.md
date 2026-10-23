@@ -21,6 +21,8 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
   are **not yet validated**. See [source ports](docs/source-ports.md).
 - A full custom runtime has **not been compiled**. Successful Krisp binary patching
   is **not** a claim that noise suppression has been tested on the new runtime.
+- A shared generator produces all nine binary package recipes. Arch packaging
+  checks use real client/modules and a dummy runtime; see [packaging](docs/packaging.md).
 - The reference build can use the containerized PC runner or a single bounded
   Blacksmith experiment within the newly unlocked account's free allowance.
   Recurring compilation and AUR publication remain disabled pending source
