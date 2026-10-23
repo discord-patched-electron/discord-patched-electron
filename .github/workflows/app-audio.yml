@@ -64,6 +64,8 @@ jobs:
               cp out/app-audio/"$channel"/*.tar.br "out/wayland-audio/$channel/$server/"
             done
           done
+          mkdir -p out/wayland-audio/stable/manual
+          cp out/app-audio/stable/*.tar.br out/wayland-audio/stable/manual/
       - name: Build disposable audio environment
         run: |
           docker build -t discord-electron-arch-packaging ci/arch
@@ -109,7 +111,7 @@ jobs:
           fi
           failed=0
           for channel in stable ptb canary; do
-            if ! docker run --rm --network none --cpus 2 --memory 4g \
+            if ! docker run --rm --network none --cpus 4 --memory 4g \
               -v "$GITHUB_WORKSPACE:/repo:ro" \
               -v "$GITHUB_WORKSPACE/out/app-audio/$channel:/audio" \
               discord-electron-audio-fixture \
@@ -129,7 +131,7 @@ jobs:
           failed=0
           for channel in stable ptb canary; do
             for server in pipewire pulseaudio; do
-              if ! docker run --rm --network none --cpus 2 --memory 4g \
+              if ! docker run --rm --network none --cpus 4 --memory 4g \
                 -v "$GITHUB_WORKSPACE:/repo:ro" \
                 -v "$GITHUB_WORKSPACE/out/wayland-test-tools/niri:/usr/bin/niri:ro" \
                 -v "$GITHUB_WORKSPACE/out/wayland-audio/$channel/$server:/audio" \
@@ -139,6 +141,14 @@ jobs:
               fi
             done
           done
+          if ! docker run --rm --network none --cpus 4 --memory 4g \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -v "$GITHUB_WORKSPACE/out/wayland-test-tools/niri:/usr/bin/niri:ro" \
+            -v "$GITHUB_WORKSPACE/out/wayland-audio/stable/manual:/audio" \
+            discord-electron-audio-fixture python /repo/scripts/check_wayland_audio.py \
+            --selection manual --output /audio "${args[@]}"; then
+            failed=1
+          fi
           exit "$failed"
       - name: Return diagnostics to the Actions user
         if: always()

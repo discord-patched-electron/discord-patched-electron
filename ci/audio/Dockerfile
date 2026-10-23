@@ -1,7 +1,7 @@
 FROM discord-electron-arch-packaging
 USER root
 RUN pacman -Syu --noconfirm --needed python-numpy pipewire pipewire-pulse wireplumber xorg-server-xvfb xorg-xauth xorg-xprop \
-    niri python-dbus python-gobject zenity fftw libsoxr orc speexdsp tdb webrtc-audio-processing-1 \
+    niri python-dbus python-gobject zenity wtype fftw libsoxr orc speexdsp tdb webrtc-audio-processing-1 \
     && pacman -Scc --noconfirm
 # Extract a second server for the isolated compatibility fixture. Do not install
 # it over pipewire-pulse or change the image's normal audio provider.

@@ -11,6 +11,10 @@ const installed = new WeakSet();
 function installVoice(voice) {
   if (installed.has(voice) || process.env.DPE_APP_AUDIO !== "1") return;
   installed.add(voice);
+  // The native game-capture stream otherwise requests PulseAudio's two-second
+  // default fragment size. Keep its buffer usable for live sharing, and respect
+  // an explicit user setting. This changes no server defaults or devices.
+  process.env.PULSE_LATENCY_MSEC ??= "40";
   const present = voice.presentNativeScreenSharePicker.bind(voice);
   voice.presentNativeScreenSharePicker = (...args) => {
     picker("begin");
@@ -205,11 +209,6 @@ function wrap(
       source = true;
       configure();
       return instance.setDesktopSourceWithOptions(options);
-    },
-    presentDesktopSourcePicker(...args) {
-      if (disposed) return;
-      picker("begin");
-      return instance.presentDesktopSourcePicker(...args);
     },
     clearDesktopSource() {
       if (disposed) return;

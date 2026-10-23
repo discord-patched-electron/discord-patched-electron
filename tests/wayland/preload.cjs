@@ -17,6 +17,13 @@ globalThis.window.DiscordNative = {
     getAndCreateLogDirectorySync: () => output,
   },
 };
+// Represents received Discord playback. System sharing must exclude this
+// descendant as well as the private bridge's own playback stream.
+const discordPlayback = require("node:child_process").spawn(
+  "/usr/bin/pw-cat",
+  ["--playback", "--target=test-sink", path.join(output, "discord.wav")],
+  { stdio: "ignore" },
+);
 const voice = require(path.join(output, "voice"));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const events = [];
@@ -44,7 +51,10 @@ voice.setNativeScreenSharePickerCallbacks(
   },
 );
 voice.setNativeDesktopVideoSourcePickerActive(true);
+const pcmFormats = {};
 voice.startRecordingRawSamples((samples, channels, rate) => {
+  const key = [phase, channels, rate, samples.length].join(":");
+  pcmFormats[key] = (pcmFormats[key] || 0) + 1;
   if (phase && rate === 48000)
     fs.appendFileSync(
       path.join(output, phase + ".raw"),
@@ -103,6 +113,11 @@ async function capture(name, change, settle = 2000) {
   await capture("disabled", () =>
     connection.setTransportOptions({ soundsharePid: 0 }),
   );
+  await capture("audio-cancelled", async () => {
+    await choose({ pid: inputs.a.pid, kind: "window", no_audio: true });
+    if (process.env.DPE_FIXTURE_SELECTION !== "manual")
+      connection.setTransportOptions({ soundsharePid: 0 });
+  });
   await capture("cancelled", async () => {
     if ((await choose({ kind: "cancel" })) !== "cancelled")
       throw new Error("Portal did not cancel");
@@ -115,6 +130,7 @@ async function capture(name, change, settle = 2000) {
     connection.clearDesktopSource();
     voice.releaseNativeDesktopVideoSourcePickerStream();
   });
+  discordPlayback.kill("SIGTERM");
   voice.stopRecordingRawSamples();
   connection.destroy();
   await wait(700);
@@ -131,6 +147,7 @@ async function capture(name, change, settle = 2000) {
     events,
     wayland_video_verified: true,
     compositor: "niri",
+    pcmFormats,
     portal: "controlled test portal backed by real niri screencasts",
     real_discord_call_verified: false,
   });

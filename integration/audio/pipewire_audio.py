@@ -187,8 +187,12 @@ class Route:
         self.guard = None
 
     def spawn(self, args, **kwargs):
+        # Native Discord's libpulse override must not replace the explicit,
+        # independently chosen recorder/playback buffer sizes below.
+        env = {k: v for k, v in os.environ.items() if k != "PULSE_LATENCY_MSEC"}
         child = sp.Popen(
             args,
+            env=env,
             stdout=kwargs.pop("stdout", sp.DEVNULL),
             stderr=sp.DEVNULL,
             preexec_fn=partial(child_guard, os.getpid()),
@@ -279,7 +283,7 @@ class Route:
                     "--rate=48000",
                     "--format=s16",
                     "--channels=2",
-                    "--latency=20ms",
+                    "--latency=80ms",
                     "-",
                 ],
                 stdout=sp.PIPE,
@@ -295,7 +299,7 @@ class Route:
                     "--rate=48000",
                     "--format=s16le",
                     "--channels=2",
-                    "--latency-msec=20",
+                    "--latency-msec=80",
                 ],
                 stdin=recording.stdout,
             )
@@ -379,9 +383,14 @@ class Route:
                 command(["/usr/bin/pactl", "-f", "json", "list", "sinks"])
             )
             monitor = next(
-                (s.get("monitor_source_name", s.get("monitor_source")) for s in sinks if s["index"] == sink), None
+                (
+                    s.get("monitor_source_name", s.get("monitor_source"))
+                    for s in sinks
+                    if s["index"] == sink
+                ),
+                None,
             )
-            if not monitor:
+            if monitor is None:
                 continue
             desired[("pa", index, pid, process_identity(pid)[1])] = [
                 [
@@ -402,7 +411,7 @@ class Route:
                     "--rate=48000",
                     "--format=s16",
                     "--channels=2",
-                    "--latency=20ms",
+                    "--latency=80ms",
                     "-",
                 ],
             ]
@@ -650,16 +659,20 @@ def main():
     args = parser.parse_args()
     if args.cleanup_module is not None:
         sys.stdin.buffer.read()
-        modules = json.loads(
-            command(["/usr/bin/pactl", "-f", "json", "list", "modules"])
-        )
-        if any(
-            m["index"] == args.cleanup_module
-            and m["name"] == "module-null-sink"
-            and ("sink_name=" + str(args.sink_name)) in m["argument"].split()
-            for m in modules
-        ):
-            command(["/usr/bin/pactl", "unload-module", str(args.cleanup_module)])
+        # pactl's JSON module format omits the numeric ID on some versions.
+        # The stable tab-separated short format retains it. Validate both the
+        # returned ID and our unique sink argument before unloading anything.
+        modules = command(["/usr/bin/pactl", "list", "short", "modules"])
+        for line in modules.splitlines():
+            fields = line.split("\t")
+            if (
+                len(fields) >= 3
+                and integer(fields[0]) == args.cleanup_module
+                and fields[1] == "module-null-sink"
+                and ("sink_name=" + str(args.sink_name)) in fields[2].split()
+            ):
+                command(["/usr/bin/pactl", "unload-module", str(args.cleanup_module)])
+                break
         return
     if args.owner is None:
         parser.error("--owner is required")

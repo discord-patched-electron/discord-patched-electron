@@ -94,6 +94,8 @@ test("late helper responses cannot restore audio after switching or ending a sou
 });
 test("native picker callbacks stop capture while choosing and after cancellation", () => {
   const previous = process.env.DPE_APP_AUDIO;
+  const previousLatency = process.env.PULSE_LATENCY_MSEC;
+  delete process.env.PULSE_LATENCY_MSEC;
   process.env.DPE_APP_AUDIO = "1";
   try {
     let selected, cancelled, failed;
@@ -110,6 +112,10 @@ test("native picker callbacks stop capture while choosing and after cancellation
       releaseNativeDesktopVideoSourcePickerStream() {},
     };
     installVoice(voice);
+    assert.equal(process.env.PULSE_LATENCY_MSEC, "40");
+    process.env.PULSE_LATENCY_MSEC = "73";
+    installVoice({ ...voice });
+    assert.equal(process.env.PULSE_LATENCY_MSEC, "73");
     voice.setNativeScreenSharePickerCallbacks(
       () => forwarded++,
       () => forwarded++,
@@ -132,6 +138,8 @@ test("native picker callbacks stop capture while choosing and after cancellation
     assert.equal(forwarded, 3);
     f.adapter.destroy();
   } finally {
+    if (previousLatency === undefined) delete process.env.PULSE_LATENCY_MSEC;
+    else process.env.PULSE_LATENCY_MSEC = previousLatency;
     if (previous === undefined) delete process.env.DPE_APP_AUDIO;
     else process.env.DPE_APP_AUDIO = previous;
   }
