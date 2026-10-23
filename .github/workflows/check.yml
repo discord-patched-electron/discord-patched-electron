@@ -24,3 +24,23 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - name: Validate launcher syntax
         run: bash -n integration/launcher/discord-launcher.sh
+  source-assembly:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Reconstruct the imported fork and all candidate ports
+        shell: bash
+        run: |
+          for target in patch-base stable prerelease nightly; do
+            python3 scripts/assemble.py "$target" \
+              --destination ".work/$target" --report "out/source-$target.json"
+          done
+      - name: Retain source diagnostics
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: source-diagnostics
+          path: out/source-*.json
+          retention-days: 7

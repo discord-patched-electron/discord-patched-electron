@@ -14,9 +14,12 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
 - The imported Discord patch exactly reconstructs the fork tree from its base.
 - Unit tests cover source integrity, cross-channel isolation, fingerprints,
   byte-preserving failure paths, patch idempotency and Arch prerelease ordering.
-- The PC runner is online and has executed the reference workflow's checkout and
-  Node setup. Its first build is fetching Chromium. The updated standard GitHub
-  checks pass. See [capacity measurements](build-capacity.md).
+- The PC runner is online and has fetched Chromium and installed dependencies.
+  Its first attempt stopped on an optional Sentry CLI download; the corrected
+  workflow resumes the existing checkout. See [capacity measurements](build-capacity.md).
+- Current 45, 46 and 47 source candidates assemble reproducibly using the imported
+  delta plus separate explicit compatibility patches. All skipped imported file
+  changes have replacement patches or documented upstream equivalents.
 
 ## Outstanding before a release
 
@@ -24,9 +27,8 @@ Updated 23 October 2026. This is a bootstrap implementation, not a working binar
    diagnostics. Blacksmith suspended the account; the maintainer explicitly chose
    their PC instead. The local runner has been installed and exercised through CI.
 2. Confirm cold-build disk/memory use and successful incremental resumption.
-3. Port the Discord integration to Electron 45, 46 and 47. Source probes currently
-   stop on conflicts, including moved sandboxed renderer exports and Chromium
-   patch changes. A textual apply check does not validate dependency patches or C++.
+3. Finish the Discord integration ports to Electron 45, 46 and 47: their source
+   candidates assemble, but Chromium/dependency patches and C++ still need builds.
 4. Prove native streaming and Krisp behavior on the custom runtime.
 5. Finish the shared nine-package generator, release ledger and AUR publisher.
 6. Trace the live screen-share audio arguments and implement the verified native

@@ -6,6 +6,121 @@
     "patch_sha256": "de5c508fc9aac2d3fabe47ccb328e8d3a0a4beea124add663510acbebdeb014e",
     "repository": "https://github.com/discord/electron.git"
   },
+  "ports": {
+    "45": {
+      "anchor_commit": "54f961b44b83e4ece81065ab60a182fd0c38c01e",
+      "candidate_tree": "16b3d6782abb1acbf9469133116fd6b30f533741",
+      "patch": "patches/ports/45/compatibility.patch",
+      "patch_sha256": "5311f76568ee835a85dc2af8261dc9a3db76835c64c48338e5856dbedc57d5d6",
+      "replaced_paths": [
+        "build/zip.py",
+        "lib/browser/api/web-contents.ts",
+        "lib/sandboxed_renderer/api/module-list.ts",
+        "patches/chromium/cherry-pick-69403d85b78b.patch",
+        "shell/app/electron_crash_reporter_client.cc",
+        "shell/app/electron_crash_reporter_client.h",
+        "shell/app/electron_main_delegate.cc",
+        "shell/browser/api/electron_api_app.cc",
+        "shell/browser/api/electron_api_base_window.cc",
+        "shell/browser/api/electron_api_web_contents.cc",
+        "shell/browser/api/electron_api_web_contents.h",
+        "shell/browser/api/electron_api_web_frame_main.cc",
+        "shell/common/gin_converters/std_converter.h",
+        "shell/renderer/electron_api_service_impl.cc",
+        "shell/renderer/electron_api_service_impl.h"
+      ],
+      "status": "source-only",
+      "upstream_equivalents": {
+        "build/zip.py": "Preserve upstream WER packaging and static-ANGLE stub exclusions for the Linux build.",
+        "lib/browser/api/web-contents.ts": "The deviceScaleFactor property moves into the native WebContents template, matching the new upstream accessor layout.",
+        "lib/sandboxed_renderer/api/module-list.ts": "Upstream removed this module list; the shared renderer module list already carries the Discord binding.",
+        "patches/chromium/cherry-pick-69403d85b78b.patch": "The removed upstream patch only received a mail-subject formatting edit in the Discord delta; no executable change is omitted.",
+        "shell/app/electron_crash_reporter_client.cc": "Upstream has its own newer WER registration/path implementation; retain it. WER is not used by Linux.",
+        "shell/app/electron_crash_reporter_client.h": "Keep the matching upstream WER declarations; the older Discord declaration is superseded.",
+        "shell/common/gin_converters/std_converter.h": "Upstream propagates MaybeLocal conversion failure; retain that behavior instead of forcing ToLocalChecked globally."
+      }
+    },
+    "46": {
+      "anchor_commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
+      "candidate_tree": "18b65eaf2c51b016e2f5a0b208aeb482a46bdeeb",
+      "patch": "patches/ports/46/compatibility.patch",
+      "patch_sha256": "af5730624e303b93f16f6180643b4fa2619f501c0475c8e73857f3af0d65fe4a",
+      "replaced_paths": [
+        "BUILD.gn",
+        "build/zip.py",
+        "lib/browser/api/web-contents.ts",
+        "lib/sandboxed_renderer/api/module-list.ts",
+        "patches/chromium/cherry-pick-69403d85b78b.patch",
+        "shell/app/electron_crash_reporter_client.cc",
+        "shell/app/electron_crash_reporter_client.h",
+        "shell/app/electron_main_delegate.cc",
+        "shell/browser/api/electron_api_app.cc",
+        "shell/browser/api/electron_api_base_window.cc",
+        "shell/browser/api/electron_api_base_window.h",
+        "shell/browser/api/electron_api_browser_window.cc",
+        "shell/browser/api/electron_api_browser_window.h",
+        "shell/browser/api/electron_api_web_contents.cc",
+        "shell/browser/api/electron_api_web_contents.h",
+        "shell/browser/api/electron_api_web_frame_main.cc",
+        "shell/browser/osr/osr_render_widget_host_view.cc",
+        "shell/common/api/api.mojom",
+        "shell/common/gin_converters/std_converter.h",
+        "shell/renderer/electron_api_service_impl.cc",
+        "shell/renderer/electron_api_service_impl.h"
+      ],
+      "status": "source-only",
+      "upstream_equivalents": {
+        "build/zip.py": "Preserve upstream WER packaging and static-ANGLE stub exclusions for the Linux build.",
+        "lib/browser/api/web-contents.ts": "The deviceScaleFactor property moves into the native WebContents template, matching the new upstream accessor layout.",
+        "lib/sandboxed_renderer/api/module-list.ts": "Upstream removed this module list; the shared renderer module list already carries the Discord binding.",
+        "patches/chromium/cherry-pick-69403d85b78b.patch": "The removed upstream patch only received a mail-subject formatting edit in the Discord delta; no executable change is omitted.",
+        "shell/app/electron_crash_reporter_client.cc": "Upstream has its own newer WER registration/path implementation; retain it. WER is not used by Linux.",
+        "shell/app/electron_crash_reporter_client.h": "Keep the matching upstream WER declarations; the older Discord declaration is superseded.",
+        "shell/browser/api/electron_api_browser_window.h": "Keep upstream cppgc Persistent/WeakPersistent members and tracing, replacing the older v8 Global/base WeakPtr ownership model.",
+        "shell/common/gin_converters/std_converter.h": "Upstream propagates MaybeLocal conversion failure; retain that behavior instead of forcing ToLocalChecked globally."
+      }
+    },
+    "47": {
+      "anchor_commit": "0e77ca92cd373a1b145c1e10d83189c137ea1b3e",
+      "candidate_tree": "0426fb6a451fe194e4ed6a69b880d50d566ed384",
+      "patch": "patches/ports/47/compatibility.patch",
+      "patch_sha256": "fd658d62e6c44c132b5a7f9020024c8d0a6f8f903d278a96a58dcf2c9512e242",
+      "replaced_paths": [
+        "BUILD.gn",
+        "build/zip.py",
+        "lib/browser/api/web-contents.ts",
+        "lib/sandboxed_renderer/api/module-list.ts",
+        "patches/chromium/cherry-pick-69403d85b78b.patch",
+        "shell/app/electron_crash_reporter_client.cc",
+        "shell/app/electron_crash_reporter_client.h",
+        "shell/app/electron_main_delegate.cc",
+        "shell/browser/api/electron_api_app.cc",
+        "shell/browser/api/electron_api_base_window.cc",
+        "shell/browser/api/electron_api_base_window.h",
+        "shell/browser/api/electron_api_browser_window.cc",
+        "shell/browser/api/electron_api_browser_window.h",
+        "shell/browser/api/electron_api_web_contents.cc",
+        "shell/browser/api/electron_api_web_contents.h",
+        "shell/browser/api/electron_api_web_frame_main.cc",
+        "shell/browser/osr/osr_render_widget_host_view.cc",
+        "shell/common/api/api.mojom",
+        "shell/common/gin_converters/std_converter.h",
+        "shell/renderer/electron_api_service_impl.cc",
+        "shell/renderer/electron_api_service_impl.h"
+      ],
+      "status": "source-only",
+      "upstream_equivalents": {
+        "build/zip.py": "Preserve upstream WER packaging and static-ANGLE stub exclusions for the Linux build.",
+        "lib/browser/api/web-contents.ts": "The deviceScaleFactor property moves into the native WebContents template, matching the new upstream accessor layout.",
+        "lib/sandboxed_renderer/api/module-list.ts": "Upstream removed this module list; the shared renderer module list already carries the Discord binding.",
+        "patches/chromium/cherry-pick-69403d85b78b.patch": "The removed upstream patch only received a mail-subject formatting edit in the Discord delta; no executable change is omitted.",
+        "shell/app/electron_crash_reporter_client.cc": "Upstream has its own newer WER registration/path implementation; retain it. WER is not used by Linux.",
+        "shell/app/electron_crash_reporter_client.h": "Keep the matching upstream WER declarations; the older Discord declaration is superseded.",
+        "shell/browser/api/electron_api_browser_window.h": "Keep upstream cppgc Persistent/WeakPersistent members and tracing, replacing the older v8 Global/base WeakPtr ownership model.",
+        "shell/common/gin_converters/std_converter.h": "Upstream propagates MaybeLocal conversion failure; retain that behavior instead of forcing ToLocalChecked globally."
+      }
+    }
+  },
   "schema": 1,
   "targets": {
     "nightly": {

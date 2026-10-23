@@ -1,0 +1,1443 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 9d7a23540..c05b828f2 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -15,6 +15,7 @@ import("//tools/grit/grit_rule.gni")
+ import("//tools/grit/repack.gni")
+ import("//tools/resources/generate_resource_allowlist.gni")
+ import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
++import("//ui/gl/features.gni")
+ import("//v8/gni/snapshot_toolchain.gni")
+ import("//v8/gni/v8.gni")
+ import("build/asar.gni")
+@@ -542,6 +543,7 @@ source_set("electron_lib") {
+     "//device/bluetooth/public/cpp",
+     "//device/fido",
+     "//device/fido/strings",
++    "//electron/discord/public",
+     "//gin",
+     "//gpu/ipc/client",
+     "//media/capture/mojom:video_capture",
+@@ -1203,6 +1205,13 @@ if (electron_use_resource_allowlist) {
+   }
+ }
+ 
++copy("discord_includes") {
++  sources = [
++    "discord/public/electron_video_shared.h"
++  ]
++  outputs = [ "$root_out_dir/include/{{source_file_part}}"]
++}
++
+ if (is_mac) {
+   electron_framework_name = "$electron_product_name Framework"
+   electron_helper_name = "$electron_product_name Helper"
+@@ -1245,6 +1254,20 @@ if (is_mac) {
+     }
+   }
+ 
++  # Add the ANGLE .dylibs in the Libraries directory of the Framework.
++  bundle_data("electron_angle_binaries") {
++    sources = [
++      "$root_out_dir/egl_intermediates/libEGL.dylib",
++      "$root_out_dir/egl_intermediates/libGLESv2.dylib",
++    ]
++    outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]
++    public_deps = [ "//ui/gl:angle_library_copy" ]
++  }
++
++  group("electron_angle_library") {
++    deps = [ ":electron_angle_binaries" ]
++  }
++
+   # Add the SwiftShader .dylibs in the Libraries directory of the Framework.
+   bundle_data("electron_swiftshader_binaries") {
+     sources = [
+@@ -1365,6 +1388,7 @@ if (is_mac) {
+     # :electron_resource_allowlist (and through it :packed_resources) depends
+     # on; bundle_data on the link would leak to every consumer of the paks.
+     bundle_deps = [
++      ":electron_angle_library",
+       ":electron_framework_libraries",
+       ":electron_framework_resources",
+       ":electron_swiftshader_library",
+@@ -1932,6 +1956,7 @@ dist_zip("electron_dist_zip") {
+     ":electron_app",
+     ":electron_version_file",
+     ":licenses",
++    ":discord_includes",
+   ]
+   if (is_linux) {
+     if (is_official_build) {
+@@ -1946,6 +1971,16 @@ dist_zip("electron_dist_zip") {
+ 
+     data_deps += [ "//sandbox/linux:chrome_sandbox" ]
+   }
++  if (is_win && !use_static_angle) {
++    # Chromium's own Windows packaging (chrome/tools/build/win/FILES.cfg) lists
++    # libEGL.dll/libGLESv2.dll explicitly outside of GN; electron_dist_zip has
++    # no equivalent manifest, so pull them in as data_deps directly, matching
++    # `electron_angle_binaries` on mac (see below).
++    data_deps += [
++      "//third_party/angle:libEGL",
++      "//third_party/angle:libGLESv2",
++    ]
++  }
+   deps = data_deps
+   if (electron_use_resource_allowlist) {
+     build_deps = [ ":electron_resource_allowlist_check" ]
+diff --git a/shell/app/electron_main_delegate.cc b/shell/app/electron_main_delegate.cc
+index db869b37a..b3eb2c15c 100644
+--- a/shell/app/electron_main_delegate.cc
++++ b/shell/app/electron_main_delegate.cc
+@@ -20,6 +20,7 @@
+ #include "base/files/memory_mapped_file.h"
+ #include "base/logging.h"
+ #include "base/metrics/field_trial.h"
++#include "base/no_destructor.h"
+ #include "base/path_service.h"
+ #include "base/strings/cstring_view.h"
+ #include "base/strings/string_number_conversions.h"
+@@ -55,6 +56,7 @@
+ #include "shell/renderer/electron_sandboxed_renderer_client.h"
+ #include "shell/utility/electron_content_utility_client.h"
+ #include "tools/v8_context_snapshot/buildflags.h"
++#include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/resource/resource_bundle.h"
+ #include "ui/base/ui_base_switches.h"
+ #include "v8/include/v8-snapshot.h"
+@@ -176,8 +178,17 @@ void ValidateV8Snapshot(v8::StartupData* data) {
+   }
+ }
+ 
++LocaleResourceState& GetMutableLocaleResourceState() {
++  static base::NoDestructor<LocaleResourceState> state;
++  return *state;
++}
++
+ }  // namespace
+ 
++const LocaleResourceState& GetLocaleResourceState() {
++  return GetMutableLocaleResourceState();
++}
++
+ std::string LoadResourceBundle(const std::string& locale) {
+   const bool initialized = ui::ResourceBundle::HasSharedInstance();
+   DCHECK(!initialized);
+@@ -191,9 +202,71 @@ std::string LoadResourceBundle(const std::string& locale) {
+   base::PathService::Get(base::DIR_ASSETS, &pak_dir);
+ #endif
+ 
++  // A damaged installation can leave a locale pak missing or truncated on
++  // disk. LoadLocaleResources() is patched to report that rather than
++  // terminate, because this runs before the JS environment exists and a dead
++  // process can neither update nor repair itself. An empty return means no
++  // locale data was loaded.
++  static constexpr char kFallbackLocale[] = "en-US";
+   std::string loaded_locale = ui::ResourceBundle::InitSharedInstanceWithLocale(
+       locale, nullptr, ui::ResourceBundle::LOAD_COMMON_RESOURCES);
++
+   ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
++
++  // Tracked explicitly rather than inferred by comparing locales: the loaded
++  // locale is the *resolved* one, so it differs from the request routinely
++  // without anything having failed.
++  bool used_fallback = false;
++  std::string failed_locale;
++
++  if (loaded_locale.empty()) {
++    // Resolution is deterministic given the same input and on-disk state, so
++    // this matches the app locale LoadLocaleResources() just tried.
++    failed_locale =
++        l10n_util::GetApplicationLocale(locale, /*set_icu_locale=*/false);
++
++    if (failed_locale != kFallbackLocale) {
++      // Retrying brings the app up fully functional, just in English.
++      LOG(ERROR) << "failed to load locale resources for \"" << failed_locale
++                 << "\"; retrying with \"" << kFallbackLocale << "\"";
++      loaded_locale = bundle.ReloadLocaleResources(kFallbackLocale);
++      used_fallback = !loaded_locale.empty();
++    }
++  }
++
++  if (loaded_locale.empty()) {
++    // Chromium tolerates this state: localized string lookups return empty
++    // rather than crashing. Native strings and accessibility labels will be
++    // blank, so this is a degraded mode the app is expected to repair, not a
++    // steady state.
++    LOG(ERROR) << "no locale resources could be loaded; the installation is "
++                  "damaged and requires repair";
++  }
++
++  LocaleResourceState& state = GetMutableLocaleResourceState();
++  state.failed_locale = failed_locale;
++  if (loaded_locale.empty()) {
++    state.status = LocaleResourceStatus::kUnavailable;
++  } else if (used_fallback) {
++    state.status = LocaleResourceStatus::kFallback;
++  } else {
++    state.status = LocaleResourceStatus::kLoaded;
++  }
++
++  // Record the outcome as a crash key. Without this, no longer crashing on a
++  // damaged pak would also mean losing the diagnostics that a crash used to
++  // carry, and a process that dies later for an unrelated reason would give no
++  // hint that it had been running degraded.
++  if (state.status != LocaleResourceStatus::kLoaded) {
++    static crash_reporter::CrashKeyString<16> status_key("locale_resources");
++    static crash_reporter::CrashKeyString<32> failed_key(
++        "locale_resources-failed");
++    status_key.Set(state.status == LocaleResourceStatus::kUnavailable
++                       ? "unavailable"
++                       : "fallback");
++    failed_key.Set(state.failed_locale);
++  }
++
+   bundle.AddDataPackFromPath(pak_dir.Append(FILE_PATH_LITERAL("resources.pak")),
+                              ui::kScaleFactorNone);
+   return loaded_locale;
+diff --git a/shell/browser/api/electron_api_app.cc b/shell/browser/api/electron_api_app.cc
+index e6588a8ea..bad235aaa 100644
+--- a/shell/browser/api/electron_api_app.cc
++++ b/shell/browser/api/electron_api_app.cc
+@@ -59,6 +59,7 @@
+ #include "services/network/network_service.h"
+ #include "shell/app/command_line_args.h"
+ #include "shell/browser/api/electron_api_event_emitter.h"
++#include "shell/app/electron_main_delegate.h"
+ #include "shell/browser/api/electron_api_menu.h"
+ #include "shell/browser/api/electron_api_utility_process.h"
+ #include "shell/browser/api/electron_api_web_contents.h"
+@@ -1059,6 +1060,27 @@ std::string App::GetSystemLocale(gin_helper::ErrorThrower thrower) const {
+   return static_cast<BrowserProcessImpl*>(g_browser_process)->GetSystemLocale();
+ }
+ 
++v8::Local<v8::Value> App::GetLocaleResourceStatus(v8::Isolate* isolate) {
++  const LocaleResourceState& state = GetLocaleResourceState();
++  auto dict = gin_helper::Dictionary::CreateEmpty(isolate);
++  switch (state.status) {
++    case LocaleResourceStatus::kUnknown:
++      dict.Set("status", "unknown");
++      break;
++    case LocaleResourceStatus::kLoaded:
++      dict.Set("status", "loaded");
++      break;
++    case LocaleResourceStatus::kFallback:
++      dict.Set("status", "fallback");
++      break;
++    case LocaleResourceStatus::kUnavailable:
++      dict.Set("status", "unavailable");
++      break;
++  }
++  dict.Set("failedLocale", state.failed_locale);
++  return dict.GetHandle();
++}
++
+ std::string App::GetLocaleCountryCode() {
+   std::string region;
+ #if BUILDFLAG(IS_WIN)
+@@ -2187,6 +2209,7 @@ gin::ObjectTemplateBuilder App::GetObjectTemplateBuilder(v8::Isolate* isolate) {
+       .SetMethod("getPreferredSystemLanguages", &GetPreferredLanguages)
+       .SetMethod("getSystemLocale", &App::GetSystemLocale)
+       .SetMethod("getLocaleCountryCode", &App::GetLocaleCountryCode)
++      .SetMethod("getLocaleResourceStatus", &App::GetLocaleResourceStatus)
+ #if BUILDFLAG(USE_NSS_CERTS)
+       .SetMethod("importCertificate", &App::ImportCertificate)
+ #endif
+diff --git a/shell/browser/api/electron_api_base_window.cc b/shell/browser/api/electron_api_base_window.cc
+index a63659180..65db7c11b 100644
+--- a/shell/browser/api/electron_api_base_window.cc
++++ b/shell/browser/api/electron_api_base_window.cc
+@@ -739,6 +739,23 @@ void BaseWindow::SetBackgroundMaterial(const std::string& material) {
+   window_->SetBackgroundMaterial(material);
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++void BaseWindow::SetWindowButtonAppearance(const std::string& appearance,
++                                           gin::Arguments* args) {
++  NativeWindow::WindowButtonAppearance native_appearance;
++  if (appearance == "auto") {
++    native_appearance = NativeWindow::WindowButtonAppearance::kAuto;
++  } else if (appearance == "light") {
++    native_appearance = NativeWindow::WindowButtonAppearance::kLight;
++  } else if (appearance == "dark") {
++    native_appearance = NativeWindow::WindowButtonAppearance::kDark;
++  } else {
++    args->ThrowTypeError("appearance must be 'auto', 'light', or 'dark'");
++    return;
++  }
++  window_->SetWindowButtonAppearance(native_appearance);
++}
++#endif
+ void BaseWindow::AddTabbedWindow(NativeWindow* const window,
+                                  gin::Arguments* const args) {
+   if (!window_->AddTabbedWindow(window)) {
+@@ -1226,6 +1243,8 @@ void BaseWindow::BuildPrototype(v8::Isolate* isolate,
+       .SetProperty<&NativeWindow::IsExcludedFromShownWindowsMenu,
+                    &NativeWindow::SetExcludedFromShownWindowsMenu>(
+           "excludedFromShownWindowsMenu")
++      .SetMethod<&BaseWindow::SetWindowButtonAppearance>(
++          "setWindowButtonAppearance")
+ #endif
+       .SetMethod<&NativeWindow::SetAutoHideMenuBar>("setAutoHideMenuBar")
+       .SetMethod<&NativeWindow::IsMenuBarAutoHide>("isMenuBarAutoHide")
+diff --git a/shell/browser/api/electron_api_base_window.h b/shell/browser/api/electron_api_base_window.h
+index c6a2a553e..0690c8051 100644
+--- a/shell/browser/api/electron_api_base_window.h
++++ b/shell/browser/api/electron_api_base_window.h
+@@ -174,6 +174,10 @@ class BaseWindow : public gin_helper::TrackableObject<BaseWindow>,
+                            gin::Arguments* args);
+   virtual void SetBackgroundMaterial(const std::string& material);
+ 
++#if BUILDFLAG(IS_MAC)
++  void SetWindowButtonAppearance(const std::string& appearance,
++                                 gin::Arguments* args);
++#endif
+   void AddTabbedWindow(NativeWindow* window, gin::Arguments* args);
+   v8::Local<v8::Value> GetTabbingIdentifier();
+   void SetAspectRatio(double aspect_ratio, gin::Arguments* args);
+diff --git a/shell/browser/api/electron_api_browser_window.cc b/shell/browser/api/electron_api_browser_window.cc
+index 351c8ea9d..050e4b618 100644
+--- a/shell/browser/api/electron_api_browser_window.cc
++++ b/shell/browser/api/electron_api_browser_window.cc
+@@ -89,14 +89,7 @@ BrowserWindow::BrowserWindow(gin::Arguments* args,
+   InitWithArgs(args);
+ 
+   // Install the content view after BaseWindow's JS code is initialized.
+-  // The WebContentsView is added a sibling of BaseWindow's contentView (before
+-  // it in the paint order) so that any views added to BrowserWindow's
+-  // contentView will be painted on top of the BrowserWindow's WebContentsView.
+-  // See https://github.com/electron/electron/pull/41256.
+-  // Note that |GetContentsView|, confusingly, does not refer to the same thing
+-  // as |BaseWindow::GetContentView|.
+-  window()->GetContentsView()->AddChildViewAt(web_contents_view->view(), 0);
+-  window()->GetContentsView()->DeprecatedLayoutImmediately();
++  SetContentView(web_contents_view);
+ 
+   // Init window after everything has been setup.
+   window()->InitFromOptions(options);
+diff --git a/shell/browser/api/electron_api_web_contents.cc b/shell/browser/api/electron_api_web_contents.cc
+index dcc368756..4fefdbcda 100644
+--- a/shell/browser/api/electron_api_web_contents.cc
++++ b/shell/browser/api/electron_api_web_contents.cc
+@@ -52,6 +52,7 @@
+ #include "components/prefs/scoped_user_pref_update.h"
+ #include "components/security_state/content/content_utils.h"
+ #include "components/security_state/core/security_state.h"
++#include "content/browser/compositor/surface_utils.h"
+ #include "content/browser/renderer_host/frame_tree_node.h"  // nogncheck
+ #include "content/browser/renderer_host/navigation_controller_impl.h"  // nogncheck
+ #include "content/browser/renderer_host/render_frame_host_impl.h"  // nogncheck
+@@ -196,6 +197,7 @@
+ #include "ui/accessibility/platform/ax_platform.h"
+ #include "ui/base/cursor/cursor.h"
+ #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
++#include "ui/base/ime/ime_text_span.h"
+ #include "ui/base/mojom/menu_source_type.mojom.h"
+ #include "ui/events/base_event_utils.h"
+ #include "ui/gfx/image/image_skia.h"
+@@ -2230,6 +2232,28 @@ void WebContents::AdoptChildWebContents(
+   // preferences will be picked up by the RenderWidgetHost via its call to the
+   // delegate's OverrideWebkitPrefs.
+   WebContentsPreferences::CreateForWebContents(new_contents, dict);
++  auto* preferences = WebContentsPreferences::FromWebContents(new_contents);
++
++  // If MaybeOverrideCreateParamsForNewWindow() installed an
++  // OffScreenWebContentsView for this popup, wire it up to the
++  // content::WebContents it belongs to right away. WebContentsImpl::
++  // CreateNewWindow() synchronously calls CreateViewForWidget() on this view
++  // further down the same call this delegate method runs from -- before any
++  // BrowserWindow ever attaches to this popup's WebContents -- so GetSize()
++  // sees no NativeWindow yet and the RenderWidgetHostView is created at
++  // (0, 0). Without web_contents_ set here, OffScreenWebContentsView::
++  // GetView() keeps returning null for the rest of this popup's life, so
++  // even the later SetNativeWindow()-triggered resize (once a BrowserWindow
++  // does attach) silently no-ops and the view is stuck at (0, 0) forever --
++  // no frame ever has anything to paint.
++  if (preferences->IsOffscreen()) {
++    auto* web_contents_impl =
++        static_cast<content::WebContentsImpl*>(new_contents);
++    if (auto* osr_view = static_cast<OffScreenWebContentsView*>(
++            web_contents_impl->GetView())) {
++      osr_view->SetWebContents(new_contents);
++    }
++  }
+ }
+ 
+ bool WebContents::OnWillCreateWindow(
+@@ -2311,18 +2335,40 @@ void WebContents::MaybeOverrideCreateParamsForNewWindow(
+ 
+   v8::Local<v8::Value> use_offscreen;
+   if (dict.Get(options::kOffscreen, &use_offscreen)) {
+-    bool is_offscreen =
+-        use_offscreen->IsObject() ||
+-        (use_offscreen->IsBoolean() &&
+-         dict.Get(options::kOffscreen, &is_offscreen) && is_offscreen);
++    bool is_offscreen = use_offscreen->IsObject();
++
++    // Defaults must match the field initializers below, since a boolean
++    // `offscreen: true` (as opposed to an options object) carries none of
++    // these settings and the view should fall back to the same defaults
++    // a plain top-level offscreen WebContents would use.
++    bool use_shared_texture = false;
++    std::string shared_texture_pixel_format = "argb";
++    float device_scale_factor = 1.0f;
++
++    if (is_offscreen) {
++      // `dict` is the *popup's* pending web preferences (set via
++      // `_setNextChildWebPreferences`), so these must be read from it
++      // rather than from this WebContents' own offscreen_* members: `this`
++      // is the opener creating the new window, and its offscreen settings
++      // reflect the opener's own configuration, not the new popup's.
++      gin_helper::Dictionary use_offscreen_dict =
++          gin_helper::Dictionary::CreateEmpty(isolate);
++      dict.Get(options::kOffscreen, &use_offscreen_dict);
++      use_offscreen_dict.Get(options::kUseSharedTexture, &use_shared_texture);
++      use_offscreen_dict.Get(options::kSharedTexturePixelFormat,
++                             &shared_texture_pixel_format);
++      use_offscreen_dict.Get(options::kDeviceScaleFactor,
++                             &device_scale_factor);
++    } else if (use_offscreen->IsBoolean()) {
++      dict.Get(options::kOffscreen, &is_offscreen);
++    }
+ 
+     if (is_offscreen) {
+       // Use a no-op callback here. The real OnPaint callback will be bound
+       // to the child WebContents in AddNewContents via SetCallback().
+       auto* view = new OffScreenWebContentsView(
+-          false, offscreen_use_shared_texture_,
+-          offscreen_shared_texture_pixel_format_,
+-          offscreen_device_scale_factor_, base::DoNothing());
++          false, use_shared_texture, shared_texture_pixel_format,
++          device_scale_factor, base::DoNothing());
+       create_params->view = view;
+       create_params->delegate_view = view;
+     }
+@@ -2360,6 +2406,22 @@ content::WebContents* WebContents::AddNewContents(
+   // in MaybeOverrideCreateParamsForNewWindow, but the paint data
+   // belongs to the child.
+   if (auto* osr_view = api_web_contents->GetOffScreenWebContentsView()) {
++    // CreateAndTake() constructs api_web_contents via the "take ownership of
++    // an existing content::WebContents" constructor, which -- unlike the one
++    // used for a fresh top-level offscreen BrowserWindow -- never parses
++    // webPreferences.offscreen, so offscreen_use_shared_texture_ and
++    // offscreen_shared_texture_pixel_format_ are stuck at their defaults
++    // (false / "argb") here. WebContents::OnPaint() reads its own copies of
++    // these, not the view's, to decide whether the JS 'paint' event carries
++    // a `texture` at all -- so without this, shared-texture mode silently
++    // drops the texture from the event (and the JS side's texture.release()
++    // call on that missing texture becomes a no-op, permanently leaking the
++    // real GPU texture and stalling all painting after the first frame).
++    api_web_contents->offscreen_use_shared_texture_ =
++        osr_view->offscreen_use_shared_texture();
++    api_web_contents->offscreen_shared_texture_pixel_format_ =
++        osr_view->offscreen_shared_texture_pixel_format();
++
+     osr_view->SetCallback(base::BindRepeating(&WebContents::OnPaint,
+                                               api_web_contents->WeakRef()));
+   }
+@@ -3380,6 +3442,10 @@ bool WebContents::EmitNavigationEvent(
+   return event->GetDefaultPrevented();
+ }
+ 
++void WebContents::UpdateCursor(const ui::Cursor& cursor) {
++  OnCursorChanged(cursor);
++}
++
+ void WebContents::OnFirstNonEmptyLayout(
+     content::RenderFrameHost* render_frame_host) {
+   if (render_frame_host == web_contents()->GetPrimaryMainFrame()) {
+@@ -3927,6 +3993,23 @@ void WebContents::SetBackgroundThrottling(bool allowed) {
+   }
+ }
+ 
++void WebContents::SetMaxFPS(int32_t fps) {
++  auto* rfh = web_contents()->GetPrimaryMainFrame();
++  if (!rfh) {
++    return;
++  }
++
++  auto* rwh_impl =
++      static_cast<content::RenderWidgetHostImpl*>(rfh->GetRenderWidgetHost());
++  if (!rwh_impl) {
++    return;
++  }
++
++  content::GetHostFrameSinkManager()->SetMinFrameInterval(
++      rwh_impl->GetFrameSinkId(),
++      fps == 0 ? base::TimeDelta() : base::Seconds(1) / fps);
++}
++
+ int32_t WebContents::GetProcessID() const {
+   return web_contents()
+       ->GetPrimaryMainFrame()
+@@ -5231,6 +5314,44 @@ void WebContents::SendInputEvent(v8::Isolate* isolate,
+       } else {
+         rwh->ForwardMouseEvent(mouse_event);
+       }
++
++      auto* host = view->GetRenderWidgetHost();
++      auto pt = gfx::PointF(mouse_event.PositionInWidget().x(),
++                            mouse_event.PositionInWidget().y());
++      if (type == blink::WebInputEvent::Type::kMouseMove) {
++        if (!dragging && start_dragging) {
++          host->DragTargetDragEnter(drop_data, pt, pt, drag_ops,
++                                    mouse_event.GetModifiers(),
++                                    base::DoNothing());
++          dragging = true;
++
++          auto* bitmap = drag_image.bitmap();
++          if (bitmap) {
++            Emit("start-drag", gfx::Image::CreateFrom1xBitmap(*bitmap),
++                 gfx::Point(drag_image_offset.x(), drag_image_offset.y()));
++          } else {
++            Emit("start-drag");
++          }
++        }
++        if (dragging) {
++          host->DragTargetDragOver(pt, pt, drag_ops, mouse_event.GetModifiers(),
++                                   base::DoNothing());
++        }
++      } else if (type == blink::WebInputEvent::Type::kMouseUp && dragging) {
++        Emit("stop-drag");
++
++        host->DragTargetDrop(drop_data, pt, pt, mouse_event.GetModifiers(),
++                             base::DoNothing());
++        host->DragSourceEndedAt(pt, pt,
++                                static_cast<ui::mojom::DragOperation>(drag_ops),
++                                base::DoNothing());
++        host->DragSourceSystemDragEnded();
++
++        drop_data = {};
++        start_dragging = false;
++        dragging = false;
++        drag_ops = blink::kDragOperationNone;
++      }
+       return;
+     }
+   } else if (blink::WebInputEvent::IsKeyboardEventType(type)) {
+@@ -5436,11 +5557,14 @@ void WebContents::OnPaint(const gfx::Rect& dirty_rect,
+     dict.Set("texture", tex);
+   }
+ 
+-  auto* const view = web_contents()->GetRenderWidgetHostView();
+-  const float scale_factor = view ? view->GetDeviceScaleFactor() : 1.0f;
+-  EmitWithoutEvent(
+-      "paint", event_object, dirty_rect,
+-      gfx::Image(gfx::ImageSkia::CreateFromBitmap(bitmap, scale_factor)));
++  if (!overlay_.SendFrame(bitmap.width(), bitmap.height(), bitmap.getPixels(),
++                          bitmap.rowBytes() * bitmap.height())) {
++    auto* const view = web_contents()->GetRenderWidgetHostView();
++    const float scale_factor = view ? view->GetDeviceScaleFactor() : 1.0f;
++    EmitWithoutEvent(
++        "paint", event_object, dirty_rect,
++        gfx::Image(gfx::ImageSkia::CreateFromBitmap(bitmap, scale_factor)));
++  }
+ }
+ 
+ void WebContents::StartPainting() {
+@@ -5471,6 +5595,26 @@ int WebContents::GetFrameRate() const {
+   return osr_wcv ? osr_wcv->GetFrameRate() : 0;
+ }
+ 
++void WebContents::SetDeviceScaleFactor(float device_scale_factor) {
++  auto* osr_wcv = GetOffScreenWebContentsView();
++  if (osr_wcv)
++    osr_wcv->SetDeviceScaleFactor(device_scale_factor);
++}
++
++float WebContents::GetDeviceScaleFactor() const {
++  auto* osr_wcv = GetOffScreenWebContentsView();
++  return osr_wcv ? osr_wcv->GetDeviceScaleFactor() : 0;
++}
++
++void WebContents::SetSizeAndDeviceScaleFactor(int width,
++                                               int height,
++                                               float device_scale_factor) {
++  auto* osr_wcv = GetOffScreenWebContentsView();
++  if (osr_wcv)
++    osr_wcv->SetSizeAndDeviceScaleFactor(gfx::Size(width, height),
++                                          device_scale_factor);
++}
++
+ void WebContents::Invalidate() {
+   if (IsOffScreen()) {
+     auto* osr_rwhv = GetOffScreenRenderWidgetHostView();
+@@ -5485,6 +5629,12 @@ void WebContents::Invalidate() {
+ 
+ gfx::Size WebContents::GetSizeForNewRenderView(content::WebContents* wc) {
+   if (IsOffScreen() && wc == web_contents()) {
++    // A size set via setSizeAndDeviceScaleFactor() replaces the owner
++    // window's size as the size of the offscreen canvas.
++    auto* osr_wcv = GetOffScreenWebContentsView();
++    if (osr_wcv && osr_wcv->size_override())
++      return *osr_wcv->size_override();
++
+     auto* relay = NativeWindowRelay::FromWebContents(web_contents());
+     if (relay) {
+       auto* owner_window = relay->GetNativeWindow();
+@@ -5499,6 +5649,114 @@ WebContentsZoomController* WebContents::GetZoomController() const {
+   return WebContentsZoomController::FromWebContents(web_contents());
+ }
+ 
++void WebContents::SendImeEvent(const gin_helper::Dictionary& event) {
++  if (!IsOffScreen()) {
++    return;
++  }
++
++  auto* view = static_cast<OffScreenRenderWidgetHostView*>(
++      web_contents()->GetRenderWidgetHostView());
++  if (!view) {
++    return;
++  }
++
++  auto* host = view->render_widget_host();
++  if (!host) {
++    return;
++  }
++
++  std::string type{};
++  if (!event.Get("type", &type)) {
++    return;
++  }
++
++  if (type == "commit") {
++    std::u16string text{};
++    if (event.Get("text", &text)) {
++      gfx::Range range(UINT32_MAX, UINT32_MAX);
++      host->ImeCommitText(text, {}, range, 0);
++      view->RequestCompositionUpdates(false);
++    }
++  } else if (type == "set") {
++    std::u16string text{};
++    if (!event.Get("text", &text)) {
++      return;
++    }
++
++    ui::ImeTextSpans under{};
++    std::vector<gin_helper::Dictionary> underlines;
++    event.Get("underlines", &underlines);
++    for (auto& u : underlines) {
++      ui::ImeTextSpan temp{};
++      temp.type = ui::ImeTextSpan::Type::kComposition;
++      u.Get("from", &temp.start_offset);
++      u.Get("to", &temp.end_offset);
++      int thick{0};
++      u.Get("thick", &thick);
++      temp.thickness = (thick != 0) ? ui::ImeTextSpan::Thickness::kThick
++                                    : ui::ImeTextSpan::Thickness::kNone;
++      u.Get("color", &temp.underline_color);
++      u.Get("backgroundColor", &temp.background_color);
++      under.emplace_back(std::move(temp));
++    }
++
++    gfx::Range replacementRange(UINT32_MAX, UINT32_MAX);
++
++    int selectionRangeFrom{0};
++    event.Get("from", &selectionRangeFrom);
++
++    int selectionRangeTo{0};
++    event.Get("to", &selectionRangeTo);
++
++    view->RequestCompositionUpdates(true);
++    host->ImeSetComposition(text, under, replacementRange, selectionRangeFrom,
++                            selectionRangeTo);
++  } else if (type == "cancel") {
++    view->ImeCancelComposition();
++  }
++}
++
++void WebContents::OnImeCompositionRangeChanged(
++    const gfx::Range& range,
++    const std::vector<gfx::Rect>& character_bounds) {
++  v8::Isolate* isolate = JavascriptEnvironment::GetIsolate();
++  v8::Locker locker(isolate);
++  v8::HandleScope handle_scope(isolate);
++  std::vector<gin_helper::Dictionary> bounds{};
++  bounds.reserve(character_bounds.size());
++  for (const auto& b : character_bounds) {
++    gin_helper::Dictionary bound = gin::Dictionary::CreateEmpty(isolate);
++    bound.Set("x", b.x());
++    bound.Set("y", b.y());
++    bound.Set("width", b.width());
++    bound.Set("height", b.height());
++    bounds.emplace_back(std::move(bound));
++  }
++  Emit("ime-composition-range-changed", range.start(), range.end(), bounds);
++}
++
++void WebContents::OnSelectionBoundsChanged(const gfx::Rect& anchor_rect,
++                                           const gfx::Rect& focus_rect,
++                                           bool is_anchor_first) {
++  v8::Isolate* isolate = JavascriptEnvironment::GetIsolate();
++  v8::Locker locker(isolate);
++  v8::HandleScope handle_scope(isolate);
++  gin_helper::Dictionary anchor_rect_dict =
++      gin::Dictionary::CreateEmpty(isolate);
++  anchor_rect_dict.Set("x", anchor_rect.x());
++  anchor_rect_dict.Set("y", anchor_rect.y());
++  anchor_rect_dict.Set("width", anchor_rect.width());
++  anchor_rect_dict.Set("height", anchor_rect.height());
++  gin_helper::Dictionary focus_rect_dict =
++      gin::Dictionary::CreateEmpty(isolate);
++  focus_rect_dict.Set("x", focus_rect.x());
++  focus_rect_dict.Set("y", focus_rect.y());
++  focus_rect_dict.Set("width", focus_rect.width());
++  focus_rect_dict.Set("height", focus_rect.height());
++  Emit("selection-bounds-changed", anchor_rect_dict, focus_rect_dict,
++       is_anchor_first);
++}
++
+ void WebContents::SetZoomLevel(double level) {
+   GetZoomController()->SetZoomLevel(level);
+ }
+@@ -6654,6 +6912,13 @@ void WebContents::FillObjectTemplate(v8::Isolate* isolate,
+       .SetMethod<&WebContents::SendInternal>("_sendInternal")
+       .SetMethod<&WebContents::PostMessage>("postMessage")
+       .SetMethod<&WebContents::SetOwnerBaseWindow>("_setOwnerWindow")
++      .SetMethod<&WebContents::SetDiscordOverlayProcessID>("_setDiscordOverlayProcessId")
++      .SetMethod<&WebContents::SetMaxFPS>("setMaxFPS")
++      .SetMethod<&WebContents::SetDeviceScaleFactor>("setDeviceScaleFactor")
++      .SetMethod<&WebContents::GetDeviceScaleFactor>("getDeviceScaleFactor")
++      .SetMethod<&WebContents::SetSizeAndDeviceScaleFactor>("setSizeAndDeviceScaleFactor")
++      .SetProperty<&WebContents::GetDeviceScaleFactor,
++                   &WebContents::SetDeviceScaleFactor>("deviceScaleFactor")
+       .Build();
+ }
+ 
+@@ -6687,6 +6952,10 @@ ElectronBrowserContext* WebContents::GetBrowserContext() const {
+       web_contents()->GetBrowserContext());
+ }
+ 
++void WebContents::SetDiscordOverlayProcessID(uint32_t process_id) {
++  overlay_.SetProcessId(process_id);
++}
++
+ // static
+ WebContents* WebContents::New(v8::Isolate* isolate,
+                               const gin_helper::Dictionary& options) {
+diff --git a/shell/browser/api/electron_api_web_contents.h b/shell/browser/api/electron_api_web_contents.h
+index e276d5dd0..ee8b35275 100644
+--- a/shell/browser/api/electron_api_web_contents.h
++++ b/shell/browser/api/electron_api_web_contents.h
+@@ -45,6 +45,8 @@
+ #include "shell/common/gin_helper/constructible.h"
+ #include "shell/common/gin_helper/self_keep_alive.h"
+ #include "third_party/skia/include/core/SkRegion.h"
++#include "ui/gfx/image/image_skia.h"
++#include "ui/gfx/range/range.h"
+ #include "v8/include/cppgc/persistent.h"
+ 
+ #if defined(TOOLKIT_VIEWS) && !BUILDFLAG(IS_MAC)
+@@ -59,6 +61,8 @@ class ScriptExecutor;
+ }
+ #endif
+ 
++#include "discord/overlay.h"
++
+ namespace blink {
+ struct DeviceEmulationParams;
+ // enum class PermissionType;
+@@ -133,6 +137,12 @@ class WebContents final : public gin::Wrappable<WebContents>,
+                           public InspectableWebContentsDelegate,
+                           public InspectableWebContentsViewDelegate,
+                           public BackgroundThrottlingSource {
++ public:
++  void SetDiscordOverlayProcessID(uint32_t process_id);
++
++ private:
++  discord::Overlay overlay_ = {};
++
+  public:
+   enum class Type {
+     kBackgroundPage,  // An extension background page.
+@@ -205,6 +215,8 @@ class WebContents final : public gin::Wrappable<WebContents>,
+   bool GetBackgroundThrottling() const override;
+ 
+   void SetBackgroundThrottling(bool allowed);
++
++  void SetMaxFPS(int32_t fps);
+   int32_t GetProcessID() const;
+   base::ProcessId GetOSProcessID() const;
+   [[nodiscard]] Type type() const { return type_; }
+@@ -360,9 +372,23 @@ class WebContents final : public gin::Wrappable<WebContents>,
+   bool IsPainting() const;
+   void SetFrameRate(int frame_rate);
+   int GetFrameRate() const;
++  void SetDeviceScaleFactor(float device_scale_factor);
++  float GetDeviceScaleFactor() const;
++  void SetSizeAndDeviceScaleFactor(int width,
++                                   int height,
++                                   float device_scale_factor);
+   void Invalidate();
+   gfx::Size GetSizeForNewRenderView(content::WebContents*) override;
+ 
++  // Methods for offscreen IME
++  void SendImeEvent(const gin_helper::Dictionary& event);
++  void OnImeCompositionRangeChanged(
++      const gfx::Range& range,
++      const std::vector<gfx::Rect>& character_bounds);
++  void OnSelectionBoundsChanged(const gfx::Rect& anchor_rect,
++                                const gfx::Rect& focus_rect,
++                                bool is_anchor_first);
++
+   // Methods for zoom handling.
+   void SetZoomLevel(double level);
+   double GetZoomLevel() const;
+@@ -530,6 +556,15 @@ class WebContents final : public gin::Wrappable<WebContents>,
+   WebContents(const WebContents&) = delete;
+   WebContents& operator=(const WebContents&) = delete;
+ 
++  bool start_dragging = false;
++  bool dragging = false;
++  content::DropData drop_data;
++  blink::DragOperationsMask drag_ops = blink::kDragOperationNone;
++  gfx::ImageSkia drag_image;
++  gfx::Vector2d drag_image_offset;
++
++  void UpdateCursor(const ui::Cursor& cursor);
++
+   // Does not manage lifetime of |web_contents|.
+   WebContents(v8::Isolate* isolate, content::WebContents* web_contents);
+   // Takes over ownership of |web_contents|.
+diff --git a/shell/browser/api/electron_api_web_frame_main.cc b/shell/browser/api/electron_api_web_frame_main.cc
+index 4d5bc4f12..9f52f86ad 100644
+--- a/shell/browser/api/electron_api_web_frame_main.cc
++++ b/shell/browser/api/electron_api_web_frame_main.cc
+@@ -28,12 +28,15 @@
+ #include "mojo/public/cpp/bindings/callback_helpers.h"
+ #include "printing/buildflags/buildflags.h"
+ #include "services/service_manager/public/cpp/interface_provider.h"
++#include "shell/browser/api/electron_api_frame_capture.h"
+ #include "shell/browser/api/message_port.h"
+ #include "shell/browser/browser.h"
++#include "shell/browser/capture/frame_still.h"
+ #include "shell/browser/javascript_environment.h"
+ #include "shell/common/api/api.mojom.h"
+ #include "shell/common/gin_converters/blink_converter.h"
+ #include "shell/common/gin_converters/frame_converter.h"
++#include "shell/common/gin_converters/gfx_converter.h"
+ #include "shell/common/gin_converters/gurl_converter.h"
+ #include "shell/common/gin_converters/serialized_value_converter.h"
+ #include "shell/common/gin_converters/std_converter.h"
+@@ -379,6 +382,129 @@ bool WebFrameMain::Reload() {
+   return render_frame_host()->Reload();
+ }
+ 
++v8::Local<v8::Value> WebFrameMain::CaptureStream(gin::Arguments* args) {
++  v8::Isolate* isolate = args->isolate();
++  gin_helper::ErrorThrower thrower(isolate);
++  if (!CheckRenderFrame())
++    return v8::Undefined(isolate);
++
++  gin_helper::Dictionary options;
++  if (!args->GetNext(&options)) {
++    thrower.ThrowTypeError("Expected an options object");
++    return v8::Undefined(isolate);
++  }
++
++  content::RenderFrameHost* consumer = nullptr;
++  if (!options.Get("consumerFrame", &consumer) || !consumer ||
++      !consumer->IsRenderFrameLive()) {
++    thrower.ThrowTypeError("'consumerFrame' must be a live WebFrameMain");
++    return v8::Undefined(isolate);
++  }
++  if (consumer == render_frame_host()) {
++    thrower.ThrowError("A frame cannot consume its own capture");
++    return v8::Undefined(isolate);
++  }
++
++  FrameCapture::Options capture_options;
++  options.Get("captureId", &capture_options.capture_id);
++  options.Get("audio", &capture_options.audio);
++  int max_frame_rate = 0;
++  if (options.Get("maxFrameRate", &max_frame_rate)) {
++    if (max_frame_rate <= 0) {
++      thrower.ThrowRangeError("'maxFrameRate' must be positive");
++      return v8::Undefined(isolate);
++    }
++    capture_options.max_frame_rate = max_frame_rate;
++  }
++  options.Get("maxSize", &capture_options.max_size);
++
++  std::string pixel_format;
++  if (options.Get("pixelFormat", &pixel_format)) {
++    if (pixel_format == "bgra") {
++      capture_options.pixel_format = media::PIXEL_FORMAT_ARGB;
++    } else if (pixel_format == "rgba") {
++      capture_options.pixel_format = media::PIXEL_FORMAT_ABGR;
++    } else if (pixel_format == "rgbaf16") {
++      capture_options.pixel_format = media::PIXEL_FORMAT_RGBAF16;
++    } else if (pixel_format == "nv12") {
++      capture_options.pixel_format = media::PIXEL_FORMAT_NV12;
++    } else {
++      thrower.ThrowTypeError("Unsupported 'pixelFormat'");
++      return v8::Undefined(isolate);
++    }
++  }
++
++  return FrameCapture::Create(isolate, render_frame_host(), consumer,
++                              capture_options)
++      .ToV8();
++}
++
++v8::Local<v8::Promise> WebFrameMain::CaptureImage(gin::Arguments* args) {
++  v8::Isolate* isolate = args->isolate();
++  gin_helper::Promise<v8::Local<v8::Value>> promise(isolate);
++  v8::Local<v8::Promise> handle = promise.GetHandle();
++
++  if (!HasRenderFrame()) {
++    promise.RejectWithErrorMessage("frame-gone");
++    return handle;
++  }
++
++  electron::FrameStillOptions still;
++  gin_helper::Dictionary options;
++  if (args->GetNext(&options)) {
++    options.Get("rect", &still.rect);
++    options.Get("viewportSize", &still.viewport_size);
++    options.Get("outputSize", &still.output_size);
++    std::string format;
++    if (options.Get("format", &format)) {
++      if (format == "webp") {
++        still.format = electron::FrameStillFormat::kWebp;
++      } else if (format == "jpeg") {
++        still.format = electron::FrameStillFormat::kJpeg;
++      } else if (format == "png") {
++        still.format = electron::FrameStillFormat::kPng;
++      } else {
++        promise.RejectWithErrorMessage("Unsupported 'format'");
++        return handle;
++      }
++    }
++    options.Get("quality", &still.quality);
++    double timeout_ms = 0;
++    if (options.Get("timeoutMs", &timeout_ms) && timeout_ms > 0) {
++      still.timeout = base::Milliseconds(timeout_ms);
++    }
++  }
++
++  electron::CaptureFrameStill(
++      render_frame_host(), still,
++      base::BindOnce(
++          [](gin_helper::Promise<v8::Local<v8::Value>> promise,
++             base::expected<electron::FrameStillResult, std::string> result) {
++            if (!result.has_value()) {
++              promise.RejectWithErrorMessage(result.error());
++              return;
++            }
++            v8::Isolate* isolate = promise.isolate();
++            v8::HandleScope handle_scope(isolate);
++            v8::Context::Scope context_scope(promise.GetContext());
++            v8::Local<v8::Object> buffer;
++            if (!electron::Buffer::Copy(isolate, base::span(result->data))
++                     .ToLocal(&buffer)) {
++              promise.RejectWithErrorMessage("encode-failed");
++              return;
++            }
++            auto dict = gin_helper::Dictionary::CreateEmpty(isolate);
++            dict.Set("data", buffer);
++            dict.Set("mimeType", result->mime_type);
++            dict.Set("width", result->size.width());
++            dict.Set("height", result->size.height());
++            dict.Set("area", result->area);
++            promise.Resolve(dict.GetHandle());
++          },
++          std::move(promise)));
++  return handle;
++}
++
+ bool WebFrameMain::IsDestroyed() const {
+   return render_frame_disposed_;
+ }
+@@ -878,6 +1004,8 @@ void WebFrameMain::FillObjectTemplate(v8::Isolate* isolate,
+       .SetProperty<&WebFrameMain::FramesInSubtree>("framesInSubtree")
+       .SetProperty<&WebFrameMain::LifecycleStateForTesting>(
+           "_lifecycleStateForTesting")
++      .SetMethod<&WebFrameMain::CaptureStream>("captureStream")
++      .SetMethod<&WebFrameMain::CaptureImage>("captureImage")
+       .Build();
+ }
+ 
+diff --git a/shell/browser/osr/osr_render_widget_host_view.cc b/shell/browser/osr/osr_render_widget_host_view.cc
+index 3208669d7..fc810b569 100644
+--- a/shell/browser/osr/osr_render_widget_host_view.cc
++++ b/shell/browser/osr/osr_render_widget_host_view.cc
+@@ -24,12 +24,14 @@
+ #include "components/viz/common/quads/compositor_render_pass.h"
+ #include "content/browser/renderer_host/render_widget_host_delegate.h"  // nogncheck
+ #include "content/browser/renderer_host/render_widget_host_owner_delegate.h"  // nogncheck
++#include "content/browser/web_contents/web_contents_impl.h"
+ #include "content/common/input/synthetic_gesture.h"  // nogncheck
+ #include "content/common/input/synthetic_gesture_target.h"
+ #include "content/public/browser/browser_thread.h"
+ #include "content/public/browser/context_factory.h"
+ #include "content/public/browser/gpu_data_manager.h"
+ #include "content/public/browser/render_process_host.h"
++#include "shell/browser/api/electron_api_web_contents.h"
+ #include "shell/browser/osr/osr_host_display_client.h"
+ #include "shell/browser/osr/osr_video_consumer.h"
+ #include "third_party/blink/public/common/input/web_input_event.h"
+@@ -172,7 +174,12 @@ OffScreenRenderWidgetHostView::OffScreenRenderWidgetHostView(
+       offscreen_use_shared_texture_(offscreen_use_shared_texture),
+       offscreen_shared_texture_pixel_format_(
+           offscreen_shared_texture_pixel_format),
+-      offscreen_device_scale_factor_(offscreen_device_scale_factor),
++      // Popup, child and guest views inherit the parent's live scale factor
++      // so they match it even after SetDeviceScaleFactor() has changed it
++      // from the creation-time value their OffScreenWebContentsView holds.
++      offscreen_device_scale_factor_(
++          parent_host_view ? parent_host_view->device_scale_factor()
++                           : offscreen_device_scale_factor),
+       callback_(callback),
+       frame_rate_(frame_rate),
+       size_(initial_size),
+@@ -370,10 +377,7 @@ void OffScreenRenderWidgetHostView::SetBackgroundColor(SkColor color) {
+   // We short-cut here to show a sensible color before that happens.
+   UpdateBackgroundColorFromRenderer(color);
+ 
+-  if (render_widget_host_ && render_widget_host_->owner_delegate()) {
+-    render_widget_host_->owner_delegate()->SetBackgroundOpaque(
+-        SkColorGetA(color) == SK_AlphaOPAQUE);
+-  }
++  content::RenderWidgetHostViewBase::SetBackgroundColor(color);
+ }
+ 
+ std::optional<SkColor> OffScreenRenderWidgetHostView::GetBackgroundColor() {
+@@ -444,10 +448,38 @@ void OffScreenRenderWidgetHostView::InitAsPopup(
+   ShowWithVisibility(content::PageVisibilityState::kVisible);
+ }
+ 
++void OffScreenRenderWidgetHostView::UpdateCursor(
++    const ui::Cursor& cursor) {
++  if (!render_widget_host_) {
++    return;
++  }
++
++  auto* web_contents =
++      static_cast<content::WebContentsImpl*>(render_widget_host_->delegate());
++  if (!web_contents) {
++    return;
++  }
++
++  auto* electron_web_contents =
++      static_cast<electron::api::WebContents*>(web_contents->GetDelegate());
++  if (!electron_web_contents) {
++    return;
++  }
++
++  electron_web_contents->UpdateCursor(cursor);
++}
++
+ input::CursorManager* OffScreenRenderWidgetHostView::GetCursorManager() {
+   return cursor_manager_.get();
+ }
+ 
++void OffScreenRenderWidgetHostView::ImeCancelComposition() {
++  if (render_widget_host_) {
++    render_widget_host_->ImeCancelComposition();
++  }
++  RequestCompositionUpdates(false);
++}
++
+ void OffScreenRenderWidgetHostView::RenderProcessGone() {
+   DestroyOrDefer();
+ }
+@@ -484,6 +516,37 @@ void OffScreenRenderWidgetHostView::DestroyImpl() {
+   delete this;
+ }
+ 
++void OffScreenRenderWidgetHostView::SelectionBoundsChanged(
++    const gfx::Rect& anchor_rect,
++    base::i18n::TextDirection anchor_dir,
++    const gfx::Rect& focus_rect,
++    base::i18n::TextDirection focus_dir,
++    const gfx::Rect& bounding_box,
++    bool is_anchor_first) {
++  content::RenderWidgetHostViewBase::SelectionBoundsChanged(
++      anchor_rect, anchor_dir, focus_rect, focus_dir, bounding_box,
++      is_anchor_first);
++
++  if (!render_widget_host_) {
++    return;
++  }
++
++  auto* web_contents =
++      static_cast<content::WebContentsImpl*>(render_widget_host_->delegate());
++  if (!web_contents) {
++    return;
++  }
++
++  auto* electron_web_contents =
++      static_cast<electron::api::WebContents*>(web_contents->GetDelegate());
++  if (!electron_web_contents) {
++    return;
++  }
++
++  electron_web_contents->OnSelectionBoundsChanged(anchor_rect, focus_rect,
++                                                  is_anchor_first);
++}
++
+ void OffScreenRenderWidgetHostView::CopyFromSurfaceImpl(
+     const gfx::Rect& src_rect,
+     const gfx::Size& output_size,
+@@ -519,6 +582,31 @@ OffScreenRenderWidgetHostView::CreateSyntheticGestureTarget() {
+   return nullptr;
+ }
+ 
++void OffScreenRenderWidgetHostView::ImeCompositionRangeChanged(
++    const gfx::Range& range,
++    const std::optional<std::vector<gfx::Rect>>& character_bounds) {
++  if (!render_widget_host_) {
++    return;
++  }
++
++  auto* web_contents =
++      static_cast<content::WebContentsImpl*>(render_widget_host_->delegate());
++  if (!web_contents) {
++    return;
++  }
++
++  auto* electron_web_contents =
++      static_cast<electron::api::WebContents*>(web_contents->GetDelegate());
++  if (!electron_web_contents) {
++    return;
++  }
++
++  if (character_bounds) {
++    electron_web_contents->OnImeCompositionRangeChanged(range,
++                                                        *character_bounds);
++  }
++}
++
+ gfx::Size OffScreenRenderWidgetHostView::GetCompositorViewportPixelSize() {
+   return gfx::ScaleToCeiledSize(GetRequestedRendererSize(),
+                                 GetDeviceScaleFactor());
+@@ -528,6 +616,14 @@ ui::Compositor* OffScreenRenderWidgetHostView::GetCompositor() {
+   return compositor_.get();
+ }
+ 
++void OffScreenRenderWidgetHostView::RequestCompositionUpdates(bool enable) {
++  if (!render_widget_host_) {
++    return;
++  }
++
++  render_widget_host_->RequestCompositionUpdates(false, enable);
++}
++
+ const viz::FrameSinkId& OffScreenRenderWidgetHostView::GetFrameSinkId() const {
+   return delegated_frame_host()->frame_sink_id();
+ }
+@@ -841,6 +937,60 @@ void OffScreenRenderWidgetHostView::SetPainting(bool painting) {
+   }
+ }
+ 
++void OffScreenRenderWidgetHostView::SetDeviceScaleFactor(
++    float device_scale_factor) {
++  if (cc::MathUtil::IsWithinEpsilon(device_scale_factor, 0.0f))
++    device_scale_factor = 1.0f;
++
++  if (cc::MathUtil::IsWithinEpsilon(device_scale_factor,
++                                    offscreen_device_scale_factor_))
++    return;
++
++  offscreen_device_scale_factor_ = device_scale_factor;
++
++  // Refreshes the cached ScreenInfo (which is where GetDeviceScaleFactor()
++  // actually reads from -- offscreen_device_scale_factor_ alone isn't live
++  // until this runs) and notifies the renderer via
++  // RenderWidgetHostImpl::SynchronizeVisualProperties(), the same call
++  // ResizeRootLayer() makes for a size change.
++  SynchronizeVisualProperties();
++
++  PropagateDeviceScaleFactor();
++}
++
++void OffScreenRenderWidgetHostView::PropagateDeviceScaleFactor() {
++  if (popup_host_view_)
++    popup_host_view_->SetDeviceScaleFactor(offscreen_device_scale_factor_);
++
++  if (child_host_view_)
++    child_host_view_->SetDeviceScaleFactor(offscreen_device_scale_factor_);
++
++  for (auto* guest_host_view : guest_host_views_)
++    guest_host_view->SetDeviceScaleFactor(offscreen_device_scale_factor_);
++}
++
++void OffScreenRenderWidgetHostView::SetSizeAndDeviceScaleFactor(
++    const gfx::Size& size,
++    float device_scale_factor) {
++  if (cc::MathUtil::IsWithinEpsilon(device_scale_factor, 0.0f))
++    device_scale_factor = 1.0f;
++
++  size_ = size;
++  offscreen_device_scale_factor_ = device_scale_factor;
++
++  // Runs ResizeRootLayer(true) synchronously, which refreshes the cached
++  // ScreenInfo and then applies both new values to the compositor and the
++  // renderer in one sync. Doing this directly rather than through
++  // HoldResize()/ReleaseResize() avoids the posted task those defer to, so
++  // nothing can observe the new size_ against the old ScreenInfo scale in
++  // between. If a hold is already active (e.g. this is called from a paint
++  // handler inside CompositeFrame()), the sync is deferred to that hold's
++  // ReleaseResize() instead.
++  SynchronizeVisualProperties();
++
++  PropagateDeviceScaleFactor();
++}
++
+ void OffScreenRenderWidgetHostView::SetFrameRate(int frame_rate) {
+   if (parent_host_view_) {
+     if (parent_host_view_->frame_rate() == this->frame_rate())
+diff --git a/shell/common/api/api.mojom b/shell/common/api/api.mojom
+index 4f9e1dfeb..0b19e5cf8 100644
+--- a/shell/common/api/api.mojom
++++ b/shell/common/api/api.mojom
+@@ -1,9 +1,15 @@
+ module electron.mojom;
+ 
++import "media/mojo/mojom/audio_data_pipe.mojom";
++import "media/mojo/mojom/audio_input_stream.mojom";
++import "media/mojo/mojom/audio_parameters.mojom";
+ import "mojo/public/mojom/base/big_buffer.mojom";
+ import "mojo/public/mojom/base/string16.mojom";
++import "mojo/public/mojom/base/token.mojom";
++import "services/viz/privileged/mojom/compositing/frame_sink_video_capture.mojom";
+ import "ui/gfx/geometry/mojom/geometry.mojom";
+ import "third_party/blink/public/mojom/messaging/transferable_message.mojom";
++import "third_party/blink/public/mojom/tokens/tokens.mojom";
+ 
+ // A preload script and its contents, pushed to the renderer ahead of the
+ // document that needs it.
+@@ -77,6 +83,44 @@ interface ElectronFrame {
+       => (bool success, SerializedValue result, string error);
+ };
+ 
++struct FrameCaptureParams {
++  // LUID of the adapter the textures are allocated on (Windows only).
++  uint32 adapter_luid_low;
++  int32 adapter_luid_high;
++};
++
++// Implemented by the browser for one FrameCapture session.
++interface FrameCaptureHost {
++  // Creates the loopback stream of the audio played by the captured frame and
++  // its descendants. The data pipe goes to the caller, so samples never pass
++  // through the browser. Fails while audio capture is off.
++  CreateAudioStream(
++      pending_receiver<media.mojom.AudioInputStream> stream,
++      pending_remote<media.mojom.AudioInputStreamClient> client,
++      media.mojom.AudioParameters params,
++      uint32 shared_memory_count)
++      => (media.mojom.ReadWriteAudioDataPipe? data_pipe);
++
++  // Sent whenever the size of the delivered frames changes.
++  OnResized(gfx.mojom.Size size);
++};
++
++// Implemented in the renderer that consumes a FrameCapture session. The
++// capturer in the GPU process delivers frames straight to this renderer; the
++// browser only controls the session.
++interface FrameCaptureSession {
++  // Replaces the consumer frames are delivered to. Sent each time capture
++  // (re)starts, e.g. after the GPU process restarts.
++  AttachVideoConsumer(
++      pending_receiver<viz.mojom.FrameSinkVideoConsumer> consumer);
++
++  StartAudio();
++  StopAudio();
++
++  // Ends the session. Nothing reaches the native sink after it.
++  Stop(string reason);
++};
++
+ interface ElectronRenderer {
+   Message(
+       bool internal,
+@@ -86,8 +130,27 @@ interface ElectronRenderer {
+   ReceivePostMessage(string channel, blink.mojom.TransferableMessage message);
+ 
+   TakeHeapSnapshot(handle<platform> file) => (bool success);
++
++  // Routes a capture session to native consumers registered in this renderer
++  // under |capture_id|.
++  BindFrameCapture(string capture_id,
++                   FrameCaptureParams params,
++                   pending_receiver<FrameCaptureSession> session,
++                   pending_remote<FrameCaptureHost> host);
++
++  // Tags the owner element of the same-process child frame |child| for
++  // element capture so the browser can capture it as a viz subtree. Returns
++  // null if |child| is not a same-process child of this frame.
++  // The element is kept eligible for capture while |lease| is connected.
++  EnsureChildFrameCaptureTarget(
++      blink.mojom.LocalFrameToken child,
++      pending_receiver<FrameCaptureTargetLease> lease)
++      => (mojo_base.mojom.Token? target);
+ };
+ 
++// Held by the browser while it captures a child frame as a subtree.
++interface FrameCaptureTargetLease {};
++
+ interface ElectronAutofillAgent {
+   AcceptDataListSuggestion(mojo_base.mojom.String16 value);
+ };
+diff --git a/shell/renderer/electron_api_service_impl.cc b/shell/renderer/electron_api_service_impl.cc
+index 339cc76ef..fe56eff7e 100644
+--- a/shell/renderer/electron_api_service_impl.cc
++++ b/shell/renderer/electron_api_service_impl.cc
+@@ -4,12 +4,17 @@
+ 
+ #include "electron/shell/renderer/electron_api_service_impl.h"
+ 
+-#include <tuple>
+-#include <utility>
+-#include <vector>
+ 
++#include "base/trace_event/trace_event.h"
++#include "electron/discord/discord_frame_capture_manager.h"
+ #include "gin/converter.h"
++#include "gin/data_object_builder.h"
+ #include "mojo/public/cpp/platform/platform_handle.h"
++#include <algorithm>
++#include <string_view>
++#include <tuple>
++#include <utility>
++#include <vector>
+ #include "shell/common/api/electron_api_shared_texture.h"
+ #include "shell/common/gin_converters/blink_converter.h"
+ #include "shell/common/gin_converters/serialized_value_converter.h"
+@@ -135,6 +140,10 @@ ElectronApiServiceImpl::ElectronApiServiceImpl(
+   // CreateNewWindowReply and SetPendingCreateNewWindowStartupData() stashes it
+   // for us on this same call stack. The first real navigation replaces it.
+   startup_data_ = std::exchange(*GetPendingNewWindowStartupData(), nullptr);
++
++  capture_target_leases_.set_disconnect_handler(
++      base::BindRepeating(&ElectronApiServiceImpl::OnCaptureTargetLeaseClosed,
++                          base::Unretained(this)));
+ }
+ 
+ // static
+@@ -508,4 +517,54 @@ void ElectronApiServiceImpl::ReceiveSharedTexture(
+       argv.data());
+ }
+ 
++void ElectronApiServiceImpl::BindFrameCapture(
++    const std::string& capture_id,
++    mojom::FrameCaptureParamsPtr params,
++    mojo::PendingReceiver<mojom::FrameCaptureSession> session,
++    mojo::PendingRemote<mojom::FrameCaptureHost> host) {
++  discord::DiscordFrameCaptureManager::BindCapture(
++      capture_id, std::move(params), std::move(session), std::move(host));
++}
++
++void ElectronApiServiceImpl::EnsureChildFrameCaptureTarget(
++    const blink::LocalFrameToken& child,
++    mojo::PendingReceiver<mojom::FrameCaptureTargetLease> lease,
++    EnsureChildFrameCaptureTargetCallback callback) {
++  blink::WebLocalFrame* frame = render_frame()->GetWebFrame();
++  blink::WebLocalFrame* child_frame =
++      blink::WebLocalFrame::FromFrameToken(child);
++  if (!frame || !child_frame || child_frame->Parent() != frame) {
++    std::move(callback).Run(std::nullopt);
++    return;
++  }
++
++  std::optional<base::Token> target =
++      child_frame->EnsureOwnerElementCaptureTarget();
++  if (target) {
++    blink::WebElement owner = child_frame->FrameOwnerElement();
++    auto it = std::ranges::find_if(
++        capture_target_owners_,
++        [&](const auto& entry) { return entry.first == owner; });
++    if (it == capture_target_owners_.end()) {
++      capture_target_owners_.emplace_back(owner, 1);
++    } else {
++      ++it->second;
++    }
++    capture_target_leases_.Add(this, std::move(lease), owner);
++  }
++  std::move(callback).Run(target);
++}
++
++void ElectronApiServiceImpl::OnCaptureTargetLeaseClosed() {
++  const blink::WebElement& owner = capture_target_leases_.current_context();
++  auto it = std::ranges::find_if(
++      capture_target_owners_,
++      [&](const auto& entry) { return entry.first == owner; });
++  if (it == capture_target_owners_.end() || --it->second > 0) {
++    return;
++  }
++  capture_target_owners_.erase(it);
++  blink::WebFrame::ReleaseOwnerElementCaptureTarget(owner);
++}
++
+ }  // namespace electron
+diff --git a/shell/renderer/electron_api_service_impl.h b/shell/renderer/electron_api_service_impl.h
+index 55830504b..2a3186d16 100644
+--- a/shell/renderer/electron_api_service_impl.h
++++ b/shell/renderer/electron_api_service_impl.h
+@@ -6,6 +6,8 @@
+ #define ELECTRON_SHELL_RENDERER_ELECTRON_API_SERVICE_IMPL_H_
+ 
+ #include <string>
++#include <utility>
++#include <vector>
+ 
+ #include "base/memory/weak_ptr.h"
+ #include "content/public/renderer/render_frame_observer.h"
+@@ -16,7 +18,9 @@
+ #include "mojo/public/cpp/bindings/receiver.h"
+ #include "mojo/public/cpp/platform/platform_handle.h"
+ #include "services/service_manager/public/cpp/binder_registry.h"
++#include "mojo/public/cpp/bindings/receiver_set.h"
+ #include "shell/common/api/api.mojom.h"
++#include "third_party/blink/public/web/web_element.h"
+ 
+ namespace content {
+ class RenderFrame;
+@@ -29,6 +33,7 @@ class RendererClientBase;
+ class ElectronApiServiceImpl
+     : public mojom::ElectronRenderer,
+       public mojom::ElectronFrame,
++      public mojom::FrameCaptureTargetLease,
+       public content::RenderFrameObserver,
+       public content::RenderFrameObserverTracker<ElectronApiServiceImpl> {
+  public:
+@@ -52,6 +57,15 @@ class ElectronApiServiceImpl
+                           blink::TransferableMessage message) override;
+   void TakeHeapSnapshot(mojo::PlatformHandle file,
+                         TakeHeapSnapshotCallback callback) override;
++  void BindFrameCapture(
++      const std::string& capture_id,
++      mojom::FrameCaptureParamsPtr params,
++      mojo::PendingReceiver<mojom::FrameCaptureSession> session,
++      mojo::PendingRemote<mojom::FrameCaptureHost> host) override;
++  void EnsureChildFrameCaptureTarget(
++      const blink::LocalFrameToken& child,
++      mojo::PendingReceiver<mojom::FrameCaptureTargetLease> lease,
++      EnsureChildFrameCaptureTargetCallback callback) override;
+ 
+   // mojom::ElectronFrame
+   void SetStartupData(mojom::RendererStartupDataPtr data) override;
+@@ -104,6 +118,7 @@ class ElectronApiServiceImpl
+   void OnDestruct() override;
+ 
+   void OnConnectionError();
++  void OnCaptureTargetLeaseClosed();
+ 
+   // Whether the DOM document element has been created.
+   bool document_created_ = false;
+@@ -117,6 +132,12 @@ class ElectronApiServiceImpl
+   // sandboxed renderer client at DidCreateScriptContext time.
+   mojom::RendererStartupDataPtr startup_data_;
+ 
++  // Keyed by the child frame's owner element, which outlives the child's
++  // local frame if it moves to another process.
++  mojo::ReceiverSet<mojom::FrameCaptureTargetLease, blink::WebElement>
++      capture_target_leases_;
++  std::vector<std::pair<blink::WebElement, size_t>> capture_target_owners_;
++
+   raw_ptr<RendererClientBase> renderer_client_;
+   base::WeakPtrFactory<ElectronApiServiceImpl> weak_factory_{this};
+ };

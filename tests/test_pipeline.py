@@ -11,9 +11,23 @@ from common import ROOT, arch_version, digest, electron_channel, package_name, r
 from lock_clients import normalize
 from prepare_app import patch_bundle, replace
 from fingerprints import integration_key, runtime_key
+from assemble import validate_port
 
 
 class SourceLocks(unittest.TestCase):
+    def test_port_exclusions_are_fully_accounted_for(self):
+        sources = read_json(ROOT / "config/sources.lock.json")
+        for port in sources["ports"].values():
+            validate_port(port, ROOT / sources["fork"]["patch"])
+            changed = copy.deepcopy(port)
+            changed["replaced_paths"].append("discord/*")
+            with self.assertRaises(ValueError):
+                validate_port(changed, ROOT / sources["fork"]["patch"])
+            changed = copy.deepcopy(port)
+            changed["upstream_equivalents"].pop(next(iter(changed["upstream_equivalents"])))
+            with self.assertRaises(ValueError):
+                validate_port(changed, ROOT / sources["fork"]["patch"])
+
     def test_vendored_files_match_exact_upstream(self):
         provenance = read_json(ROOT / "packaging/upstream/provenance.json")
         for name, expected in provenance["files"].items():
@@ -103,6 +117,9 @@ class VersionsAndKeys(unittest.TestCase):
         sources = read_json(ROOT / "config/sources.lock.json")
         target = sources["targets"]["stable"]
         self.assertNotEqual(runtime_key(target, sources, {"gn": "a"}), runtime_key(target, sources, {"gn": "b"}))
+        changed = copy.deepcopy(sources)
+        changed["ports"]["45"]["candidate_tree"] = "f" * 40
+        self.assertNotEqual(runtime_key(target, sources, {}), runtime_key(target, changed, {}))
 
 
 class BootstrapPatches(unittest.TestCase):

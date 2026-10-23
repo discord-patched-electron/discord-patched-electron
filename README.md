@@ -16,8 +16,9 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
   the existing resource/bootstrap fixes and validated Krisp patch application.
 - Imported Discord's complete 44-branch delta and verified that applying it to its
   original upstream base reconstructs Discord's exact source tree.
-- The current upstream stable, prerelease and nightly source ports are **not yet
-  complete**. Source-application diagnostics are in [docs/evidence](docs/evidence).
+- Stable, prerelease and nightly source candidates now assemble with separate,
+  pinned compatibility patches. Their Chromium/dependency ports and compilation
+  are **not yet validated**. See [source ports](docs/source-ports.md).
 - A full custom runtime has **not been compiled**. Successful Krisp binary patching
   is **not** a claim that noise suppression has been tested on the new runtime.
 - The reference build workflow uses a containerized runner on the maintainer's PC.
@@ -46,9 +47,9 @@ python3 scripts/assemble.py stable \
   --destination .work/stable --report .work/stable.json
 ```
 
-Use a fresh destination each time. The stable command currently fails explicitly
-where the port is required. It does not discard conflicting changes or publish
-a partially patched runtime. `reference` assembles the exact Discord fork for the
+Use a fresh destination each time. The current three candidate ports assemble;
+later conflicts still fail explicitly and preserve diagnostics. Textual assembly
+does not qualify a runtime for publication. `reference` assembles the exact Discord fork for the
 initial capacity build; it is not the requested latest-Electron product.
 
 See [CI setup](docs/ci-setup.md), [build status](docs/status.md) and

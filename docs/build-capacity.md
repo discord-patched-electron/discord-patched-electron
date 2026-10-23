@@ -1,7 +1,7 @@
 # Build capacity measurements
 
-Initial experiment started 23 October 2026. **Build in progress; capacity is not
-yet proven sufficient for a complete compile or the recurring release workload.**
+Initial experiment started 23 October 2026. **Reference build incomplete; capacity is not yet proven sufficient for a
+complete compile or the recurring release workload.**
 
 Workflow: [reference build 39997836372](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/39997836372).
 Build implementation: `d517391c3ebecfc11e5478ea67fa0c0aa0219e00`.
@@ -20,10 +20,17 @@ passed.
 | Recovery | Persistent source and object files keyed by exact build inputs |
 | Hosted compiler cost | None; PC electricity/storage use remains local |
 
-Runner registration, checkout and Node setup succeeded. The initial fetch is
-running against the locked Discord 44 fork and Chromium 152. No completed runtime
-or compile-time estimate is available yet. Do not extrapolate from the fetch's
-memory use to the linker.
+Runner registration, checkout, Chromium 152 fetch, dependency installation and
+initial dependency patch application succeeded. Attempt 1 failed after 621 seconds
+when the optional `@sentry/cli` installer could not reach its CDN. Its peak cgroup
+RAM was about 5.85 GiB, peak swap about 63 MiB, and sampled free disk remained above
+631 GiB. These are preparation measurements, not a compile/link capacity result.
+
+The workflow now sets the installer's supported `SENTRYCLI_SKIP_DOWNLOAD=1`; no
+symbol upload is performed. [Attempt 2](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/39999471185)
+uses commit `00916a6` and the existing build directory. No completed runtime or
+compile-time estimate is available yet. Do not extrapolate preparation memory use
+to the linker.
 
 The workflow saves `metrics.json`, `source.json`, `capacity.json` when compilation
 finishes, and the build log. Memory peaks come from cgroup counters; disk use is
