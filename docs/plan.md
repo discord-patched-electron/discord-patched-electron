@@ -268,10 +268,24 @@ window IDs, and qualify additional compositor backends explicitly. Require
 Wayland two-application isolation, source switching, cancellation, multi-process
 handling and microphone independence before enabling the fix by default.
 
-The existing X11 correction is an opt-in experiment. Trace-only instrumentation
-(`DPE_APP_AUDIO_TRACE=1`, with `DPE_APP_AUDIO` unset) can now inspect the original
-local module arguments without changing capture. See `docs/audio-investigation.md`
-for the remaining Wayland work and exact limits of the existing evidence.
+The Wayland module adapter is now implemented as an opt-in feature. It follows
+Discord's actual native video consumer through the PipeWire graph to niri's
+cast/window/process identity. Private routes contain the selected app's playback
+processes and feed one helper/playback PID into the native soundshare API. Native
+PipeWire streams use a private PipeWire mix; with real PulseAudio, Pulse streams
+stay on that server's clock and the native API mixes the helper's private feeds.
+PipeWire remains required when PulseAudio is the main audio server. Desktops
+without niri's mapping use an explicit audio-app selector inspired by Vesktop.
+No browser video fallback or remote UI modification is used. See
+`docs/wayland-audio.md` for the implementation and validation limits.
+
+The implementation's native Wayland fixture checks multi-process application
+isolation, unrelated/Discord audio exclusion, switching, cancellation, audio
+off/on, cleanup, both Pulse server implementations and a forced helper crash.
+The compiled test compositor is cached on standard GitHub Actions runners.
+Custom-runtime and real-call/microphone/Krisp qualification remain release gates.
+Trace-only instrumentation (`DPE_APP_AUDIO_TRACE=1`, with `DPE_APP_AUDIO` unset)
+remains available to inspect the live client's original arguments.
 
 ### First determine whether the existing module can be configured correctly
 
@@ -290,7 +304,8 @@ If the fix is setting existing source-specific options, ship a small, checksum-g
 
 [`Vencord/venmic`](https://github.com/Vencord/venmic) provides PipeWire routing/filtering and a native addon interface. Vesktop's [`src/main/venmic.ts`](https://github.com/Vencord/Vesktop/blob/main/src/main/venmic.ts) demonstrates selecting audio nodes and excluding unwanted streams. Its [`screenShareFixes.ts`](https://github.com/Vencord/Vesktop/blob/main/src/renderer/patches/screenShareFixes.ts) connects the resulting virtual source to a browser audio track.
 
-Reuse the routing implementation or its native API behind our small adapter. Do not copy Vesktop's `getDisplayMedia` replacement into Discord: that would change the requested native path. Prefer an in-process addon or direct helper interface over introducing a local HTTP service. Preserve dependency license notices; venmic's MPL-2.0 and Vesktop's GPL licensing are distinct.
+The implemented adapter uses PipeWire's installed command-line clients and
+private graph routes, avoiding a separate venmic ABI/build dependency. Do not copy Vesktop's `getDisplayMedia` replacement into Discord: that would change the requested native path. Prefer an in-process addon or direct helper interface over introducing a local HTTP service. Preserve dependency license notices; venmic's MPL-2.0 and Vesktop's GPL licensing are distinct.
 
 Vesktop's [picker implementation](https://github.com/Vencord/Vesktop/blob/main/src/renderer/components/ScreenSharePicker.tsx) also lets users choose audio sources. Its existence does not prove that Discord's selected video source can automatically be mapped to an audio process.
 
@@ -302,13 +317,19 @@ Proposed routing lifecycle:
 4. Feed it into the native screen-share audio input, keeping the microphone and voice-call input separate.
 5. Update routing when sources/nodes change; remove it on stop, switch, disconnect, crash and application exit.
 
-The unresolved part is step 4: prove the voice module accepts the needed input/device or exposes a suitable native boundary. If capture is entirely private and cannot be redirected, changing public Electron alone may not fix it. Report the required additional hook explicitly; do not promise that an Electron-only patch is enough.
+Step 4 is now proven in the isolated native module fixture: the private mix's
+playback process supplies one PID that Discord's existing native stream-monitor
+API can capture. The ordinary microphone and default devices are unchanged.
+This removes the need for a private C++ module change or browser-track adapter;
+real-call behavior still needs qualification on the completed custom runtime.
 
 ### Source identity and isolation
 
 The [Wayland ScreenCast portal interface](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html) returns stream information, but does not guarantee a selected-window application PID. A PipeWire video node ID is not an audio node ID. X11 window metadata, browser subprocesses, Flatpak namespaces and games with helper processes also need careful mapping.
 
-Prefer verified IDs and process relationships over titles. If identity cannot be resolved safely, report that app audio is unavailable for that selection; never silently substitute system audio. A separate audio selector is a last-resort design change, not an assumed requirement in this plan.
+Prefer verified IDs and process relationships over titles. If identity cannot be resolved safely, report that app audio is unavailable for that selection; never silently substitute system audio. The native Linux picker was found not to return an app PID. Exact niri mapping
+covers automatic selection; an explicit audio selector handles desktops where
+that mapping is unavailable.
 
 Test with two applications generating different tones: selecting A must transmit A and exclude B. Also test microphone independence, exclusion of received Discord audio, audio-disabled state, pause/resume, source switching, process restart and cleanup. Cover X11 and Wayland separately, including a multi-process application. Keep this feature separately switchable so an audio experiment cannot break the working native video bridge.
 
@@ -393,13 +414,16 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 
 ### Phase 4 — application audio
 
-- [ ] Trace source selection/options and locate the screen-share audio input boundary.
-- [x] Try the smallest existing-option correction first. The opt-in module
-  wrapper passes isolated X11 native audio selection/lifecycle tests on bundled
-  Stable/PTB/Canary runtimes; Wayland, multi-process mixing and live-call
-  qualification remain open. See [audio investigation](audio-investigation.md).
-- [ ] If necessary, implement the venmic-based helper and a minimal module adapter.
-- [ ] Pass two-application isolation and lifecycle tests on X11 and Wayland for each supported Discord channel/module variant; validate the relevant runtime combinations.
+- [x] Trace native Wayland selection and locate the native PID-based audio input.
+- [x] Implement the smallest module-wrapper correction for X11.
+- [x] Implement selective PipeWire mixing, exact niri identity, an explicit
+  audio selector for other compositors, and teardown/crash cleanup.
+- [x] Pass native Wayland video/audio fixtures for Stable/PTB/Canary with
+  PipeWire-Pulse and PulseAudio, multi-process sources, Discord exclusion,
+  selection/cancellation and crash cleanup. All seven Wayland CI cases pass;
+  see `docs/evidence/wayland-audio-ci.json`.
+- [ ] Qualify custom runtimes and a real call with microphone/Krisp active;
+  validate actual GNOME/KDE and sandboxed applications separately.
 - [ ] Release the fix through the same fingerprinted pipeline, without remote client UI changes if the proven boundary allows it.
 
 ### Phase 5 — maintenance hardening
@@ -426,4 +450,4 @@ the custom-runtime, real-call, microphone or per-app-audio acceptance gates.
 
 The project is complete when all nine packages, derived from the current AUR packaging baseline, install the intended official Discord Stable, PTB or Canary client with the corresponding stable, prerelease or nightly custom Electron runtime; new stable Electron releases are detected and attempted without being lost; each Discord channel's updates are independently detected and packaged; successful newer combinations automatically update their AUR packages; identical runtime inputs are compiled once and reused across clients; unchanged builds and publication retries do not trigger unnecessary compilation; Krisp noise suppression demonstrably works; and the per-app audio feature demonstrably excludes other applications for the supported combinations.
 
-The remaining research questions are concrete: actual cold-build cost within a suitable provider's free allowance, private voice/Krisp-module compatibility across Electron majors and client channels, the real Linux source-selection arguments, and an independently selectable native screen-share audio input. Keep them visible as feasibility gates. Existing packaging patches provide the starting implementation, but do not by themselves prove compatibility with a newly compiled runtime. Neither unlimited free compilation nor permanently conflict-free Chromium ports has been established. If no suitable free CI can be established, the authorized next step is to pause dependent work and ask the user, not to incur charges.
+The remaining research questions are concrete: actual cold-build cost within a suitable provider's free allowance, private voice/Krisp-module compatibility across Electron majors and client channels, live-client UI behavior on supported desktops, and microphone/Krisp behavior during an actual native share. Keep them visible as feasibility gates. Existing packaging patches provide the starting implementation, but do not by themselves prove compatibility with a newly compiled runtime. Neither unlimited free compilation nor permanently conflict-free Chromium ports has been established. If no suitable free CI can be established, the authorized next step is to pause dependent work and ask the user, not to incur charges.

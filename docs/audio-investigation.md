@@ -1,8 +1,9 @@
 # Native application-audio investigation
 
 **Wayland is the primary target; X11 is additional support.** The maintainer
-clarified this on 23 October 2026. The X11 experiment below establishes a useful
-native audio capability, not completion of the requested Wayland feature.
+clarified this on 23 October 2026. The initial X11 experiment below established the native audio boundary. The
+subsequent [Wayland implementation](wayland-audio.md) now covers native portal
+video, application routing, multi-process mixing and teardown in private fixtures.
 
 Static inspection on 23 October 2026 found an existing Linux application-audio
 path in all three locked `discord_voice.node` binaries. No module was loaded,
@@ -33,12 +34,13 @@ selection call before the recording connection call. PulseAudio documents that
 this API restricts recording to a specific playback stream when connected to a
 monitor source. [PulseAudio API](https://www.freedesktop.org/software/pulseaudio/doxygen/stream_8h.html)
 
-The evidence supports testing the existing native path first. It does **not**
+This initial static evidence supported testing the existing native path first.
+It did **not**
 prove that the UI supplies a usable PID, that loopback is disabled for window
 sharing, that PID namespaces or child processes match, or that the server honors
 the requested stream isolation. The `SetGoLiveDevices` device fields are another
 possible boundary; their interaction with video and microphone capture remains
-unverified. No audio patch or helper is enabled on this evidence alone.
+unverified. The runtime experiments below were required before installing the opt-in helper.
 
 ## Next experiment
 
@@ -113,78 +115,33 @@ compiler runs also trigger this workflow against their verified runtime
 artifact, reusing the same three-client tests. See
 [local audio evidence](evidence/app-audio-local.json).
 
-### Remaining limitations
+## Implemented Wayland path
 
-This is **not a complete or default-enabled per-app audio release**. Full
-Wayland/portal source identity and live UI arguments have not been verified.
-A supplied real process hint can be used when an X11 identity is unavailable,
-but it is not treated as tested Wayland support. Multiple audio-owning descendant
-PIDs are rejected; mixing them requires a proven native adapter for a selective
-capture helper. A single audio-owning child and multiple streams from one PID
-fit the existing native API. Testing with a custom runtime, a real call,
-microphone independence and supported multi-process/Wayland applications remains
-required before enabling the feature by default. The adapter never substitutes
-system audio for an unresolved application.
+The follow-up implementation now resolves the exact native PipeWire video link
+through niri's cast/window IPC and mixes the application's audio subprocesses.
+Other compositors have an explicit audio-app selector. Both PipeWire-Pulse and
+PulseAudio server configurations use a private PipeWire mix and retain native
+Discord video. See [Wayland implementation and validation](wayland-audio.md) for
+the route, lifecycle, test fixture and remaining live-call/custom-runtime checks.
 
-## Wayland-first work order
-
-The official wrapper declares `native_screenshare_picker` when both the session
-type and display indicate Wayland. Its connection interface includes
-`presentDesktopSourcePicker` and source-status/soundshare callbacks. A portal
-selection can therefore happen inside the native module, beyond the earlier
-`setDesktopSource` call. Treat its original caller arguments and subsequent
-callbacks as separate observations.
+The key observation was the module-level native picker API:
+`setNativeScreenSharePickerCallbacks`, `presentNativeScreenSharePicker`, and
+`releaseNativeDesktopVideoSourcePickerStream`. Linux selection returned
+`[false, null]` rather than an application PID; portal cancellation reached the
+failure callback. The actual PipeWire graph and niri cast identity establish
+which window was selected without relying on the opaque `screen:0:0` token.
 
 The [ScreenCast portal contract](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html)
-returns stream identifiers, source type and optional metadata; it does not
-guarantee the selected application's PID. Its `parent_window` identifies the
-requesting application's window, not the selected target. A video node's producer
-can be the compositor, not the application whose sound should be captured.
-Never interpret a portal node ID as a PID or an X11 window ID. The adapter now
-refuses X11 PID lookup whenever the session indicates Wayland, even when DISPLAY
-also exists for Xwayland.
-
-Vesktop's [audio source picker](https://github.com/Vencord/Vesktop/blob/da2121d7dc9d13fd58cdb4df4013b23027ee0d5b/src/renderer/components/ScreenSharePicker.tsx)
-provides explicit inclusion/exclusion selections separately from video. Its
-working audio routing does not establish automatic video-window-to-audio-PID
-mapping for the official client's picker. Reuse that routing design if needed;
-do not assume importing venmic alone solves the identity boundary.
-
-The current desktop reports niri 26.04 (v26.04-214-ge9804c1c), with a `casts` IPC
-request available. Upstream [niri IPC types](https://github.com/YaLTeR/niri/blob/main/niri-ipc/src/lib.rs)
-describe a cast's `pw_node_id`, session/stream IDs and target window ID; window
-records expose an optional PID. This suggests an exact mapping for niri once
-Discord's actual selected PipeWire node is established. It is not implemented
-or proven yet. Do not select the only active cast, the focused window, or a
-matching window title: another application or capture session could own it.
-Do not interpret the cast's consumer PID as the captured application's PID.
-
-Resume in this order:
-
-1. Trace the official native picker on Wayland with the audio correction off.
-   Establish whether a usable process hint or stream/session identity actually
-   crosses the existing wrapper boundary. Include selection, cancellation,
-   window-to-window and window-to-monitor switching, and audio off/on.
-2. If identity is missing, inspect the native portal response/capture boundary
-   and expose only the necessary identity through a narrow, verified module or
-   runtime change. A compositor-specific resolver must correlate the exact
-   selected stream and reject missing/reused identities. Do not guess from time
-   proximity or interpret an opaque `screen:` token as proof of monitor sharing.
-3. Use niri's explicit cast/window relation where supported; evaluate other
-   compositor backends separately. Preserve native video and microphone devices.
-   Resolve audio-owning descendants and use selective routing only if the native
-   single-PID capture path cannot represent the chosen application.
-4. Add a private Wayland compositor/portal fixture with native Wayland test
-   windows and two distinguishable audio streams. Assert the compositor backend
-   and portal selection actually used; Xvfb or setting WAYLAND_DISPLAY is not a
-   Wayland test. Include concurrent unrelated casts, source replacement, cancel,
-   restart, multi-process applications and cleanup, then verify a real call with
-   microphone/Krisp active on the custom runtime.
+does not guarantee the selected application's PID. niri's
+[cast IPC types](https://github.com/YaLTeR/niri/blob/e19df12cf81ffe805609fee497da1a097066ad2f/niri-ipc/src/lib.rs)
+provide the exact relation for automatic selection. Vesktop's
+[separate audio-source picker](https://github.com/Vencord/Vesktop/blob/da2121d7dc9d13fd58cdb4df4013b23027ee0d5b/src/renderer/components/ScreenSharePicker.tsx)
+provided the reference for the explicit selection path on other compositors.
 
 ### Collecting the module trace when a real test package is ready
 
 The packaged wrapper now supports `DPE_APP_AUDIO_TRACE=1` independently of
-`DPE_APP_AUDIO=1`. For the initial Wayland investigation leave the correction
+`DPE_APP_AUDIO=1`. To observe the original client arguments, leave the correction
 off. After closing that same package's existing instance, launch it from a
 terminal, for example **once that package exists**:
 

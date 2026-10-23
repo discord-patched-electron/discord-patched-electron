@@ -1,93 +1,71 @@
 # Handoff and build monitoring
 
-The maintainer requested that coding be saved and agent work pause while the
-reference build continues. Do not restart the compiler just to obtain a newer
-agent checkout. Its existing Ninja objects are valuable.
+The Wayland audio implementation is saved. Keep the existing reference compiler
+running; do not restart it to update the agent checkout. Its Ninja objects and
+compiler cache are valuable. No additional Blacksmith compiler was started after
+the maintainer's confirmed 168 allowance minutes.
 
 ## Watch the PC build
 
-[Reference build run 40005436647](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40005436647)
-uses the `he3als-pc-container` runner in Docker container
-`discord-electron-runner`. Expand **compile → Build the locked reference fork**.
-
-On this PC:
+[Reference build 40005436647](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40005436647)
+uses runner `he3als-pc-container` in Docker container `discord-electron-runner`.
+Expand **compile → Build the locked reference fork**.
 
 ```sh
 tail -f /mnt/storage/discord-patched-electron-ci/actions/discord-patched-electron/discord-patched-electron/out/capacity/build.log
 ```
 
-Or query GitHub without changing the job:
+Or query GitHub:
 
 ```sh
 gh run view 40005436647 --repo discord-patched-electron/discord-patched-electron
 ```
 
-A moving `[completed/45993]` counter means Ninja is making progress. It is not a
-linear time estimate: some compile/link steps take much longer. A quiet log
-alone does not establish a hang. Leave the PC and runner container running;
-no terminal must stay open for the Actions runner to continue.
+A moving `[completed/45993]` counter means Ninja is progressing; it is not a linear
+time estimate. A quiet log alone does not establish a hang. Leave the PC and
+runner container running. No terminal must remain open. Send the run URL and
+success/failure status when returning; the final 30–50 log lines help on failure.
+Do not delete the cache mount or repeatedly rerun a failed build before diagnosis.
 
-When returning, send the run URL and its success/failure status. For failure,
-the last 30–50 lines are useful; the agent can fetch the complete diagnostics.
-Do not delete the build-cache mount or rerun jobs repeatedly. A failed attempt
-should be diagnosed before resuming the same incremental workspace.
+The reference checkout retains its original CPU flags. Published candidate builds
+use the approved x86-64-v3 baseline. See [CPU and cache settings](build-caching.md).
+Successful compiler runs automatically trigger native video/Krisp and application
+audio validation using the completed artifact, without compiling it again.
 
-The reference checkout intentionally retains its original CPU flags. Published
-candidate builds are configured for the approved x86-64-v3 baseline. Compiler
-cache/incremental settings and limits are documented in [build-caching.md](build-caching.md).
-No additional Blacksmith compiler was started after the confirmed 168 allowance
-minutes. Hourly discovery uses standard GitHub runners and does not yet dispatch
-queued Electron compilations. Successful compiler runs automatically trigger
-native bridge/Krisp and application-audio fixture workflows.
+## Saved audio work
 
-## Saved work and resume order
+[Wayland implementation](wayland-audio.md) documents the native picker hooks,
+exact niri/PipeWire source matching, private multi-process audio mix, PulseAudio
+compatibility, explicit selector on other compositors, and crash cleanup.
+`DPE_APP_AUDIO=1` enables it. The remote UI and native video path remain intact.
+The fixtures run without an account, network, physical microphone or host sockets.
+They are not a real Discord call or a completed custom-runtime qualification.
 
-The repository now validates exact discovered client snapshots independently,
-with PTB 1.0.224 and Canary 1.0.2357 promoted after bundled-native/Krisp and Arch
-package CI passed. The opt-in application-audio wrapper and isolated X11 tests
-are documented in [audio-investigation.md](audio-investigation.md). It is not a
-complete Wayland/multi-process/live-call feature, and no binary release or AUR
-update has been published.
+[Checks 40030377851](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40030377851)
+passed for audio implementation `d6ad1ab`: 58 Python tests, ten JavaScript tests,
+source assembly, compiler-cache checks, native video/Krisp, all nine package
+recipes and the Wayland/X11 audio fixtures. Wayland runs Stable/PTB/Canary against
+both PipeWire-Pulse and real PulseAudio, plus a real audio-picker interaction case.
+[Package validation 40029330180](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40029330180)
+checks the subsequent explicit `pipewire-audio` dependency at `07b2eb2`.
+These workflows use standard GitHub runners, not Blacksmith or the PC compiler.
+See [retained audio reports](evidence/wayland-audio-ci.json) and
+[implementation status](status.md) for the final results and remaining gates.
 
-**Wayland is primary, X11 secondary.** The maintainer clarified this before the
-pause. The current session reports niri 26.04 (v26.04-214-ge9804c1c). Do not treat
-the X11 fixture as completion of the requested audio fix. Trace-only module
-instrumentation is now available independently of the audio correction; the
-[Wayland work order](audio-investigation.md#wayland-first-work-order) documents
-the exact remaining boundary and a promising niri IPC mapping. No live Discord
-session was opened to collect this trace.
-
-On resume:
+## Resume after the compiler completes
 
 1. Inspect the reference compile result and automatic validation artifacts.
 2. If it failed, fix the concrete compiler failure and resume its retained
-   workspace; do not infer failure from an observation timeout.
-3. If it passed, inspect resource/cache evidence and validate the current stable
-   candidate with x86-64-v3 using the same compiler runner.
-4. Prioritize the live Wayland source-selection trace, then a private compositor/
-   portal fixture. Establish multiple-process and microphone behavior before
-   enabling application audio. Do not spend another round expanding X11 coverage
-   in place of the primary Wayland path.
-5. Finish queue-to-compiler reconciliation and the release/AUR publisher after
-   the reference compatibility/free-capacity gates are established. Configure
-   AUR credentials privately only when the publisher is concrete and reviewable.
+   workspace. An observation timeout does not itself mean compilation failed.
+3. If it passed, inspect disk/memory/cache evidence and build the current stable
+   x86-64-v3 candidate on the existing runner.
+4. Run a real native Wayland share with the new runtime and microphone/Krisp
+   active. Qualify actual GNOME/KDE sessions and sandboxed apps separately;
+   automatic identity is currently niri-specific.
+5. Finish queue-to-compiler reconciliation, the release ledger and automatic AUR
+   publication after runtime qualification. Discovery already preserves every
+   stable release and skips unchanged inputs. Configure AUR credentials privately
+   when the publisher is concrete and reviewable.
 
-No AUR credentials are currently configured. The nine package recipes and
-packaging tests exist; discovery alone never authorizes publishing them.
-
-## Checks saved at pause
-
-[Checks 40021843553](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40021843553)
-passed all jobs at `e481fa7`: source assembly, 54 Python tests, the initial four
-JavaScript tests, compiler-cache fixture, all nine Arch packages, all three
-native video/Krisp baselines and all three isolated X11 application-audio tests.
-The [retained audio reports](evidence/app-audio-ci.json) explicitly keep Wayland,
-custom-runtime and real-call qualification false.
-
-The subsequent Wayland trace/identity guard change at `83b9b0b` passed all 54
-Python tests and seven JavaScript tests locally. Its new
-[Checks 40022602060](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40022602060)
-was still running when this handoff was written; inspect its final result on
-resume. These jobs use standard GitHub runners, not the PC compiler or
-Blacksmith. The reference compile was still progressing around 21,380/45,993
-steps and must be left running.
+No binary release or AUR update has been published. The nine recipes exist, but
+the compile/release/AUR coordinator is still unfinished and no AUR key is configured.

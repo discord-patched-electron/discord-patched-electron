@@ -54,16 +54,38 @@ reports niri; its portal path is the first live qualification target.
   delta plus separate explicit compatibility patches. All skipped imported file
   changes have replacement patches or documented upstream equivalents.
 - Static inspection of all three voice modules finds soundshare PID/loopback
-  options and a native PulseAudio stream-monitoring path. An opt-in module wrapper now passes isolated native X11 two-tone, source
-  switching and shutdown checks on all three bundled runtimes. Wayland,
-  multi-process mixing and live-call/microphone validation remain unfinished. See
-  [native audio investigation](audio-investigation.md).
+  options and a native PulseAudio stream-monitoring path. The opt-in module
+  adapter retains that path and adds a private PipeWire mix for Wayland. Exact
+  niri cast/window matching, multiple audio processes, native PipeWire and
+  PulseAudio playback, source switching, cancellation, and crash cleanup now
+  have real native Wayland fixtures. Other compositors have an explicit audio
+  selector. See [Wayland audio](wayland-audio.md); custom-runtime and live-call/
+  microphone qualification remain open.
 - Candidate builds now select x86-64-v3 through a project-owned GN toolchain.
   Real compiler fixtures verify cache hits, header/CPU invalidation and reuse
   across checkout paths/server restarts. Incremental reference objects remain
   intact; verified completed archives skip the compiler. See [CPU and caching
   checks](build-caching.md). Candidate CI is wired for each Electron channel,
   followed by automatic native/Krisp checks against all three Discord clients.
+
+## Current audio validation
+
+[Checks 40030377851](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40030377851)
+passed at `d6ad1ab`: 58 Python tests, ten JavaScript tests, source assembly,
+compiler-cache checks, all nine package recipes, native video/offline Krisp on
+all three bundled clients, three X11 audio fixtures and seven Wayland fixtures.
+Wayland covers Stable/PTB/Canary with PipeWire-Pulse and real PulseAudio, plus
+explicit audio selection/cancellation with automatic compositor discovery off.
+All cases verify native PipeWire video, selective audio, Discord exclusion,
+source/audio lifecycle, unchanged default devices and helper SIGKILL cleanup.
+See [retained reports](evidence/wayland-audio-ci.json).
+
+The earlier mixed-server PTB dropout was fixed by keeping Pulse streams on their
+server's clock. The final checks use a stricter 90% clean-frame requirement.
+The completed test compositor is checksummed and cached; these checks use
+standard GitHub runners and do not allocate another Electron compiler.
+They still explicitly leave custom-runtime, real-call and microphone-call
+qualification false. No binary release is advertised on this evidence.
 
 ## Outstanding before a release
 
@@ -78,9 +100,10 @@ reports niri; its portal path is the first live qualification target.
 5. Validate the generated packages with real custom runtimes, then finish the
    compiler coordinator, release ledger and automatic AUR publisher. Discovery
    and the durable backlog are implemented; no publishable runtime exists yet.
-6. Finish live screen-share argument tracing, Wayland identity and multi-process
-   audio handling. The tested X11 adapter is opt-in, not default-enabled;
-   custom-runtime and live-call qualification remain outstanding.
+6. Qualify the completed Wayland audio adapter with the real client's UI and a
+   custom runtime, including a call with microphone/Krisp active. It remains
+   opt-in until those checks pass. Test actual GNOME/KDE desktops and sandboxed
+   applications separately; automated identity is currently niri-specific.
 
 The standard GitHub Actions workflow runs checks. The local reference workflow
 uses four CPUs, 12 GiB RAM, up to 8 GiB additional swap and two compiler tasks.

@@ -103,3 +103,8 @@ retained artifact without compiling it again. Only successful main-branch runs o
 the two compiler workflows qualify. Reports record the compiler and validation
 commits separately. This automatic custom-runtime path is wired but awaits the
 first completed reference build; it does not publish a release or update AUR.
+
+The separate [Wayland audio fixture](wayland-audio.md) now covers actual native
+portal video and selective application audio, including multiple processes and
+both Pulse servers. Its bundled-runtime result does not replace the custom-runtime
+and real-call checks above.
