@@ -78,3 +78,12 @@ Ubuntu's CI image requires an AppArmor user-namespace exception for these copied
 executables. The workflow scopes that exception to its private test paths using
 [Chromium's documented profile approach](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md),
 and keeps Chromium's sandbox enabled.
+
+The shared `Native runtime validation` workflow also starts after a successful
+local or Blacksmith reference build. It downloads that run's artifact, verifies
+its checksum against the completed compiler report, and tests the resulting
+runtime with all three module sets. A manual `reference_run` input can retest a
+retained artifact without compiling it again. Only successful main-branch runs of
+the two compiler workflows qualify. Reports record the compiler and validation
+commits separately. This automatic custom-runtime path is wired but awaits the
+first completed reference build; it does not publish a release or update AUR.

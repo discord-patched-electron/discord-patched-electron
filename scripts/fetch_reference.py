@@ -1,0 +1,84 @@
+"""Retrieve a successful compiler artifact for isolated validation, not release."""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import stat
+import subprocess
+import zipfile
+
+from common import ROOT, read_json, run, sha256, write_json
+
+
+def extract(archive: Path, destination: Path, expected: str):
+    if sha256(archive) != expected:
+        raise ValueError("Reference archive checksum differs from compiler report")
+    if destination.exists():
+        raise ValueError("Use a fresh runtime extraction directory")
+    with zipfile.ZipFile(archive) as source:
+        entries = source.infolist()
+        for entry in entries:
+            name = PurePosixPath(entry.filename)
+            mode = entry.external_attr >> 16
+            if name.is_absolute() or ".." in name.parts or "\\" in entry.filename or stat.S_ISLNK(mode):
+                raise ValueError("Unexpected archive path or symbolic link")
+        source.extractall(destination)
+        for entry in entries:
+            mode = entry.external_attr >> 16
+            if not entry.is_dir() and mode:
+                (destination / entry.filename).chmod(mode & 0o777)
+    if not (destination / "electron").is_file():
+        raise ValueError("Reference archive lacks an Electron executable")
+
+
+def fetch(run_id: str, output: Path):
+    if not re.fullmatch(r"[1-9][0-9]*", run_id):
+        raise ValueError("Expected a numeric GitHub Actions run ID")
+    repository = os.environ.get("GH_REPO", "")
+    if repository != "discord-patched-electron/discord-patched-electron":
+        raise ValueError("Only this project's compiler artifacts are accepted")
+    output = output.resolve()
+    if output.exists() and any(output.iterdir()):
+        raise ValueError("Use an empty download directory")
+    metadata = json.loads(subprocess.check_output(
+        ["gh", "api", f"repos/{repository}/actions/runs/{run_id}"], text=True))
+    if (metadata["conclusion"] != "success" or metadata["head_branch"] != "main"
+            or metadata["head_repository"]["full_name"] != repository
+            or metadata["path"] not in {".github/workflows/capacity.yml", ".github/workflows/blacksmith-capacity.yml"}):
+        raise ValueError("Expected a successful main-branch reference compiler run")
+    output.mkdir(parents=True, exist_ok=True)
+    attempt = metadata["run_attempt"]
+    # The two compiler workflows use different diagnostic artifact names.
+    report_name = ("capacity-report" if metadata["path"].endswith("/capacity.yml")
+                   else "blacksmith-capacity")
+    run("gh", "run", "download", run_id, "--repo", repository,
+        "--name", f"{report_name}-{run_id}-{attempt}", "--dir", output / "capacity")
+    capacity = read_json(output / "capacity/capacity.json")
+    source = capacity["source"]
+    fork = read_json(ROOT / "config/sources.lock.json")["fork"]["commit"]
+    if (source.get("target") != "reference" or source.get("upstream_commit") != fork
+            or not all(source.get(key) is True for key in ("source_assembled", "dependencies_patched", "compiled"))):
+        raise ValueError("Compiler report does not establish the current reference build")
+    run("gh", "run", "download", run_id, "--repo", repository,
+        "--name", f"reference-runtime-{run_id}", "--dir", output / "binary")
+    archive = output / "binary/reference-dist.zip"
+    extract(archive, output / "runtime", capacity["archive_sha256"])
+    write_json(output / "artifact-provenance.json", {"compiler_run": metadata["html_url"],
+        "compiler_commit": metadata["head_sha"], "compiler_attempt": attempt,
+        "validation_commit": os.environ.get("GITHUB_SHA"), "capacity": capacity,
+        "archive_sha256": sha256(archive), "publishable": False})
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("run_id")
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    fetch(args.run_id, args.output)
+
+
+if __name__ == "__main__":
+    main()
