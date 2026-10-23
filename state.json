@@ -1,6 +1,8 @@
 {
   "activated_at": "2026-10-23T19:59:51Z",
-  "client_errors": {},
+  "client_errors": {
+    "stable": "Unexpected distribution source for core"
+  },
   "clients": {
     "canary": {
       "channel": "canary",
@@ -289,7 +291,7 @@
       "published_at": "2026-10-23T15:09:36Z",
       "release_id": 421880039,
       "repository": "electron/electron",
-      "runtime_key": "bc0ff7d7664fb6176f9173c0b705c46a4af2a6572b8ac0ccac8e28b5c366f6b3",
+      "runtime_key": "4a577013ff4f26f6f7465012dea0f2b8c2897bea49593efbf125c0ca215aa748",
       "status": "available",
       "tag": "v46.0.0-alpha.1",
       "version": "46.0.0-alpha.1"
@@ -318,6 +320,15 @@
         "version": "46.0.0-alpha.1"
       }
     },
+    "4a577013ff4f26f6f7465012dea0f2b8c2897bea49593efbf125c0ca215aa748": {
+      "attempts": [],
+      "channel": "prerelease",
+      "status": "pending",
+      "target": {
+        "commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
+        "version": "46.0.0-alpha.1"
+      }
+    },
     "736b11c967017e72fed5d75853d379be3dc1eae474c650a3a3502cc4e0970b32": {
       "attempts": [],
       "channel": "stable",
@@ -331,7 +342,9 @@
     "bc0ff7d7664fb6176f9173c0b705c46a4af2a6572b8ac0ccac8e28b5c366f6b3": {
       "attempts": [],
       "channel": "prerelease",
-      "status": "pending",
+      "reason": "native-inputs-changed",
+      "status": "superseded",
+      "superseded_by": "4a577013ff4f26f6f7465012dea0f2b8c2897bea49593efbf125c0ca215aa748",
       "target": {
         "commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
         "version": "46.0.0-alpha.1"
