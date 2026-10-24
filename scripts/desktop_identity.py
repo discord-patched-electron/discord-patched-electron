@@ -11,3 +11,8 @@ def profile_name(discord: str) -> str:
 
 def display_name(discord: str) -> str:
     return {"stable": "Discord", "ptb": "Discord PTB", "canary": "Discord Canary"}[discord]
+
+
+def arch_conflicts(discord: str) -> list[str]:
+    identity = desktop_id(discord)
+    return [identity, "discord-canary-electron-bin"] if discord == "canary" else [identity]

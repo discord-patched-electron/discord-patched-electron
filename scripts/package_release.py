@@ -26,7 +26,7 @@ from common import (
     sha256,
     write_json,
 )
-from desktop_identity import desktop_id
+from desktop_identity import arch_conflicts, desktop_id
 from elftools.elf.elffile import ELFFile
 from fetch_reference import validate_capacity
 
@@ -94,6 +94,7 @@ def metadata(
         ],
         "overrides": {
             "archlinux": {
+                "conflicts": arch_conflicts(channel),
                 "depends": [
                     "glibc>=2.35",
                     "gcc-libs",

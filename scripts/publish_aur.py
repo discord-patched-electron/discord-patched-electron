@@ -67,8 +67,9 @@ def recipe(manifest: dict, tag: str, revision: int = 1) -> str:
     if identity not in (legacy_id, desktop_id(manifest["channel"])):
         raise ValueError("Unexpected desktop identity")
     icon = identity if "desktop_id" in manifest else manifest_name(manifest)
+    conflicts = " ".join(shlex.quote(name) for name in dependencies["conflicts"])
     ownership = (
-        f"provides=('{identity}')\nconflicts=('{identity}')\n" if "desktop_id" in manifest else ""
+        f"provides=('{identity}')\nconflicts=({conflicts})\n" if "desktop_id" in manifest else ""
     )
     command_link = (
         f'  ln -s "/opt/$pkgname/launch.sh" "$pkgdir/usr/bin/{identity}"\n'

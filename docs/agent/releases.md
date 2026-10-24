@@ -174,3 +174,17 @@ approval. The two superseded app releases were deleted. Their Git tags remain fo
 changelog links. The retained signed release `canary-1.0.2365-0127ebd36508aff4`
 was already approved and published to AUR. This does not change the manual
 approval policy for future builds or delete runtime cache releases.
+
+## Arch package conflicts
+
+The AUR name/description and `provides` searches on 24 October 2026 found
+[discord-canary](https://aur.archlinux.org/packages/discord-canary) and
+[discord-canary-electron-bin](https://aur.archlinux.org/packages/discord-canary-electron-bin).
+Both are explicit conflicts in generated Arch recipes and future Arch release
+packages. The generic `discord-canary` conflict also covers other providers.
+The official Arch repositories currently carry stable Discord, not Canary.
+
+[moonlight-canary-bin](https://aur.archlinux.org/packages/moonlight-canary-bin)
+installs its own executable, desktop file and icons. It is not a conflicting
+Canary package. Stable, PTB, standalone mod installers and separate clients are
+not blocked merely because they are related to Discord.

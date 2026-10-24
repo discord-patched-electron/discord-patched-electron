@@ -129,6 +129,7 @@ class Recipes(unittest.TestCase):
                         )
                         self.assertIn("pkgname = " + result["package"], srcinfo)
                         self.assertIn("conflicts = discord-canary", srcinfo)
+                        self.assertIn("conflicts = discord-canary-electron-bin", srcinfo)
                         self.assertNotIn("depends = electron", srcinfo)
                     before = {
                         p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()

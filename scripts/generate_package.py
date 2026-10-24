@@ -24,7 +24,7 @@ from common import (
     sha256,
     write_json,
 )
-from desktop_identity import desktop_id, display_name, profile_name
+from desktop_identity import arch_conflicts, desktop_id, display_name, profile_name
 from fingerprints import integration_key
 from lock_clients import normalize
 
@@ -173,6 +173,7 @@ def generate(
     replacements = {
         "PACKAGE": name,
         "DESKTOP_ID": desktop_id(client["channel"]),
+        "CONFLICTS": " ".join(shlex.quote(name) for name in arch_conflicts(client["channel"])),
         "VERSION": arch_version(runtime["version"]),
         "REVISION": str(revision),
         "DISCORD": client["channel"],

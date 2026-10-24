@@ -16,6 +16,14 @@ from prepare_app import patch_bundle
 
 
 class PortableReleases(unittest.TestCase):
+    def test_arch_conflicts_cover_canary_providers_without_blocking_other_clients(self):
+        config = metadata(Path("/unused"), "20261024.202623", "canary", 0)
+        self.assertEqual(
+            config["overrides"]["archlinux"]["conflicts"],
+            ["discord-canary", "discord-canary-electron-bin"],
+        )
+        self.assertEqual(config["conflicts"], ["discord-canary"])
+
     def test_bootstrap_uses_launch_root_even_for_equicord_copies(self):
         source = (
             'resourcesPath=path_1.default.join(require.main.filename,"..",".."),'
