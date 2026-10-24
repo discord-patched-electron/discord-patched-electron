@@ -80,7 +80,7 @@ def stage(directory: Path, manifest: dict, tag: str):
             "--user",
             f"{os.getuid()}:{os.getgid()}",
             "-v",
-            f"{directory.resolve()}:/package:ro",
+            f"{directory.resolve()}:/package",
             "-w",
             "/package",
             "archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0",
