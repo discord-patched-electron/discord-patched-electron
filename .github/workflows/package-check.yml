@@ -78,7 +78,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: arch-packaging-diagnostics
+          name: arch-packaging-diagnostics-${{ inputs.discord_channels || 'all' }}
           path: |
             out/clients.lock.json
             out/clients.lock.provenance.json

@@ -43,7 +43,7 @@ class Discovery(unittest.TestCase):
         self.assertEqual(self.reconcile(state), state)
         self.assertEqual(self.verify.call_count, 1)
 
-    def test_all_prereleases_survive_missed_polls_but_stable_and_nightly_are_ignored(self):
+    def test_prerelease_history_survives_but_only_newest_pending_release_is_built(self):
         before = self.reconcile()
         for version, identity in [("45.0.1", 10), ("45.0.2", 11), ("43.8.3", 12),
                                   ("46.0.0-alpha.2", 13), ("46.0.0-beta.1", 14),
@@ -51,7 +51,9 @@ class Discovery(unittest.TestCase):
             self.add(version, identity)
         state = self.reconcile(before)
         ordered = [state["runtimes"][key]["target"]["version"] for key in pending(state)]
-        self.assertEqual(ordered, ["46.0.0-alpha.1", "46.0.0-alpha.2", "46.0.0-beta.1"])
+        self.assertEqual(ordered, ["46.0.0-beta.1"])
+        self.assertEqual(len(state['releases']), 3)
+        self.assertEqual(sum(r['status'] == 'superseded' for r in state['runtimes'].values()), 2)
         self.assertEqual(self.reconcile(state), state)
 
     def test_disabled_pending_work_is_retired_without_changing_running_or_completed_work(self):

@@ -30,6 +30,16 @@ const rawVoice = require(path.join(output, "voice/discord_voice.node"));
 const rawOutputDevices = rawVoice.getOutputDevices.bind(rawVoice);
 const voice = require(path.join(output, "voice"));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function stage(value) {
+  fs.writeFileSync(path.join(output, 'stage.json'), JSON.stringify({stage:value}));
+}
+function devices(get, label) {
+  stage(label);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 8000);
+    get(value => { clearTimeout(timer); resolve(value); });
+  });
+}
 const events = [];
 const privateDevice = d => /^dpe-audio-[a-f0-9]{32}-(mix|native)(\.monitor)?$/.test(d.guid || d.name || '');
 let internalDeviceControl = false, hiddenDeviceLeaks = 0;
@@ -111,17 +121,19 @@ async function choose(selection) {
   return result;
 }
 async function capture(name, change, settle = 2000) {
+  stage(name + ':select');
   phase = null;
   await change();
   await wait(settle);
   if (name === 'app-a') {
-    const raw = await new Promise(resolve => rawOutputDevices(resolve));
-    const filtered = await new Promise(resolve => voice.getOutputDevices(resolve));
+    const raw = await devices(rawOutputDevices, 'raw output enumeration');
+    const filtered = await devices(voice.getOutputDevices.bind(voice), 'filtered output enumeration');
     fs.writeFileSync(path.join(output, 'device-control.json'), JSON.stringify({raw, filtered}));
     internalDeviceControl = raw.some(privateDevice);
     hiddenDeviceLeaks += filtered.filter(privateDevice).length;
   }
   phase = name;
+  stage(name + ':record');
   await wait(1600);
   phase = null;
 }

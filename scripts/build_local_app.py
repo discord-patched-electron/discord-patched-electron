@@ -16,6 +16,7 @@ from build_camera_support import build as camera_build
 from camera_scope import write_scope
 from common import ROOT, download, package_name, read_json, sha256, write_json
 from desktop_identity import desktop_id
+from client_inputs import load_clients, validate_channel
 from fetch_reference import extract, validate_capacity
 from patch_app_audio import patch as audio_patch
 from patch_desktop_core import patch as desktop_patch
@@ -23,11 +24,12 @@ from patch_krisp import patch as krisp_patch
 from prepare_app import prepare
 
 
-def build(output: Path, channel: str, artifact: Path | None, cache: Path):
+def build(output: Path, channel: str, artifact: Path | None, cache: Path, clients: Path = ROOT / 'config/clients.lock.json'):
     output = output.resolve()
     if output.exists():
         raise ValueError("Choose a fresh output directory")
-    client = read_json(ROOT / "config/clients.lock.json")["clients"][channel]
+    client = load_clients(clients, [channel])[channel]
+    validate_channel(channel, client)
     capacity = None
     if artifact:
         artifact = artifact.resolve()
@@ -64,9 +66,11 @@ def build(output: Path, channel: str, artifact: Path | None, cache: Path):
         executable = {"stable":"Discord", "ptb":"DiscordPTB", "canary":"DiscordCanary"}[channel]
         (output / "runtime" / executable).rename(output / "runtime/electron")
     shutil.rmtree(core)
-    # Bundled baseline fuses only load the archive inside resources; the custom
-    # runtime can use either path. Both receive exactly the prepared bootstrap.
-    shutil.copytree(output / "resources", output / "runtime/resources", dirs_exist_ok=True)
+    # Bundled baselines require the packaged ASAR. A custom runtime must keep
+    # default_app.asar: adding app.asar makes Electron ignore the CLI entry point
+    # (including the optional Equicord loader).
+    if not capacity:
+        shutil.copytree(output / "resources", output / "runtime/resources", dirs_exist_ok=True)
     krisp = output / "modules/discord_krisp"
     write_json(output / "krisp-patch.json", krisp_patch(krisp / "discord_krisp.node"))
     (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
@@ -82,7 +86,8 @@ def build(output: Path, channel: str, artifact: Path | None, cache: Path):
     launcher = launcher.replace('"$config_root/$name"', '"$config_root/$name-local"')
     # A user-owned directory cannot supply a root-owned setuid helper. Chromium
     # still uses its user-namespace sandbox; never disable the whole sandbox.
-    launcher = launcher.replace('"$root/resources/app.asar"', '"$root/resources/app.asar" --disable-setuid-sandbox')
+    launcher = launcher.replace('"$entry" "${flags[@]}"', '"$entry" --disable-setuid-sandbox "${flags[@]}"')
+    shutil.copy2(ROOT / 'integration/launcher/equicord.py', output)
     entry = output / "launch.sh"
     entry.write_text(launcher)
     entry.chmod(0o755)
@@ -109,8 +114,9 @@ def main():
     source.add_argument("--artifact", type=Path, help="Verified fetch_reference.py output directory")
     source.add_argument("--bundled-baseline", action="store_true", help="Packaging test only; not the custom runtime")
     parser.add_argument("--cache", type=Path, required=True, help="Channel-specific locked client archive cache")
+    parser.add_argument('--clients', type=Path, default=ROOT / 'config/clients.lock.json')
     args = parser.parse_args()
-    build(args.output, args.discord, args.artifact, args.cache.resolve())
+    build(args.output, args.discord, args.artifact, args.cache.resolve(), args.clients)
 
 
 if __name__ == "__main__":

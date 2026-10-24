@@ -10,12 +10,17 @@ import stat
 import subprocess
 import zipfile
 
-from common import ROOT, read_json, run, sha256, write_json
+from common import ROOT, digest, read_json, run, sha256, write_json
 from build_reference import build_config
 from fingerprints import runtime_key
 
 
 def validate_capacity(capacity: dict, candidate: bool):
+    # A new candidate must not strand client-only updates on the previously
+    # verified runtime. This exact report hash is an explicit reviewed pin.
+    good = read_json(ROOT / 'config/update-policy.json')['last_good_runtime']
+    if candidate and digest(capacity) == good.get('capacity_sha256'):
+        return
     source = capacity["source"]
     sources = read_json(ROOT / "config/sources.lock.json")
     if not all(source.get(key) is True for key in ("source_assembled", "dependencies_patched", "compiled")):
@@ -78,13 +83,27 @@ def fetch(run_id: str, output: Path):
     report_name = {".github/workflows/capacity.yml": "capacity-report",
                    ".github/workflows/blacksmith-capacity.yml": "blacksmith-capacity",
                    ".github/workflows/build.yml": "candidate-capacity"}[metadata["path"]]
-    run("gh", "run", "download", run_id, "--repo", repository,
-        "--name", f"{report_name}-{run_id}-{attempt}", "--dir", output / "capacity")
+    good = read_json(ROOT / 'config/update-policy.json')['last_good_runtime']
+    cached = run_id == good['run'] and metadata['head_sha'] == good['compiler_commit']
+    if cached:
+        # A checksum-pinned draft release retains the tested runtime beyond
+        # Actions artifact expiry. It is not a public binary/AUR publication.
+        run('gh','release','download',good['cache_release'],'--repo',repository,
+            '--pattern','capacity.json','--dir',output/'capacity')
+    else:
+        run("gh", "run", "download", run_id, "--repo", repository,
+            "--name", f"{report_name}-{run_id}-{attempt}", "--dir", output / "capacity")
     capacity = read_json(output / "capacity/capacity.json")
+    if cached and digest(capacity) != good['capacity_sha256']:
+        raise ValueError('Retained compiler report differs from the verified pin')
     validate_capacity(capacity, candidate)
     artifact = "candidate-runtime" if candidate else "reference-runtime"
-    run("gh", "run", "download", run_id, "--repo", repository,
-        "--name", f"{artifact}-{run_id}", "--dir", output / "binary")
+    if cached:
+        run('gh','release','download',good['cache_release'],'--repo',repository,
+            '--pattern','runtime-dist.zip','--dir',output/'binary')
+    else:
+        run("gh", "run", "download", run_id, "--repo", repository,
+            "--name", f"{artifact}-{run_id}", "--dir", output / "binary")
     archive = output / "binary" / ("runtime-dist.zip" if candidate else "reference-dist.zip")
     extract(archive, output / "runtime", capacity["archive_sha256"])
     write_json(output / "artifact-provenance.json", {"compiler_run": metadata["html_url"],

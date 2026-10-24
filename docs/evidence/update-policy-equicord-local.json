@@ -1,0 +1,27 @@
+{
+  "bundled_electron_payload_unchanged": true,
+  "bundled_electron_version": "44.9.3",
+  "canary_version": "1.0.2365",
+  "date": "2026-10-24",
+  "electron_compiled": false,
+  "equicord_first_launch_and_relaunch": "passed on native Wayland with renderer, preload and DiscordNative",
+  "equicord_install": {
+    "asset_id": 667418529,
+    "release_id": 151616158,
+    "repository": "Equicord/Equicord",
+    "sha256": "0984cba150f9b7e97db84497cc148946638c54289bc1111dcea28c396022cb02",
+    "upstream_updates_supported": true,
+    "url": "https://github.com/Equicord/Equicord/releases/download/latest/desktop.asar"
+  },
+  "javascript_tests": 16,
+  "local_app": "/mnt/storage/discord-patched-electron-ci/local-tests/canary-equicord-latest-20261024/launch.sh",
+  "native_identity_unchanged": true,
+  "previous_canary": "1.0.2357",
+  "ptb_pipewire_fixture": "passed after default device readiness handshake",
+  "python_tests": 86,
+  "runtime_retention": "draft release retrieved; compiler report and archive hashes verified",
+  "runtime_version": "46.0.0-alpha.1",
+  "schema": 1,
+  "voice_camera_call": "not performed",
+  "workflow_syntax": "actionlint v1.7.12 passed"
+}

@@ -65,4 +65,11 @@ if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
     export DPE_CAMERA_VOICE_MODULE="$root/modules/discord_voice/discord_voice.node"
     export LD_PRELOAD="$root/libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
 fi
-exec "$root/runtime/electron" "$root/resources/app.asar" "${flags[@]}"
+entry="$root/resources/app.asar"
+equicord_home=${DPE_EQUICORD_HOME:-"$config_root/${name/-prerelease-patched-electron-bin/-patched-electron}/equicord"}
+if [[ ${DPE_EQUICORD:-1} != 0 && -f "$equicord_home/enabled" ]]; then
+    entry=$(python "$root/equicord.py" prepare --home "$equicord_home" --root "$root")
+    export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DISCORD_USER_DATA_DIR/equicord"}
+    export DISABLE_UPDATER_AUTO_PATCHING=1
+fi
+exec "$root/runtime/electron" "$entry" "${flags[@]}"

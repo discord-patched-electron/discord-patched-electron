@@ -1,7 +1,7 @@
 name: Discover upstream releases
 on:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,6 +15,12 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: read
+    outputs:
+      clients: ${{ steps.reserve.outputs.clients }}
+      electron: ${{ steps.reserve.outputs.electron }}
+      reference_run: ${{ steps.reserve.outputs.reference_run }}
+      snapshot: ${{ steps.snapshot.outputs.commit }}
     env:
       GH_TOKEN: ${{ github.token }}
       GIT_TERMINAL_PROMPT: '0'
@@ -25,19 +31,66 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
+      - name: Install archive inspector
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli
       - name: Read the durable queue
         run: python scripts/state_branch.py checkout out/state
       - name: Discover releases and independent Discord module updates
         run: python scripts/discover.py --state out/state/state.json
+      - name: Reserve independent content-keyed work
+        id: reserve
+        run: python scripts/schedule_updates.py --state out/state/state.json
       - name: Persist only real changes
         run: python scripts/state_branch.py save out/state
-      # Compilation/publication are intentionally not dispatched until the
-      # reference, candidate and application-audio release gates are qualified.
+      - name: Pin the saved client snapshot
+        id: snapshot
+        run: echo "commit=$(git -C out/state rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Retain discovery diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: discovery-${{ github.run_id }}-${{ github.run_attempt }}
-          path: out/discovery/discovery.json
+          path: |
+            out/discovery/discovery.json
+            out/discovery/update-plan.json
           retention-days: 7
           if-no-files-found: warn
+  clients:
+    needs: discover
+    if: needs.discover.outputs.clients != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ${{ fromJSON(needs.discover.outputs.clients) }}
+    uses: ./.github/workflows/client-update.yml
+    with:
+      clients_state: ${{ needs.discover.outputs.snapshot }}
+      discord_channel: ${{ matrix.channel }}
+      reference_run: ${{ needs.discover.outputs.reference_run }}
+    permissions:
+      contents: read
+      actions: read
+  electron:
+    needs: discover
+    if: needs.discover.outputs.electron != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: write
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      STATE_COMMIT: ${{ needs.discover.outputs.snapshot }}
+      RUNTIME_KEY: ${{ needs.discover.outputs.electron }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: main
+      - run: python scripts/advance_electron.py "$STATE_COMMIT" "$RUNTIME_KEY"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: source-update-diagnostics
+          path: out/source-update.json
+          retention-days: 14

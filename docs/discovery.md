@@ -1,75 +1,97 @@
-# Release discovery and durable queue
+# Update ownership and scheduling
 
-`update.yml` runs on standard GitHub runners hourly at minute 17 and on manual
-dispatch. It does not allocate Blacksmith or PC compiler capacity yet. Build,
-runtime/audio qualification and publication remain separate unfinished gates.
+The package owns the local Discord host ASAR, `discord_desktop_core/core.asar`
+and native module files. Their built-in host/module updater is disabled so it
+cannot replace the patches or mix module revisions. Discord's HTTPS web UI still
+updates independently. Installed Arch packages update through pacman/AUR helpers;
+a CI release does not silently modify a running installation.
 
-The workflow reads every page of published release records from
-`electron/electron`, selecting alpha/beta prereleases only. It does not request
-`electron/nightlies`. It uses `published_at`, not `created_at`, and does not
-assume pages are ordered by publication time. On activation it seeds the highest
-published prerelease and records the baseline. Future polls retain every
-prerelease since that baseline, including multiple releases between polls.
+## Independent update paths
 
-Source tags come from `electron/electron`. A single
-Git tag advertisement supplies lightweight refs and peeled annotated refs;
-the GitHub commit endpoint verifies newly observed source objects. Every later
-poll compares tracked source tags with their pinned commits. A moved, missing,
-withdrawn, replaced or retagged release is withheld from the queue, with its old
-identity retained. Restoring a moved tag does not erase the anomaly. New version
-formats that the parser cannot handle are recorded as issues rather than silently
-dropped. A malformed new source object does not prevent healthy releases being
-queued; transient upstream API failures abort that poll without partial writes.
+`update.yml` polls at minutes 7, 22, 37 and 52 every hour (GitHub schedules can be
+late). It compares all three official distribution manifests, including every
+module revision and SHA-256. A module-only update counts even if the host version
+is unchanged. Healthy channels continue when another manifest fails. An Electron
+API outage also leaves Discord discovery operational.
 
-The workflow concurrently downloads all three Discord distribution manifests.
-Channel normalization and binary checksums use the existing lock implementation.
-A bad manifest retains that channel's previous lock and records `client_errors`,
-allowing healthy channels and Electron discovery to proceed. Consumers must keep
-the affected package on its last qualified state until the error is resolved.
-Discord-only changes do not create new runtime keys.
+Each changed client/integration identity immediately qualifies on the pinned
+last-good compiled runtime through `client-update.yml`: bundled baseline,
+custom native video and offline Krisp, Wayland/X11 application audio, packaging,
+and actual login-form launch/relaunch with and without optional Equicord. These
+jobs never compile Electron. Each job consumes the same immutable `ci-state`
+commit; the three channels run independently. A failing gate keeps the previous
+qualified installation usable and retains diagnostics.
 
-## State and deduplication
+When a **Discord host archive** changes, `inspect_bundled_runtime.py` reads the
+checksum-verified archive without executing it. It hashes the Electron executable
+and the native runtime payload separately from ASARs. It also records the embedded
+Electron version when unambiguous. It does **not** poll Discord fork commits.
+The source fork is consulted only when a shipped binary change or failed native
+compatibility test calls for a port review. A changed executable alone does not
+force a rebuild: branding/build changes can leave the existing bridge compatible.
 
-`ci-state` is an independent branch containing only `state.json`. It is never
-merged into `main`, so generated updates cannot create source merge conflicts.
-The document records activation, releases and their pinned source identities,
-runtime keys/status/attempt lists, current client locks and discovery issues.
-It is the durable backlog; the GitHub Actions pending-job queue is not.
+Example verified on 24 October: Canary 1.0.2357 -> 1.0.2365 changed client files,
+but both the bundled executable and native runtime payload remained identical,
+reporting Electron 44.9.3. The custom runtime remains Electron 46 alpha 1.
 
-Runtime keys include source, compiled patches, CPU/toolchain settings and build
-implementation. Identical keys have one record, independent of Discord clients.
-A changed native input creates a new pending key. Failed identical keys remain
-failed, avoiding endless recompilation; explicit retry and abandoned-run
-reconciliation will be connected with the compiler coordinator. Prerelease entries are never coalesced and are ordered by version.
-Stable/nightly Electron are disabled in `config/channels.json`. Migration retires
-only pending work for those channels, preserving historical release metadata,
-attempts and running/completed/failed builds. `pending()` excludes disabled work
-even before migration. The reference build can finish normally. Source/build/
-packaging entry points reject disabled targets; old locked ports remain evidence.
+Upstream Electron alpha/beta releases are retained in the audit ledger, but older
+pending prereleases are coalesced into the newest. Routine source advancement is
+eligible **96 hours after the last compiler attempt** (initially the pinned good
+build's completion). No new eligible input means no compilation. Official Electron
+high/critical security advisories bypass the wait only when their comparator range
+includes our current version and explicitly identifies a fixed candidate on that
+major. Unknown ranges and cross-major backport assumptions are not guessed.
+`urgent_versions` in `config/update-policy.json` provides an explicit maintainer
+exception for embargoed fixes/Chromium advisories that lack machine-readable data.
+This is not a guarantee that every urgent Chromium fix will be labeled publicly.
 
-Canonical JSON excludes poll timestamps except the activation baseline. An
-unchanged poll neither changes the state file nor creates a Git commit/push.
-Writers share one Actions concurrency group. Git pushes are fast-forward only;
-a racing writer fails instead of merging JSON or overwriting another update.
-The next poll reads the current branch and reconciles the upstream feeds again.
+`advance_electron.py` first applies the existing patch queue in a disposable source
+checkout. An incompatible patch fails visibly without touching the retained PC
+build or the last-good runtime. A successful application advances only the source
+lock by a fast-forward main push and explicitly dispatches `build.yml`, with an
+expected native-input key. The compiler checks that identity before starting.
+Only the self-hosted PC is used; no Blacksmith. A healthy compiler is never
+cancelled or duplicated. Reviewed major-specific ports remain necessary when
+upstream APIs change: avoiding merges does not remove compatibility work.
 
-Only the discovery job receives GitHub contents-write permission, for this state
-branch. Credentials are supplied through the job environment and Git's `gh`
-credential helper, never embedded in a remote URL or state file. No AUR key or
-provider API key is needed for discovery. API retries are bounded to three
-attempts for timeouts, rate-limit responses and server errors.
+## Durable state and artifacts
 
-## What this does not yet publish
+`ci-state` contains generated JSON only and is never merged into main. Content
+keys reserve client and Electron work before jobs start; completed/failed attempts
+remain in the ledger. Repeated polls do not restart failed identical work. Use
+Actions **Re-run failed jobs** after resolving an infrastructure issue; a source
+or client fix generates a new integration key. State writers share one concurrency
+group and use normal fast-forward pushes, never forced JSON merges.
 
-The candidate compiler workflow currently builds the reviewed channel locks.
-Connecting durable queue entries to compilation, immutable runtime manifests,
-integration validation, GitHub Releases and AUR transactions remains work in
-progress. The queue alone does not prove a release is compatible or publishable.
-No AUR recipe is advanced from a discovery status or an unvalidated binary.
+The reviewed last-good runtime is pinned by compiler run, source commit, complete
+capacity-report digest and archive checksum in `config/update-policy.json`. It is
+retained in a private-to-collaborators **draft release** so Actions artifact expiry
+cannot force a recompile. Newly compiled Actions artifacts/reports retain 90 days.
+Fetch verifies both the report and archive hashes. A newer source lock does not
+invalidate the exact older pinned runtime used by immediate client checks.
 
-Tests exercise missed prereleases, disabled-channel migration, unchanged polls, native/client
-deduplication, annotated tags, moved/replaced/withdrawn releases, invalid source
-objects, preserved running work, pagination and competing Git state writers.
+Only source/state advancement jobs get contents-write permission. Compilation and
+client tests do not need a Blacksmith key. Native build fingerprints exclude ASAR,
+launcher, Equicord and application-audio sidecars, so their updates reuse C++.
+
+## Qualification versus publication
+
+This automation now discovers, reserves, checks client updates, preflights new
+Electron sources and schedules PC compilation. **Public binary/AUR publication
+and automatic promotion of a newly compiled candidate to last-good remain release
+work.** There is no AUR publishing key configured. A passing source application or
+bundled baseline is not permission to publish an unqualified candidate. The
+current local app can be rebuilt immediately from the discovered client snapshot
+with `build_local_app.py --clients <snapshot>` and the retained tested runtime.
+
+Before enabling AUR publication, the release coordinator must promote only after
+native/audio/real-launch gates, retain immutable assets, increment `pkgrel` for
+ASAR/module-only changes, push PKGBUILD and `.SRCINFO` together, and leave a durable
+retryable publication record if an AUR push fails. It must never hold client
+updates behind the 96-hour Electron cadence. These remaining gates are deliberate
+and visible; hourly discovery alone is not described as a complete auto-updater.
+
+## Earlier evidence and manual checks
 
 The first two CI runs succeeded. The second reported no input change and left
 the remote `ci-state` commit exactly unchanged, with no compiler job allocated.

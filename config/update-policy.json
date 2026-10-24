@@ -1,0 +1,19 @@
+{
+  "electron_interval_hours": 96,
+  "last_good_runtime": {
+    "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+    "cache_release": "runtime-cache-b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+    "capacity_sha256": "626688df109415c4047b480fb7f89da8f329daf3aaf74b52e22372508dedea5b",
+    "compiler_commit": "b26c58ec6174c1cd750adc97c04a6e7c29a30033",
+    "completed_at": "2026-10-24T02:41:42Z",
+    "run": "40053107555",
+    "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+    "version": "46.0.0-alpha.1"
+  },
+  "schema": 1,
+  "security_severities": [
+    "critical",
+    "high"
+  ],
+  "urgent_versions": []
+}

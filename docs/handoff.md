@@ -1,6 +1,6 @@
 # Local Canary test build
 
-Updated 24 October 2026. **Discord Canary 1.0.2357 with the compiled Electron
+Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
@@ -13,7 +13,7 @@ x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 The shortcut points to:
 
 ```text
-/mnt/storage/discord-patched-electron-ci/local-tests/canary-auto-audio-20261024/launch.sh
+/mnt/storage/discord-patched-electron-ci/local-tests/canary-equicord-latest-20261024/launch.sh
 ```
 
 Keep that installation directory in place: its launcher contains an absolute
@@ -28,6 +28,20 @@ Wayland selection is automatic. Application audio and the camera startup helper
 are enabled by default. `DPE_APP_AUDIO=0` and `DPE_CAMERA_FAST_PROBE=0` disable the
 respective adapters. niri supports automatic shared-window audio matching; other
 compositors use the audio-app picker. See [Wayland audio](wayland-audio.md).
+
+## Client updates and Equicord, 24 October
+
+The current build uses freshly discovered Canary 1.0.2365 and the existing
+compiled runtime. Its bundled upstream Electron bytes were unchanged from
+Canary 1.0.2357; no C++ build was needed. Equicord is installed in a separate
+user-owned directory and passes native Wayland first launch/relaunch on a fresh
+profile, including renderer, preload and DiscordNative checks. It can be disabled
+with `DPE_EQUICORD=0`. See [Equicord](equicord.md) and
+[update ownership/scheduling](discovery.md).
+
+The update coordinator now checks Discord every 15 minutes independently of the
+96-hour routine Electron cadence. It tracks shipped runtime bytes, not Discord
+fork commits. Public releases/AUR remain a separate release qualification step.
 
 ## Follow-up fixes, 24 October
 
@@ -130,10 +144,12 @@ This is a local test build, not a public release. Real Discord calls, GNOME/KDE
 sessions and sandboxed applications remain separate qualification work. No claim
 is made that every Linux audio or camera issue is fixed.
 
-The three prerelease-Electron recipes exist, but the automatic
-compile/release/AUR coordinator is unfinished and no AUR publishing key is
-configured. No public binary release or AUR update has been published. Hourly
-release discovery continues to record changed inputs without compiling them.
+The three prerelease-Electron recipes exist and changed clients now trigger
+qualification on the retained tested runtime. Eligible Electron prereleases
+preflight the patch queue before scheduling the PC compiler. Automatic candidate
+promotion/public release/AUR publication remain unfinished, and no AUR publishing
+key is configured. No public binary release or AUR update has been published.
+See [current update behavior](discovery.md).
 
 Local monitor state is in
 `/mnt/storage/discord-patched-electron-ci/overnight-monitor.json`.

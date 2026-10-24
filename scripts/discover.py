@@ -15,6 +15,8 @@ from build_reference import build_config
 from common import DISCORD_CHANNELS, ROOT, digest, download, electron_channel, enabled_electron_channels, read_json, version_key, write_json
 from fingerprints import runtime_key
 from lock_clients import normalize
+from inspect_bundled_runtime import inspect_clients
+from update_policy import plan
 
 def release_repositories() -> tuple[str, ...]:
     channels = enabled_electron_channels()
@@ -199,14 +201,14 @@ def reconcile(previous: dict | None, releases: list[dict], tags: dict[str, str],
         release["runtime_key"] = key
         state["runtimes"].setdefault(key, {"target": spec, "channel": release["channel"],
                                         "status": "pending", "attempts": []})
-    # Stable and prerelease backlogs are never coalesced. Only pending nightly
-    # jobs can be replaced, with the discarded identity retained in the ledger.
-    nightly = [key for key in pending(state) if state["runtimes"][key]["channel"] == "nightly"]
+    # Preserve every release identity, but compile only the newest pending
+    # prerelease. Never cancel a compiler or discard completed/failed evidence.
+    nightly = [key for key in pending(state) if state["runtimes"][key]["channel"] == "prerelease"]
     if nightly:
         newest = max(nightly, key=lambda key: version_key(state["runtimes"][key]["target"]["version"]))
         for key in nightly:
             if key != newest:
-                state["runtimes"][key].update(status="superseded", reason="newer-nightly", superseded_by=newest)
+                state["runtimes"][key].update(status="superseded", reason="newer-prerelease", superseded_by=newest)
     if set(clients) != set(DISCORD_CHANNELS):
         raise ValueError("Discovery requires all three independent Discord manifests")
     state["clients"] = clients
@@ -230,12 +232,6 @@ def main():
     args = parser.parse_args()
     now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     github = GitHub()
-    releases = []
-    for repository in release_repositories():
-        records = github.releases(repository)
-        releases.extend(records)
-        print(f"Read {len(records)} release records from {repository}", flush=True)
-    tags = github.source_tags()
     previous = read_json(args.state) if args.state.exists() else None
     fallback = previous["clients"] if previous else read_json(ROOT / "config/clients.lock.json")["clients"]
     clients, client_errors = {}, {}
@@ -252,9 +248,31 @@ def main():
             except (ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
                 clients[channel] = fallback[channel]
                 client_errors[channel] = str(error) if isinstance(error, ValueError) else type(error).__name__
-    state = reconcile(previous, releases, tags, clients, read_json(ROOT / "config/sources.lock.json"), now,
-                      github.verify_commit)
+    sources = read_json(ROOT / "config/sources.lock.json")
+    try:
+        releases = [record for repository in release_repositories() for record in github.releases(repository)]
+        state = reconcile(previous, releases, github.source_tags(), clients, sources, now, github.verify_commit)
+        state.pop('electron_discovery_error', None)
+    except (ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
+        # GitHub outages must not block Discord manifest updates.
+        state = copy.deepcopy(previous) if previous else {
+            'schema':1, 'activated_at':now, 'releases':{}, 'runtimes':{}, 'issues':{}}
+        state['clients'] = clients
+        state['electron_discovery_error'] = str(error)
     state["client_errors"] = client_errors
+    try:
+        advisories = github.get('repos/electron/electron/security-advisories?per_page=100')
+        state['security_advisories'] = [{k:a.get(k) for k in
+            ('ghsa_id', 'severity', 'withdrawn_at', 'vulnerabilities')} for a in advisories]
+        state.pop('security_discovery_error', None)
+    except (ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
+        state['security_discovery_error'] = str(error)
+    inspect_clients(state, args.output / 'core-cache')
+    policy = read_json(ROOT / 'config/update-policy.json')
+    good = policy['last_good_runtime']['runtime_key']
+    if good in state['runtimes'] and state['runtimes'][good]['status'] == 'pending':
+        state['runtimes'][good]['status'] = 'compiled'
+    write_json(args.output / 'update-plan.json', plan(state, policy, sources, now))
     write_json(args.state, state)
     summary = {"changed": state != previous, "state_digest": digest(state),
         "tracked_releases": len(state["releases"]), "pending_runtime_keys": pending(state),

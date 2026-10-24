@@ -16,6 +16,6 @@ def integration_key(runtime: str, client: dict, electron_channel: str, camera: d
                                          "integration/audio/wayland-audio.cjs", "integration/audio/pipewire_audio.py",
                                          "integration/camera/v4l2-probe.c", "scripts/camera_scope.py", "scripts/build_camera_support.py",
                                          "packaging/upstream/krisp-patcher.py", "requirements.txt",
-                                         "integration/launcher/discord-launcher.sh", "package-lock.json",
+                                         "integration/launcher/discord-launcher.sh", "integration/launcher/equicord.py", "package-lock.json",
                                          "scripts/generate_package.py", "scripts/stage_package.py",
                                          "packaging/PKGBUILD.in", "packaging/upstream/provenance.json", "THIRD_PARTY.md", "LICENSE"])})

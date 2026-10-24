@@ -37,6 +37,7 @@ package() {
   cp -a stage/runtime stage/core/resources stage/modules "$root/"
   chmod 4755 "$root/runtime/chrome-sandbox"
   install -Dm755 discord-launcher.sh "$pkgdir/usr/bin/$pkgname"
+  install -Dm644 equicord.py "$root/equicord.py"
   install -Dm644 discord.desktop "$pkgdir/usr/share/applications/@DESKTOP_ID@.desktop"
   install -Dm644 stage/core/discord.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/$pkgname.png"
   install -Dm644 LICENSE.html "$pkgdir/usr/share/licenses/$pkgname/LICENSE.html"

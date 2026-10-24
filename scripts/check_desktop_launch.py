@@ -18,7 +18,7 @@ import urllib.request
 from common import read_json, write_json
 
 
-def check(app: Path, output: Path, profile: Path | None = None):
+def check(app: Path, output: Path, profile: Path | None = None, equicord: bool = False):
     app, output = app.resolve(), output.resolve()
     if output.exists():
         raise ValueError("Choose a fresh report directory")
@@ -28,6 +28,8 @@ def check(app: Path, output: Path, profile: Path | None = None):
         port = reservation.getsockname()[1]
     profile = profile or output / 'profile'
     environment = {**os.environ, "DISCORD_USER_DATA_DIR": str(profile),
+        "EQUICORD_USER_DATA_DIR":str(profile / 'equicord'),
+        "DPE_EQUICORD": '1' if equicord else '0',
         "WAYLAND_DEBUG":"client"}
     environment.pop("ELECTRON_RUN_AS_NODE", None)
     report = {"passed":False, "profile":str(profile), "screenshots_saved":False,
@@ -52,7 +54,7 @@ def check(app: Path, output: Path, profile: Path | None = None):
 const ws = new WebSocket(process.argv[1]);
 const timer = setTimeout(() => {ws.close(); process.exit(2)}, 5000);
 ws.addEventListener("open", () => ws.send(JSON.stringify({id:1, method:"Runtime.evaluate", params:{
- expression:'JSON.stringify({ready:document.readyState,title:document.title,loginForm:!!document.querySelector("input[name=email]"),passwordField:!!document.querySelector("input[type=password]")})', returnByValue:true}})));
+ expression:'JSON.stringify({ready:document.readyState,title:document.title,loginForm:!!document.querySelector("input[name=email]"),passwordField:!!document.querySelector("input[type=password]"),equicordNative:typeof VencordNative!=="undefined",equicordRenderer:typeof Vencord!=="undefined"&&!!Vencord.Plugins,discordNative:typeof DiscordNative!=="undefined"})', returnByValue:true}})));
 ws.addEventListener("message", event => { const value=JSON.parse(event.data); if(value.id!==1)return;
  clearTimeout(timer); console.log(value.result?.result?.value || "{}"); ws.close(); });
 ws.addEventListener("error", () => process.exit(3));
@@ -63,7 +65,7 @@ ws.addEventListener("error", () => process.exit(3));
                             page = json.loads(result.stdout)
                             report["page"] = page
                             if page.get("ready") == "complete" and page.get("loginForm") and page.get("passwordField"):
-                                report["passed"] = True
+                                report["passed"] = not equicord or (page.get('equicordNative') and page.get('equicordRenderer') and page.get('discordNative'))
                                 break
                     if report["passed"]:
                         break
@@ -98,7 +100,9 @@ ws.addEventListener("error", () => process.exit(0));
                     process.wait()
     console = (output / 'console.log').read_text(errors='replace')
     report["native_wayland_connection"] = "wl_display" in console
-    report['uncaught_exception'] = 'Uncaught exception:' in console or 'UnhandledPromiseRejectionWarning' in console
+    report['equicord_required'] = equicord
+    report['uncaught_exception'] = ('uncaught exception:' in console.lower()
+        or 'UnhandledPromiseRejectionWarning' in console or 'App threw an error during load' in console)
     report['passed'] = report['passed'] and not report['uncaught_exception']
     write_json(output / "launch-report.json", report)
     if report["passed"]:
@@ -115,9 +119,10 @@ if __name__ == "__main__":
     parser.add_argument("app", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument('--relaunch', action='store_true', help='Repeat with the same newly created fixture profile')
+    parser.add_argument('--equicord', action='store_true', help='Require the separately installed Equicord preload and renderer')
     args = parser.parse_args()
-    first = check(args.app, args.output)
+    first = check(args.app, args.output, equicord=args.equicord)
     passed = first['passed']
     if passed and args.relaunch:
-        passed = check(args.app, args.output / 'relaunch', Path(first['profile']))['passed']
+        passed = check(args.app, args.output / 'relaunch', Path(first['profile']), args.equicord)['passed']
     raise SystemExit(0 if passed else 1)

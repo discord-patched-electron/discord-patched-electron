@@ -278,7 +278,18 @@ def session(output, pulse, selection):
                 )
             ready(lambda: (run / "pulse/native").exists())
             spawn(["wireplumber", "--profile=policy"], "wireplumber")
-            time.sleep(0.7)
+            # A ready socket is not a ready default recording device. Native
+            # ADM initialization can hang if policy has not selected one yet.
+            ready(lambda: any(s['name'] == 'test-sink.monitor' for s in
+                json.loads(command(['pactl', '-f', 'json', 'list', 'sources']))))
+            def select_defaults():
+                return all(sp.run(['pactl', action, device], env=env,
+                    stdout=sp.DEVNULL, stderr=sp.DEVNULL, timeout=5).returncode == 0
+                    for action, device in [('set-default-sink', 'test-sink'),
+                        ('set-default-source', 'test-sink.monitor')])
+            ready(select_defaults)
+            ready(lambda: json.loads(command(['pactl', '-f', 'json', 'info'])).get(
+                'default_source_name') == 'test-sink.monitor')
             command(["niri", "validate", "-c", str(ROOT / "tests/wayland/niri.kdl")])
             spawn(["niri", "-c", str(ROOT / "tests/wayland/niri.kdl")], "niri")
             ready(lambda: bool(list(run.glob("niri*.sock"))))

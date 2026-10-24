@@ -2,12 +2,28 @@ name: Application audio validation
 on:
   workflow_call:
     inputs:
+      clients_state:
+        type: string
+        required: false
+        default: ''
+      discord_channels:
+        type: string
+        required: false
+        default: all
       reference_run:
         type: string
         required: false
         default: ''
   workflow_dispatch:
     inputs:
+      clients_state:
+        type: string
+        required: false
+        default: ''
+      discord_channels:
+        type: string
+        required: false
+        default: all
       reference_run:
         description: Successful compiler run ID; empty uses bundled baselines
         type: string
@@ -28,6 +44,8 @@ jobs:
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository)
     env:
+      CLIENTS_STATE: ${{ inputs.clients_state || '' }}
+      DISCORD_CHANNELS: ${{ inputs.discord_channels || 'all' }}
       REFERENCE_RUN: ${{ github.event.workflow_run.id || inputs.reference_run || '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -49,23 +67,39 @@ jobs:
         run: |
           python scripts/fetch_reference.py "$REFERENCE_RUN" --output out/reference-download
           chmod a+r out/reference-download/artifact-provenance.json
+      - name: Fetch the exact discovered client snapshot
+        if: env.CLIENTS_STATE != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
+          chmod 644 out/clients.lock.json
       - name: Prepare fixture tools and exact client archives
         run: |
           python -m pip install -r requirements-test.txt
           npm ci --ignore-scripts
+          channels=(stable ptb canary)
+          if [ "$DISCORD_CHANNELS" != all ]; then
+            IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
+          fi
+          for channel in "${channels[@]}"; do
+            case "$channel" in stable|ptb|canary) ;; *) exit 1 ;; esac
+          done
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
             args+=(--runtime out/reference-download/runtime --provenance out/reference-download/artifact-provenance.json)
           fi
-          for channel in stable ptb canary; do
+          if [ -n "$CLIENTS_STATE" ]; then args+=(--clients out/clients.lock.json); fi
+          for channel in "${channels[@]}"; do
             python scripts/check_app_audio.py --discord "$channel" --output "out/app-audio/$channel" --download-only "${args[@]}"
             for server in pipewire pulseaudio; do
               mkdir -p "out/wayland-audio/$channel/$server"
               cp out/app-audio/"$channel"/*.tar.br "out/wayland-audio/$channel/$server/"
             done
           done
-          mkdir -p out/wayland-audio/stable/manual
-          cp out/app-audio/stable/*.tar.br out/wayland-audio/stable/manual/
+          mkdir -p out/wayland-audio/${channels[0]}/manual
+          cp out/app-audio/"${channels[0]}"/*.tar.br out/wayland-audio/${channels[0]}/manual/
       - name: Build disposable audio environment
         run: |
           docker build -t discord-electron-arch-packaging ci/arch
@@ -105,12 +139,20 @@ jobs:
         shell: bash
         run: |
           sudo chown -R 1000:1000 out/app-audio
+          channels=(stable ptb canary)
+          if [ "$DISCORD_CHANNELS" != all ]; then
+            IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
+          fi
+          for channel in "${channels[@]}"; do
+            case "$channel" in stable|ptb|canary) ;; *) exit 1 ;; esac
+          done
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
             args+=(--runtime /repo/out/reference-download/runtime --provenance /repo/out/reference-download/artifact-provenance.json)
           fi
+          if [ -n "$CLIENTS_STATE" ]; then args+=(--clients /repo/out/clients.lock.json); fi
           failed=0
-          for channel in stable ptb canary; do
+          for channel in "${channels[@]}"; do
             if ! docker run --rm --network none --cpus 4 --memory 4g \
               -v "$GITHUB_WORKSPACE:/repo:ro" \
               -v "$GITHUB_WORKSPACE/out/app-audio/$channel:/audio" \
@@ -124,12 +166,20 @@ jobs:
         shell: bash
         run: |
           sudo chown -R 1000:1000 out/wayland-audio
+          channels=(stable ptb canary)
+          if [ "$DISCORD_CHANNELS" != all ]; then
+            IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
+          fi
+          for channel in "${channels[@]}"; do
+            case "$channel" in stable|ptb|canary) ;; *) exit 1 ;; esac
+          done
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
             args+=(--runtime /repo/out/reference-download/runtime --provenance /repo/out/reference-download/artifact-provenance.json)
           fi
+          if [ -n "$CLIENTS_STATE" ]; then args+=(--clients /repo/out/clients.lock.json); fi
           failed=0
-          for channel in stable ptb canary; do
+          for channel in "${channels[@]}"; do
             for server in pipewire pulseaudio; do
               if ! docker run --rm --network none --cpus 4 --memory 4g \
                 -v "$GITHUB_WORKSPACE:/repo:ro" \
@@ -144,9 +194,9 @@ jobs:
           if ! docker run --rm --network none --cpus 4 --memory 4g \
             -v "$GITHUB_WORKSPACE:/repo:ro" \
             -v "$GITHUB_WORKSPACE/out/wayland-test-tools/niri:/usr/bin/niri:ro" \
-            -v "$GITHUB_WORKSPACE/out/wayland-audio/stable/manual:/audio" \
+            -v "$GITHUB_WORKSPACE/out/wayland-audio/${channels[0]}/manual:/audio" \
             discord-electron-audio-fixture python /repo/scripts/check_wayland_audio.py \
-            --selection manual --output /audio "${args[@]}"; then
+            --selection manual --discord "${channels[0]}" --output /audio "${args[@]}"; then
             failed=1
           fi
           exit "$failed"
@@ -163,7 +213,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: application-audio-diagnostics
+          name: application-audio-diagnostics-${{ inputs.discord_channels || 'all' }}
           path: |
             out/reference-download/artifact-provenance.json
             out/app-audio/*/audio-report.json
