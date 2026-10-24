@@ -134,6 +134,10 @@ class ReleaseApproval(unittest.TestCase):
             )
         ]
         self.assertEqual(client_result("canary", jobs, True), "success")
+        actual_skipped_jobs = copy.deepcopy(jobs)
+        for job in actual_skipped_jobs:
+            job["name"] = job["name"].removesuffix(" / validate")
+        self.assertEqual(client_result("canary", actual_skipped_jobs, True), "success")
         failed = copy.deepcopy(jobs)
         for job in failed:
             job["conclusion"] = "success"

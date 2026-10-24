@@ -64,9 +64,9 @@ and recurring free hosted capacity are still unproven.
 Each builder takes an exclusive lock on its compiler store, uses a private
 sccache socket, records cache statistics and stops its server before snapshot
 upload. All compiler workflows share the `electron-compilation` concurrency
-group. Candidate builds are manual until runtime/release gates are complete;
-`build.yml` accepts prerelease only and automatically triggers
-native validation against all three Discord channels after success.
+group. Eligible upstream updates dispatch `build.yml`, which accepts prerelease
+Electron only. A successful build starts Canary release qualification and public
+test-package publication. See [release packaging](releases.md).
 
 ## Current full-build cache limitation
 

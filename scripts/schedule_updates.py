@@ -26,7 +26,14 @@ def client_result(channel, jobs, completed):
             "audio / validate",
         )
     }
-    found = {job["name"]: job for job in jobs if job["name"] in required}
+    by_name = {job["name"]: job for job in jobs}
+    # GitHub reports a skipped reusable call as "native", but an executed
+    # call as "native / validate". Both describe the same required gate.
+    found = {
+        name: job
+        for name in required
+        if (job := by_name.get(name) or by_name.get(name.removesuffix(" / validate")))
+    }
     if set(found) != required:
         return "failure" if completed else None
     if any(job["status"] != "completed" for job in found.values()):

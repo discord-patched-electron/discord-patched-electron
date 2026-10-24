@@ -61,7 +61,7 @@ uv run python scripts/check_krisp_audio.py analyze \
   .work/audio-fixture .work/runtime-test --report .work/runtime-test/audio-report.json
 ```
 
-For a bundled baseline, use `Discord`, `DiscordPTB` or `DiscordCanary` as the
+For the active Canary bundled baseline, use `DiscordCanary` as the
 executable name. Every probe requires a fresh output directory. It copies inputs,
 uses a bounded subprocess group, and retains reports and logs on failure. The
 speech fixture was generated with eSpeak NG; its phrase, generator and checksum
@@ -75,8 +75,8 @@ explicitly leave those claims false and are not publication authorization.
 
 `scripts/check_runtime_clients.py --output <fresh-directory>` downloads the locked
 core/voice/Krisp payloads, verifies their channel identity, patches Krisp and runs
-both checks for all three clients. Pass `--runtime <extracted-custom-runtime>` to
-reuse a custom runtime across the three module sets. The `native-baselines` job
+both checks for Canary. Pass `--runtime <extracted-custom-runtime>` to
+reuse a compiled runtime. Stable and PTB are disabled. The `native-baselines` job
 in the Checks workflow runs the bundled baseline on standard GitHub runners,
 without spending Blacksmith compiler minutes. Failures retain diagnostics.
 Ubuntu's CI image requires an AppArmor user-namespace exception for these copied
@@ -95,15 +95,15 @@ the inspected module SHA-256, never for voice/Krisp or a changed dispatch binary
 This preserves the existing package's module contents; it does not establish
 working dispatch functionality on a machine without OpenSSL 1.1.
 
-The shared `Native runtime validation` workflow also starts after a successful
-local or Blacksmith reference build. It downloads that run's artifact, verifies
-its checksum against the completed compiler report, and tests the resulting
-runtime with all three module sets. A manual `reference_run` input can retest a
-retained artifact without compiling it again. Only successful main-branch runs of
-the two compiler workflows qualify. Reports record the compiler and validation
-commits separately. This path has passed for both the compiled reference and
-Electron 46.0.0-alpha.1 prerelease on all three Discord channels; it does not
-publish a release or update AUR. See [prerelease evidence](../evidence/prerelease-runtime-local.json).
+The shared `Native runtime validation` workflow is called by release qualification
+after a successful candidate compiler run. It downloads the artifact, verifies
+its checksum against the completed compiler report, and checks Canary's modules.
+A manual `reference_run` input can retest a retained artifact without compilation.
+Only successful main-branch compiler runs qualify. Reports record the compiler
+and validation commits separately. Earlier three-channel results are retained in
+[prerelease evidence](../evidence/prerelease-runtime-local.json); current release
+qualification is Canary-only. Publication and approval are described in the
+[release guide](releases.md).
 
 The separate [Wayland audio fixture](../wayland-audio.md) now covers actual native
 portal video and selective application audio, including multiple processes and

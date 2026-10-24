@@ -3,24 +3,24 @@
 The package owns the local Discord host ASAR, `discord_desktop_core/core.asar`
 and native module files. Their built-in host/module updater is disabled so it
 cannot replace the patches or mix module revisions. Discord's HTTPS web UI still
-updates independently. Installed Arch packages update through pacman/AUR helpers;
-a CI release does not silently modify a running installation.
+updates independently. Install new Arch packages with `pacman -U`; AUR publication
+is disabled. A CI release does not modify a running installation.
 
 ## Independent update paths
 
 `update.yml` polls at minutes 7, 22, 37 and 52 every hour (GitHub schedules can be
-late). It compares all three official distribution manifests, including every
-module revision and SHA-256. A module-only update counts even if the host version
-is unchanged. Healthy channels continue when another manifest fails. An Electron
-API outage also leaves Discord discovery operational.
+late). It compares Canary's official distribution manifest, including every
+module revision and SHA-256.
+A module-only update counts even if the host version is unchanged. Stable and PTB
+are disabled. An Electron API outage leaves Discord discovery operational.
 
 Each changed client/integration identity immediately qualifies on the pinned
-last-good compiled runtime through `client-update.yml`: bundled baseline,
+last-good compiled runtime through `release.yml`: bundled baseline,
 custom native video and offline Krisp, Wayland/X11 application audio, packaging,
 and actual login-form launch/relaunch with and without optional Equicord. These
 jobs never compile Electron. Each job consumes the same immutable `ci-state`
-commit; the three channels run independently. A failing gate keeps the previous
-qualified installation usable and retains diagnostics.
+commit. A failing gate keeps the previous qualified installation usable and
+retains diagnostics.
 
 When a **Discord host archive** changes, `inspect_bundled_runtime.py` reads the
 checksum-verified archive without executing it. It hashes the Electron executable
@@ -59,7 +59,7 @@ upstream APIs change: avoiding merges does not remove compatibility work.
 `ci-state` contains generated JSON only and is never merged into main. Content
 keys reserve client and Electron work before jobs start; completed/failed attempts
 remain in the ledger. Repeated polls do not restart failed identical work. Use
-Actions **Re-run failed jobs** after resolving an infrastructure issue; a source
+Actions **Re-run all jobs** after resolving an infrastructure issue; a source
 or client fix generates a new integration key. State writers share one concurrency
 group and use normal fast-forward pushes, never forced JSON merges.
 
@@ -70,26 +70,21 @@ cannot force a recompile. Newly compiled Actions artifacts/reports retain 90 day
 Fetch verifies both the report and archive hashes. A newer source lock does not
 invalidate the exact older pinned runtime used by immediate client checks.
 
-Only source/state advancement jobs get contents-write permission. Compilation and
-client tests do not need a Blacksmith key. Native build fingerprints exclude ASAR,
+Source/state advancement, release publication and manual approval jobs have
+scoped contents-write permission. Compilation and client tests remain read-only. Native build fingerprints exclude ASAR,
 launcher, Equicord and application-audio sidecars, so their updates reuse C++.
 
-## Qualification versus publication
+## Qualification and publication
 
-This automation now discovers, reserves, checks client updates, preflights new
-Electron sources and schedules PC compilation. **Client/AUR publication
-and automatic promotion of a newly compiled candidate to last-good remain release
-work.** There is no AUR publishing key configured. A passing source application or
-bundled baseline is not permission to publish an unqualified candidate. The
-current local app can be rebuilt immediately from the discovered client snapshot
-with `build_local_app.py --clients <snapshot>` and the retained tested runtime.
+A passing candidate is now published automatically as a **public prerelease**,
+including a pacman-installable `.pkg.tar.zst`. The maintainer tests that package,
+then runs **Approve tested release** to promote those exact files and update the
+runtime used by future client updates. Approval is never automatic. See
+[release packaging](releases.md) for the full workflow and checks.
 
-Before enabling AUR publication, the release coordinator must promote only after
-native/audio/real-launch gates, retain immutable assets, increment `pkgrel` for
-ASAR/module-only changes, push PKGBUILD and `.SRCINFO` together, and leave a durable
-retryable publication record if an AUR push fails. It must never hold client
-updates behind the 96-hour Electron cadence. These remaining gates are deliberate
-and visible; hourly discovery alone is not described as a complete auto-updater.
+AUR publication remains disabled pending its credentials. Before enabling it,
+ship the tested files with fixed hashes, push PKGBUILD and `.SRCINFO` together,
+and retain a retryable publication record when a push fails.
 
 ## Earlier evidence and manual checks
 
@@ -108,9 +103,9 @@ API references: [release pagination](https://docs.github.com/en/rest/releases/re
 ## Validate a discovered client update without compiling
 
 `native-runtime.yml` and `package-check.yml` accept `clients_state`, the immutable
-40-character commit of `ci-state`, and `discord_channels`, a comma-separated
-selection such as `ptb,canary` (default `all`). Both fetch and retain exactly that
-snapshot and its provenance. A branch name is rejected. Omitting the commit uses
+40-character commit of `ci-state`. Use `canary` for `discord_channels`; the default
+`all` also selects only Canary. Both fetch and retain exactly that snapshot and
+its provenance. A branch name is rejected. Omitting the commit uses
 the reviewed bootstrap locks. Discovery errors remain in the provenance; passing
 a retained older lock does not authorize advancing an affected client channel.
 
