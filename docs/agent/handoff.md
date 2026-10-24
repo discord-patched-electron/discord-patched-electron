@@ -4,6 +4,25 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Repository cleanup and portable packages, 24 October
+
+The user-facing docs are now short guides under `docs/`; implementation history
+is indexed here in `docs/agent/README.md`. Use `uv sync --locked`, `npm ci --ignore-scripts`, `npm test` and `npm run lint`. Native patches and upstream
+snapshots were not reformatted. The old compiler stays reusable through the
+reviewed capacity digest; no Electron rebuild was started for this cleanup.
+
+`release.yml` builds relocatable tarballs and Debian/RPM packages from a verified
+runtime. See [release packaging](releases.md). A moved Canary build passes native
+Wayland launch/relaunch both plain and with Equicord. Local package payloads match;
+Ubuntu 24.04 and Fedora 44 install checks pass. See
+[cleanup evidence](../evidence/repository-cleanup.json) for paths and limits.
+[Main checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40089265553)
+and the [all-channel release dry run](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40089383775)
+pass on `90f3cc9`: all three formats, Ubuntu installed launch/relaunch, Fedora
+installation and unprivileged runtime loading, native video/Krisp and all audio
+fixtures. Publication was disabled; packages are retained as Actions artifacts.
+The earlier app shortcut below still points to the existing local installation.
+
 ## Run it
 
 ```sh

@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "implementation_commit": "90f3cc9db6dea396b3f5aabd792808f9272dc9ad",
+  "checks": {
+    "python_tests": 96,
+    "javascript_tests": 16,
+    "format_and_lint": "passed",
+    "workflow_lint_with_shellcheck": "passed",
+    "documentation_links": "passed"
+  },
+  "portable_canary": {
+    "path": "/mnt/storage/discord-patched-electron-ci/local-tests/release canary relocated 20261024/launch.sh",
+    "discord": "1.0.2365",
+    "electron": "46.0.0-alpha.1",
+    "native_wayland": true,
+    "launch_and_relaunch": true,
+    "equicord_launch_and_relaunch": true,
+    "fresh_profiles_only": true
+  },
+  "local_packages": {
+    "path": "/home/he3als/scratch-ai-repo/discord-patched-electron/out/linux-packages-canary-v2",
+    "same_payload_files": 1509,
+    "formats": [
+      "tar.gz",
+      "deb",
+      "rpm"
+    ],
+    "minimum_glibc": "2.38",
+    "minimum_cpu": "x86-64-v3",
+    "ubuntu_24_04_install": "passed",
+    "fedora_44_install_and_unprivileged_runtime": "passed",
+    "fedora_gui_verified": false,
+    "development_snapshot": true
+  },
+  "electron_recompiled": false,
+  "camera_media_saved": false,
+  "public_app_release_created": false,
+  "notes": [
+    "Portable packages use the namespace sandbox.",
+    "Local packages precede the notices-only follow-up; the final CI workflow builds from the committed source."
+  ],
+  "ci": {
+    "source_commit": "90f3cc9db6dea396b3f5aabd792808f9272dc9ad",
+    "main_checks_run": 40089265553,
+    "main_checks": "success",
+    "release_run": 40089383775,
+    "release_status": "success",
+    "channels": {
+      "canary": {
+        "launch_checks": {
+          "launch/launch-report.json": true,
+          "mod-launch/launch-report.json": true,
+          "deb-launch/launch-report.json": true,
+          "deb-launch/relaunch/launch-report.json": true,
+          "mod-launch/relaunch/launch-report.json": true,
+          "launch/relaunch/launch-report.json": true
+        },
+        "packages": {
+          "assets": {
+            "discord-canary-prerelease-patched-electron-bin-20261024.112523-linux-x86_64.tar.gz": "2dd24e2389edadcb95516ff2e742bb317e21e5bfde020e8f06ff5edc9e64ac1a",
+            "discord-canary-prerelease-patched-electron-bin-20261024.112523.deb": "97e6ef66860ac41eaa33060d580a1594e20a1e00d661b89c0ae795ef3f8fc6de",
+            "discord-canary-prerelease-patched-electron-bin-20261024.112523.rpm": "387a7b484863ecc3d4d6ebf3123f9a74263bbe1768e1ccefd63b7b80f88df42a"
+          },
+          "channel": "canary",
+          "passed": true,
+          "payload_files": 1511,
+          "rpm_dependency_install_verified": false,
+          "same_app_payload_in_all_formats": true
+        },
+        "fedora_install_and_unprivileged_runtime": true,
+        "fedora_gui_verified": false
+      },
+      "ptb": {
+        "launch_checks": {
+          "launch/launch-report.json": true,
+          "mod-launch/launch-report.json": true,
+          "deb-launch/launch-report.json": true,
+          "deb-launch/relaunch/launch-report.json": true,
+          "mod-launch/relaunch/launch-report.json": true,
+          "launch/relaunch/launch-report.json": true
+        },
+        "packages": {
+          "assets": {
+            "discord-ptb-prerelease-patched-electron-bin-20261024.112523-linux-x86_64.tar.gz": "28d85e3e9eb7aec7b51b9050af41ec8212d41c3e667eea6a3ad16e2890eab82b",
+            "discord-ptb-prerelease-patched-electron-bin-20261024.112523.deb": "878e10d75ae0637acf05425c1f8adf0cb9bb0801f50b782702669ee64c83ceee",
+            "discord-ptb-prerelease-patched-electron-bin-20261024.112523.rpm": "7e3ba2f8ed2ef29cadf324e97e85705c7bea326155241e40967e4feeb84ad208"
+          },
+          "channel": "ptb",
+          "passed": true,
+          "payload_files": 1511,
+          "rpm_dependency_install_verified": false,
+          "same_app_payload_in_all_formats": true
+        },
+        "fedora_install_and_unprivileged_runtime": true,
+        "fedora_gui_verified": false
+      },
+      "stable": {
+        "launch_checks": {
+          "launch/launch-report.json": true,
+          "mod-launch/launch-report.json": true,
+          "deb-launch/launch-report.json": true,
+          "deb-launch/relaunch/launch-report.json": true,
+          "mod-launch/relaunch/launch-report.json": true,
+          "launch/relaunch/launch-report.json": true
+        },
+        "packages": {
+          "assets": {
+            "discord-stable-prerelease-patched-electron-bin-20261024.112523-linux-x86_64.tar.gz": "ebeb002d77e078d21a5a83688f5958973bbc5d58071a81ca3fb8a540e914bb94",
+            "discord-stable-prerelease-patched-electron-bin-20261024.112523.deb": "dc5a5d155de8044a060082b481e373b2ae74d40de8a8372c95d2a6c5a7e5f4df",
+            "discord-stable-prerelease-patched-electron-bin-20261024.112523.rpm": "4b1eddcfc0ce019d99631ae811b59162cf6627fcc61ebbf2202d6dac0aa84097"
+          },
+          "channel": "stable",
+          "passed": true,
+          "payload_files": 1538,
+          "rpm_dependency_install_verified": false,
+          "same_app_payload_in_all_formats": true
+        },
+        "fedora_install_and_unprivileged_runtime": true,
+        "fedora_gui_verified": false
+      }
+    },
+    "native_video_krisp": "success",
+    "x11_wayland_audio": "success",
+    "published": false
+  }
+}

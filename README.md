@@ -12,6 +12,8 @@ Wayland is the main target; X11 is supported too. Requires an **x86-64-v3** CPU
 This is still a test build. See [Releases](https://github.com/discord-patched-electron/discord-patched-electron/releases)
 for available downloads and [installation](docs/install.md) for package formats.
 A release labelled **runtime cache** contains only Electron, not a runnable Discord app.
+Test packages are also available from successful
+[release workflow runs](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/release.yml).
 AUR publication is not enabled yet.
 
 The app uses its own profile, so it can coexist with stock Discord.
