@@ -26,7 +26,7 @@ from client_inputs import load_clients, validate_channel
 from patch_app_audio import patch
 
 
-def analyze(output, stream_selection=False):
+def analyze(output):
     cases = {
         "app-a": (True, True, False),
         "app-b": (False, False, True),
@@ -38,8 +38,6 @@ def analyze(output, stream_selection=False):
         "app-exited": (False, False, False),
         "cleared": (False, False, False),
     }
-    if stream_selection:
-        cases['app-a'] = cases['re-enabled'] = (True, False, False)
     results = {}
     for name, expected in cases.items():
         file = output / (name + ".raw")
@@ -205,16 +203,6 @@ def session(output, pulse, selection):
                                 for i, value in enumerate(choices)
                                 if value.isdecimal() and belongs(int(value))
                             )
-                            if selection == 'stream':
-                                nodes = json.loads(command(['pw-dump']))
-                                clients = {x['id']: x.get('info', {}).get('props', {}) for x in nodes if x['type'] == 'PipeWire:Interface:Client'}
-                                owners = {str(x.get('info', {}).get('props', {}).get('object.serial')):
-                                    int(x.get('info', {}).get('props', {}).get('application.process.id',
-                                        clients.get(int(x.get('info', {}).get('props', {}).get('client.id', -1)), {}).get('application.process.id', 0)))
-                                    for x in nodes if x['type'] == 'PipeWire:Interface:Node'}
-                                candidates = [(i, owners.get(value[3:], 0)) for i, value in enumerate(choices) if value.startswith('pw-')]
-                                exact = [i for i, pid in candidates if pid == selected['pid']]
-                                index = exact[0] if exact else next(i for i, pid in candidates if belongs(pid))
                         command(
                             [
                                 "niri",
@@ -234,9 +222,12 @@ def session(output, pulse, selection):
                         if selected.get("no_audio"):
                             keys = ["wtype", "-k", "Escape"]
                         command(keys)
+                        # Recording waits for the actual audio selection, not
+                        # just the earlier video-portal callback.
+                        (output / 'audio-choice-done').touch()
                         handled.add(pid)
             except Exception as error:
-                selector_errors.append(repr(error))
+                selector_errors.append(str(error))
 
         try:
             spawn(
@@ -316,10 +307,10 @@ def session(output, pulse, selection):
             spawn(["python3", str(ROOT / "tests/wayland/portal.py")], "portal")
             time.sleep(0.4)
             executable = read_json(output / "identity.json")["executable"]
-            if selection in {"manual", "stream"}:
+            if selection == "manual":
                 threading.Thread(target=select_audio, daemon=True).start()
             client_env = {**env, "DPE_FIXTURE_SELECTION": selection}
-            if selection in {"manual", "interactive", "stream"}:
+            if selection in {"manual", "interactive"}:
                 client_env.pop("NIRI_SOCKET")
             if selection == "interactive":
                 write_json(output / "operator-env.json", env)
@@ -579,10 +570,9 @@ def check(
         "identity": read_json(output / "identity.json"),
         "fixture": fixture,
         "lifecycle": read_json(output / "lifecycle.json"),
-        **analyze(output, stream_selection=selection == 'stream'),
+        **analyze(output),
         "wayland_source_identity_verified": True,
-        "multi_process_verified": selection != 'stream',
-        "individual_stream_verified": selection == 'stream',
+        "multi_process_verified": True,
         "custom_runtime_verified": bool(runtime),
         "real_discord_call_verified": False,
         "microphone_call_verified": False,
@@ -591,7 +581,6 @@ def check(
     if not report["all_cases_passed"]:
         report["wayland_source_identity_verified"] = False
         report["multi_process_verified"] = False
-        report["individual_stream_verified"] = False
         report["custom_runtime_verified"] = False
     write_json(output / "audio-report.json", report)
     if not report["all_cases_passed"]:
@@ -616,7 +605,7 @@ if __name__ == "__main__":
         "--pulse", choices=["pipewire", "pulseaudio"], default="pipewire"
     )
     parser.add_argument("--download-only", action="store_true")
-    parser.add_argument("--selection", choices=["auto", "manual", "interactive", "stream"], default="auto")
+    parser.add_argument("--selection", choices=["auto", "manual", "interactive"], default="auto")
     parser.add_argument("--runtime", type=Path)
     parser.add_argument("--provenance", type=Path)
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)

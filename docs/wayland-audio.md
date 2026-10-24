@@ -49,20 +49,12 @@ Compositor-independent automatic window/PID discovery is not promised. The
 explicit picker lists audio-owning processes; separate siblings can appear as
 separate entries. Flatpak/PID namespace remapping is not yet qualified.
 
-The picker now also offers **Stream:** rows, labeled with the playing stream's
-`media.name`. Application rows explicitly say **all audio**. Browser windows
-often share one audio process: on this Zen installation, two streams had the
-same PID and distinct media titles, with no window identifier. Window/PID
-matching therefore cannot isolate those tabs. Recognized browsers prompt for
-audio even on niri: select the appropriate **Stream:** row to exclude other
-streams. Play the wanted media before opening the picker. If the browser mixes
-several tabs into one stream, those tabs cannot be separated by this adapter.
-There is no reliable automatic tab-to-window relationship in those properties.
-
-An explicit PipeWire stream choice follows its unique object serial and goes
-silent if that stream ends. It never falls back to all streams of the PID. A
-replacement stream needs a new selection. `DPE_AUDIO_SELECTION=manual` requests
-the picker for other automatically detected applications too.
+Audio selection operates at application level. On niri, browsers such as Zen
+use the same automatic process matching as other applications; there is no
+extra browser prompt or individual-stream picker. All playback streams of the
+selected application and its descendants are included, including its other
+windows/tabs. Other applications and Discord playback remain excluded.
+The per-stream selection experiment was removed at the user's request.
 
 Window names in the picker are enriched using Hyprland `hyprctl`, Sway IPC,
 optional KDE `kdotool`, or GNOME's optional Window Calls extension. KDE/GNOME
@@ -176,8 +168,10 @@ fixtures do not establish a real Discord call or GNOME/KDE desktop behavior.
 
 The 24 October fixes additionally pass local native tests with PipeWire-Pulse
 and real PulseAudio, including a positive control showing the internal sink in
-raw enumeration and no leaks through the filtered API. Individual-stream
-capture passed with unwanted parent/child and other-app tones excluded. Unit
-coverage also places two streams on the same PID and checks disappearance.
-CI now includes a separate Canary stream-selection case. See
-[local fix evidence](evidence/desktop-fixes-local.json).
+raw enumeration and no leaks through the filtered API. See
+[local fix evidence](evidence/desktop-fixes-local.json), which also retains
+historical results for the subsequently removed stream-picker experiment.
+The restored application-level routing was checked again with automatic niri
+matching and the manual app picker on real PulseAudio plus PipeWire. Current
+unit coverage checks that all streams of one PID are included while another
+application remains excluded; see [restoration evidence](evidence/automatic-audio-restored.json).

@@ -79,9 +79,9 @@ async function choose(selection) {
     path.join(output, "selection.json"),
     JSON.stringify(selection),
   );
-  const interactive = process.env.DPE_FIXTURE_SELECTION === "interactive";
+  const explicitSelection = ["interactive", "manual"].includes(process.env.DPE_FIXTURE_SELECTION);
   const done = path.join(output, "audio-choice-done");
-  if (interactive) fs.rmSync(done, { force: true });
+  if (explicitSelection) fs.rmSync(done, { force: true });
   const result = await new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("Native portal selection timed out")),
@@ -100,7 +100,7 @@ async function choose(selection) {
     soundsharePid: 1,
     soundshareLoopback: true,
   });
-  if (interactive && result === "selected") {
+  if (explicitSelection && result === "selected") {
     const deadline = Date.now() + 90000;
     while (!fs.existsSync(done)) {
       if (Date.now() > deadline)
@@ -142,7 +142,7 @@ async function capture(name, change, settle = 2000) {
   );
   await capture("audio-cancelled", async () => {
     await choose({ pid: inputs.a.pid, kind: "window", no_audio: true });
-    if (!["manual", "interactive", "stream"].includes(process.env.DPE_FIXTURE_SELECTION))
+    if (!["manual", "interactive"].includes(process.env.DPE_FIXTURE_SELECTION))
       connection.setTransportOptions({ soundsharePid: 0 });
   });
   await capture("cancelled", async () => {

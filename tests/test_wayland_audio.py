@@ -12,25 +12,19 @@ spec.loader.exec_module(audio)
 
 
 class WaylandIdentity(unittest.TestCase):
-    def test_one_stream_does_not_include_another_stream_from_the_same_pid(self):
+    def test_application_includes_all_its_streams_and_excludes_other_apps(self):
         nodes = [{'id': i, 'type':'PipeWire:Interface:Node', 'info':{'props':{
             'media.class':'Stream/Output/Audio','object.serial':str(i), 'application.process.id':200}}} for i in (20,21)]
         route = audio.Route()
         route.mix = 'private'
+        other = {'id':22, 'type':'PipeWire:Interface:Node', 'info':{'props':{
+            'media.class':'Stream/Output/Audio','object.serial':'22', 'application.process.id':300}}}
         with patch.object(audio, 'process_identity', side_effect=lambda pid:(pid,'start',1)), \
                 patch.object(audio, 'descendant', side_effect=lambda pid,root:pid==root[0]), \
                 patch.object(route, 'spawn') as spawn:
-            route.sync(nodes, [], (200,'start',1), (100,'discord',1), ('pw','20'))
-            self.assertEqual(list(route.feeds), [('pw','20')])
-            self.assertEqual(spawn.call_count, 1)
-            self.assertIn('20', spawn.call_args.args[0])
-        # A disappearing selected stream must not capture the remaining sibling.
-        route = audio.Route(); route.mix='private'
-        with patch.object(audio, 'process_identity', side_effect=lambda pid:(pid,'start',1)), \
-                patch.object(audio, 'descendant', side_effect=lambda pid,root:pid==root[0]), \
-                patch.object(route, 'spawn') as spawn:
-            route.sync(nodes[1:], [], (200,'start',1), (100,'discord',1), ('pw','20'))
-            spawn.assert_not_called()
+            route.sync([*nodes, other], [], (200,'start',1), (100,'discord',1))
+            self.assertEqual(list(route.feeds), [('pw','20'), ('pw','21')])
+            self.assertEqual(spawn.call_count, 2)
 
     def test_pulse_app_exit_or_pid_reuse_during_sink_lookup_stays_silent(self):
         for replacement in (None, (200, "new-start-time", 1)):

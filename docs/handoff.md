@@ -13,7 +13,7 @@ x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 The shortcut points to:
 
 ```text
-/mnt/storage/discord-patched-electron-ci/local-tests/canary-fixes-20261024-r2/launch.sh
+/mnt/storage/discord-patched-electron-ci/local-tests/canary-auto-audio-20261024/launch.sh
 ```
 
 Keep that installation directory in place: its launcher contains an absolute
@@ -42,9 +42,10 @@ Blacksmith job was started. It includes:
 - Asynchronous native Linux camera initialization: engine queue stall reduced
   from 1,130 ms to 25.3 ms on the physical camera. This removes the measured
   stall; a sustained microphone/live-call transmission test remains unperformed.
-- Individual playback-stream selection for Zen and other browsers. An app row
-  includes all its audio; select a **Stream:** row to isolate a playing stream.
-  Mixed audio inside one browser stream cannot be separated automatically.
+- Automatic application audio on niri, including browsers. The individual-stream
+  picker was removed at the user's request: audio from the app's other windows
+  is included again. Other desktops retain the manual application picker when
+  no reliable automatic match is available.
 - Hyprland/Sway window labels and optional KDE/GNOME metadata, with dependency
   notes in the picker. Only the verified niri capture relationship enables
   automatic matching; these additional metadata providers do not.
@@ -59,6 +60,8 @@ Blacksmith job was started. It includes:
 All three recipes pass an Arch packaging test with locked real client modules
 and a dummy runtime. Runtime evidence uses the actual compiled Electron.
 See [follow-up evidence](evidence/desktop-fixes-local.json).
+The current app additionally restores automatic browser audio; see
+[restoration checks](evidence/automatic-audio-restored.json).
 
 The local desktop entry is installed at
 `~/.local/share/applications/io.github.discord_patched_electron.DiscordCanary.desktop`.

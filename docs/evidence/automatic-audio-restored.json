@@ -1,0 +1,393 @@
+{
+  "date": "2026-10-24",
+  "behavior": "Automatic application-level browser audio; per-stream picker removed",
+  "app": "/mnt/storage/discord-patched-electron-ci/local-tests/canary-auto-audio-20261024",
+  "helper_sha256": "824d0c9a5aedf47f7138e489d49a03e79600006e8872de156a2d00d56cea50c0",
+  "runtime_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+  "unit_checks": {
+    "python": 80,
+    "javascript": 16
+  },
+  "native_audio": [
+    {
+      "directory": "/mnt/storage/discord-patched-electron-ci/local-tests/audio-auto-restore-20261024",
+      "all_cases_passed": true,
+      "cases": {
+        "app-a": {
+          "amplitudes": {
+            "1399": 0.05246720808713412,
+            "440": 4999.355635226084,
+            "660": 4999.409098440557,
+            "997": 0.024286544866466794
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.07345630309806216,
+            "440": 4999.391162886646,
+            "660": 4999.437862929053,
+            "997": 0.04749509411345902
+          },
+          "passed": true,
+          "samples": 57600
+        },
+        "app-b": {
+          "amplitudes": {
+            "1399": 0.024055050118226264,
+            "440": 0.03130254329763329,
+            "660": 0.025492174095830704,
+            "997": 4999.361244119283
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.04428784272990135,
+            "440": 0.069332310523871,
+            "660": 0.060676708040728985,
+            "997": 4999.395882734788
+          },
+          "passed": true,
+          "samples": 62400
+        },
+        "app-exited": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "audio-cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cleared": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "disabled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "re-enabled": {
+          "amplitudes": {
+            "1399": 0.051753940785219665,
+            "440": 4999.361714373209,
+            "660": 4999.39346544912,
+            "997": 0.03908146429211519
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.07508919601253057,
+            "440": 4999.385376618761,
+            "660": 4999.445573716878,
+            "997": 0.04543489458963577
+          },
+          "passed": true,
+          "samples": 57600
+        },
+        "system": {
+          "amplitudes": {
+            "1399": 0.05749187704754884,
+            "440": 4999.358097612509,
+            "660": 4999.402904942763,
+            "997": 4999.361491229961
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.09241365011490524,
+            "440": 4999.460362998231,
+            "660": 4999.488372118459,
+            "997": 4999.43361028278
+          },
+          "passed": true,
+          "samples": 62400
+        }
+      },
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "auto"
+      },
+      "native_wayland_video_verified": true,
+      "internal_device_control": true,
+      "hidden_device_leaks": 0
+    },
+    {
+      "directory": "/mnt/storage/discord-patched-electron-ci/local-tests/audio-app-picker-20261024b",
+      "all_cases_passed": true,
+      "cases": {
+        "app-a": {
+          "amplitudes": {
+            "1399": 0.0591527136606741,
+            "440": 4999.3588359005835,
+            "660": 4999.412452034022,
+            "997": 0.02869721089837715
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.06633720570051445,
+            "440": 4999.3922205219305,
+            "660": 4999.441087273719,
+            "997": 0.05697674812779472
+          },
+          "passed": true,
+          "samples": 34080
+        },
+        "app-b": {
+          "amplitudes": {
+            "1399": 0.022952233529796286,
+            "440": 0.02340833255165459,
+            "660": 0.02450011859570109,
+            "997": 4999.353945204137
+          },
+          "clean_frame_fraction": 0.9873417721518988,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.05468358543758599,
+            "440": 0.05651918070092986,
+            "660": 0.058410456009441426,
+            "997": 4999.395988312374
+          },
+          "passed": true,
+          "samples": 37920
+        },
+        "app-exited": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "audio-cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cleared": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "disabled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "re-enabled": {
+          "amplitudes": {
+            "1399": 0.053442133739654,
+            "440": 4999.35391146266,
+            "660": 4999.403315052539,
+            "997": 0.02438712526981806
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.062185718523418664,
+            "440": 4999.391942742713,
+            "660": 4999.430937380562,
+            "997": 0.03978461716072544
+          },
+          "passed": true,
+          "samples": 38400
+        },
+        "system": {
+          "amplitudes": {
+            "1399": 0.0604595632436084,
+            "440": 4999.354634844014,
+            "660": 4999.410377444849,
+            "997": 4999.347914285973
+          },
+          "clean_frame_fraction": 0.9508196721311475,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.09410383117905573,
+            "440": 4999.43454915006,
+            "660": 4999.482536819276,
+            "997": 4999.413940973021
+          },
+          "passed": true,
+          "samples": 29280
+        }
+      },
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "pulseaudio",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "manual"
+      },
+      "native_wayland_video_verified": true,
+      "internal_device_control": true,
+      "hidden_device_leaks": 0
+    }
+  ],
+  "launch": {
+    "app": "/mnt/storage/discord-patched-electron-ci/local-tests/canary-auto-audio-20261024",
+    "exited_before_check": null,
+    "native_wayland_connection": true,
+    "page": {
+      "loginForm": true,
+      "passwordField": true,
+      "ready": "complete",
+      "title": ""
+    },
+    "passed": true,
+    "profile": "/mnt/storage/discord-patched-electron-ci/local-tests/launch-auto-audio-20261024/profile",
+    "real_discord_call_verified": false,
+    "screenshots_saved": false,
+    "targets": [
+      {
+        "title": "canary.discord.com/app?_=1792834670193",
+        "type": "page",
+        "url": "https://canary.discord.com/login"
+      },
+      {
+        "title": "",
+        "type": "worker",
+        "url": ""
+      }
+    ],
+    "uncaught_exception": false
+  },
+  "test_harness_fix": "Manual capture now waits for the actual audio-choice completion before settling and recording. Initial run had correct isolated tones but insufficient samples.",
+  "real_discord_call_verified": false
+}
