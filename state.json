@@ -1,6 +1,278 @@
 {
   "activated_at": "2026-10-23T19:59:51Z",
+  "bundled_runtime_errors": {},
+  "bundled_runtimes": {
+    "canary": {
+      "changed_since_previous_core": false,
+      "client_version": "1.0.2365",
+      "core_sha256": "efc02294e7934912ef7237f1987c69a7a50dca03a465cbfe781bbd7348b4f369",
+      "embedded_electron_version": "44.9.3",
+      "executable_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+      "files": {
+        "chrome-sandbox": "536488054c08db6e601b68eb9cd38699757869f9ab38000f9672ed873f3df661",
+        "chrome_100_percent.pak": "891176da5eee33b54352fdb1407a8e09a2bd48c7eb2077311e75787de33a095e",
+        "chrome_200_percent.pak": "b3ce9953a50959e9c1a018d6512742f48cee0dbf53644ea952909418bd7c2b3e",
+        "chrome_crashpad_handler": "c821b78239a4f743569bf6c138bcba7ebbca6e0d9226e044c3a296ce6735a97d",
+        "executable": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "icudtl.dat": "da53f0b69843aaa43315f0f210a67e4a874b0be338f3dae08ff57b8afe76ab0d",
+        "libEGL.so": "4a8e1a1e8620ea26983035bf5acc87910ef901256fa151eb52013596030c5b2e",
+        "libGLESv2.so": "f021209744750ac8138ffb5791b037b1cf980d2f58afbe249dfda6f6f5db09d0",
+        "libffmpeg.so": "8f40442cdf2a22dcaef3f2ee15f4de8c13cab9b7b94d6c2accad425fc1c36a9a",
+        "libvk_swiftshader.so": "46fded42eb0676050d26890bf7a7b2534383005314aa22ad45d31c8ce1f56e05",
+        "libvulkan.so.1": "9241252c9a325f86f657ce6624b94a6ba57a3a99bb00b3b29d3cc4b5cdd35293",
+        "locales/af.pak": "9abd48c6c1f34e14dcad66131a9cc8624b4e850ebf692b05a66fb18d5c537588",
+        "locales/am.pak": "28545e9a72220ddca39f7d7b36eacb3b661a3cc40d212b7e56be21d90f5ee71b",
+        "locales/ar.pak": "267687bf1ed07628b03f02d095b253141a4cbc6b80f0bfec6007ca0556260e5f",
+        "locales/bg.pak": "96741df7a895b1d4894db0fd5e5db4f761849eb0e5ebadf6f3f27daf16723ebe",
+        "locales/bn.pak": "eaa31ac7166ef4c5c61bf6e4a9b0a0b4cb1825e1b57e5a45f76faa65dc0d113f",
+        "locales/ca.pak": "3f86be184e95323c14604836b8eaf8935fc24f9cd2308cb207be26c318d8f287",
+        "locales/cs.pak": "cffb35f66f25ef7dac62b05213dfa787ecddf2533518c02276d8fbe828f541e8",
+        "locales/da.pak": "14cfcdfecb80d8575d273d8ec03317ae51c3e2c976c862ab774f9af9c7c4557b",
+        "locales/de.pak": "7d4874ca52ac298dbc4c01d91c1c6a549008dbefc2d0c8f52154d872dce4979f",
+        "locales/el.pak": "114158bd5f674169564173a12612922259a8acc50076c228c2214659924ee018",
+        "locales/en-GB.pak": "550775b16b4716e610232e6b06e35a95c4c6ce2dedbd2a26747f8dc8f08d8aeb",
+        "locales/en-US.pak": "e37db76f0a15a4b2a3cbd365bd4f06b0d8dc91fb9a83c03b7cd38503c23c044b",
+        "locales/es-419.pak": "aaacff94a6407a7d487a455889a544f6107107cccb82393a27e9bf593d1b943d",
+        "locales/es.pak": "b3256546e28dffff82c3d00abae9ad2141cf7bb940e5e39620f6ae30b488dcea",
+        "locales/et.pak": "41f78768a3ef702356653ab005522a20407e0dbbe7b0ea323683072520f11191",
+        "locales/fa.pak": "365520460dd4b662f8dfa14969eb066b7c1c98ae255ecfd705c1692a1ed784f1",
+        "locales/fi.pak": "fb7379246632c90a58a8f7155e390ca583f9d73b6c6ae26baf9bf4878be184df",
+        "locales/fil.pak": "7c6c76af71a7d60733a01014c19d9544409d5facd6001fb9058fc8ae8062cf54",
+        "locales/fr.pak": "95b11fc7368d9f4367534e89456cceda009468abe2423821a11fe1dd1a7b4604",
+        "locales/gu.pak": "309dcf4484d9479eeb68dcc7d745f17dfa0ffc4e6b112751de704ce62e8aecbe",
+        "locales/he.pak": "5764ba9a2261b2ded07f3c3afa8f003594b29f58c73b322f1d89479907a97ca2",
+        "locales/hi.pak": "b4d36beed004905461637b0c60eacc6d8eca49ba47ba262ed04d68c88b826bf4",
+        "locales/hr.pak": "6937159b11ac75bee2c8046a5150596acee10a7c10c75a2469a752175f9e9e99",
+        "locales/hu.pak": "d6add186bc8bd342ef5d35cba5261c8c847ecb529697b7c003016435997c9fdc",
+        "locales/id.pak": "06c550187e7dd49cf0210ac9bcf4401c10e96ed777ccc8fd07e914a9337de9b7",
+        "locales/it.pak": "b02a5de9de434266991a9e37a6bcced44b65ae3c164e4920a736eb350f745ecb",
+        "locales/ja.pak": "4b51a3023136f05ae2c0b8e041e262eed3f6d5fa87c782892cba36e10d904b3c",
+        "locales/kn.pak": "875859c2b88312ff3644c6cadd65dd8b5057e336a0a2bea512fbffa7c85695a7",
+        "locales/ko.pak": "8c98d075840cb4800016c6df141183b3ec69cfe20df38ea759f2274259a86666",
+        "locales/lt.pak": "b7e01915d9f1131743aaa7b1c262c7ef685c10d8621f2437e46ebefe980a6efc",
+        "locales/lv.pak": "22fc0a3e04e7772c7df2f4c74e928ceb4046edc8c1688dbc4f04676f00944952",
+        "locales/ml.pak": "fffb1b403dd4a62f0116fb39a961a73dd0766049bdc23118c90f4360971e225b",
+        "locales/mr.pak": "0f5879b812517af23c9655347b08852c8e8f5c399b288466a8ec717d397e94d6",
+        "locales/ms.pak": "ce1f9c8cfe5b2705b281d3480e0df992ab36f3518956100564eb9edae5d03dbb",
+        "locales/nb.pak": "36c2e3f5d4e920e8e0411878df2cbd4a92bd9e553e9e427b3aae355bfb9fc955",
+        "locales/nl.pak": "5cceeeff48b3aad830116126f8f15b3bfddf682bbdf986b3a266e0e72ff463d1",
+        "locales/pl.pak": "35e0d1578baa9c9441c83383aade35d69c03bc2307783c639c01b156015a11a8",
+        "locales/pt-BR.pak": "907226d904de6a571a80289ef6a8072bad867b1f63ec37fcd735c30763af970d",
+        "locales/pt-PT.pak": "540b4f6c0d58d8f0315a8e4fbee49e41b6fbfe2b9c2065b8f28b069619c132ba",
+        "locales/ro.pak": "b7c3b4af988ec26f8f3a3fa789cdbe46712a14497e47cba6266c9f0e808e57f7",
+        "locales/ru.pak": "b011f8c753fa33f9aa91732590ca13a791824a7fd94a8f35c41330fe346de11a",
+        "locales/sk.pak": "8c743c91af3dd53fd5c36e88061a62dddb2b91687ec779e7958774f436486dac",
+        "locales/sl.pak": "a692040613f2fe76800c33d000a9a62277b1fc98bd056ce7f4f5ee06f6b0ec9d",
+        "locales/sr.pak": "92bac4af059cea0f2f72293fde0cc665b8554c00653b26611cfcc6e98b4971e8",
+        "locales/sv.pak": "54cf311648f8688effc4cfd70a580b85b837e67dd9e5f194d9f761202a27ebba",
+        "locales/sw.pak": "3475068a7e3b8205444f914d7d29421fb45b87c008594984f3e7b04cff22b2d3",
+        "locales/ta.pak": "e4053fb503c08d94b7364b10a74abc04506d15f67ad74b9ea66185999ea177df",
+        "locales/te.pak": "4955104544daf89da718e7f584ad66fe35dd4ca219c245697de2929acb317ec8",
+        "locales/th.pak": "2272de996ac5c553cf01f406e6f708cb98ad419708355fb4969cb91ec8031e56",
+        "locales/tr.pak": "f690918f136d8c5bad9853c358670e60475999d0faafb36d36001c4fa7ec4f8b",
+        "locales/uk.pak": "26ddf342bb13d674df20162ff1a955edc56e6ffc64bc846953e7b2be8827fe80",
+        "locales/ur.pak": "203e225739beb9879eebb08d08d9aa17b80f02320049f03d453156ff53170da8",
+        "locales/vi.pak": "4dcf8fe139c4355a8999137098532662e5af79d7b464c6e2faab686605d7ad8d",
+        "locales/zh-CN.pak": "aec678d57f7644157d8d7d1007cd03c9efbc7ef54488df2f856989179a563e42",
+        "locales/zh-TW.pak": "deba23736da06f4e2633cbecab98e7b9c3ae8b6b7245c08b89f63581fa47f1f4",
+        "resources.pak": "61d1b4c33101c119971fab04cd27e712ab25054e039cd78f1a3c09d1b4f241ab",
+        "snapshot_blob.bin": "8d02e9a670be492fd4d99d383778b189baa4f943baf25a6ff45900a3b465e9ed",
+        "v8_context_snapshot.bin": "0e23db7a1d50b53b52796768acfb274ce601609134717746e5f844aa3c4c1961"
+      },
+      "payload_sha256": "ec7b816bdd7ad27d190d82e7440e50ce31d3980dec0e59166edf07a3f964f640",
+      "previous_payload_sha256": null
+    },
+    "ptb": {
+      "changed_since_previous_core": false,
+      "client_version": "1.0.224",
+      "core_sha256": "1196f140f3046c2452277cc725e2bf80d1a03087983dde2a8619a08b237b3ab5",
+      "embedded_electron_version": "44.9.3",
+      "executable_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+      "files": {
+        "chrome-sandbox": "536488054c08db6e601b68eb9cd38699757869f9ab38000f9672ed873f3df661",
+        "chrome_100_percent.pak": "891176da5eee33b54352fdb1407a8e09a2bd48c7eb2077311e75787de33a095e",
+        "chrome_200_percent.pak": "b3ce9953a50959e9c1a018d6512742f48cee0dbf53644ea952909418bd7c2b3e",
+        "chrome_crashpad_handler": "c821b78239a4f743569bf6c138bcba7ebbca6e0d9226e044c3a296ce6735a97d",
+        "executable": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "icudtl.dat": "da53f0b69843aaa43315f0f210a67e4a874b0be338f3dae08ff57b8afe76ab0d",
+        "libEGL.so": "4a8e1a1e8620ea26983035bf5acc87910ef901256fa151eb52013596030c5b2e",
+        "libGLESv2.so": "f021209744750ac8138ffb5791b037b1cf980d2f58afbe249dfda6f6f5db09d0",
+        "libffmpeg.so": "8f40442cdf2a22dcaef3f2ee15f4de8c13cab9b7b94d6c2accad425fc1c36a9a",
+        "libvk_swiftshader.so": "46fded42eb0676050d26890bf7a7b2534383005314aa22ad45d31c8ce1f56e05",
+        "libvulkan.so.1": "9241252c9a325f86f657ce6624b94a6ba57a3a99bb00b3b29d3cc4b5cdd35293",
+        "locales/af.pak": "9abd48c6c1f34e14dcad66131a9cc8624b4e850ebf692b05a66fb18d5c537588",
+        "locales/am.pak": "28545e9a72220ddca39f7d7b36eacb3b661a3cc40d212b7e56be21d90f5ee71b",
+        "locales/ar.pak": "267687bf1ed07628b03f02d095b253141a4cbc6b80f0bfec6007ca0556260e5f",
+        "locales/bg.pak": "96741df7a895b1d4894db0fd5e5db4f761849eb0e5ebadf6f3f27daf16723ebe",
+        "locales/bn.pak": "eaa31ac7166ef4c5c61bf6e4a9b0a0b4cb1825e1b57e5a45f76faa65dc0d113f",
+        "locales/ca.pak": "3f86be184e95323c14604836b8eaf8935fc24f9cd2308cb207be26c318d8f287",
+        "locales/cs.pak": "cffb35f66f25ef7dac62b05213dfa787ecddf2533518c02276d8fbe828f541e8",
+        "locales/da.pak": "14cfcdfecb80d8575d273d8ec03317ae51c3e2c976c862ab774f9af9c7c4557b",
+        "locales/de.pak": "7d4874ca52ac298dbc4c01d91c1c6a549008dbefc2d0c8f52154d872dce4979f",
+        "locales/el.pak": "114158bd5f674169564173a12612922259a8acc50076c228c2214659924ee018",
+        "locales/en-GB.pak": "550775b16b4716e610232e6b06e35a95c4c6ce2dedbd2a26747f8dc8f08d8aeb",
+        "locales/en-US.pak": "e37db76f0a15a4b2a3cbd365bd4f06b0d8dc91fb9a83c03b7cd38503c23c044b",
+        "locales/es-419.pak": "aaacff94a6407a7d487a455889a544f6107107cccb82393a27e9bf593d1b943d",
+        "locales/es.pak": "b3256546e28dffff82c3d00abae9ad2141cf7bb940e5e39620f6ae30b488dcea",
+        "locales/et.pak": "41f78768a3ef702356653ab005522a20407e0dbbe7b0ea323683072520f11191",
+        "locales/fa.pak": "365520460dd4b662f8dfa14969eb066b7c1c98ae255ecfd705c1692a1ed784f1",
+        "locales/fi.pak": "fb7379246632c90a58a8f7155e390ca583f9d73b6c6ae26baf9bf4878be184df",
+        "locales/fil.pak": "7c6c76af71a7d60733a01014c19d9544409d5facd6001fb9058fc8ae8062cf54",
+        "locales/fr.pak": "95b11fc7368d9f4367534e89456cceda009468abe2423821a11fe1dd1a7b4604",
+        "locales/gu.pak": "309dcf4484d9479eeb68dcc7d745f17dfa0ffc4e6b112751de704ce62e8aecbe",
+        "locales/he.pak": "5764ba9a2261b2ded07f3c3afa8f003594b29f58c73b322f1d89479907a97ca2",
+        "locales/hi.pak": "b4d36beed004905461637b0c60eacc6d8eca49ba47ba262ed04d68c88b826bf4",
+        "locales/hr.pak": "6937159b11ac75bee2c8046a5150596acee10a7c10c75a2469a752175f9e9e99",
+        "locales/hu.pak": "d6add186bc8bd342ef5d35cba5261c8c847ecb529697b7c003016435997c9fdc",
+        "locales/id.pak": "06c550187e7dd49cf0210ac9bcf4401c10e96ed777ccc8fd07e914a9337de9b7",
+        "locales/it.pak": "b02a5de9de434266991a9e37a6bcced44b65ae3c164e4920a736eb350f745ecb",
+        "locales/ja.pak": "4b51a3023136f05ae2c0b8e041e262eed3f6d5fa87c782892cba36e10d904b3c",
+        "locales/kn.pak": "875859c2b88312ff3644c6cadd65dd8b5057e336a0a2bea512fbffa7c85695a7",
+        "locales/ko.pak": "8c98d075840cb4800016c6df141183b3ec69cfe20df38ea759f2274259a86666",
+        "locales/lt.pak": "b7e01915d9f1131743aaa7b1c262c7ef685c10d8621f2437e46ebefe980a6efc",
+        "locales/lv.pak": "22fc0a3e04e7772c7df2f4c74e928ceb4046edc8c1688dbc4f04676f00944952",
+        "locales/ml.pak": "fffb1b403dd4a62f0116fb39a961a73dd0766049bdc23118c90f4360971e225b",
+        "locales/mr.pak": "0f5879b812517af23c9655347b08852c8e8f5c399b288466a8ec717d397e94d6",
+        "locales/ms.pak": "ce1f9c8cfe5b2705b281d3480e0df992ab36f3518956100564eb9edae5d03dbb",
+        "locales/nb.pak": "36c2e3f5d4e920e8e0411878df2cbd4a92bd9e553e9e427b3aae355bfb9fc955",
+        "locales/nl.pak": "5cceeeff48b3aad830116126f8f15b3bfddf682bbdf986b3a266e0e72ff463d1",
+        "locales/pl.pak": "35e0d1578baa9c9441c83383aade35d69c03bc2307783c639c01b156015a11a8",
+        "locales/pt-BR.pak": "907226d904de6a571a80289ef6a8072bad867b1f63ec37fcd735c30763af970d",
+        "locales/pt-PT.pak": "540b4f6c0d58d8f0315a8e4fbee49e41b6fbfe2b9c2065b8f28b069619c132ba",
+        "locales/ro.pak": "b7c3b4af988ec26f8f3a3fa789cdbe46712a14497e47cba6266c9f0e808e57f7",
+        "locales/ru.pak": "b011f8c753fa33f9aa91732590ca13a791824a7fd94a8f35c41330fe346de11a",
+        "locales/sk.pak": "8c743c91af3dd53fd5c36e88061a62dddb2b91687ec779e7958774f436486dac",
+        "locales/sl.pak": "a692040613f2fe76800c33d000a9a62277b1fc98bd056ce7f4f5ee06f6b0ec9d",
+        "locales/sr.pak": "92bac4af059cea0f2f72293fde0cc665b8554c00653b26611cfcc6e98b4971e8",
+        "locales/sv.pak": "54cf311648f8688effc4cfd70a580b85b837e67dd9e5f194d9f761202a27ebba",
+        "locales/sw.pak": "3475068a7e3b8205444f914d7d29421fb45b87c008594984f3e7b04cff22b2d3",
+        "locales/ta.pak": "e4053fb503c08d94b7364b10a74abc04506d15f67ad74b9ea66185999ea177df",
+        "locales/te.pak": "4955104544daf89da718e7f584ad66fe35dd4ca219c245697de2929acb317ec8",
+        "locales/th.pak": "2272de996ac5c553cf01f406e6f708cb98ad419708355fb4969cb91ec8031e56",
+        "locales/tr.pak": "f690918f136d8c5bad9853c358670e60475999d0faafb36d36001c4fa7ec4f8b",
+        "locales/uk.pak": "26ddf342bb13d674df20162ff1a955edc56e6ffc64bc846953e7b2be8827fe80",
+        "locales/ur.pak": "203e225739beb9879eebb08d08d9aa17b80f02320049f03d453156ff53170da8",
+        "locales/vi.pak": "4dcf8fe139c4355a8999137098532662e5af79d7b464c6e2faab686605d7ad8d",
+        "locales/zh-CN.pak": "aec678d57f7644157d8d7d1007cd03c9efbc7ef54488df2f856989179a563e42",
+        "locales/zh-TW.pak": "deba23736da06f4e2633cbecab98e7b9c3ae8b6b7245c08b89f63581fa47f1f4",
+        "resources.pak": "61d1b4c33101c119971fab04cd27e712ab25054e039cd78f1a3c09d1b4f241ab",
+        "snapshot_blob.bin": "8d02e9a670be492fd4d99d383778b189baa4f943baf25a6ff45900a3b465e9ed",
+        "v8_context_snapshot.bin": "0e23db7a1d50b53b52796768acfb274ce601609134717746e5f844aa3c4c1961"
+      },
+      "payload_sha256": "ec7b816bdd7ad27d190d82e7440e50ce31d3980dec0e59166edf07a3f964f640",
+      "previous_payload_sha256": null
+    },
+    "stable": {
+      "changed_since_previous_core": false,
+      "client_version": "1.0.166",
+      "core_sha256": "0316c1398d9ce024a1015cd34ef5cd752d4ac978a0015d5b3de8c0a5f853907e",
+      "embedded_electron_version": "42.11.15",
+      "executable_sha256": "37d7e3540277d878985c8f973e2313ada9601adb5bd8116e29f5bb4201ca2809",
+      "files": {
+        "chrome-sandbox": "4319b95c35002cf76fe0e823ab81346179cd7bfcb743433036d3a3b2818453f2",
+        "chrome_100_percent.pak": "8101a69055892144e1cf01ab238e53b04e579df73da656afa43102d1692b132e",
+        "chrome_200_percent.pak": "51cf8ae50f3eefa702c9bd6782c52291e6bdac644da9eecda1bd2e0745acb3f7",
+        "chrome_crashpad_handler": "5da155f584ac2f35171519926888199365a61eee0e5a3c2d2707bdff15c37847",
+        "executable": "37d7e3540277d878985c8f973e2313ada9601adb5bd8116e29f5bb4201ca2809",
+        "icudtl.dat": "67c332a252ae56e300213753784e4256b201a6bd5156db9eb87a6afda20215f2",
+        "libEGL.so": "d5b0f2afa335efab988ae6bfec721921c3bf127f75aff564ce48b7bc7ba975e8",
+        "libGLESv2.so": "2de1be8d97ed6296b7be8fc65091feb1c5396ae08bce9ecea0d3b889c5dc11f8",
+        "libffmpeg.so": "a6fc5af05c39024ec68858ef24059976ad9b14fd030ea1eff5059340bb66022e",
+        "libvk_swiftshader.so": "edbc6650e99f3927f2c610675bab9ca0037c7f2acb8af7fc987ef3a02ae6f34a",
+        "libvulkan.so.1": "4ff23e48564c3e936e3ccdb55b0f3b987a4a77fcb9cd988674a408d07299f9b2",
+        "locales/af.pak": "f8421dc4292067fedc78e18d5d092f5f1637b33ad50262aa89be6d8967fb1be6",
+        "locales/am.pak": "0bb4fc40d42928ca9c7b91172dbe4777ea04f2f1a1f441b5df28ce9d500a9c20",
+        "locales/ar.pak": "c23496b70608c02512739c3993e00adc31f6c8587dbb38b34d5b59a328d1a2b6",
+        "locales/bg.pak": "054ecf884ea271a3db7d738da6d7e6ccd258eec3d7018550b5e110685d07b6df",
+        "locales/bn.pak": "c2d37eebc9081fa1b7ca0069262649c4a962ad78be7edcbc6b9f780609a9f43a",
+        "locales/ca.pak": "0a3456dbcd3b9a8f1719a6c9b8e59db7ef55cde322f87199e0e2d375c021ccd1",
+        "locales/cs.pak": "16511640597c305e3dc02fb14c6fdf2e18dbb5370535da83ff746a84717e9900",
+        "locales/da.pak": "a95be52189a25af71b8de76b72fc236d8741a100f6ffebbc44fec468852448ba",
+        "locales/de.pak": "208b00763201194fe1a06026464f81d9ae884799aa49ae97a41b381ee9a3e1c9",
+        "locales/el.pak": "f8b36ef93019b26e9a98e34725a7e81ae97f1f3a078609a81251432ccb18a781",
+        "locales/en-GB.pak": "8de07e3718766aa0939b5f3f6798e63142bf9307d2d7b911f79dc9b2da1cf26f",
+        "locales/en-US.pak": "4cfdd58d0f8a3f197c89c398d2e81cfd0973b555bf42c813b3dde2fe20951f1d",
+        "locales/es-419.pak": "d2a3d7ea541e6910b7b03bfe5b4d21a705408ab50b758e00a9b412982bdeda19",
+        "locales/es.pak": "71ebb0c706ed3e3080ff81df6544d2b41294070e90da4ac6c6eeadb95580dbc6",
+        "locales/et.pak": "fdaf62834bd59fb60d09c306318805d6ab32451c88ac2a183063f198e67c4edd",
+        "locales/fa.pak": "a15d3bb8abb7d29d0eb985d48f0fd2af4297593ebd4c5b0b8f791effd1e3b863",
+        "locales/fi.pak": "c01a9145b3fe1cfc98969f0b766950735e656449d87371ba40277fa623c36e12",
+        "locales/fil.pak": "f4bc912acb6f47908d52a43c7ede0a8967ab574425f06f93fe2961f915f5291d",
+        "locales/fr.pak": "224869a639b99ff64849a4f0633ceccd15b749502537a92d31beb769cf0891fc",
+        "locales/gu.pak": "c0cb99c66c9644ca165686599f987e9f8310678315a27decc8693adbf74420a2",
+        "locales/he.pak": "07142c28c900e7fb91dadbdd1bf291cab57d939a1cae94d3b96132039e965c48",
+        "locales/hi.pak": "ee8345e95bad66f1a0eb61e7e56beedce0be43ba394d9c045ddf99386a63e526",
+        "locales/hr.pak": "b8800a9d602c1eab4c7ee7972196fcffb42a8fa68722cbe49884468a2b42cc95",
+        "locales/hu.pak": "62c039cacc012804d8ca9d2d56249d2aa74a381571846313ad2bbd5c97f4c35a",
+        "locales/id.pak": "b0efaf30e3914903479abd04a1b1b84ea3785af08481f422371ca804e6e8a705",
+        "locales/it.pak": "fd4fcd8bec485c289136212d6171762622100b8ab37d0880117e60dcb6704663",
+        "locales/ja.pak": "0ffe7d647454afe89f0f960b18b160c2f0a28a90e079889e8555f11f9f0fb0c3",
+        "locales/kn.pak": "069b1f91bd03f57657756656209bf9b4a6da5ca45b38a8fb7040f816ffd682a3",
+        "locales/ko.pak": "956ee7b4749cedffe8cc2e7491fb782aede97fb79f05775cd6cce2366ecb5bc3",
+        "locales/lt.pak": "2c2202e9457e0913110c3007ae67788d1ec9e6c8f86b66d03af3f0370a4beb78",
+        "locales/lv.pak": "317fa54ba9ae249b13e0aadfb3ef584c18ac6d150b60c8b227348ca58b133fa9",
+        "locales/ml.pak": "38fe44564d28154609f25b50e312a29a857d344bd4dfdad1d51774044f163fdd",
+        "locales/mr.pak": "8c1e81dcf641f36c5be39c100e7bf81985bdefa615506718724075277f661f8b",
+        "locales/ms.pak": "630e0571f281021e72689cd9654cfc7e4dd539ac82959df80705e07f8f11a2ff",
+        "locales/nb.pak": "72fa6f081680f588b4953e9bbad1c0cc5752f79771f321924c90d10f9baf29fb",
+        "locales/nl.pak": "2a6522d9a0c2a568bb56e3a41aefaead4024348d42b4d2d5da25f347221ee179",
+        "locales/pl.pak": "099dc9c5e3d9ca07e98e0338cbd9a6de899d01b55a2193a78b382663dc5f6dc8",
+        "locales/pt-BR.pak": "4190889d7f3a4db6e2c40a6382d1122263c8ee27294da3c173633736fdbb64b4",
+        "locales/pt-PT.pak": "8a27cff88dcb7db29cc42b9f4fd6abab28478de83f0e3566c71bad82fff55352",
+        "locales/ro.pak": "52f0a6e46364b8fb3182293572ab9330105cd87fe9ebe19cd8ab953cee812690",
+        "locales/ru.pak": "9d22ffd1640692d47f410aa3ea14a8e3978d97c70afe8f916f25cf66ce3b8b9f",
+        "locales/sk.pak": "2db786e06258790da9051169219c3d33d66474a4d25fc2d53b4f328e775e24f4",
+        "locales/sl.pak": "b13c0d8ad67873f15633cead0c0bbdd64bbf4fd5ea67f1425ecd60c5a27686b3",
+        "locales/sr.pak": "6b5e2e0043472073556a64d05a0bde3429d83e2856d8162b5c7025781553b6ea",
+        "locales/sv.pak": "971bfd4222f6e864bd4569935879698dc6d6e54b3cb99822708496c135ac029a",
+        "locales/sw.pak": "7f687c75bcc649c9c8c123991e260c26ee180a8a0003a5b6a6daf930f297c1ec",
+        "locales/ta.pak": "920a9a0e1ecca3ca8ffbf84b29dc20f3d21d6096b95be0f3e5d4d82ae6673de2",
+        "locales/te.pak": "74ef693bf8eaf11079c7adf22bfb3fd5c7c9d5c0bec271c20623942f2c9ae18a",
+        "locales/th.pak": "07d32eb32db13cb6ff1d2728bff154b3110cc290679c378741de762dd2d87529",
+        "locales/tr.pak": "a0990f541d9a0366c867980066faf826af651afc3e69148681f71631276b4877",
+        "locales/uk.pak": "970e7cc1b0d377eadc03d19a1dd8914b0ea560152928ac25c82e069b8c760eed",
+        "locales/ur.pak": "758655c352d6dc4331ad9bf174e8680816a56a29b934a0042b7263aed2d3cfc2",
+        "locales/vi.pak": "bdb94aa464d73ff593b60875893a6b6bd3613e584f01c243b8cc31d6e54a438f",
+        "locales/zh-CN.pak": "8a37dc502cc48735a03f8ddcccf5c8f041522bc9465588e467412a09d9760548",
+        "locales/zh-TW.pak": "76eb89f11462a258e760393aab5d99d588d2ae1f1cd857ef55e67084f233977c",
+        "resources.pak": "789a63edfe755fd69e9c782a0e438609d2e0468beebca2e13db58f5d5ee36d45",
+        "snapshot_blob.bin": "19c3a7a9ad9c335d8089a9d718cbfc795b46282dcc4d1cb269e87578285a95f2",
+        "v8_context_snapshot.bin": "a2489a4729b1e3121aec4afd50d8725975fd55ebff756513a3662648f98b7077"
+      },
+      "payload_sha256": "030ed16957793b3cf00086acb3f8e711486111783b929e2caa2344d20b27b529",
+      "previous_payload_sha256": null
+    }
+  },
   "client_errors": {},
+  "client_work": {
+    "0cdaf8971c06f90351f4a594d838d671baf661ea325213e674aee599d5ca0838": {
+      "channel": "canary",
+      "client_digest": "fe2d549e88be374db23288ec1d9b69ce3fa28f0935e41bac1e8a57d1e75932e5",
+      "key": "0cdaf8971c06f90351f4a594d838d671baf661ea325213e674aee599d5ca0838",
+      "reference_run": "40053107555",
+      "requested_at": "2026-10-24T10:09:50.357835+00:00",
+      "run": "40084710165",
+      "status": "queued"
+    },
+    "6f7941c2cd75ea89004f30c3cf37bc0fd8a09666faed8ffe97a4263d5f9c525f": {
+      "channel": "stable",
+      "client_digest": "cd919496ec7ff7709411b98df587e09a09de690ad85d5a6962be2954b7379a75",
+      "key": "6f7941c2cd75ea89004f30c3cf37bc0fd8a09666faed8ffe97a4263d5f9c525f",
+      "reference_run": "40053107555",
+      "requested_at": "2026-10-24T10:09:50.357835+00:00",
+      "run": "40084710165",
+      "status": "queued"
+    },
+    "b6972643416bbc974b1d28bc55c0f38bdbded19330270ff745754ba69379bd1c": {
+      "channel": "ptb",
+      "client_digest": "f05c31510c2cb2e942b02d492ddb059b904ad62fb3e4847fb8c326e6a2cb77ed",
+      "key": "b6972643416bbc974b1d28bc55c0f38bdbded19330270ff745754ba69379bd1c",
+      "reference_run": "40053107555",
+      "requested_at": "2026-10-24T10:09:50.357835+00:00",
+      "run": "40084710165",
+      "status": "queued"
+    }
+  },
   "clients": {
     "canary": {
       "channel": "canary",
@@ -267,6 +539,7 @@
       "version": "1.0.166"
     }
   },
+  "electron_work": {},
   "enabled_electron_channels": [
     "prerelease"
   ],
@@ -353,7 +626,7 @@
     "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f": {
       "attempts": [],
       "channel": "prerelease",
-      "status": "pending",
+      "status": "compiled",
       "target": {
         "commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
         "version": "46.0.0-alpha.1"
@@ -381,5 +654,2387 @@
       }
     }
   },
-  "schema": 1
+  "schema": 1,
+  "security_advisories": [
+    {
+      "ghsa_id": "GHSA-jr5w-w6x2-84p9",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "45.0.0-beta.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 45.0.0-alpha.1, < 45.0.0-beta.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.9.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.9.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.11.16",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 42.11.16"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-x562-297c-g43g",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "45.0.0-alpha.13",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 45.0.0-alpha.1, < 45.0.0-alpha.13"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.5.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.5.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.7.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.7.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.11.9",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 42.11.9"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-3qxv-5xgr-q7w9",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.11.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 42.11.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.7.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.7.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.4.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.4.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "45.0.0-alpha.9",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 45.0.0-alpha.1, < 45.0.0-alpha.9"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-h3v5-h239-pg29",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.11.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 42.11.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.7.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.7.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.4.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.4.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "45.0.0-alpha.9",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 45.0.0-alpha.1, < 45.0.0-alpha.9"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-997q-gvvc-jwmx",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.11.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 42.11.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.3.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.3.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "45.0.0-alpha.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 45.0.0-alpha.1, < 45.0.0-alpha.5"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-fw47-9c62-h3vw",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "45.0.0-alpha.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 45.0.0-alpha.1, < 45.0.0-alpha.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.3.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.3.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.11.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 42.11.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-gr2m-v5gq-v685",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.10.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 41.10.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.9.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.9.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.4.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.4.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.0.0-beta.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.0.0-beta.5"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-9qh4-3jw8-366w",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.10.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 41.10.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.9.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.9.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.4.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.4.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.0.0-beta.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.0.0-beta.5"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-j84w-jfhq-vhvj",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.10.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 41.10.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.9.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.9.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.4.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.4.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.0.0-beta.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.0.0-beta.5"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-r4w5-6pfg-jxp5",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.0.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.5.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.5.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.9.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.9.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.10.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.10.6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-hq2x-r82h-9wj4",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.10.4",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 41.10.4"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.5.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.5.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.0.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-qmv3-fv6v-rmhq",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.10.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.3.3, < 42.10.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.4.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-beta.1, < 43.4.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.0.0-beta.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.0.0-beta.6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-q6m5-f73j-m9mc",
+      "severity": "critical",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.3.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "42.3.1,42.3.2"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-9f4c-93c8-jc8g",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.10.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 41.10.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.10",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.10"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-v3j7-r9gq-3gjw",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.4.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.4.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.10",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.10"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-98mx-cjp9-gchm",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "45.0.0-alpha.4",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 45.0.0-alpha.1, < 45.0.0-alpha.4"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.1.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.1.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.5.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.5.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.11.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 42.11.1"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-x8rc-wpg4-grpf",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.8"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-jm7p-cc5g-qwxx",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.8"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-m55f-7gqj-fr98",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.8"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-f2r8-jv7c-xqmp",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.9",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.9"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-pfmc-3mgc-p6fp",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.10",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.10"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-p2rr-rvmm-c5fp",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.8"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-ff2p-hmqr-hxm4",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.9",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.9"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.4",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.4"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-v93f-fgjr-hjrj",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.8"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-v64r-4m7r-3mvq",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.8"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-h7rp-cf8h-j98x",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.9",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.9"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.2"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.5"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-vv43-5jgx-7qv8",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.10",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.10"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.10.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.10.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.2"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-9pf5-hg6p-4pwp",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.7",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.7"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.1"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-4f78-qhmw-8j8m",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.7",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.7"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.2.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.2.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.1"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-5c9j-mhmv-5xgx",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-beta.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-beta.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.1.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.1.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.9.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-8x5q-pvf5-64mp",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 33.0.0-alpha.1, < 39.8.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.1.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.1.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-alpha.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-alpha.5"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-f3pv-wv63-48x8",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.1.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.1.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-alpha.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-alpha.5"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-4p4r-m79c-wq3v",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.3"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-9899-m83m-qhpj",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0-beta.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0-beta.8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-jfqx-fxh3-c62j",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0-beta.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0-beta.8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-9wfr-w7mm-pc7f",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0-beta.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0-beta.8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-jjp3-mq3x-295m",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0-beta.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0-beta.8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-8337-3p73-46f4",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0-beta.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0-beta.8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-9w97-2464-8783",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0-beta.7",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0-beta.7"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-532v-xpq5-8h95",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-mwmh-mq4g-g6gr",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-3c8v-cfp5-9885",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-r5p7-gp4j-qhrx",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-xwr5-m59h-vwqr",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.4",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.4"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.4",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.4"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-xj5x-m3f3-5x3h",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-5rqw-r77c-jp79",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "38.8.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 38.8.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.1"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0-beta.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0-beta.8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-jfqg-hf23-qpw2",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 39.0.0-alpha.1, < 39.8.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.0.0-beta.8",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.0.0-beta.8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-f37v-82c4-4x64",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "39.8.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 39.8.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "40.8.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 40.0.0-alpha.1, < 40.8.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "41.1.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 41.0.0-alpha.1, < 41.1.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.0.0-alpha.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 42.0.0-alpha.1, < 42.0.0-alpha.5"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-vmqv-hx8q-j7mg",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "35.7.5, 36.8.1, 37.3.1, 38.0.0-beta.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 35.7.5 || >= 36.0.0-alpha.1 < 36.8.1 || >= 37.0.0-alpha.1 < 37.3.1 || >= 38.0.0-alpha.1 < 38.0.0-beta.6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-2p8c-gr87-2676",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "45.0.0-alpha.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 45.0.0-alpha.1, < 45.0.0-alpha.6"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "44.3.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 44.0.0-alpha.1, < 44.3.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "43.7.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 43.0.0-alpha.1, < 43.7.0"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "42.11.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 42.11.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-22mq-c535-7vv9",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "36.0.0-alpha.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 36.0.0-alpha.1, < 36.0.0-alpha.5"
+        },
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "35.1.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 35.0.0-alpha.1, < 35.1.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-xw5q-g62x-2qjc",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "30.0.5,31.0.0-beta.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 30.0.0-alpha.1 < 30.0.5 || >= 31.0.0-alpha.1 < 31.0.0-beta.1"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-6r2x-8pq8-9489",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "28.3.2, 29.3.3, 30.0.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 28.3.2 || >= 29.0.0-alpha.1 < 29.3.3 || >= 30.0.0-alpha.1 < 30.0.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-2hfc-r8fq-92h7",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "actions",
+            "name": "electron/electron/.github/workflows/issue-opened.yml"
+          },
+          "patched_versions": "c86e4cb9ce7546324970ceb6e85ad7001df4318c",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "4f76fff97879ee8f9b2d0dcfd43e686ff8757c69"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-7m48-wc93-9g85",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "22.3.24, 24.8.3, 25.8.1, 26.2.1, 27.0.0-alpha.7",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 22.3.24 || >= 23.0.0-alpha.1 < 23.3.14 || >= 24.0.0-alpha.1 < 24.8.3 || >= 25.0.0-alpha.1 < 25.8.1 || >= 26.0.0-alpha.1 < 26.2.1 || >= 27.0.0-alpha.1 < 27.0.0-alpha.7"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-7x97-j373-85x5",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "26.0.0-beta.13, 25.5.0, 24.7.1, 23.3.13, 22.3.19",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 22.3.19 || >= 23.0.0-alpha.1 < 23.3.13 || >= 24.0.0-alpha.1 < 24.7.1 || >= 25.0.0-alpha.1 < 25.5.0 || >= 26.0.0-alpha.1 < 26.0.0-beta.13"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-p7v2-p9m8-qqg7",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "22.3.6, 23.2.3, 24.0.1, 25.0.0-alpha.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 22.3.6 || >= 23.0.0-alpha.1 < 23.2.3 || >= 24.0.0-alpha.1 < 24.0.1 || >= 25.0.0-alpha.1 < 25.0.0-alpha.2"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-gxh7-wv9q-fwfr",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "22.0.1, 23.0.0-alpha.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 22.0.0-beta.1 < 22.0.1, >= 23.0.0-alpha.1 < 23.0.0-alpha.2"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-p2jh-44qj-pf2v",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "18.3.7, 19.0.11, 20.0.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 18.3.7, >= 19.0.0-beta.1 < 19.0.11, >= 20.0.0-beta.1 < 20.0.1"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-77xc-hjv8-ww97",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "15.5.0, 16.2.0, 17.2.0, 18.0.0-beta.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 15.5.0 || >= 16.0.0-beta.1 < 16.2.0 || >= 17.0.0-beta.1 < 17.2.0 || >= 18.0.0-beta.1 < 18.0.0-beta.6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-mq8j-3h7h-p8g7",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "15.5.5, 16.2.6, 17.2.0, 18.0.0-beta.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 15.5.5 || >= 16.0.0-beta.1 < 16.2.6 || >= 17.0.0-beta.1 < 17.2.0 || >= 18.0.0-beta.1 < 18.0.0-beta.6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-3p22-ghq8-v749",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "13.6.6, 14.2.4, 15.3.5, 16.0.6, 17.0.0-alpha.6",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 13.6.6 || >=14.0.0-beta.1 < 14.2.4 || >=15.0.0-beta.1 <15.3.5 || >=16.0.0-beta.1 <16.0.6 || >=17.0.0-alpha.1 <17.0.0-alpha.6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-mpjm-v997-c4h4",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "11.5.0, 12.1.0, 13.3.0, 14.0.0, 15.0.0-alpha.10",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=10.1.0 <11.0.0-beta.1 || >=11.0.0-beta.1 < 11.5.0 || >=12.0.0-beta.1 < 12.1.0 || >=13.0.0-beta.1 <13.3.0 || >=14.0.0-beta.1 <14.0.0 || >=15.0.0-alpha.1 <15.0.0-alpha.10"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-hvf8-h2qh-37m9",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "9.4.0, 10.2.0, 11.1.0, 12.0.0-beta.9",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=9.0.0-beta.0 < 9.4.0 || >= 10.0.0-beta.0 < 10.2.0 || >= 11.0.0-beta.0 < 11.1.0 || >= 12.0.0-beta.0 < 12.0.0-beta.9 || <= 8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-56pc-6jqp-xqj8",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "11.0.0-beta.6, 10.1.2, 9.3.1, 8.5.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=11.0.0-beta.0 <=11.0.0-beta.5 || >=10.0.0-beta.0 <=10.1.1 || >=9.0.0-beta.0 <=9.3.0 || >=8.0.0-beta.0 <=8.5.1 <= 8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-2q4g-w47c-4674",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "11.0.0-beta.1, 10.0.1, 9.3.0, 8.5.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=10.0.0-beta.0 <=10.0.0 || >=9.0.0-beta.0 <=9.2.1 || >=8.0.0-beta.0 <=8.5.0 <= 8"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-6vrv-94jv-crrg",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "9.0.0-beta.21, 8.2.4, 7.2.4, 6.1.11",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=9.0.0-beta.0 <=9.0.0-beta.20 || >=8.0.0-beta.0 <=8.2.3 || >= 7.0.0-beta < =7.2.3 || >= 6.0.0-beta.0 <= 6.1.10 || <= 6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-f9mq-jph6-9mhm",
+      "severity": "low",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "7.2.4,8.2.4,9.0.0-beta.21",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=9.0.0-beta.0 <=9.0.0-beta.20 || >=8.0.0-beta.0 <=8.2.3 || >= 7.0.0-beta < =7.2.3 || <7"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-m93v-9qjc-3g79",
+      "severity": "high",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "7.2.4,8.2.4,9.0.0-beta.21",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=9.0.0-beta.0 <=9.0.0-beta.20 || >=8.0.0-beta.0 <=8.2.3 || >= 7.0.0-beta < =7.2.3 || <7"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    {
+      "ghsa_id": "GHSA-h9jc-284h-533g",
+      "severity": "medium",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "electron"
+          },
+          "patched_versions": "7.2.4,8.2.4,9.0.0-beta.21",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=9.0.0-beta.0 <=9.0.0-beta.20 || >=8.0.0-beta.0 <=8.2.3 || >= 7.0.0-beta < =7.2.3 || <7"
+        }
+      ],
+      "withdrawn_at": null
+    }
+  ]
 }
