@@ -574,7 +574,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--clients", type=Path, default=ROOT / "config/clients.lock.json")
-    parser.add_argument("--discord", choices=["stable", "ptb", "canary"], default="stable")
+    parser.add_argument("--discord", choices=["canary"], default="canary")
     parser.add_argument("--pulse", choices=["pipewire", "pulseaudio"], default="pipewire")
     parser.add_argument("--download-only", action="store_true")
     parser.add_argument("--selection", choices=["auto", "manual", "interactive"], default="auto")

@@ -12,6 +12,7 @@ import shlex
 from pathlib import Path
 from urllib.parse import urlparse
 
+from channels import require_enabled_discord
 from common import (
     ROOT,
     arch_version,
@@ -90,6 +91,7 @@ def write_file(path: Path, data: bytes):
 def generate(
     runtime: dict, client: dict, channel: str, revision: int, output: Path, *, camera: dict
 ) -> dict:
+    require_enabled_discord(client["channel"])
     require_enabled_electron(channel)
     name = package_name(client["channel"], channel)
     validate_client(client)
@@ -190,7 +192,7 @@ def main():
     parser.add_argument(
         "--camera-support", type=Path, required=True, help="CI-built camera-support.json"
     )
-    parser.add_argument("--discord", required=True, choices=["stable", "ptb", "canary"])
+    parser.add_argument("--discord", required=True, choices=["canary"])
     parser.add_argument("--electron", required=True, choices=enabled_electron_channels())
     parser.add_argument("--pkgrel", type=int, default=1)
     parser.add_argument("--output", type=Path, required=True)

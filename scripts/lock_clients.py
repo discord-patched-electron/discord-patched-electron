@@ -1,4 +1,4 @@
-"""Resolve Discord's three distribution manifests into reproducible source locks."""
+"""Resolve Discord's enabled distribution manifests into reproducible source locks."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 
+from channels import enabled_discord_channels
 from common import DISCORD_CHANNELS, ROOT, download, read_json, write_json
 
 
@@ -64,7 +65,7 @@ def main():
     )
     args = parser.parse_args()
     clients = {}
-    for channel in DISCORD_CHANNELS:
+    for channel in enabled_discord_channels():
         source = (args.manifest_dir or ROOT / ".work/manifests") / f"{channel}-manifest.json"
         if args.manifest_dir is None:
             download(

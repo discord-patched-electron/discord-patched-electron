@@ -66,17 +66,23 @@ def check(directory: Path):
         )
         if resources is None or not resources.issym() or resources.linkname != "../resources":
             raise ValueError("Debian package lost the packaged-app resource link")
-    with tempfile.TemporaryDirectory(prefix="release-rpm-") as temporary:
-        subprocess.run(["bsdtar", "-xf", str(rpm), "-C", temporary], check=True)
-        for path, checksum in expected.items():
-            installed = Path(temporary) / "opt" / root / path
-            if installed.stat().st_mode & 0o444 != 0o444:
-                raise ValueError(f"RPM payload is not readable: {path}")
-            if sha256(installed) != checksum:
-                raise ValueError(f"RPM payload mismatch: {path}")
-        resources = Path(temporary) / "opt" / root / "runtime/resources"
-        if not resources.is_symlink() or str(resources.readlink()) != "../resources":
-            raise ValueError("RPM lost the packaged-app resource link")
+    arch = next(directory.glob("*.pkg.tar.zst"))
+    for packaged in (rpm, arch):
+        with tempfile.TemporaryDirectory(prefix="release-package-") as temporary:
+            subprocess.run(["bsdtar", "-xf", str(packaged), "-C", temporary], check=True)
+            for path, checksum in expected.items():
+                installed = Path(temporary) / "opt" / root / path
+                if installed.stat().st_mode & 0o444 != 0o444:
+                    raise ValueError(f"{packaged.name} payload is not readable: {path}")
+                if sha256(installed) != checksum:
+                    raise ValueError(f"{packaged.name} payload mismatch: {path}")
+            resources = Path(temporary) / "opt" / root / "runtime/resources"
+            if not resources.is_symlink() or str(resources.readlink()) != "../resources":
+                raise ValueError(f"{packaged.name} lost the packaged-app resource link")
+    arch_info = subprocess.check_output(["bsdtar", "-xOf", str(arch), ".PKGINFO"], text=True)
+    for field in (f"pkgname = {root}", "arch = x86_64", "depend = python", "depend = pipewire"):
+        if field not in arch_info.splitlines():
+            raise ValueError(f"Arch package lacks metadata: {field}")
     requires = subprocess.check_output(["rpm", "-qpR", str(rpm)], text=True)
     if "python3" not in requires or "pipewire-utils" not in requires:
         raise ValueError("RPM lacks helper dependencies")

@@ -1,93 +1,105 @@
 name: Release Linux packages
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       clients_state:
-        description: Full immutable ci-state commit containing the client snapshot
         type: string
         required: true
       reference_run:
-        description: Successful local compiler run ID (empty uses the last tested runtime)
+        type: string
+        required: true
+      publish:
+        type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      clients_state:
+        description: Immutable ci-state commit (empty uses the latest discovered Canary)
         type: string
         default: ""
-      discord_channel:
-        description: Discord channel
-        type: choice
-        options: [all, stable, ptb, canary]
-        default: all
+      reference_run:
+        description: Successful local compiler run ID (empty uses the last approved runtime)
+        type: string
+        default: ""
       publish:
-        description: Publish a GitHub prerelease after all checks pass
+        description: Publish public test packages after all checks pass
         type: boolean
-        default: false
+        default: true
+  workflow_run:
+    workflows: [Candidate Electron build]
+    types: [completed]
+    branches: [main]
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: linux-release
+  group: linux-release-${{ inputs.clients_state }}-${{ inputs.reference_run || github.event.workflow_run.id || github.run_id }}
   cancel-in-progress: false
 jobs:
   inputs:
+    if: >-
+      github.repository == 'discord-patched-electron/discord-patched-electron' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
     outputs:
-      matrix: ${{ steps.inputs.outputs.matrix }}
       runtime: ${{ steps.inputs.outputs.runtime }}
+      state: ${{ steps.inputs.outputs.state }}
       version: ${{ steps.inputs.outputs.version }}
       epoch: ${{ steps.inputs.outputs.epoch }}
+      key: ${{ steps.inputs.outputs.key }}
+      tag: ${{ steps.inputs.outputs.tag }}
+      needed: ${{ steps.inputs.outputs.needed }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUNTIME: ${{ github.event.workflow_run.id || inputs.reference_run || '' }}
+      CLIENTS_STATE: ${{ inputs.clients_state || '' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - id: inputs
-        env:
-          CHANNEL: ${{ inputs.discord_channel }}
-          RUNTIME: ${{ inputs.reference_run }}
-          CLIENTS_STATE: ${{ inputs.clients_state }}
-        run: |
-          python3 - <<'PY'
-          import datetime, json, os, re
-          from pathlib import Path
-          if not re.fullmatch(r'[0-9a-f]{40}', os.environ['CLIENTS_STATE']):
-              raise SystemExit('Use a full immutable ci-state commit SHA')
-          channel = os.environ['CHANNEL']
-          if channel not in ('all', 'stable', 'ptb', 'canary'):
-              raise SystemExit('Unknown Discord channel')
-          runtime = os.environ['RUNTIME'] or json.loads(Path('config/update-policy.json').read_text())['last_good_runtime']['run']
-          if not re.fullmatch(r'[1-9][0-9]*', runtime):
-              raise SystemExit('Expected a compiler run ID')
-          now = datetime.datetime.now(datetime.timezone.utc)
-          channels = ['stable', 'ptb', 'canary'] if channel == 'all' else [channel]
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'matrix={json.dumps(channels)}\nruntime={runtime}\nversion={now:%Y%m%d.%H%M%S}\nepoch={int(now.timestamp())}\n')
-          PY
+        run: python3 scripts/releases.py prepare
+  bundled:
+    needs: inputs
+    if: needs.inputs.outputs.needed == 'true'
+    uses: ./.github/workflows/native-runtime.yml
+    with:
+      clients_state: ${{ needs.inputs.outputs.state }}
+      discord_channels: canary
   native:
     needs: inputs
+    if: needs.inputs.outputs.needed == 'true'
     uses: ./.github/workflows/native-runtime.yml
     with:
       reference_run: ${{ needs.inputs.outputs.runtime }}
-      clients_state: ${{ inputs.clients_state }}
-      discord_channels: ${{ inputs.discord_channel }}
+      clients_state: ${{ needs.inputs.outputs.state }}
+      discord_channels: canary
   audio:
     needs: inputs
+    if: needs.inputs.outputs.needed == 'true'
     uses: ./.github/workflows/app-audio.yml
     with:
       reference_run: ${{ needs.inputs.outputs.runtime }}
-      clients_state: ${{ inputs.clients_state }}
-      discord_channels: ${{ inputs.discord_channel }}
+      clients_state: ${{ needs.inputs.outputs.state }}
+      discord_channels: canary
+
   package:
     needs: inputs
+    if: needs.inputs.outputs.needed == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        channel: ${{ fromJSON(needs.inputs.outputs.matrix) }}
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      CHANNEL: ${{ matrix.channel }}
-      CLIENTS_STATE: ${{ inputs.clients_state }}
+      CHANNEL: canary
+      CLIENTS_STATE: ${{ needs.inputs.outputs.state }}
       RUNTIME: ${{ needs.inputs.outputs.runtime }}
       VERSION: ${{ needs.inputs.outputs.version }}
+      RELEASE_KEY: ${{ needs.inputs.outputs.key }}
       SOURCE_DATE_EPOCH: ${{ needs.inputs.outputs.epoch }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -121,6 +133,8 @@ jobs:
           echo "$RUNNER_TEMP/nfpm" >> "$GITHUB_PATH"
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential brotli xvfb xauth libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6 rpm libarchive-tools
+      - name: Check source and workflow quality
+        run: bun run lint && bun run test
       - name: Assemble pinned inputs without compiling Electron
         run: |
           python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
@@ -141,7 +155,7 @@ jobs:
         with:
           app: out/relocated app
           output: out/mod-launch
-      - name: Create tarball, Debian and RPM packages
+      - name: Create Arch, Debian, RPM and portable packages
         run: |
           python scripts/package_release.py "out/relocated app" --output out/packages --version "$VERSION" --epoch "$SOURCE_DATE_EPOCH"
           python scripts/check_release_packages.py out/packages
@@ -160,66 +174,64 @@ jobs:
             fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
             bash -ec 'dnf install -y --setopt=install_weak_deps=False /packages/*.rpm; python3 /check.py "/opt/discord-$CHANNEL-prerelease-patched-electron-bin"' \
             > out/rpm-install.log 2>&1
+      - name: Install the Arch package and check it as an ordinary user
+        run: |
+          docker run --rm \
+            -v "$PWD/out/packages:/packages:ro" \
+            -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
+            archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 \
+            bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /packages/*.pkg.tar.zst; python /check.py /opt/discord-canary-prerelease-patched-electron-bin' \
+            > out/arch-install.log 2>&1
       - name: Keep release packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: linux-packages-${{ matrix.channel }}
+          name: linux-packages-canary
           compression-level: 0
           retention-days: 30
           path: |
             out/packages/*.tar.gz
             out/packages/*.deb
             out/packages/*.rpm
+            out/packages/*.pkg.tar.zst
             out/packages/release.json
             out/packages/SHA256SUMS
       - name: Keep test results
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: release-checks-${{ matrix.channel }}
+          name: release-checks-canary
           path: |
             out/launch/**/launch-report.json
             out/mod-launch/**/launch-report.json
             out/mod-launch/equicord-sha256.txt
             out/deb-launch/**/launch-report.json
             out/rpm-install.log
+            out/arch-install.log
             out/packages/package-checks.json
             out/relocated app/local-build.json
             out/clients.lock.json
           retention-days: 30
   publish:
-    if: inputs.publish
-    needs: [inputs, native, audio, package]
+    if: (inputs.publish || github.event_name == 'workflow_run') && needs.inputs.outputs.needed == 'true'
+    needs: [inputs, bundled, native, audio, package]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
       actions: read
+    concurrency:
+      group: publish-${{ needs.inputs.outputs.tag }}
+      cancel-in-progress: false
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      VERSION: ${{ needs.inputs.outputs.version }}
     steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          pattern: linux-packages-*
+          name: linux-packages-canary
           path: packages
-      - name: Publish tested app packages as a prerelease
-        run: |
-          mkdir release
-          for directory in packages/*; do
-            channel=${directory##*linux-packages-}
-            cp "$directory"/*.tar.gz "$directory"/*.deb "$directory"/*.rpm release/
-            cp "$directory/release.json" "release/manifest-$channel.json"
-          done
-          (cd release && sha256sum ./*.tar.gz ./*.deb ./*.rpm ./manifest-*.json > SHA256SUMS)
-          cat > notes.md <<'NOTES'
-          Linux test builds with patched prerelease Electron. Requires **x86-64-v3 (AVX2)**.
-
-          Choose Stable, PTB or Canary, then `.deb`, `.rpm` or `.tar.gz`.
-          [Installation and configuration](https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/install.md).
-          Manifests record the exact Discord and Electron versions; SHA256SUMS covers every asset.
-
-          Native video/Krisp, isolated X11/Wayland audio and plain/Equicord launch checks passed.
-          Live Discord calls and GNOME/KDE desktop sessions remain unverified.
-          NOTES
-          gh release create "app-$VERSION" release/* --target "$GITHUB_SHA" --title "Linux packages $VERSION" --notes-file notes.md --prerelease --latest=false
+      - name: Publish complete packages for maintainer testing
+        run: python3 scripts/releases.py publish packages

@@ -10,14 +10,12 @@ time using its official installer.
 2. Run the installer and choose **Custom Location**.
 3. Select the app folder from the table below, install the mod and restart Discord.
 
-| Installation  | Canary folder                                             |
-| ------------- | --------------------------------------------------------- |
-| Debian or RPM | `/opt/discord-canary-prerelease-patched-electron-bin`     |
-| Arch          | `/usr/lib/discord-canary-prerelease-patched-electron-bin` |
-| Tarball       | The extracted folder containing `launch.sh`               |
+| Installation        | App folder                                            |
+| ------------------- | ----------------------------------------------------- |
+| Arch, Debian or RPM | `/opt/discord-canary-prerelease-patched-electron-bin` |
+| Tarball             | The extracted folder containing `launch.sh`           |
 
-Replace `canary` with `stable` or `ptb` for another channel. Select the app folder
-itself, not its `runtime/` or `resources/` subfolder.
+Select the app folder itself, not its `runtime/` or `resources/` subfolder.
 
 For the command-line installer, specify the same folder with `-location`:
 

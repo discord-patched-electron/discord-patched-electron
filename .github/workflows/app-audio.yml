@@ -29,24 +29,15 @@ on:
         type: string
         required: false
         default: ""
-  workflow_run:
-    workflows: [Reference build capacity, Blacksmith reference capacity, Candidate Electron build]
-    types: [completed]
-    branches: [main]
 permissions:
   contents: read
   actions: read
 jobs:
   validate:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
     env:
       CLIENTS_STATE: ${{ inputs.clients_state || '' }}
       DISCORD_CHANNELS: ${{ inputs.discord_channels || 'all' }}
-      REFERENCE_RUN: ${{ github.event.workflow_run.id || inputs.reference_run || '' }}
+      REFERENCE_RUN: ${{ inputs.reference_run || '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -88,12 +79,12 @@ jobs:
         run: |
           uv sync --locked
           bun install --frozen-lockfile --ignore-scripts
-          channels=(stable ptb canary)
+          channels=(canary)
           if [ "$DISCORD_CHANNELS" != all ]; then
             IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
           fi
           for channel in "${channels[@]}"; do
-            case "$channel" in stable|ptb|canary) ;; *) exit 1 ;; esac
+            case "$channel" in canary) ;; *) exit 1 ;; esac
           done
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
@@ -148,12 +139,12 @@ jobs:
         shell: bash
         run: |
           sudo chown -R 1000:1000 out/app-audio
-          channels=(stable ptb canary)
+          channels=(canary)
           if [ "$DISCORD_CHANNELS" != all ]; then
             IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
           fi
           for channel in "${channels[@]}"; do
-            case "$channel" in stable|ptb|canary) ;; *) exit 1 ;; esac
+            case "$channel" in canary) ;; *) exit 1 ;; esac
           done
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
@@ -175,12 +166,12 @@ jobs:
         shell: bash
         run: |
           sudo chown -R 1000:1000 out/wayland-audio
-          channels=(stable ptb canary)
+          channels=(canary)
           if [ "$DISCORD_CHANNELS" != all ]; then
             IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
           fi
           for channel in "${channels[@]}"; do
-            case "$channel" in stable|ptb|canary) ;; *) exit 1 ;; esac
+            case "$channel" in canary) ;; *) exit 1 ;; esac
           done
           args=()
           if [ -n "$REFERENCE_RUN" ]; then

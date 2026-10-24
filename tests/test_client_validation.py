@@ -25,11 +25,13 @@ class ClientValidation(unittest.TestCase):
 
     def test_selection_requires_distinct_known_channels(self):
         self.assertEqual(list(load_clients(self.lock, ["canary"])), ["canary"])
-        for selection in ([], ["stable", "stable"], ["unknown"]):
+        self.assertEqual(list(load_clients(self.lock)), ["canary"])
+        for selection in ([], ["stable"], ["ptb"], ["stable", "stable"], ["unknown"]):
             with self.assertRaises(ValueError):
                 load_clients(self.lock, selection)
 
-    def test_failed_native_channel_preserves_other_selected_results(self):
+    @patch("client_inputs.enabled_discord_channels", return_value=("stable", "ptb", "canary"))
+    def test_failed_native_channel_preserves_other_selected_results(self, _channels):
         output = self.root / "native"
         with (
             patch("check_runtime_clients.generate"),
@@ -49,7 +51,8 @@ class ClientValidation(unittest.TestCase):
             self.assertEqual(result["passed"], passed)
             self.assertEqual(result["client_digest"], digest(self.snapshot["clients"][channel]))
 
-    def test_package_download_failure_and_one_failed_recipe_do_not_cancel_others(self):
+    @patch("client_inputs.enabled_discord_channels", return_value=("stable", "ptb", "canary"))
+    def test_package_download_failure_and_one_failed_recipe_do_not_cancel_others(self, _channels):
         output = self.root / "packages"
 
         def download(url, target, expected=None):
@@ -105,7 +108,10 @@ class ClientValidation(unittest.TestCase):
             api.assert_not_called()
             fetch(commit, output)
             self.assertIn("state.json?ref=" + commit, api.call_args.args[0][-1])
-            self.assertEqual(read_json(output), self.snapshot)
+            self.assertEqual(
+                read_json(output),
+                {"schema": 1, "clients": {"canary": self.snapshot["clients"]["canary"]}},
+            )
             provenance = read_json(output.with_suffix(".provenance.json"))
             self.assertEqual(provenance["client_errors"], state["client_errors"])
             self.assertFalse(provenance["publishable"])

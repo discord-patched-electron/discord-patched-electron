@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timedelta
 
+from channels import enabled_discord_channels
 from common import digest, version_key
 from fingerprints import integration_key
 
@@ -93,7 +94,7 @@ def plan(state: dict, policy: dict, sources: dict, now: str) -> dict:
         )
     clients = []
     for channel, client in state["clients"].items():
-        if channel in state.get("client_errors", {}):
+        if channel not in enabled_discord_channels() or channel in state.get("client_errors", {}):
             continue
         key = integration_key(good["runtime_key"], client, "prerelease")
         work = state.get("client_work", {}).get(key)

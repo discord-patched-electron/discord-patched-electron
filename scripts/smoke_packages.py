@@ -328,7 +328,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--clients", type=Path, default=ROOT / "config/clients.lock.json")
-    parser.add_argument("--discord", action="append", choices=["stable", "ptb", "canary"])
+    parser.add_argument("--discord", action="append", choices=["canary"])
     args = parser.parse_args()
     report = smoke(args.output.absolute(), args.clients, args.discord)
     raise SystemExit(0 if report["all_selected_passed"] else 1)

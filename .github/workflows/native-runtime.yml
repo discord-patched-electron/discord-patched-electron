@@ -34,22 +34,13 @@ on:
         type: string
         required: false
         default: all
-  workflow_run:
-    workflows: [Reference build capacity, Blacksmith reference capacity, Candidate Electron build]
-    types: [completed]
-    branches: [main]
 permissions:
   contents: read
   actions: read
 jobs:
   validate:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
     env:
-      REFERENCE_RUN: ${{ github.event.workflow_run.id || inputs.reference_run || '' }}
+      REFERENCE_RUN: ${{ inputs.reference_run || '' }}
       CLIENTS_STATE: ${{ inputs.clients_state || '' }}
       DISCORD_CHANNELS: ${{ inputs.discord_channels || 'all' }}
     runs-on: ubuntu-24.04

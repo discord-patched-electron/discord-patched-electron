@@ -113,15 +113,20 @@ class PortableReleases(unittest.TestCase):
                 package(app, output, "20261024.120000", 1234567890, "nfpm")
             self.assertFalse(output.exists())
 
-    def test_channels_are_independent_and_dependencies_are_distro_specific(self):
+    def test_only_canary_is_enabled_and_dependencies_are_distro_specific(self):
         names = set()
-        for channel in ("stable", "ptb", "canary"):
+        for channel in ("canary",):
             config = metadata(Path("/tmp/app"), "20261024.120000", channel, 1234567890)
             names.add(config["name"])
             self.assertEqual(config["version_schema"], "none")
             self.assertIn("pipewire-bin", config["overrides"]["deb"]["depends"])
             self.assertIn("pipewire-utils", config["overrides"]["rpm"]["depends"])
+            self.assertIn("pipewire", config["overrides"]["archlinux"]["depends"])
+            self.assertIn("python", config["overrides"]["archlinux"]["depends"])
             self.assertTrue(config["contents"][0]["dst"].startswith("/opt/"))
-        self.assertEqual(len(names), 3)
+        self.assertEqual(len(names), 1)
+        for disabled in ("stable", "ptb"):
+            with self.assertRaisesRegex(ValueError, "Disabled Discord channel"):
+                metadata(Path("/tmp/app"), "20261024.120000", disabled, 0)
         with self.assertRaises(ValueError):
             metadata(Path("/tmp/app"), "../../unsafe", "canary", 0)

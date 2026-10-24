@@ -112,7 +112,7 @@ def prepare(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("core", type=Path)
-    parser.add_argument("--discord", required=True, choices=["stable", "ptb", "canary"])
+    parser.add_argument("--discord", required=True, choices=["canary"])
     parser.add_argument("--electron", required=True, choices=enabled_electron_channels())
     parser.add_argument("--asar", default=str(ROOT / "node_modules/.bin/asar"))
     args = parser.parse_args()

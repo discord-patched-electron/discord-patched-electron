@@ -1,7 +1,7 @@
 # Launcher settings
 
-Use `~/.config/discord-canary-patched-electron.conf`, one flag per line. For
-Stable or PTB, replace `canary` in the filename. `XDG_CONFIG_HOME` is respected.
+Use `~/.config/discord-canary-patched-electron.conf`, one flag per line.
+`XDG_CONFIG_HOME` is respected.
 Blank lines and `#` comments are ignored. Don't add shell quoting or assignments.
 
 ```text

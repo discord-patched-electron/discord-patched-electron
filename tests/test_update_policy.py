@@ -29,7 +29,7 @@ class UpdatePolicy(unittest.TestCase):
     def test_four_days_since_last_attempt_not_publication_and_clients_never_wait(self):
         result = plan(self.state, self.policy, self.sources, "2026-10-25T03:00:00Z")
         self.assertEqual(result["electron"]["action"], "deferred")
-        self.assertEqual(len(result["clients"]), 3)
+        self.assertEqual(len(result["clients"]), 1)
         self.assertEqual(
             plan(self.state, self.policy, self.sources, "2026-10-28T02:41:42Z")["electron"][
                 "action"
@@ -68,7 +68,7 @@ class UpdatePolicy(unittest.TestCase):
 
     def test_same_inputs_and_failed_jobs_are_not_redispatched(self):
         first = schedule(self.state, self.policy, self.sources, "2026-10-28T03:00:00Z", "1", {})
-        self.assertEqual(len(first["clients"]), 3)
+        self.assertEqual(len(first["clients"]), 1)
         self.assertEqual(first["electron"]["action"], "prepare-source")
         again = schedule(
             self.state, self.policy, self.sources, "2026-10-28T04:00:00Z", "2", {"1": "failure"}
@@ -86,7 +86,7 @@ class UpdatePolicy(unittest.TestCase):
         )
         self.assertEqual(result["electron"]["action"], "deferred")
         self.assertEqual(self.state["electron_work"], {})
-        self.assertEqual(len(result["clients"]), 3)
+        self.assertEqual(len(result["clients"]), 1)
 
     def test_successful_github_rerun_updates_failed_work_without_dispatch(self):
         schedule(self.state, self.policy, self.sources, "2026-10-25T03:00:00Z", "1", {})
@@ -106,16 +106,17 @@ class UpdatePolicy(unittest.TestCase):
                 "name": f"clients ({channel}) / {suffix}",
                 "status": "completed",
                 "conclusion": "failure"
-                if channel == "canary" and suffix == "launch"
+                if channel == "canary" and suffix == "publish"
                 else "success",
             }
             for channel in ("stable", "ptb", "canary")
             for suffix in (
-                "launch",
+                "inputs",
+                "package",
+                "publish",
                 "native / validate",
                 "bundled / validate",
                 "audio / validate",
-                "packaging / validate",
             )
         ]
         self.assertEqual(client_result("stable", jobs, True), "success")
@@ -133,7 +134,7 @@ class UpdatePolicy(unittest.TestCase):
         )
         self.assertEqual(
             {w["channel"]: w["status"] for w in self.state["client_work"].values()},
-            {"stable": "success", "ptb": "success", "canary": "failure"},
+            {"canary": "failure"},
         )
 
     def test_bundled_binary_change_does_not_schedule_native_rebuild(self):

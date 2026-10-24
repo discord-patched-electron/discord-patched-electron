@@ -1,42 +1,85 @@
 # Release packaging
 
-Run **Release Linux packages** from GitHub Actions. Supply the full `ci-state`
-commit for the client snapshot and choose a channel (or all three). The default
-runtime is the reviewed `last_good_runtime` in `config/update-policy.json`.
-Leave **publish** off to get downloadable Actions artifacts; turn it on to create
-a GitHub prerelease after every required job passes.
+Only Discord Canary and prerelease Electron are active. Historical locks and
+upstream templates can still describe other channels; entry points reject them.
 
-This workflow never compiles Electron. It verifies the compiler artifact,
-assembles the locked clients with the existing patches, moves the app directory,
-and checks plain launch and relaunch. It installs Equicord with the official
-Equilotl CLI, tests it, uninstalls it and verifies the original bootstrap hash
-before packaging. Parallel jobs exercise native
-video/Krisp and isolated X11/Wayland audio. nFPM then makes `.deb` and `.rpm`
-packages from the same files used in the portable `.tar.gz`. Payload hashes are
-compared across all three formats. A Debian install and launch run on Ubuntu;
-Fedora checks RPM installation, file access and runtime loading as an ordinary user.
-Fedora's full desktop UI is not exercised by that container check.
+## Automatic candidates
 
-Versions use the UTC packaging time (`YYYYMMDD.HHMMSS`) so a Discord-only update
-advances the package version even when Electron stays unchanged. Each manifest
-records both upstream versions, source commit, runtime key and asset hashes.
-Publishing is manual for now; it does not bypass qualification or enable AUR
-publishing. The discovery workflow continues to qualify client updates separately.
+**Discover upstream releases** polls Discord and reserves work by content identity.
+A changed Canary host or module starts **Release Linux packages** immediately on
+the approved runtime. Routine Electron updates have a 96-hour cooldown; identified
+high/critical fixes can bypass it. Discord's bundled executable hash, rather than
+fork commits, detects changes to its own Electron. A successful **Candidate
+Electron build** also starts package qualification with that runtime.
 
-## Build locally
+Each candidate uses an immutable client snapshot. The workflow verifies the
+compiler artifact, assembles the client, moves the app directory, and checks plain
+launch and relaunch. It installs Equicord using the official installer, checks it,
+then uninstalls it and verifies the original bootstrap before packaging.
+Parallel jobs check bundled/native video and Krisp, plus isolated X11/Wayland audio.
+
+nFPM makes `.pkg.tar.zst`, `.deb` and `.rpm` packages from the same app tree as the
+portable `.tar.gz`. Payload hashes are compared across all four formats. Ubuntu
+checks Debian installation and GUI launch; Arch and Fedora containers install the
+packages and check file access and runtime loading as an ordinary user. Those
+containers don't verify a full desktop session or live call.
+
+After all checks pass, CI uploads every asset before publishing a public GitHub
+prerelease. Release notes include upstream versions, installation instructions,
+test limitations and linked commits since the preceding app release. Runtime
+cache tags are excluded from the changelog.
+
+Candidate tags include the client version and a content hash. A repeat of the same
+runtime/client/integration inputs skips packaging if that release is already
+public. Failed work remains visible and can be retried with GitHub's **Re-run all
+jobs**. A partial draft can be resumed; public assets are never overwritten.
+
+## Test and approve
+
+1. Select **Watch → Custom → Releases** on the repository and enable your preferred
+   notification delivery in GitHub settings.
+2. Open the new public prerelease. Download its `.pkg.tar.zst` and `SHA256SUMS` into
+   a new folder. Check the hashes and install it:
+
+   ```sh
+   sha256sum --check --ignore-missing SHA256SUMS
+   sudo pacman -U ./discord-canary-prerelease-patched-electron-bin-*.pkg.tar.zst
+   ```
+
+3. Launch **Discord Canary (Patched Electron)**. Test the features you use,
+   including voice, camera startup, screen sharing with app audio, and Krisp.
+   Uninstall any client mod before updating and reinstall it afterwards.
+4. Run [**Approve tested release**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/approve-release.yml)
+   on `main`, paste the exact release tag, and tick the local-testing confirmation.
+
+Approval checks the successful main-branch workflow, all package hashes and the
+retained runtime. It records the approved version, updates the runtime used for
+future client-only updates, then marks that release **Latest**. It doesn't rebuild,
+re-upload or rename any package. It rejects an older candidate after a newer
+release has been approved. The four-day cadence is based on compilation time,
+not how long the maintainer took to approve it.
+
+AUR publication is still disabled pending its publishing credentials. Approval
+currently promotes GitHub packages only; don't claim an AUR update occurred.
+
+## Manual candidates and local packaging
+
+Run [**Release Linux packages**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/release.yml)
+with **publish** enabled to create a public candidate. Leave the snapshot blank to
+use the latest discovered Canary, or provide a full `ci-state` commit. Leave the
+compiler run blank to reuse the approved runtime. Turn **publish** off for Actions
+artifacts only. No packaging job compiles Electron.
 
 After the [contributor setup](../../CONTRIBUTING.md), install `brotli`, a C compiler,
 `bsdtar`, `rpm` and the [prebuilt nFPM 2.48.0 binary](https://github.com/goreleaser/nfpm/releases/tag/v2.48.0).
-Put `nfpm` on `PATH`. No Go installation is needed. CI downloads the official
-Linux archive and checks its pinned SHA-256 before using it.
-
-Use fresh output directories:
+Put `nfpm` on `PATH`. No Go installation is needed. CI verifies the official archive's
+pinned checksum. Use fresh output directories:
 
 ```sh
 GH_REPO=discord-patched-electron/discord-patched-electron \
   uv run python scripts/fetch_reference.py 40053107555 --output out/release-runtime
 uv run python scripts/build_local_app.py --portable --discord canary \
-  --artifact out/release-runtime --clients config/clients.lock.json \
+  --artifact out/release-runtime --clients out/clients.lock.json \
   --cache out/downloads/canary --output out/release-app
 mv out/release-app 'out/relocated app'
 uv run python scripts/check_desktop_launch.py 'out/relocated app' \
@@ -46,27 +89,24 @@ uv run python scripts/package_release.py 'out/relocated app' \
 uv run python scripts/check_release_packages.py out/packages
 ```
 
-Use a current immutable client snapshot instead of the bootstrap lock for a real
-release. The timestamp above is an example; use a new UTC time for each release.
-Local packaging requires a verified portable candidate and a passing launch check.
-The GitHub publish job adds native/audio qualification and Equicord checks.
+Fetch `out/clients.lock.json` with `scripts/fetch_client_snapshot.py` using a healthy
+immutable state commit first. Replace the example runtime and timestamp as needed.
+Local packaging needs a verified portable candidate and passing launch check;
+public release qualification adds the remaining CI checks.
 
 ## Runtime details
 
-Portable bootstraps resolve resources and modules from `DPE_APP_ROOT`, set by the
-launcher from its own resolved location. They don't rewrite files at launch.
-The same tree works under `/opt/<package>` or in a user-owned directory, including
-when Equicord renames the bootstrap to `_app.asar`. Arch's existing fixed-root recipe
-remains supported. `runtime/resources` points to `../resources`, so Electron and
-the official installer use the same packaged entry point. Desktop entries are for installed packages; tarball users run
-`launch.sh` directly.
+All released packages install the portable tree under `/opt/<package>`. A tarball
+can run anywhere. Bootstraps find resources through `DPE_APP_ROOT`, set by the
+launcher. `runtime/resources` points to `../resources`, matching the official mod
+installers' expected app layout. The older generated AUR recipe uses `/usr/lib/`;
+it is retained for validation, not published as the pacman test artifact.
 
-The namespace sandbox stays enabled. Portable launchers disable only the setuid
-helper. Debian packages include a scoped AppArmor user-namespace rule for Ubuntu.
-No package enables audio services or overwrites user config. No runtime source
-flags are changed during packaging.
+The namespace sandbox stays enabled. Debian packages include a scoped AppArmor
+user-namespace rule for Ubuntu. No package enables audio services or overwrites
+user config. No runtime source flags change during packaging.
 
-Formatting native build scripts changes their content fingerprint. The previous
-verified runtime remains accepted through its exact reviewed capacity digest;
-this cleanup does not require a C++ rebuild or move retained Ninja objects.
-Future compiler jobs use the new source fingerprint normally.
+A checksum-pinned runtime cache release retains the compiler output beyond Actions
+artifact expiry. That release is a CI cache, not app approval. The last approved
+capacity digest remains usable when unrelated packaging code changes, so client
+updates don't need an Electron rebuild or lose retained Ninja objects.

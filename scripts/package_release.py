@@ -1,6 +1,6 @@
 """Package a tested, relocatable app without compiling Electron.
 
-The tarball, deb and rpm contain the same app tree. nFPM creates distro metadata;
+All four formats contain the same app tree. nFPM creates distro metadata;
 no package format downloads or rebuilds upstream code at installation time.
 """
 
@@ -15,7 +15,8 @@ import tarfile
 from datetime import UTC, datetime
 from pathlib import Path
 
-from common import ROOT, read_json, sha256, write_json
+from channels import require_enabled_discord
+from common import ROOT, digest, read_json, sha256, write_json
 from desktop_identity import desktop_id
 from elftools.elf.elffile import ELFFile
 from fetch_reference import validate_capacity
@@ -44,8 +45,7 @@ def required_glibc(app: Path) -> str:
 def metadata(app: Path, version: str, channel: str, epoch: int) -> dict:
     if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", version):
         raise ValueError("Use a numeric release version, such as 20261024.120000")
-    if channel not in {"stable", "ptb", "canary"}:
-        raise ValueError("Unknown Discord channel")
+    require_enabled_discord(channel)
     name = f"discord-{channel}-prerelease-patched-electron-bin"
     root = f"/opt/{name}"
     return {
@@ -54,6 +54,7 @@ def metadata(app: Path, version: str, channel: str, epoch: int) -> dict:
         "platform": "linux",
         "version": version,
         "version_schema": "none",
+        "release": "1",
         "maintainer": "discord-patched-electron contributors <he3als@users.noreply.github.com>",
         "homepage": REPOSITORY,
         "license": "LicenseRef-Discord AND MIT AND BSD-3-Clause",
@@ -70,6 +71,32 @@ def metadata(app: Path, version: str, channel: str, epoch: int) -> dict:
             {"src": str(app / "discord.png"), "dst": f"/usr/share/pixmaps/{name}.png"},
         ],
         "overrides": {
+            "archlinux": {
+                "depends": [
+                    "glibc>=2.35",
+                    "gcc-libs",
+                    "alsa-lib",
+                    "gtk3",
+                    "libcups",
+                    "libxss",
+                    "libxtst",
+                    "nss",
+                    "libdrm",
+                    "mesa",
+                    "libpulse",
+                    "python",
+                    "bash",
+                    "coreutils",
+                    "pipewire",
+                    "pipewire-audio",
+                    "zenity",
+                ],
+                "recommends": [
+                    "xdg-desktop-portal: desktop screen selection",
+                    "wireplumber: PipeWire session management",
+                    "kdotool: KDE Plasma window labels",
+                ],
+            },
             "deb": {
                 "depends": [
                     "libc6 (>= 2.35)",
@@ -119,6 +146,7 @@ def metadata(app: Path, version: str, channel: str, epoch: int) -> dict:
         },
         "deb": {"compression": "gzip"},
         "rpm": {"compression": "gzip"},
+        "archlinux": {"packager": "discord-patched-electron contributors"},
     }
 
 
@@ -170,6 +198,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     libc = required_glibc(app)
     config["overrides"]["deb"]["depends"][0] = f"libc6 (>= {libc})"
     config["overrides"]["rpm"]["depends"][0] = f"glibc >= {libc}"
+    config["overrides"]["archlinux"]["depends"][0] = f"glibc>={libc}"
     output.mkdir(parents=True)
     name = config["name"]
     # AppArmor's user-namespace rule is needed on Ubuntu 24.04 and newer.
@@ -195,7 +224,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     archive = output / f"{name}-{version}-linux-x86_64.tar.gz"
     tarball(app, archive, name, epoch)
     environment = {**os.environ, "SOURCE_DATE_EPOCH": str(epoch)}
-    for kind in ("deb", "rpm"):
+    for kind, suffix in (("deb", "deb"), ("rpm", "rpm"), ("archlinux", "pkg.tar.zst")):
         subprocess.run(
             [
                 nfpm,
@@ -205,12 +234,12 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
                 "--packager",
                 kind,
                 "--target",
-                str(output / f"{name}-{version}.") + kind,
+                str(output / f"{name}-{version}-1-x86_64.{suffix}"),
             ],
             check=True,
             env=environment,
         )
-    assets = [archive, *output.glob("*.deb"), *output.glob("*.rpm")]
+    assets = [archive, *output.glob("*.deb"), *output.glob("*.rpm"), *output.glob("*.pkg.tar.zst")]
     write_json(
         output / "release.json",
         {
@@ -220,6 +249,20 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             "client_version": build["client_version"],
             "electron_version": build["capacity"]["compiled_version"],
             "runtime_key": build["capacity"]["runtime_key"],
+            "runtime": {
+                "run": build.get("runtime_provenance", {})
+                .get("compiler_run", "")
+                .rsplit("/", 1)[-1],
+                "compiler_commit": build.get("runtime_provenance", {}).get("compiler_commit"),
+                "capacity_sha256": digest(build["capacity"]),
+                "archive_sha256": build["capacity"]["archive_sha256"],
+                "runtime_key": build["capacity"]["runtime_key"],
+                "version": build["capacity"]["compiled_version"],
+                "cache_release": "runtime-cache-" + build["capacity"]["runtime_key"],
+            },
+            "workflow_run": os.environ.get("GITHUB_RUN_ID"),
+            "clients_state": os.environ.get("CLIENTS_STATE"),
+            "release_key": os.environ.get("RELEASE_KEY"),
             "minimum_cpu": "x86-64-v3",
             "minimum_glibc": libc,
             "source_dirty": bool(

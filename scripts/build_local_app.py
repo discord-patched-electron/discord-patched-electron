@@ -167,6 +167,11 @@ def build(
             "client_version": client["version"],
             "runtime_kind": "compiled" if capacity else "bundled-baseline",
             "capacity": capacity,
+            "runtime_provenance": {
+                key: provenance[key] for key in ("compiler_run", "compiler_commit")
+            }
+            if capacity
+            else None,
             "camera_support": camera,
             "executable_sha256": sha256(output / "runtime/electron"),
             "launch_verified": False,
@@ -196,7 +201,7 @@ def build(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--discord", choices=["stable", "ptb", "canary"], default="canary")
+    parser.add_argument("--discord", choices=["canary"], default="canary")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument(
         "--artifact", type=Path, help="Verified fetch_reference.py output directory"

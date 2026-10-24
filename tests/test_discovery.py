@@ -181,7 +181,7 @@ class Discovery(unittest.TestCase):
         updated = self.reconcile(state, clients=clients)
         self.assertEqual(state["runtimes"], updated["runtimes"])
         self.assertEqual(pending(updated), [])
-        self.assertEqual(state["clients"]["stable"], updated["clients"]["stable"])
+        self.assertEqual(list(updated["clients"]), ["canary"])
         self.assertNotEqual(state["clients"]["canary"], updated["clients"]["canary"])
 
     def test_same_failed_key_is_not_automatically_retried(self):

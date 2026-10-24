@@ -9,8 +9,6 @@
     "runner": "discord-electron-compiler"
   },
   "discord_channels": [
-    "stable",
-    "ptb",
     "canary"
   ],
   "electron_channels": [

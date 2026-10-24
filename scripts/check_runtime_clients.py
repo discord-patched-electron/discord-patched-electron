@@ -152,7 +152,7 @@ def main():
     parser.add_argument(
         "--discord",
         action="append",
-        choices=["stable", "ptb", "canary"],
+        choices=["canary"],
         help="Validate only these channels; default is all three",
     )
     args = parser.parse_args()

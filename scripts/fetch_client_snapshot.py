@@ -7,6 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from channels import enabled_discord_channels
 from client_inputs import validate_channel
 from common import digest, write_json
 
@@ -31,11 +32,18 @@ def fetch(commit: str, output: Path):
             timeout=60,
         )
     )
-    if state.get("schema") != 1 or set(state.get("clients", {})) != {"stable", "ptb", "canary"}:
+    if state.get("schema") != 1 or not set(enabled_discord_channels()).issubset(
+        state.get("clients", {})
+    ):
         raise ValueError("Unsupported state/client snapshot")
     for channel, client in state["clients"].items():
         validate_channel(channel, client)
-    snapshot = {"schema": 1, "clients": state["clients"]}
+    if any(ch in state.get("client_errors", {}) for ch in enabled_discord_channels()):
+        raise ValueError("Client snapshot contains a failed discovery; choose a healthy snapshot")
+    snapshot = {
+        "schema": 1,
+        "clients": {ch: state["clients"][ch] for ch in enabled_discord_channels()},
+    }
     write_json(output, snapshot)
     write_json(
         output.with_suffix(".provenance.json"),

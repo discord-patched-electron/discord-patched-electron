@@ -18,11 +18,12 @@ def client_result(channel, jobs, completed):
     required = {
         f"clients ({channel}) / {suffix}"
         for suffix in (
-            "launch",
+            "inputs",
+            "package",
+            "publish",
             "native / validate",
             "bundled / validate",
             "audio / validate",
-            "packaging / validate",
         )
     }
     found = {job["name"]: job for job in jobs if job["name"] in required}
@@ -30,6 +31,13 @@ def client_result(channel, jobs, completed):
         return "failure" if completed else None
     if any(job["status"] != "completed" for job in found.values()):
         return None
+    conclusions = {name.rsplit(" / ", 1)[-1]: job["conclusion"] for name, job in found.items()}
+    if conclusions.get("inputs") == "success" and all(
+        job["conclusion"] == "skipped"
+        for name, job in found.items()
+        if not name.endswith(" / inputs")
+    ):
+        return "success"  # This exact public candidate already exists.
     return "success" if all(job["conclusion"] == "success" for job in found.values()) else "failure"
 
 

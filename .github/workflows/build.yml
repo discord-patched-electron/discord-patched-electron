@@ -62,7 +62,7 @@ jobs:
             out/capacity/*.log
           retention-days: 90
           if-no-files-found: warn
-      - name: Retain binary for all three client compatibility tests
+      - name: Retain binary for Canary compatibility tests
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: candidate-runtime-${{ github.run_id }}

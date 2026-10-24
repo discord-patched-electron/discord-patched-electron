@@ -13,8 +13,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from build_reference import build_config
+from channels import enabled_discord_channels
 from common import (
-    DISCORD_CHANNELS,
     ROOT,
     digest,
     download,
@@ -274,9 +274,9 @@ def reconcile(
                 state["runtimes"][key].update(
                     status="superseded", reason="newer-prerelease", superseded_by=newest
                 )
-    if set(clients) != set(DISCORD_CHANNELS):
-        raise ValueError("Discovery requires all three independent Discord manifests")
-    state["clients"] = clients
+    if not set(enabled_discord_channels()).issubset(clients):
+        raise ValueError("Discovery requires every enabled Discord manifest")
+    state["clients"] = {ch: clients[ch] for ch in enabled_discord_channels()}
     return state
 
 
@@ -319,8 +319,10 @@ def main():
         )
         return normalize(channel, read_json(path))
 
-    with ThreadPoolExecutor(max_workers=len(DISCORD_CHANNELS)) as pool:
-        futures = {channel: pool.submit(client_manifest, channel) for channel in DISCORD_CHANNELS}
+    with ThreadPoolExecutor(max_workers=len(enabled_discord_channels())) as pool:
+        futures = {
+            channel: pool.submit(client_manifest, channel) for channel in enabled_discord_channels()
+        }
         for channel, future in futures.items():
             try:
                 clients[channel] = future.result()
@@ -347,7 +349,7 @@ def main():
             if previous
             else {"schema": 1, "activated_at": now, "releases": {}, "runtimes": {}, "issues": {}}
         )
-        state["clients"] = clients
+        state["clients"] = {ch: clients[ch] for ch in enabled_discord_channels()}
         state["electron_discovery_error"] = str(error)
     state["client_errors"] = client_errors
     try:

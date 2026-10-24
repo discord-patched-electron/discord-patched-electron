@@ -59,11 +59,12 @@ class Recipes(unittest.TestCase):
                 stage_package.main()
             stage.assert_called_once_with({}, source, "asar")
 
-    def test_all_three_recipes_have_isolated_paths_and_pinned_binaries(self):
+    def test_canary_recipe_has_isolated_paths_and_pinned_binaries(self):
         clients = read_json(ROOT / "config/clients.lock.json")["clients"]
         with tempfile.TemporaryDirectory() as temp:
             names = set()
-            for discord, client in clients.items():
+            for discord in ("canary",):
+                client = clients[discord]
                 for electron in ("prerelease",):
                     directory = Path(temp) / (discord + "-" + electron)
                     result = generate(
@@ -119,11 +120,21 @@ class Recipes(unittest.TestCase):
                             for p in directory.iterdir()
                         },
                     )
-            self.assertEqual(len(names), 3)
+            self.assertEqual(len(names), 1)
 
     def test_rejects_channel_and_module_revision_mismatches(self):
-        client = read_json(ROOT / "config/clients.lock.json")["clients"]["ptb"]
+        client = read_json(ROOT / "config/clients.lock.json")["clients"]["canary"]
         with tempfile.TemporaryDirectory() as temp:
+            for disabled in ("stable", "ptb"):
+                with self.assertRaisesRegex(ValueError, "Disabled Discord channel"):
+                    generate(
+                        runtime("prerelease"),
+                        {**client, "channel": disabled},
+                        "prerelease",
+                        1,
+                        Path(temp),
+                        camera=CAMERA,
+                    )
             for disabled in ("stable", "nightly"):
                 with self.assertRaisesRegex(ValueError, "Disabled Electron channel"):
                     generate(runtime(disabled), client, disabled, 1, Path(temp), camera=CAMERA)

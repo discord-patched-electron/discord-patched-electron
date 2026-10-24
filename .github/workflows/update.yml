@@ -64,13 +64,13 @@ jobs:
       fail-fast: false
       matrix:
         channel: ${{ fromJSON(needs.discover.outputs.clients) }}
-    uses: ./.github/workflows/client-update.yml
+    uses: ./.github/workflows/release.yml
     with:
       clients_state: ${{ needs.discover.outputs.snapshot }}
-      discord_channel: ${{ matrix.channel }}
       reference_run: ${{ needs.discover.outputs.reference_run }}
+      publish: true
     permissions:
-      contents: read
+      contents: write
       actions: read
   electron:
     needs: discover

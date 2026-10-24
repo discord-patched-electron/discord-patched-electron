@@ -1,8 +1,26 @@
 # Install
 
-Choose your Discord channel on the [Releases page](https://github.com/discord-patched-electron/discord-patched-electron/releases).
-Use a complete app release, not a **runtime cache** release. All builds use
-prerelease Electron and require **x86-64-v3** (AVX2).
+Choose a complete Canary app on the [Releases page](https://github.com/discord-patched-electron/discord-patched-electron/releases).
+Builds labelled **Pre-release** are public test packages awaiting maintainer
+approval. **Latest** identifies the newest approved package. Both use prerelease
+Electron and require **x86-64-v3** (AVX2).
+
+Download one package and `SHA256SUMS` into a new folder, then verify it:
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+A release labelled **Build cache** contains only Electron; it isn't an app download.
+
+## Arch Linux
+
+```sh
+sudo pacman -U ./discord-canary-prerelease-patched-electron-bin-*.pkg.tar.zst
+```
+
+This works for test releases too. Install the next package with the same command.
+AUR publishing is not enabled yet.
 
 ## Debian and Ubuntu
 
@@ -16,10 +34,9 @@ sudo apt install ./discord-canary-prerelease-patched-electron-bin-*.deb
 sudo dnf install ./discord-canary-prerelease-patched-electron-bin-*.rpm
 ```
 
-Packages install under `/opt/` and add a desktop entry. Launch **Discord Canary
-(Patched Electron)** from your menu. Stable and PTB have separate packages.
-Current builds need glibc 2.38 or newer (for example, Ubuntu 24.04 or Debian 13).
-Other RPM distributions may need different dependencies.
+Packages add **Discord Canary (Patched Electron)** to your app menu.
+Check the release notes for the minimum glibc version. Other RPM distributions
+may need different dependencies.
 
 ## Other distributions
 
@@ -32,14 +49,17 @@ such as WirePlumber, and Zenity.
 If the tarball fails with a sandbox error, use the native package for your
 distribution where available.
 
-Download `SHA256SUMS` alongside the packages, then run
-`sha256sum --check --ignore-missing SHA256SUMS` to verify the files you downloaded.
-
 ## Updates
+
+On GitHub, select **Watch → Custom → Releases** to get notifications of new builds.
+Choose email or inbox delivery in your [notification settings](https://github.com/settings/notifications).
+Release notes list the Discord and Electron versions, changes and test results.
 
 Install the next package or replace the extracted folder. Your profile and
 [launcher settings](linux-launcher.md) stay in your config directory.
 If you use Vencord or Equicord, follow the [mod update instructions](client-mods.md)
 before replacing the app.
 
-AUR packages are not published yet.
+Discord client updates are checked independently of Electron. Routine Electron
+updates are spaced at least four days apart, with an exception for identified
+high or critical security fixes. Unchanged inputs don't produce another build.
