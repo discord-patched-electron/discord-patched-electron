@@ -1,81 +1,56 @@
 # Discord patched Electron
 
-Discord's desktop app on a newer Electron, with Linux fixes for screen sharing,
-application audio and camera startup. It keeps Discord's native streaming
-integration and Krisp.
+Discord's desktop app with a newer Electron and Linux fixes. CI builds and tests
+packages for Discord Stable, PTB and Canary, all using prerelease Electron.
 
-This is a **CI-driven build and packaging project**. It carries a small patch
-queue, assembles pinned upstream sources and produces ready-to-run Linux packages.
-You don't need to compile Electron to use it.
+## Features and patches
 
-Discord **Stable, PTB and Canary** each get a separate package, all using
-prerelease Electron. Wayland is the main target; X11 is supported too. Builds
-require an **x86-64-v3** CPU (AVX2, such as Intel Haswell or AMD Ryzen) and a
-recent Linux distribution. Screen-share audio needs PipeWire.
+- Discord's native screen sharing and Krisp noise suppression.
+- Native Wayland by default, with X11 support too.
+- [Application audio](docs/wayland-audio.md) for screen sharing, with automatic selection on niri.
+- Camera startup fixes.
+- Internal capture devices hidden from Discord's audio-device picker.
+- Hardware video decoding where supported, with [configurable launch flags](docs/linux-launcher.md).
+- Separate profiles for Stable, PTB and Canary, alongside stock Discord.
+- Support for [Vencord and Equicord](docs/client-mods.md) through their official installers.
 
-## Install
+## Installation
 
-Choose a complete app build from [Releases](https://github.com/discord-patched-electron/discord-patched-electron/releases),
-then follow the [installation guide](docs/install.md):
+Builds require an **x86-64-v3** CPU (AVX2, such as Intel Haswell or AMD Ryzen),
+a recent Linux distribution and PipeWire for screen-share audio.
 
-| Format    | Intended use                                                |
-| --------- | ----------------------------------------------------------- |
-| `.deb`    | Debian and Ubuntu                                           |
-| `.rpm`    | Fedora; other RPM distributions may need dependency changes |
-| `.tar.gz` | Other distributions and portable installations              |
+Download a package for your Discord channel from
+[Releases](https://github.com/discord-patched-electron/discord-patched-electron/releases)
+or the artifacts of a successful
+[package build](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/release.yml).
+A **runtime cache** download contains only Electron; choose a complete app package.
 
-A release labelled **runtime cache** contains only Electron, not Discord.
-Test packages are available as artifacts on successful
-[release workflow runs](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/release.yml).
-Public app releases currently require maintainer promotion. AUR recipes are
-included, but automated AUR publication is not enabled yet.
+| Format    | Distribution        |
+| --------- | ------------------- |
+| `.deb`    | Debian and Ubuntu   |
+| `.rpm`    | Fedora              |
+| `.tar.gz` | Other distributions |
 
-**These are test builds.** CI checks launch and relaunch, native video/Krisp,
-isolated audio routing and package installation. Live Discord calls and full
-GNOME/KDE sessions still need testing. See [known limitations](docs/wayland-audio.md).
+Follow the [installation guide](docs/install.md) for setup and updates.
+AUR packages are not published yet.
 
-Each channel uses its own profile and can coexist with stock Discord.
+**These are test builds.** Live calls and full GNOME/KDE sessions still need
+verification. See [desktop support and known limitations](docs/wayland-audio.md).
 
-## Configure
+## Documentation
 
-Put launch flags in `~/.config/discord-canary-patched-electron.conf`, one per line.
-Replace `canary` with `stable` or `ptb` for those channels. For example:
+- [Installation and updates](docs/install.md)
+- [Launch flags, hardware acceleration and shortcuts](docs/linux-launcher.md)
+- [Screen-share audio](docs/wayland-audio.md)
+- [Vencord and Equicord](docs/client-mods.md)
 
-```text
-# Use Xwayland instead of native Wayland.
---ozone-platform=x11
-```
+## Contributing
 
-- [Launcher settings, hardware acceleration and shortcuts](docs/linux-launcher.md)
-- [Screen-share audio and desktop support](docs/wayland-audio.md)
-- [Equicord's official installer](docs/equicord.md)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and pull requests.
+Most changes don't need an Electron build.
 
-## How updates work
-
-CI checks Discord's shipped app, modules and Electron binary every 15 minutes.
-Discord-only changes are tested against the last verified runtime without waiting
-for a new Electron build. Discord's web interface updates independently; the
-packaged ASAR and native modules arrive through package updates.
-
-Routine Electron prereleases are grouped into a **four-day update interval**.
-Applicable high or critical security advisories can bypass that delay. A changed
-Discord runtime binary triggers compatibility checks; commits to its source fork
-alone don't trigger compilation. Content hashes skip unchanged work, and the local
-compiler retains its build objects.
-
-Compilation runs on the project's local runner. GitHub-hosted jobs handle tests
-and packaging. The [release workflow](docs/agent/releases.md) reuses a verified
-runtime to produce all package formats and publishes only after its checks pass.
-Client qualification and public release promotion are separate steps today.
-
-## Contribute
-
-[CONTRIBUTING.md](CONTRIBUTING.md) covers setup with Bun and uv, checks, the
-repository layout and the release process. Most changes need no Electron build.
-
-Report bugs through [GitHub issues](https://github.com/discord-patched-electron/discord-patched-electron/issues).
-Include the package version, desktop environment, display session and steps to
-reproduce. Implementation history and test evidence live in [agent docs](docs/agent/README.md).
+[Report a bug](https://github.com/discord-patched-electron/discord-patched-electron/issues)
+with your package version, distribution, desktop environment and steps to reproduce.
 
 This project is unofficial and is not affiliated with Discord.
 The automation is [MIT licensed](LICENSE); bundled software keeps its own licenses.

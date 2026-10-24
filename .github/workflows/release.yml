@@ -108,15 +108,17 @@ jobs:
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'package.json') }}
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version: stable
-          cache: false
       - name: Install packaging tools
         run: |
           uv sync --locked
           bun install --frozen-lockfile --ignore-scripts
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
+          curl --fail --location --silent --show-error --retry 3 \
+            https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_x86_64.tar.gz \
+            --output "$RUNNER_TEMP/nfpm.tar.gz"
+          echo "6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750  $RUNNER_TEMP/nfpm.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/nfpm"
+          tar -xzf "$RUNNER_TEMP/nfpm.tar.gz" -C "$RUNNER_TEMP/nfpm" nfpm
+          echo "$RUNNER_TEMP/nfpm" >> "$GITHUB_PATH"
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential brotli xvfb xauth libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6 rpm libarchive-tools
       - name: Assemble pinned inputs without compiling Electron

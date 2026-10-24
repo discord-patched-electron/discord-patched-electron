@@ -87,7 +87,7 @@ compiled runtime. Its bundled upstream Electron bytes were unchanged from
 Canary 1.0.2357; no C++ build was needed. Equicord is installed in a separate
 user-owned directory and passes native Wayland first launch/relaunch on a fresh
 profile, including renderer, preload and DiscordNative checks. It can be disabled
-with `DPE_EQUICORD=0`. See [Equicord](../equicord.md) and
+with `DPE_EQUICORD=0`. See [Equicord](../client-mods.md) and
 [update ownership/scheduling](discovery.md).
 
 The update coordinator now checks Discord every 15 minutes independently of the

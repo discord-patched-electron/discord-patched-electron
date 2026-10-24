@@ -11,15 +11,12 @@ Blank lines and `#` comments are ignored. Don't add shell quoting or assignments
 --disable-features=AcceleratedVideoDecodeLinuxGL
 ```
 
-The launcher selects Wayland when `WAYLAND_DISPLAY` is set, otherwise X11.
-Hardware video decoding is enabled through `AcceleratedVideoDecoder` and
-`AcceleratedVideoDecodeLinuxGL`. Driver support and Chromium's GPU blocklist
-still apply. Hardware encoding is not forced: it crashed the tested AMD path.
-Discord's native call codecs are separate from Chromium's video APIs.
+The app uses native Wayland in a Wayland session and X11 otherwise. Hardware
+video decoding is enabled when your driver supports it. Hardware encoding is
+not forced.
 
-Settings apply in this order: defaults, the old package `-flags.conf`, the
-channel `.conf`, then command-line arguments. Later settings win. Feature lists
-merge by feature name. Set `DPE_DEFAULT_FLAGS=0` to disable the defaults.
+Settings in your `.conf` override the defaults; command-line arguments override
+the file. Set `DPE_DEFAULT_FLAGS=0` to turn off the default flags.
 
 ## Troubleshooting
 
@@ -30,14 +27,10 @@ DPE_APP_AUDIO=0 discord-canary-prerelease-patched-electron-bin
 DPE_CAMERA_FAST_PROBE=0 discord-canary-prerelease-patched-electron-bin
 ```
 
-To remove Equicord for troubleshooting, use its [official installer](equicord.md).
+To remove Vencord or Equicord for troubleshooting, use its [installer](client-mods.md).
 
 Each package has a separate profile under `~/.config/<package-name>`.
 `DISCORD_USER_DATA_DIR` overrides that location.
 
 Wayland global shortcuts require a desktop portal that supports GlobalShortcuts.
-Approve its permission prompt if shown. The installed desktop entry supplies the
-app identity; don't keep a user-local test entry that shadows it.
-
-See [maintainer notes](agent/linux-launcher.md) for measured codec results,
-shortcut tests and the Electron storage compatibility patch.
+Approve its permission prompt if shown.

@@ -35,14 +35,6 @@ jobs:
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run lint
       - run: bun run test
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version: stable
-          cache: false
-      - name: Lint GitHub workflows
-        run: |
-          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-          actionlint
       - name: Check real compiler cache hits and CPU/header invalidation
         run: python scripts/check_compiler_cache.py --compiler /usr/bin/clang
       - name: Validate launcher syntax

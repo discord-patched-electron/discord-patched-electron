@@ -19,12 +19,9 @@ not enable automatic capture matching; audio selection remains manual there.
 
 ## Known limitations
 
-Native Wayland and X11 fixtures pass with PipeWire-Pulse and with PulseAudio plus
-PipeWire. Real Discord calls, GNOME/KDE sessions and Flatpak process mapping
-still need testing. A missing dependency or unresolved selection leaves share
-audio off rather than capturing the whole system.
+Live Discord calls, full GNOME/KDE sessions and audio from Flatpak apps still
+need testing. If the app cannot identify the selected audio source or a required
+tool is missing, it leaves share audio off.
 
 For troubleshooting, close Discord and launch it with `DPE_APP_AUDIO=0` to use
 upstream routing. `DPE_APP_AUDIO_TRACE=1` enables diagnostic logs.
-
-See [implementation and test notes](agent/wayland-audio.md) for details.

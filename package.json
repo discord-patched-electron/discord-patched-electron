@@ -13,8 +13,8 @@
     "oxfmt": "0.74.0"
   },
   "scripts": {
-    "lint": "uv run ruff check . && oxlint integration tests && uv run python scripts/check_style.py && oxfmt --check . && uv run ruff format --check .",
-    "format": "uv run ruff format . && uv run ruff check --fix . && uv run ruff format . && oxfmt --write . && uv run python scripts/check_style.py --fix",
+    "lint": "uv run ruff check . && uv run ruff format --check . && oxlint integration tests && oxfmt --check . && uv run python scripts/check_style.py && uv run actionlint",
+    "format": "uv run ruff check --fix . && uv run ruff format . && oxfmt --write . && uv run python scripts/check_style.py --fix",
     "test": "bun run test:python && bun run test:js",
     "test:python": "uv run python -m unittest discover -s tests -v",
     "test:js": "node --test tests/audio/*.test.cjs"

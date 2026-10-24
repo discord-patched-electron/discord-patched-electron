@@ -26,13 +26,11 @@ publishing. The discovery workflow continues to qualify client updates separatel
 ## Build locally
 
 After the [contributor setup](../../CONTRIBUTING.md), install `brotli`, a C compiler,
-Go, `bsdtar` and `rpm`. Install the pinned packaging tool:
+`bsdtar`, `rpm` and the [prebuilt nFPM 2.48.0 binary](https://github.com/goreleaser/nfpm/releases/tag/v2.48.0).
+Put `nfpm` on `PATH`. No Go installation is needed. CI downloads the official
+Linux archive and checks its pinned SHA-256 before using it.
 
-```sh
-go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
-```
-
-Put Go's binary directory on `PATH`, then use fresh output directories:
+Use fresh output directories:
 
 ```sh
 GH_REPO=discord-patched-electron/discord-patched-electron \

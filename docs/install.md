@@ -19,9 +19,7 @@ sudo dnf install ./discord-canary-prerelease-patched-electron-bin-*.rpm
 Packages install under `/opt/` and add a desktop entry. Launch **Discord Canary
 (Patched Electron)** from your menu. Stable and PTB have separate packages.
 Current builds need glibc 2.38 or newer (for example, Ubuntu 24.04 or Debian 13).
-Each release manifest records the minimum required by its actual binaries.
-Other RPM distributions may use different dependency names; packagers can adjust
-[the package metadata](../scripts/package_release.py).
+Other RPM distributions may need different dependencies.
 
 ## Other distributions
 
@@ -31,21 +29,17 @@ CUPS, Xss, Xtst, libatomic, Python 3, Bash and coreutils through your package ma
 Screen-share audio also needs PipeWire tools, PulseAudio tools, a session manager
 such as WirePlumber, and Zenity.
 
-The tarball uses Chromium's user-namespace sandbox. If your distribution restricts
-user namespaces for downloaded apps, use its native package or configure a scoped
-AppArmor rule; don't disable the sandbox. Debian packages include that rule.
+If the tarball fails with a sandbox error, use the native package for your
+distribution where available.
 
 Download `SHA256SUMS` alongside the packages, then run
 `sha256sum --check --ignore-missing SHA256SUMS` to verify the files you downloaded.
-Checksums also live inside the tarball for packagers.
 
 ## Updates
 
 Install the next package or replace the extracted folder. Your profile and
 [launcher settings](linux-launcher.md) stay in your config directory.
-Discord's web interface updates itself, but the packaged ASAR and native modules
-update with these packages. Don't copy modules from a stock Discord installation.
+If you use Vencord or Equicord, follow the [mod update instructions](client-mods.md)
+before replacing the app.
 
-Arch recipes remain available in the repository; automated AUR publication still
-needs a publishing key. See [release packaging](agent/releases.md) for building
-packages from a verified runtime without recompiling Electron.
+AUR packages are not published yet.
