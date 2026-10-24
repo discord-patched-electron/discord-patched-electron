@@ -270,7 +270,7 @@
       "reference_run": "40053107555",
       "requested_at": "2026-10-24T13:07:13.266611+00:00",
       "run": "40096648258",
-      "status": "queued"
+      "status": "success"
     },
     "b6972643416bbc974b1d28bc55c0f38bdbded19330270ff745754ba69379bd1c": {
       "channel": "ptb",
