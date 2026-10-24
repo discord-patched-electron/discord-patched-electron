@@ -47,7 +47,8 @@ def analyze(output: Path) -> dict:
             band = spectrum[abs(frequencies - tone) <= 20]
             amplitudes.append(float(np.max(band) * 4 / len(samples)))
         passed = all(
-            value > 500 if include else value < 100 for value, include in zip(amplitudes, wanted)
+            value > 500 if include else value < 100
+            for value, include in zip(amplitudes, wanted, strict=True)
         )
         microphone = output / (name + "-microphone.raw")
         mic = (

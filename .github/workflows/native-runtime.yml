@@ -66,6 +66,13 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'package.json') }}
       - name: Install native fixture dependencies
         run: |
           sudo apt-get update
@@ -73,7 +80,7 @@ jobs:
             build-essential libnode-dev xvfb xauth brotli \
             libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6
           uv sync --locked
-          npm ci --ignore-scripts
+          bun install --frozen-lockfile --ignore-scripts
       - name: Permit sandbox namespaces for the disposable test runtimes
         shell: bash
         run: |

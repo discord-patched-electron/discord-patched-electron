@@ -8,7 +8,7 @@
     "packaging/upstream/**",
     "patches/**",
     "docs/evidence/**",
-    "package-lock.json",
+    "bun.lock",
     "config/*.json",
     "tests/**/package.json",
     "tests/**/header.lock.json",

@@ -46,7 +46,6 @@ jobs:
       CLIENTS_STATE: ${{ inputs.clients_state }}
       DISCORD_CHANNEL: ${{ inputs.discord_channel }}
       REFERENCE_RUN: ${{ inputs.reference_run }}
-      DPE_EQUICORD_HOME: ${{ github.workspace }}/out/equicord
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -54,6 +53,13 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'package.json') }}
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           python-version: "3.12"
@@ -64,7 +70,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential xvfb xauth brotli libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6
           uv sync --locked
-          npm ci --ignore-scripts
+          bun install --frozen-lockfile --ignore-scripts
           cat <<EOF | sudo tee /etc/apparmor.d/discord-launch-fixture >/dev/null
           abi <abi/4.0>,
           include <tunables/global>
@@ -80,10 +86,10 @@ jobs:
           python scripts/build_local_app.py --discord "$DISCORD_CHANNEL" --clients out/clients.lock.json --artifact out/runtime --cache out/downloads --output out/local-client
       - name: Check login form and relaunch without an account
         run: xvfb-run -a python scripts/check_desktop_launch.py out/local-client --output out/launch --relaunch
-      - name: Check optional Equicord injection on a separate fresh profile
-        run: |
-          python integration/launcher/equicord.py install --home "$DPE_EQUICORD_HOME"
-          xvfb-run -a python scripts/check_desktop_launch.py out/local-client --output out/mod-launch --relaunch --equicord
+      - uses: ./.github/actions/check-equicord
+        with:
+          app: out/local-client
+          output: out/mod-launch
       - name: Retain launch metadata only
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -95,5 +101,5 @@ jobs:
             out/launch/relaunch/launch-report.json
             out/mod-launch/launch-report.json
             out/mod-launch/relaunch/launch-report.json
-            out/equicord/install.json
+            out/mod-launch/equicord-sha256.txt
           retention-days: 14

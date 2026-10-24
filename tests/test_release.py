@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT
-from package_release import metadata, normalize_permissions, tarball
+from package_release import metadata, normalize_permissions, package, tarball
 from prepare_app import patch_bundle
 
 
@@ -39,7 +39,7 @@ class PortableReleases(unittest.TestCase):
             (app / "runtime").mkdir(parents=True)
             runtime = app / "runtime/electron"
             runtime.write_text(
-                '#!/usr/bin/env python3\nimport json, os, sys\nprint(json.dumps([os.environ["DPE_APP_ROOT"], sys.argv[1]]))\n'
+                '#!/usr/bin/env python3\nimport json, os, sys\nprint(json.dumps([os.environ["DPE_APP_ROOT"], sys.argv[1:]]))\n'
             )
             runtime.chmod(0o755)
             name = "discord-canary-prerelease-patched-electron-bin"
@@ -55,12 +55,12 @@ class PortableReleases(unittest.TestCase):
             command.symlink_to(app / "launch.sh")
             result = json.loads(
                 subprocess.check_output(
-                    [str(command)],
+                    [str(command), "--ozone-platform=x11"],
                     text=True,
-                    env={**os.environ, "DPE_CAMERA_FAST_PROBE": "0", "DPE_EQUICORD": "0"},
+                    env={**os.environ, "DPE_CAMERA_FAST_PROBE": "0", "DPE_DEFAULT_FLAGS": "0"},
                 )
             )
-            self.assertEqual(result, [str(app), str(app / "resources/app.asar")])
+            self.assertEqual(result, [str(app), ["--ozone-platform=x11"]])
 
     def test_tarball_is_reproducible_and_removes_privileged_bits(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -93,6 +93,25 @@ class PortableReleases(unittest.TestCase):
             (app / "outside").symlink_to("/etc/passwd")
             with self.assertRaisesRegex(ValueError, "Symlink leaves"):
                 normalize_permissions(app)
+
+    def test_release_rejects_an_installed_mod_before_creating_packages(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary) / "app"
+            (app / "resources").mkdir(parents=True)
+            (app / "resources/_app.asar").write_bytes(b"original bootstrap")
+            (app / "local-build.json").write_text(
+                json.dumps(
+                    {
+                        "portable": True,
+                        "runtime_kind": "compiled",
+                        "launch_verified": True,
+                    }
+                )
+            )
+            output = Path(temporary) / "packages"
+            with self.assertRaisesRegex(ValueError, "Uninstall client mods"):
+                package(app, output, "20261024.120000", 1234567890, "nfpm")
+            self.assertFalse(output.exists())
 
     def test_channels_are_independent_and_dependencies_are_distro_specific(self):
         names = set()

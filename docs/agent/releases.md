@@ -8,7 +8,9 @@ a GitHub prerelease after every required job passes.
 
 This workflow never compiles Electron. It verifies the compiler artifact,
 assembles the locked clients with the existing patches, moves the app directory,
-and checks plain/Equicord launch and relaunch. Parallel jobs exercise native
+and checks plain launch and relaunch. It installs Equicord with the official
+Equilotl CLI, tests it, uninstalls it and verifies the original bootstrap hash
+before packaging. Parallel jobs exercise native
 video/Krisp and isolated X11/Wayland audio. nFPM then makes `.deb` and `.rpm`
 packages from the same files used in the portable `.tar.gz`. Payload hashes are
 compared across all three formats. A Debian install and launch run on Ubuntu;
@@ -56,8 +58,9 @@ The GitHub publish job adds native/audio qualification and Equicord checks.
 Portable bootstraps resolve resources and modules from `DPE_APP_ROOT`, set by the
 launcher from its own resolved location. They don't rewrite files at launch.
 The same tree works under `/opt/<package>` or in a user-owned directory, including
-when Equicord loads a copy of the bootstrap. Arch's existing fixed-root recipe
-remains supported. Desktop entries are for installed packages; tarball users run
+when Equicord renames the bootstrap to `_app.asar`. Arch's existing fixed-root recipe
+remains supported. `runtime/resources` points to `../resources`, so Electron and
+the official installer use the same packaged entry point. Desktop entries are for installed packages; tarball users run
 `launch.sh` directly.
 
 The namespace sandbox stays enabled. Portable launchers disable only the setuid

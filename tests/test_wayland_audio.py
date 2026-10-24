@@ -56,7 +56,7 @@ class WaylandIdentity(unittest.TestCase):
                 original = (200, "original-start-time", 1)
                 current = original
 
-                def sinks(_args):
+                def sinks(_args, replacement=replacement):
                     nonlocal current
                     current = replacement
                     return '[{"index":4,"monitor_source_name":"test.monitor"}]'
@@ -65,7 +65,7 @@ class WaylandIdentity(unittest.TestCase):
                     patch.object(
                         audio,
                         "process_identity",
-                        side_effect=lambda pid: current if pid == 200 else (pid, "self", 1),
+                        side_effect=lambda pid: current if pid == 200 else (pid, "self", 1),  # noqa: B023 - reads this subtest's mutable identity
                     ),
                     patch.object(audio, "descendant", return_value=False),
                     patch.object(audio, "command", side_effect=sinks),

@@ -4,7 +4,7 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Implementation context, build
 handoffs and test results are indexed in [docs/agent/README.md](docs/agent/README.md).
 Keep user docs short; put investigation notes in that directory.
 
-- Use `uv run` for Python. Run `npm test` and `npm run lint` before finishing.
+- Use `uv run` for Python. Run `bun run test` and `bun run lint` before finishing.
 - Preserve pinned upstream files and patches; don't format them.
 - Reuse verified runtimes for packaging. Compile Electron only on the local PC,
   never on Blacksmith. Don't restart a healthy compiler or discard retained objects.

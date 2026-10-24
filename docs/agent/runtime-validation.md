@@ -48,7 +48,7 @@ is a reproducible regression signal, not a human intelligibility assessment.
 
 ## Reproduction
 
-Run `uv sync --locked` to install the test dependencies, the pinned npm dependencies, a C++ compiler,
+Run `uv sync --locked` and `bun install --frozen-lockfile --ignore-scripts`. Install a C++ compiler,
 Node development headers at `/usr/include/node`, Xvfb and `xauth`. Use an extracted
 distribution and staged, patched modules from the same locked Discord channel:
 

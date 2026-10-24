@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "description": "Build and package Discord's native Electron integration",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.12.0",
+    "bun": ">=1.4.4"
   },
   "devDependencies": {
     "@electron/asar": "4.3.1",
@@ -14,6 +15,9 @@
   "scripts": {
     "lint": "uv run ruff check . && oxlint integration tests && uv run python scripts/check_style.py && oxfmt --check . && uv run ruff format --check .",
     "format": "uv run ruff format . && uv run ruff check --fix . && uv run ruff format . && oxfmt --write . && uv run python scripts/check_style.py --fix",
-    "test": "uv run python -m unittest discover -s tests -v && node --test tests/audio/*.test.cjs"
-  }
+    "test": "bun run test:python && bun run test:js",
+    "test:python": "uv run python -m unittest discover -s tests -v",
+    "test:js": "node --test tests/audio/*.test.cjs"
+  },
+  "packageManager": "bun@1.4.4"
 }

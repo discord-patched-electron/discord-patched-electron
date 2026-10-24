@@ -158,6 +158,8 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
         raise ValueError("Only compiled portable builds can be released")
     if not build.get("launch_verified"):
         raise ValueError("Run check_desktop_launch.py on the relocated app before packaging")
+    if (app / "resources/_app.asar").exists():
+        raise ValueError("Uninstall client mods before packaging the app")
     validate_capacity(build["capacity"], True)
     if sha256(app / "runtime/electron") != build["executable_sha256"]:
         raise ValueError("Runtime changed after assembly")

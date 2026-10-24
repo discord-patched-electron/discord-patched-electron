@@ -120,7 +120,7 @@ class VersionsAndKeys(unittest.TestCase):
         if not shutil.which("vercmp"):
             self.skipTest("Arch vercmp is not installed on this host")
         values = ["45.0.0-alpha.1", "45.0.0-beta.2", "45.0.0-beta.10", "45.0.0"]
-        for older, newer in zip(values, values[1:]):
+        for older, newer in zip(values[:-1], values[1:], strict=True):
             result = subprocess.check_output(
                 ["vercmp", arch_version(older), arch_version(newer)], text=True
             )

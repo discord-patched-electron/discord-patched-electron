@@ -39,7 +39,6 @@ def check(
         **os.environ,
         "DISCORD_USER_DATA_DIR": str(profile),
         "EQUICORD_USER_DATA_DIR": str(profile / "equicord"),
-        "DPE_EQUICORD": "1" if equicord else "0",
         "WAYLAND_DEBUG": "client",
     }
     environment.pop("ELECTRON_RUN_AS_NODE", None)
@@ -112,12 +111,18 @@ ws.addEventListener("error", () => process.exit(3));
                                 and page.get("loginForm")
                                 and page.get("passwordField")
                             ):
-                                report["passed"] = not equicord or (
-                                    page.get("equicordNative")
-                                    and page.get("equicordRenderer")
-                                    and page.get("discordNative")
+                                mod_loaded = bool(
+                                    page.get("equicordNative") and page.get("equicordRenderer")
                                 )
-                                break
+                                report["passed"] = bool(page.get("discordNative")) and (
+                                    mod_loaded
+                                    if equicord
+                                    else not (
+                                        page.get("equicordNative") or page.get("equicordRenderer")
+                                    )
+                                )
+                                if report["passed"]:
+                                    break
                     if report["passed"]:
                         break
                 except (OSError, ValueError, subprocess.SubprocessError, urllib.error.URLError):

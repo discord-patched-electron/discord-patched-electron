@@ -528,7 +528,7 @@ class Controller:
 
             inventory = windows()
             rows = ["system", "Entire system (except Discord)"]
-            for pid, (identity, label) in sorted(choices.items()):
+            for pid, (_identity, label) in sorted(choices.items()):
                 owners = [
                     w
                     for w in inventory

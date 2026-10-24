@@ -40,7 +40,7 @@ class Launcher(unittest.TestCase):
                     **(env or {}),
                 },
             )
-            return json.loads(result)[1:]
+            return json.loads(result)
 
     def test_defaults_and_feature_precedence(self):
         flags = self.launch(

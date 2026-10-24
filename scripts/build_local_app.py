@@ -96,11 +96,12 @@ def build(
         executable = {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[channel]
         (output / "runtime" / executable).rename(output / "runtime/electron")
     shutil.rmtree(core)
-    # Bundled baselines require the packaged ASAR. A custom runtime must keep
-    # default_app.asar: adding app.asar makes Electron ignore the CLI entry point
-    # (including the optional Equicord loader).
-    if not capacity:
-        shutil.copytree(output / "resources", output / "runtime/resources", dirs_exist_ok=True)
+    # Use Electron's normal packaged-app entry point. A directory symlink keeps
+    # the official mod installer's resources/app.asar and Electron's lookup in sync.
+    runtime_resources = output / "runtime/resources"
+    if runtime_resources.exists():
+        shutil.rmtree(runtime_resources)
+    runtime_resources.symlink_to("../resources", target_is_directory=True)
     krisp = output / "modules/discord_krisp"
     write_json(output / "krisp-patch.json", krisp_patch(krisp / "discord_krisp.node"))
     (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
@@ -137,9 +138,9 @@ def build(
     # A user-owned directory cannot supply a root-owned setuid helper. Chromium
     # still uses its user-namespace sandbox; never disable the whole sandbox.
     launcher = launcher.replace(
-        '"$entry" "${flags[@]}"', '"$entry" --disable-setuid-sandbox "${flags[@]}"'
+        '"$root/runtime/electron" "${flags[@]}"',
+        '"$root/runtime/electron" --disable-setuid-sandbox "${flags[@]}"',
     )
-    shutil.copy2(ROOT / "integration/launcher/equicord.py", output)
     entry = output / "launch.sh"
     entry.write_text(launcher)
     entry.chmod(0o755)

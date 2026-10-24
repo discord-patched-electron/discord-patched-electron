@@ -89,7 +89,6 @@ jobs:
       RUNTIME: ${{ needs.inputs.outputs.runtime }}
       VERSION: ${{ needs.inputs.outputs.version }}
       SOURCE_DATE_EPOCH: ${{ needs.inputs.outputs.epoch }}
-      DPE_EQUICORD_HOME: ${{ github.workspace }}/out/equicord
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -102,7 +101,13 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
-          cache: npm
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'package.json') }}
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: stable
@@ -110,7 +115,7 @@ jobs:
       - name: Install packaging tools
         run: |
           uv sync --locked
-          npm ci --ignore-scripts
+          bun install --frozen-lockfile --ignore-scripts
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential brotli xvfb xauth libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6 rpm libarchive-tools
@@ -128,11 +133,12 @@ jobs:
           }
           EOF_RULE
           sudo apparmor_parser -r /etc/apparmor.d/discord-release-fixture
-      - name: Launch and relaunch the relocated app, plain and with Equicord
-        run: |
-          xvfb-run -a python scripts/check_desktop_launch.py "out/relocated app" --output out/launch --relaunch
-          python integration/launcher/equicord.py install --home "$DPE_EQUICORD_HOME"
-          xvfb-run -a python scripts/check_desktop_launch.py "out/relocated app" --output out/mod-launch --relaunch --equicord
+      - name: Launch and relaunch the relocated app
+        run: xvfb-run -a python scripts/check_desktop_launch.py "out/relocated app" --output out/launch --relaunch
+      - uses: ./.github/actions/check-equicord
+        with:
+          app: out/relocated app
+          output: out/mod-launch
       - name: Create tarball, Debian and RPM packages
         run: |
           python scripts/package_release.py "out/relocated app" --output out/packages --version "$VERSION" --epoch "$SOURCE_DATE_EPOCH"
@@ -172,6 +178,7 @@ jobs:
           path: |
             out/launch/**/launch-report.json
             out/mod-launch/**/launch-report.json
+            out/mod-launch/equicord-sha256.txt
             out/deb-launch/**/launch-report.json
             out/rpm-install.log
             out/packages/package-checks.json

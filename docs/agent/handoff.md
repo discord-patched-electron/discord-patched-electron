@@ -4,10 +4,23 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Bun and official mod installation, 24 October
+
+Current tooling uses Bun 1.4.4 with `bun.lock`, plus uv. Node 24 remains required
+by ASAR tools and `node:test`. README and CONTRIBUTING describe CI ownership,
+contributor setup, release gates and the remaining test limits.
+
+New apps use Electron's packaged entry point with `runtime/resources` symlinked
+to `../resources`. The official Equilotl installer works with `-location <root>`;
+no `equicord.py` or custom mod loader is shipped. The old command-line entry point
+caused Equicord's `require.main` lookup to fail on Electron 46. CI now installs,
+launches, uninstalls and checks the restored bootstrap before making packages.
+Old helper instructions below apply only to the older local installation.
+
 ## Repository cleanup and portable packages, 24 October
 
 The user-facing docs are now short guides under `docs/`; implementation history
-is indexed here in `docs/agent/README.md`. Use `uv sync --locked`, `npm ci --ignore-scripts`, `npm test` and `npm run lint`. Native patches and upstream
+is indexed here in `docs/agent/README.md`. Use `uv sync --locked`, `bun install --frozen-lockfile --ignore-scripts`, `bun run test` and `bun run lint`. Native patches and upstream
 snapshots were not reformatted. The old compiler stays reusable through the
 reviewed capacity digest; no Electron rebuild was started for this cleanup.
 

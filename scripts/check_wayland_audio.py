@@ -74,12 +74,14 @@ def analyze(output):
         results[name] = {
             "samples": len(samples),
             "clean_frame_fraction": fraction,
-            "amplitudes": dict(zip(("440", "660", "997", "1399"), values)),
-            "maximum_clean_frame_amplitudes": dict(zip(("440", "660", "997", "1399"), maximum)),
+            "amplitudes": dict(zip(("440", "660", "997", "1399"), values, strict=True)),
+            "maximum_clean_frame_amplitudes": dict(
+                zip(("440", "660", "997", "1399"), maximum, strict=True)
+            ),
             "passed": enough
             and all(
                 value > 500 if wanted else maximum[i] < 100
-                for i, (value, wanted) in enumerate(zip(values, expected))
+                for i, (value, wanted) in enumerate(zip(values, expected, strict=True))
             ),
         }
     return {
@@ -161,10 +163,10 @@ def session(output, pulse, selection):
                         if selected["kind"] != "system":
                             # The first app's parent plays audio; B's child owns
                             # the stream. Only follow this fixture's process tree.
-                            def belongs(candidate):
+                            def belongs(candidate, selected_pid=selected["pid"]):
                                 seen = set()
                                 while candidate > 1 and candidate not in seen:
-                                    if candidate == selected["pid"]:
+                                    if candidate == selected_pid:
                                         return True
                                     seen.add(candidate)
                                     candidate = int(

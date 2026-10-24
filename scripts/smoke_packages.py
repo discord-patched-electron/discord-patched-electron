@@ -52,6 +52,9 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
             or info["localModulesRoot"] != "/" + root + "/modules"
         ):
             raise ValueError("Packaged client identity, updater or module path is incorrect")
+        resources = members[root + "/runtime/resources"]
+        if not resources.issym() or resources.linkname != "../resources":
+            raise ValueError("Electron and installers must share the packaged resources directory")
         if members[root + "/runtime/chrome-sandbox"].mode != 0o4755:
             raise ValueError("Missing sandbox executable permissions")
         if members[root + "/resources/build_info.json"].mode & 0o444 != 0o444:

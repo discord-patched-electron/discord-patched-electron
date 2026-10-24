@@ -32,6 +32,9 @@ def check(directory: Path):
             raise ValueError("Portable files must be readable after root-owned installation")
         if any(member.mode & 0o6000 for member in bundle.getmembers()):
             raise ValueError("Portable tarball has privileged file modes")
+        resources = bundle.getmember(root + "/runtime/resources")
+        if not resources.issym() or resources.linkname != "../resources":
+            raise ValueError("Tarball lost the packaged-app resource link")
     deb = next(directory.glob("*.deb"))
     rpm = next(directory.glob("*.rpm"))
     # dpkg-deb is available in release CI; bsdtar supplies the local Arch path.
@@ -53,6 +56,16 @@ def check(directory: Path):
                 or hashlib.sha256(package.extractfile(member).read()).hexdigest() != checksum
             ):
                 raise ValueError(f"Debian payload mismatch: {path}")
+        resources = next(
+            (
+                member
+                for member in package.getmembers()
+                if member.name.lstrip("./") == f"opt/{root}/runtime/resources"
+            ),
+            None,
+        )
+        if resources is None or not resources.issym() or resources.linkname != "../resources":
+            raise ValueError("Debian package lost the packaged-app resource link")
     with tempfile.TemporaryDirectory(prefix="release-rpm-") as temporary:
         subprocess.run(["bsdtar", "-xf", str(rpm), "-C", temporary], check=True)
         for path, checksum in expected.items():
@@ -61,6 +74,9 @@ def check(directory: Path):
                 raise ValueError(f"RPM payload is not readable: {path}")
             if sha256(installed) != checksum:
                 raise ValueError(f"RPM payload mismatch: {path}")
+        resources = Path(temporary) / "opt" / root / "runtime/resources"
+        if not resources.is_symlink() or str(resources.readlink()) != "../resources":
+            raise ValueError("RPM lost the packaged-app resource link")
     requires = subprocess.check_output(["rpm", "-qpR", str(rpm)], text=True)
     if "python3" not in requires or "pipewire-utils" not in requires:
         raise ValueError("RPM lacks helper dependencies")

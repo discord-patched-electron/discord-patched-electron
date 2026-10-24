@@ -28,7 +28,6 @@ from fingerprints import integration_key
 from lock_clients import normalize
 
 SUPPORT = {
-    "equicord.py": "integration/launcher/equicord.py",
     "common.py": "scripts/common.py",
     "desktop_identity.py": "scripts/desktop_identity.py",
     "prepare_app.py": "scripts/prepare_app.py",

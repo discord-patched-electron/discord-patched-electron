@@ -1,3 +1,7 @@
+> Historical implementation, replaced on 24 October 2026. Current packages use
+> [the official installer](../equicord.md) with no custom mod loader. The earlier
+> helper and environment variables below apply only to old local builds.
+
 # Optional Equicord
 
 Equicord is installed for the local Canary test app. The official published

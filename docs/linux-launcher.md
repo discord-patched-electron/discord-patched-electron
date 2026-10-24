@@ -28,8 +28,9 @@ Close the app completely before changing environment variables:
 ```sh
 DPE_APP_AUDIO=0 discord-canary-prerelease-patched-electron-bin
 DPE_CAMERA_FAST_PROBE=0 discord-canary-prerelease-patched-electron-bin
-DPE_EQUICORD=0 discord-canary-prerelease-patched-electron-bin
 ```
+
+To remove Equicord for troubleshooting, use its [official installer](equicord.md).
 
 Each package has a separate profile under `~/.config/<package-name>`.
 `DISCORD_USER_DATA_DIR` overrides that location.
