@@ -148,7 +148,8 @@ The three prerelease-Electron recipes exist and changed clients now trigger
 qualification on the retained tested runtime. Eligible Electron prereleases
 preflight the patch queue before scheduling the PC compiler. Automatic candidate
 promotion/public release/AUR publication remain unfinished, and no AUR publishing
-key is configured. No public binary release or AUR update has been published.
+key is configured. The tested runtime archive has a public prerelease asset for CI reuse; no
+client package release or AUR update has been published.
 See [current update behavior](discovery.md).
 
 Local monitor state is in

@@ -65,7 +65,7 @@ group and use normal fast-forward pushes, never forced JSON merges.
 
 The reviewed last-good runtime is pinned by compiler run, source commit, complete
 capacity-report digest and archive checksum in `config/update-policy.json`. It is
-retained in a private-to-collaborators **draft release** so Actions artifact expiry
+retained in a public **runtime-only prerelease** so Actions artifact expiry
 cannot force a recompile. Newly compiled Actions artifacts/reports retain 90 days.
 Fetch verifies both the report and archive hashes. A newer source lock does not
 invalidate the exact older pinned runtime used by immediate client checks.
@@ -77,7 +77,7 @@ launcher, Equicord and application-audio sidecars, so their updates reuse C++.
 ## Qualification versus publication
 
 This automation now discovers, reserves, checks client updates, preflights new
-Electron sources and schedules PC compilation. **Public binary/AUR publication
+Electron sources and schedules PC compilation. **Client/AUR publication
 and automatic promotion of a newly compiled candidate to last-good remain release
 work.** There is no AUR publishing key configured. A passing source application or
 bundled baseline is not permission to publish an unqualified candidate. The

@@ -203,10 +203,10 @@ def reconcile(previous: dict | None, releases: list[dict], tags: dict[str, str],
                                         "status": "pending", "attempts": []})
     # Preserve every release identity, but compile only the newest pending
     # prerelease. Never cancel a compiler or discard completed/failed evidence.
-    nightly = [key for key in pending(state) if state["runtimes"][key]["channel"] == "prerelease"]
-    if nightly:
-        newest = max(nightly, key=lambda key: version_key(state["runtimes"][key]["target"]["version"]))
-        for key in nightly:
+    candidates = [key for key in pending(state) if state["runtimes"][key]["channel"] == "prerelease"]
+    if candidates:
+        newest = max(candidates, key=lambda key: version_key(state["runtimes"][key]["target"]["version"]))
+        for key in candidates:
             if key != newest:
                 state["runtimes"][key].update(status="superseded", reason="newer-prerelease", superseded_by=newest)
     if set(clients) != set(DISCORD_CHANNELS):

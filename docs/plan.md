@@ -168,14 +168,26 @@ Start with cold builds and modest caches within confirmed free limits. Do not ma
 
 ## 5. Release discovery, no-op detection and retries
 
-Run discovery hourly, offset from the top of the hour, plus `workflow_dispatch`. GitHub schedules can be delayed; record and catch up missed releases. A `release` event in our repository does not subscribe to releases in Electron's repository. An upstream webhook is optional, not required infrastructure.
+**24 October update policy:** routine Electron source advancement is limited to
+once per 96 hours, with explicit high/critical advisory fixes or a maintainer
+urgent-version override bypassing the cadence. Discord ASAR/module changes must
+qualify immediately on the last-good compiled runtime. Detect shipped Discord
+Electron changes by hashing the executable/native payload from changed host
+archives; ordinary Discord fork commits must not schedule compilation. See
+[implemented update behavior](discovery.md) for exact gates and remaining release
+work. Keep optional Equicord in a user-owned loader so packaging updates do not
+erase it. Only the PC compiles Electron; historical hosted-provider experiments
+below are not authorization to start Blacksmith now.
+
+
+Run discovery every 15 minutes (7/22/37/52), plus `workflow_dispatch`. GitHub schedules can be delayed; record and catch up missed releases. A `release` event in our repository does not subscribe to releases in Electron's repository. An upstream webhook is optional, not required infrastructure.
 
 Use paginated official GitHub release data and verify source tags:
 
 - Prerelease: newly published alpha/beta releases in `electron/electron`, excluding stable and nightly. Track the highest successfully qualified prerelease for each AUR package.
 - The previously implemented stable/nightly source ports remain historical evidence. `config/channels.json` disables those targets across discovery, source assembly, compiler entry points and packaging. Do not fetch the nightly release feed.
 
-On first activation, seed the latest prerelease and record the baseline; do not backfill Electron's entire history. Thereafter enumerate releases rather than relying on `/releases/latest`. Handle annotated tags by peeling them to commits. Retain every newly detected prerelease, including multiple releases between polls; do not coalesce this backlog. Withhold unavailable or moved sources and incompatible patches explicitly.
+On first activation, seed the latest prerelease and record the baseline; do not backfill Electron's entire history. Thereafter enumerate releases rather than relying on `/releases/latest`. Handle annotated tags by peeling them to commits. Retain every newly detected prerelease, including multiple releases between polls; coalesce pending prereleases to the newest candidate. Withhold unavailable or moved sources and incompatible patches explicitly.
 
 When migrating the existing ledger, retire only pending stable/nightly runtime entries with `electron-channel-disabled`. Preserve running/completed/failed entries and historical release metadata, and filter disabled entries before any dispatch even when reading an unmigrated ledger. Let the current reference build finish and retain its incremental checkout.
 
@@ -331,7 +343,7 @@ that mapping is unavailable.
 
 Test with two applications generating different tones: selecting A must transmit A and exclude B. Also test microphone independence, exclusion of received Discord audio, audio-disabled state, pause/resume, source switching, process restart and cleanup. Cover X11 and Wayland separately, including a multi-process application. Keep this feature separately switchable so an audio experiment cannot break the working native video bridge.
 
-## 8. Nine AUR packages and automatic publication
+## 8. Three AUR packages and automatic publication
 
 AUR hosts package recipes; **GitHub Releases hosts the compiled binaries**. Generate all three package recipes from the template derived from the pinned current AUR package, with explicit Electron and Discord channel configuration. Reuse the same runtime asset URL and checksum wherever the runtime key matches. Follow [AUR submission guidance](https://wiki.archlinux.org/title/AUR_submission_guidelines) and [PKGBUILD conventions](https://wiki.archlinux.org/title/PKGBUILD).
 

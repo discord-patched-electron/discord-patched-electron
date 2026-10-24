@@ -86,8 +86,8 @@ def fetch(run_id: str, output: Path):
     good = read_json(ROOT / 'config/update-policy.json')['last_good_runtime']
     cached = run_id == good['run'] and metadata['head_sha'] == good['compiler_commit']
     if cached:
-        # A checksum-pinned draft release retains the tested runtime beyond
-        # Actions artifact expiry. It is not a public binary/AUR publication.
+        # A checksum-pinned prerelease asset retains the tested runtime beyond
+        # Actions artifact expiry. Client/AUR promotion is a separate gate.
         run('gh','release','download',good['cache_release'],'--repo',repository,
             '--pattern','capacity.json','--dir',output/'capacity')
     else:

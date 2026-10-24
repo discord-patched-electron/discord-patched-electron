@@ -30,7 +30,7 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
 
 ## Current status
 
-- A local **Discord Canary 1.0.2357 / Electron 46.0.0-alpha.1** test build now
+- A local **Discord Canary 1.0.2365 / Electron 46.0.0-alpha.1** test build now
   opens on native Wayland. Launch instructions and measured results are in the
   [handoff](docs/handoff.md). The runtime was compiled on the PC for x86-64-v3;
   no Blacksmith compiler was used for this build.
@@ -38,10 +38,14 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
 - Locked current Stable, PTB and Canary core/module distributions independently.
 - Implemented atomic source locks, strict channel validation, content fingerprints,
   the existing resource/bootstrap fixes and validated Krisp patch application.
-- Hourly [release discovery](docs/discovery.md) retains a durable queue on
-  `ci-state`, including every new prerelease and separate Discord updates.
-  Identical polls create no commit. The automatic compile/release/AUR coordinator
-  remains unfinished; no AUR publishing key is configured.
+- [Update discovery](docs/discovery.md) checks Discord every 15 minutes and
+  immediately qualifies changed clients on the retained tested runtime. Routine
+  Electron prereleases are coalesced into a 96-hour cadence; identified urgent
+  security fixes can bypass it. Shipped Discord runtime hashes, not fork commits,
+  drive compatibility review. Public client/AUR promotion remains unfinished;
+  no AUR publishing key is configured.
+- Optional [Equicord](docs/equicord.md) is installed and verified in the local
+  Canary app. Its user-owned loader survives package updates.
 - Imported Discord's complete 44-branch delta and verified that applying it to its
   original upstream base reconstructs Discord's exact source tree.
 - The prerelease source and dependency ports compile successfully with pinned,
