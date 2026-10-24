@@ -19,11 +19,17 @@ source-check and package entry points now read the switches instead of hard-codi
 Canary. **Qualify compiled runtime** dispatches qualification for enabled clients.
 Client-only updates still share one approved runtime.
 
-Local validation passed 110 Python tests, 16 JavaScript tests, formatting, linting
+Local validation passed 111 Python tests, 16 JavaScript tests, formatting, linting
 and actionlint. A live read-only release preparation verified the discovered client
 snapshot and downloaded only the pinned compiler report. Native build inputs are
 unchanged from the preceding commit. No Electron compilation or physical camera
 test was started. The disabled tracks have not received new end-to-end qualification.
+
+The first CI pass caught a missing `channels.py` in the standalone Arch recipe.
+The generator and template now include it. A regression test runs the real
+preparation copy step outside the repository and imports its Python entry point.
+The final artwork files use the user's newer PNG export and matching
+`discord-patched-electron.png.kra`, stored as `discord-patched-electron.kra` here.
 
 ## Cache, release and AUR publishing, 24 October
 

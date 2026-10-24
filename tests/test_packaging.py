@@ -1,6 +1,7 @@
 """Exercise the generated recipes as shell and Arch metadata, without launching clients."""
 
 import copy
+import os
 import shutil
 import subprocess
 import sys
@@ -41,6 +42,26 @@ CAMERA = {
 
 
 class Recipes(unittest.TestCase):
+    def test_standalone_recipe_ships_every_python_import_for_prepare(self):
+        client = read_json(ROOT / "config/clients.lock.json")["clients"]["canary"]
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            generate(runtime("prerelease"), client, "prerelease", 1, directory, camera=CAMERA)
+            # Run the real copy step and load its Python entry point outside the
+            # repository. --help stops before any archive extraction or patching.
+            subprocess.run(
+                [
+                    "bash",
+                    "-ec",
+                    'source PKGBUILD; python() { "$DPE_TEST_PYTHON" "$@" --help; }; prepare',
+                ],
+                cwd=directory,
+                env={**os.environ, "PYTHONPATH": "", "DPE_TEST_PYTHON": sys.executable},
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
     def test_makepkg_source_symlink_keeps_staging_inside_srcdir(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

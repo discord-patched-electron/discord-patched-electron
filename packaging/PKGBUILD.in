@@ -26,7 +26,7 @@ noextract=(
 
 prepare() {
   mkdir -p support/scripts support/packaging/upstream
-  cp common.py desktop_identity.py prepare_app.py patch_krisp.py patch_app_audio.py patch_desktop_core.py camera_scope.py stage_package.py support/scripts/
+  cp channels.py common.py desktop_identity.py prepare_app.py patch_krisp.py patch_app_audio.py patch_desktop_core.py camera_scope.py stage_package.py support/scripts/
   cp krisp-patcher.py provenance.json support/packaging/upstream/
   python support/scripts/stage_package.py --inputs package-inputs.json --asar /usr/bin/asar
 }
