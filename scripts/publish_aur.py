@@ -13,7 +13,25 @@ from pathlib import Path
 from common import ROOT, electron_channel, package_name, read_json, run, sha256
 from desktop_identity import desktop_id
 from package_release import metadata
-from releases import URL, api, approve, release_tag, validate_approval, verify_assets
+from releases import URL, api, approval_path, approve, release_tag, validate_approval, verify_assets
+
+
+def require_stable(release: dict):
+    if release.get("draft") is not False or release.get("prerelease") is not False:
+        raise ValueError("AUR publication requires an approved stable release")
+
+
+def require_approved(release: dict, manifest: dict, approved: dict | None, checksum: str):
+    require_stable(release)
+    if (
+        not approved
+        or approved.get("schema") != 1
+        or approved.get("tag") != release["tag_name"]
+        or approved.get("version") != manifest["version"]
+        or approved.get("manifest_sha256") != checksum
+        or not approved.get("approved_by")
+    ):
+        raise ValueError("AUR publication requires approval of these exact package files")
 
 
 def manifest_name(manifest: dict) -> str:
@@ -152,10 +170,20 @@ def main():
         return
     if not args.tag:
         parser.error("A public app release tag is required")
+    release = api("releases/tags/" + args.tag)
+    if args.publish:
+        require_stable(release)
     directory = args.verified_directory or approve(args.tag, check_only=True)
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
-    release = api("releases/tags/" + args.tag)
+    if args.publish:
+        path = approval_path(manifest)
+        require_approved(
+            release,
+            manifest,
+            read_json(path) if path.exists() else None,
+            sha256(directory / "release.json"),
+        )
     validate_approval(release, manifest, api("actions/runs/" + manifest["workflow_run"]), None)
     if api("commits/" + args.tag)["sha"] != manifest["source_commit"]:
         raise ValueError("Release tag changed")

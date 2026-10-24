@@ -65,8 +65,18 @@ Approval also publishes the AUR recipe using `AUR_SSH_PRIVATE_KEY`. It installs 
 same verified portable app under `/opt/`. No patching or downloads happen during
 installation. `makepkg` verifies the pinned archive checksum, and `.SRCINFO` is
 produced with `makepkg --printsrcinfo`. Publishing is serialized and rejects older
-versions. **Publish AUR package** can retry a failed push or explicitly publish a
-public test release without marking it stable.
+versions. **Publish AUR package** only retries an approved stable release. Both
+paths require a public, non-prerelease GitHub release and an approval record for
+its exact manifest checksum. Changing the GitHub release label alone is insufficient.
+Local recipe generation remains available for candidate testing.
+
+The existing AUR version `20261024.162607-1` predates this policy. Leave it frozen
+until a release is explicitly approved. The package name's `prerelease` component
+refers to the Electron track, not permission to publish unapproved app builds.
+
+Release asset names stay fixed. The AUR recipe uses a versioned local download
+alias (`$pkgname-$pkgver.tar.gz::...`) so `makepkg` cannot reuse another version's
+cached archive.
 
 ## Manual candidates and local packaging
 

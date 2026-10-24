@@ -1,11 +1,52 @@
 # CI runners
 
-Repository: `discord-patched-electron/discord-patched-electron`.
-Standard GitHub-hosted runners run checks. The maintainer's containerized PC
-runner remains available. Blacksmith unlocked the organization on 23 October 2026. The last reported allowance use is 168/3,000 minutes. Current builds use
-only the PC; no further Blacksmith compiler is authorized for the overnight task.
+Standard checks and packaging use GitHub-hosted runners. New Electron builds use
+Blacksmith through `build.yml`. The old PC and one-shot capacity workflows have
+been removed. Retained local source and objects remain available for investigation.
 
-## Installed local configuration
+## Blacksmith compilation
+
+The 16-vCPU Ubuntu runner provides 64 GB RAM and 750 GB disk. Smaller runners have
+at most 160 GB disk. Ninja selects parallelism from the available CPU and memory,
+with one concurrent linker. No sticky disks or paid cache add-ons are enabled.
+
+Before allocating a runner, a GitHub-hosted job reserves **960 allowance minutes**
+in `ci-state/state.json`. This covers the entire **120-minute** job at Blacksmith's
+8x billing conversion. Compilation stops at 105 minutes to leave time for logs,
+artifacts and cache upload. A rolling 31-day cap of **2,400 allowance minutes**
+allows two attempts and leaves at least 600 of the reported 3,000 free minutes
+outside this workflow. Failed and cancelled jobs keep their full reservation.
+Deleting run history cannot recover it. A concurrent state write fails before
+runner allocation. Never delete or reset the budget ledger to retry a build.
+
+Retries require a new dispatch, so they reserve their own allowance. Existing
+successful runtime identities are rejected before allocation and should be reused
+for client packaging. The four-day Electron cooldown is a minimum interval, not a
+promise of a new compiler every four days. Client-only packages do not use this
+budget. After a budget rejection, dispatch again once old reservations expire.
+
+```sh
+gh workflow run build.yml --ref main -f target=prerelease \
+  --repo discord-patched-electron/discord-patched-electron
+```
+
+This is a conservative project budget, not an account-wide billing limit. Other
+repositories, workflows and paid add-ons can consume the organization's allowance.
+The last reported usage before this switch was 168 minutes. The dashboard's
+free allowance does not establish whether overages are blocked. No fresh hosted
+compiler was dispatched for the switch, and cold-build completion within this
+limit remains unverified. Budget settings live in `scripts/blacksmith_budget.py`.
+
+The GitHub App needs repository access but no runner API key. `actions/cache`
+automatically uses Blacksmith's free dependency cache on its runners. Only the
+bounded 3 GiB sccache store is transferred. Full Chromium objects are ephemeral,
+and most current Chromium commands bypass sccache. See [cache limitations](build-caching.md#current-full-build-cache-limitation).
+
+Sources: [runner sizes and billing conversion](https://docs.blacksmith.sh/blacksmith-runners/overview),
+[free dependency caching](https://docs.blacksmith.sh/blacksmith-caching/dependencies-actions),
+[pricing](https://www.blacksmith.sh/pricing).
+
+## Historical local configuration
 
 - Container: `discord-electron-runner`; GitHub runner: `he3als-pc-container`.
 - Only host mount: `/mnt/storage/discord-patched-electron-ci` → `/work`.
@@ -20,9 +61,9 @@ only the PC; no further Blacksmith compiler is authorized for the overnight task
   Changed native inputs create another directory; other builds are never deleted.
 - The runner restarts with Docker unless explicitly stopped. It has no host
   services, GitHub login files or AUR credentials mounted.
-- The compile workflow is manually dispatched from `main`, uses a `main`-only
-  `local-compiler` environment and a repository-specific runner label. Pull request
-  checks use standard GitHub runners; all external contributors require approval.
+- The former PC workflow used the `local-compiler` environment and a repository
+  runner label. It is no longer dispatched. Pull request checks use standard
+  GitHub runners.
 
 Start/stop the runner:
 
@@ -138,34 +179,8 @@ References: [GitHub runner setup](https://docs.github.com/en/actions/how-tos/man
 [job limits](https://docs.github.com/en/actions/reference/limits),
 [token lifetime](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes).
 
-## Historical Blacksmith capacity experiment
+## Historical Blacksmith experiment
 
-`blacksmith-capacity.yml` is a manual, main-only, single-use experiment. Its
-GitHub-hosted preflight rejects any previous dispatch, and both jobs reject
-reruns. This intentionally conservative guard needs no billing API credential.
-Do not delete its run history: history is the guard's record. It does not track
-other repositories or manually deleted runs and is not an account-wide spending
-cap. Recurring hosted compilation needs a live allowance check or confirmed
-provider-enforced free-only limit before enabling it.
-
-The runner is `blacksmith-16vcpu-ubuntu-2404` (64 GB memory, 750 GB disk), with 12
-compiler tasks. Smaller tiers have 80 or 160 GB disk, so they are not the initial
-cold-build target. The 300-minute job limit consumes at most 2,400 equivalent
-2-vCPU minutes at Blacksmith's documented 8x conversion, leaving 600 of the
-reported free allowance as headroom. The command stops after 285 minutes to
-leave time for diagnostics. There are no paid caches, sticky disks or static IPs.
-The VM's source and object files are ephemeral; a failed experiment does not
-automatically start another paid-capable job. The PC retains its own cache.
-
-```sh
-gh workflow run blacksmith-capacity.yml --ref main \
-  --repo discord-patched-electron/discord-patched-electron
-```
-
-The GitHub App integration needs no API key. The first actual run verifies that
-the App has repository access. The dashboard's free allowance alone does not
-prove that overage is disabled. The build must complete before making any claims
-about monthly capacity for prerelease Electron updates.
-
-Sources: [runner specifications and free-minute conversion](https://docs.blacksmith.sh/blacksmith-runners/overview),
-[pricing and paid add-ons](https://www.blacksmith.sh/pricing).
+Run `40001600965` used 168 allowance minutes before failing during tool bootstrap.
+That bootstrap issue was subsequently fixed. The single-use workflow has been
+removed. Its result did not establish full-build timing or monthly capacity.

@@ -5,8 +5,8 @@
     "minimum_disk_gb": 100,
     "minimum_memory_gb": 8,
     "paid_usage_allowed": false,
-    "provider": "self-hosted",
-    "runner": "discord-electron-compiler"
+    "provider": "blacksmith",
+    "runner": "blacksmith-16vcpu-ubuntu-2404"
   },
   "discord_channels": [
     "canary"

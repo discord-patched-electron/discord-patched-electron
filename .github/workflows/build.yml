@@ -21,19 +21,43 @@ concurrency:
   group: electron-compilation
   cancel-in-progress: false
 jobs:
-  compile:
-    if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main'
-    environment: local-compiler
-    runs-on: [self-hosted, linux, x64, discord-electron-compiler]
-    timeout-minutes: 1320
+  allowance:
+    if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      runner: ${{ steps.reserve.outputs.runner }}
+      timeout: ${{ steps.reserve.outputs.timeout }}
+      build_minutes: ${{ steps.reserve.outputs.build_minutes }}
+      runtime_key: ${{ steps.reserve.outputs.runtime_key }}
     env:
-      ELECTRON_BUILD_CACHE: /work/build-cache
-      ELECTRON_COMPILER_CACHE_SIZE: "32G"
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_RUNTIME_KEY: ${{ inputs.runtime_key }}
+      ELECTRON_BUILD_TARGET: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: python3 scripts/state_branch.py checkout out/state
+      - id: reserve
+        name: Reserve the maximum allowance before runner allocation
+        run: python3 scripts/blacksmith_budget.py
+  compile:
+    needs: allowance
+    if: github.run_attempt == 1
+    runs-on: ${{ needs.allowance.outputs.runner }}
+    timeout-minutes: ${{ fromJSON(needs.allowance.outputs.timeout) }}
+    env:
+      ELECTRON_COMPILER_CACHE_SIZE: "3G"
       ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || 'auto' }}
       SENTRYCLI_SKIP_DOWNLOAD: "1"
       PYTHONUNBUFFERED: "1"
-      EXPECTED_RUNTIME_KEY: ${{ inputs.runtime_key || '' }}
+      EXPECTED_RUNTIME_KEY: ${{ needs.allowance.outputs.runtime_key }}
       ELECTRON_BUILD_TARGET: ${{ inputs.target }}
+      BUILD_MINUTES: ${{ needs.allowance.outputs.build_minutes }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -41,7 +65,18 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
+      - name: Restore bounded compiler cache
+        id: compiler-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/electron-sccache
+          key: compiler-linux-x64-${{ hashFiles('config/compiler-cache.json', 'config/candidate-build.json', 'ci/gn/BUILD.gn.in') }}-${{ github.run_id }}
+          restore-keys: |
+            compiler-linux-x64-${{ hashFiles('config/compiler-cache.json', 'config/candidate-build.json', 'ci/gn/BUILD.gn.in') }}-
       - name: Build or reuse the locked runtime
+        env:
+          ELECTRON_BUILD_CACHE: ${{ runner.temp }}/electron-build
+          ELECTRON_COMPILER_CACHE: ${{ runner.temp }}/electron-sccache
         shell: bash
         run: |
           if [ -n "$EXPECTED_RUNTIME_KEY" ]; then
@@ -49,7 +84,7 @@ jobs:
           fi
           mkdir -p out/capacity
           set -o pipefail
-          /usr/bin/time -v timeout --signal=INT --kill-after=60s 21h \
+          /usr/bin/time -v timeout --signal=INT --kill-after=60s "${BUILD_MINUTES}m" \
             python3 scripts/build_reference.py --target "$ELECTRON_BUILD_TARGET" 2>&1 | tee out/capacity/build.log
       - name: Retain diagnostic logs
         if: always()
@@ -69,3 +104,9 @@ jobs:
           compression-level: 0
           retention-days: 90
           if-no-files-found: error
+      - name: Save cache after successful or failed compilation
+        if: always() && steps.compiler-cache.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/electron-sccache
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}

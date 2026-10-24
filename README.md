@@ -1,9 +1,13 @@
-# Discord patched Electron <img src="discord-patched-electron.png" align="right" width="200" alt="Discord and Tux sitting in a field with hearts between them">
+### Discord patched Electron <img src="discord-patched-electron.png" align="right" width="200" alt="Discord and Tux sitting in a field with hearts between them">
 
 Discord Canary with the latest Electron for better Linux support.
 
 > [!WARNING]
 > Experimental. Testing is limited, and bugs are expected.
+
+<br />
+
+---
 
 ## Features and patches
 

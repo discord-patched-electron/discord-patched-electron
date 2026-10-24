@@ -122,7 +122,6 @@ if __name__ == "__main__":
                     channel, jobs, result["status"] == "completed"
                 )
     runs = api("actions/workflows/build.yml/runs?per_page=20")["workflow_runs"]
-    runs += api("actions/workflows/capacity.yml/runs?per_page=20")["workflow_runs"]
     busy = (
         any(r["status"] != "completed" for r in runs)
         or not read_json(ROOT / "config/channels.json")["compiler"]["enabled"]

@@ -46,8 +46,8 @@ Resuming the existing reference workspace also preserves its original unwrapped
 compiler commands: inserting sccache mid-build would make Ninja recompile all
 existing objects. Fresh reference workspaces and all candidates use sccache.
 
-The PC workflows allow **32 GiB** of local compiler cache, in addition to their
-persistent source/object directories. Hosted jobs use **3 GiB** with pinned
+Historical PC builds allowed **32 GiB** of local compiler cache, in addition to their
+persistent source/object directories. Current Blacksmith jobs use **3 GiB** with pinned
 `actions/cache` restore/save actions. Hosted snapshots are saved after failed
 builds too, when the runner remains available; cancellation/timeouts can prevent
 saving. Unique snapshot keys and restore prefixes support incremental updates
@@ -55,8 +55,8 @@ to GitHub's immutable caches. CPU/cache policy changes select a new prefix;
 sccache checks the compiler inputs within a restored snapshot.
 
 Only the sccache store goes into GitHub's cache, not the Chromium checkout or
-whole object tree. GitHub's default free repository allowance is 10 GB and
-eviction can discard snapshots. No paid cache expansion, Blacksmith sticky disk
+whole object tree. Blacksmith's free dependency cache allows 25 GB per repository per week, with
+seven-day LRU eviction. These limits do not retain the whole build workspace. No paid cache expansion, Blacksmith sticky disk
 or other add-on is enabled. Cache loss costs time, never changes correctness.
 A 3 GiB hosted cache cannot retain every Chromium object; full-build hit rates
 and recurring free hosted capacity are still unproven.
@@ -65,7 +65,7 @@ Each builder takes an exclusive lock on its compiler store, uses a private
 sccache socket, records cache statistics and stops its server before snapshot
 upload. All compiler workflows share the `electron-compilation` concurrency
 group. Eligible upstream updates dispatch `build.yml`, which accepts prerelease
-Electron only. A successful build starts Canary release qualification and public
+Electron by default. A successful build starts Canary release qualification and public
 test-package publication. See [release packaging](releases.md).
 
 ## Current full-build cache limitation
@@ -111,7 +111,8 @@ The already-running reference build was not restarted or modified.
 
 The maintainer confirmed **168 Blacksmith allowance minutes used**, leaving
 2,832 of the reported 3,000 before further usage. The one-shot hosted experiment
-guard remains in place; these changes did not dispatch another hosted compiler.
+guard has been replaced by the [durable build budget](ci-setup.md#blacksmith-compilation).
+No fresh hosted compiler was dispatched for that switch.
 
 Sources: [GCC x86 CPU levels](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html),
 [Chromium toolchain extension points](https://chromium.googlesource.com/chromium/src/+/main/build/toolchain/gcc_toolchain.gni),

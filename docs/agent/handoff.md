@@ -4,6 +4,28 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Release policy and hosted compilation, 24 October
+
+New compilation uses the budgeted Blacksmith workflow. The old PC-only instruction
+and one-shot capacity workflows are superseded. No compiler was dispatched for
+this change. See [runner policy](ci-setup.md#blacksmith-compilation) for timeout,
+allowance reservations and the remaining cold-build/cache limitations.
+
+AUR publication now requires both stable GitHub status and an approval record for
+the exact manifest. Manual retries cannot bypass this. The existing AUR test build
+stays frozen at `20261024.162607-1` until explicit approval. Do not approve a release
+on the user's behalf. Older AUR notes below describe the previous policy.
+
+Release notes use an AUR/Repo column and put test results beside the full changelog.
+The latest test release remains public and unapproved. Two superseded app releases
+are removed, with their Git tags retained for changelog comparisons. Runtime cache
+releases stay in the separate cache repository.
+
+Validation passed 119 Python tests, 16 JavaScript tests, formatting, linting and
+actionlint. A live attempt to publish the latest test release was rejected before
+download or SSH, including the verified-directory path. The latest release's
+asset IDs and digests are unchanged. No AUR write or new compilation was performed.
+
 ## Documentation and channel switches, 24 October
 
 The README now uses the supplied PNG artwork, with its editable Krita source kept

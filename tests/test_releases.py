@@ -15,6 +15,7 @@ from releases import (
     FORMATS,
     PROJECT,
     install_notes,
+    notes,
     prepare,
     release_tag,
     validate_approval,
@@ -135,11 +136,33 @@ class ReleaseApproval(unittest.TestCase):
         for prefix in ("app-x86_64", "app-20261024.120000-x86_64"):
             manifest = {**self.manifest, "assets": {prefix + ext: "c" * 64 for ext in FORMATS}}
             body = install_notes(manifest)
-            self.assertIn("| Distribution | Package |", body)
+            self.assertIn("| Distribution | Package | AUR/Repo |", body)
+            self.assertIn(
+                "https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin",
+                body,
+            )
             for ext in FORMATS:
                 self.assertIn(f"/{self.release['tag_name']}/{prefix}{ext})", body)
             self.assertIn("/SHA256SUMS)", body)
             self.assertNotIn(";", body)
+
+    def test_notes_put_results_beside_changelog_and_use_neutral_approval_copy(self):
+        manifest = {
+            **self.manifest,
+            "assets": {"app" + ext: "c" * 64 for ext in FORMATS},
+            "minimum_glibc": "2.38",
+            "workflow_run": "123",
+        }
+        with patch("releases.subprocess.check_output", return_value=""):
+            body = notes(manifest, None)
+        self.assertIn("**This build hasn't been approved as stable yet.**", body)
+        self.assertIn(
+            f"[Full changelog](https://github.com/{PROJECT}/commits/"
+            + "a" * 40
+            + ") · [✅ Test results]",
+            body,
+        )
+        self.assertNotIn("All checks passed", body)
 
     def test_disabled_release_channel_stops_before_network_requests(self):
         with patch.dict(os.environ, {"CHANNEL": "ptb"}), patch("releases.api") as api:

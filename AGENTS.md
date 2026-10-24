@@ -6,8 +6,8 @@ Keep user docs short; put investigation notes in that directory.
 
 - Use `uv run` for Python. Run `bun run test` and `bun run lint` before finishing.
 - Preserve pinned upstream files and patches; don't format them.
-- Reuse verified runtimes for packaging. Compile Electron only on the local PC,
-  never on Blacksmith. Don't restart a healthy compiler or discard retained objects.
+- Reuse verified runtimes for packaging. New CI compilations use the budgeted
+  Blacksmith workflow. Don't restart a healthy compiler or discard retained local objects.
 - Test Discord with fresh profiles. No unattended account login, messages or calls.
 - Never save or upload webcam images/video, or screenshot the desktop during
   physical camera tests.

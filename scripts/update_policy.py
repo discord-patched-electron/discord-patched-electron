@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 from channels import enabled_discord_channels
-from common import digest, electron_channel, enabled_electron_channels, version_key
+from common import ROOT, digest, electron_channel, enabled_electron_channels, read_json, version_key
 from fingerprints import integration_key
 
 
@@ -117,5 +117,5 @@ def plan(state: dict, policy: dict, sources: dict, now: str) -> dict:
             for ch, r in state.get("bundled_runtimes", {}).items()
             if r.get("changed_since_previous_core")
         ],
-        "compiler_provider": "self-hosted",
+        "compiler_provider": read_json(ROOT / "config/channels.json")["compiler"]["provider"],
     }

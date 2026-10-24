@@ -16,6 +16,7 @@ from common import (
     ROOT,
     digest,
     electron_channel,
+    package_name,
     read_json,
     require_enabled_electron,
     run,
@@ -30,7 +31,7 @@ from fingerprints import integration_key
 
 PROJECT = "discord-patched-electron/discord-patched-electron"
 URL = "https://github.com/" + PROJECT
-PENDING = "**I haven't approved this build as stable yet.**"
+PENDING = "**This build hasn't been approved as stable yet.**"
 FORMATS = (".pkg.tar.zst", ".deb", ".rpm", ".tar.gz")
 
 
@@ -125,6 +126,8 @@ def install_notes(manifest: dict) -> str:
     tag = release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"])
     downloads = f"{URL}/releases/download/{tag}"
     rows = []
+    name = package_name(manifest["channel"], electron_channel(manifest["electron_version"]))
+    aur = f"[{name}](https://aur.archlinux.org/packages/{name}) (approved releases)"
     for distribution, extension in (
         ("Arch Linux", ".pkg.tar.zst"),
         ("Debian / Ubuntu", ".deb"),
@@ -132,9 +135,10 @@ def install_notes(manifest: dict) -> str:
         ("Other distributions", ".tar.gz"),
     ):
         name = next(name for name in manifest["assets"] if name.endswith(extension))
-        rows.append(f"| {distribution} | [{extension}]({downloads}/{name}) |")
+        repository = aur if extension == ".pkg.tar.zst" else "—"
+        rows.append(f"| {distribution} | [{extension}]({downloads}/{name}) | {repository} |")
     return (
-        "## Install\n\n| Distribution | Package |\n| --- | --- |\n"
+        "## Install\n\n| Distribution | Package | AUR/Repo |\n| --- | --- | --- |\n"
         + "\n".join(rows)
         + f"\n\n[Checksums]({downloads}/SHA256SUMS) · "
         + f"[Installation and updates]({URL}/blob/main/docs/install.md)\n\n"
@@ -155,7 +159,7 @@ def notes(manifest: dict, previous: str | None):
     comparison = (
         f"\n\n[Full changelog]({URL}/compare/{previous}...{commit})"
         if previous
-        else f"\n\n[Commit history]({URL}/commits/{commit})"
+        else f"\n\n[Full changelog]({URL}/commits/{commit})"
     )
     return (
         f"{PENDING}\n\n"
@@ -163,10 +167,10 @@ def notes(manifest: dict, previous: str | None):
         f"- Electron **{manifest['electron_version']}**\n"
         f"- Requires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
         + install_notes(manifest)
-        + f"[All checks passed.]({URL}/actions/runs/{manifest['workflow_run']})\n\n"
-        "## Changes\n\n"
+        + "## Changes\n\n"
         + ("\n".join(changes) or "Discord or Electron inputs updated. No project commits changed.")
         + comparison
+        + f" · [✅ Test results]({URL}/actions/runs/{manifest['workflow_run']})"
         + "\n"
     )
 
@@ -259,7 +263,7 @@ def publish(directory: Path):
     )
     body = directory.parent / "release-notes.md"
     body.write_text(notes(manifest, previous))
-    title = f"{manifest['channel'].title()} {manifest['client_version']} · Electron {manifest['electron_version']} · {manifest['version']}"
+    title = f"Discord {manifest['channel'].title()} {manifest['client_version']} / Electron {manifest['electron_version']} ({manifest['version']})"
     if not existing:
         run(
             "gh",
@@ -340,6 +344,17 @@ def validate_approval(release: dict, manifest: dict, workflow: dict, approved: d
         )
 
 
+def approval_path(manifest: dict) -> Path:
+    channel = manifest["channel"]
+    electron = electron_channel(manifest["electron_version"])
+    name = (
+        "approved-release.json"
+        if (channel, electron) == ("canary", "prerelease")
+        else f"approved-{channel}-{electron}-release.json"
+    )
+    return ROOT / "config" / name
+
+
 def approve(tag: str, *, check_only=False):
     if not re.fullmatch(r"(?:canary|ptb|stable)-[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{16}", tag):
         raise ValueError("Use a complete app release tag")
@@ -349,16 +364,7 @@ def approve(tag: str, *, check_only=False):
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
     channel = manifest["channel"]
-    electron = electron_channel(manifest["electron_version"])
-    approved_path = (
-        ROOT
-        / "config"
-        / (
-            "approved-release.json"
-            if (channel, electron) == ("canary", "prerelease")
-            else f"approved-{channel}-{electron}-release.json"
-        )
-    )
+    approved_path = approval_path(manifest)
     approved = read_json(approved_path) if approved_path.exists() else None
     validate_approval(release, manifest, api("actions/runs/" + manifest["workflow_run"]), approved)
     tagged = api("commits/" + tag)
@@ -445,7 +451,8 @@ def approve(tag: str, *, check_only=False):
             "body": release["body"]
             .replace("**Awaiting maintainer testing.**", PENDING, 1)
             .replace("**I haven't tested and approved this build yet.**", PENDING, 1)
-            .replace(PENDING, "**I've tested and approved this build as stable.**", 1),
+            .replace("**I haven't approved this build as stable yet.**", PENDING, 1)
+            .replace(PENDING, "**This build has been approved as stable.**", 1),
         },
     )
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:

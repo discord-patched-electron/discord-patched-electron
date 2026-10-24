@@ -11,11 +11,51 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT
-from publish_aur import recipe
+from publish_aur import main as publish_aur
+from publish_aur import recipe, require_approved
 from releases import release_tag
 
 
 class PackageUpdates(unittest.TestCase):
+    def test_aur_requires_public_stable_release_and_exact_approval_record(self):
+        release = {"draft": False, "prerelease": False, "tag_name": "tested-tag"}
+        manifest = {"version": "20261024.120000"}
+        approved = {
+            "schema": 1,
+            "tag": "tested-tag",
+            "version": manifest["version"],
+            "manifest_sha256": "a" * 64,
+            "approved_by": "he3als",
+        }
+        require_approved(release, manifest, approved, "a" * 64)
+        for change in ({"draft": True}, {"prerelease": True}, {"tag_name": "another-tag"}):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                require_approved({**release, **change}, manifest, approved, "a" * 64)
+        for record in (
+            None,
+            {},
+            {**approved, "manifest_sha256": "b" * 64},
+            {**approved, "version": "20261023.120000"},
+            {**approved, "approved_by": ""},
+        ):
+            with self.subTest(record=record), self.assertRaises(ValueError):
+                require_approved(release, manifest, record, "a" * 64)
+
+    def test_manual_aur_prerelease_is_rejected_before_download_or_ssh(self):
+        for extra in ([], ["--verified-directory", "/unused"]):
+            with (
+                patch.object(sys, "argv", ["publish_aur.py", "test-tag", "--publish", *extra]),
+                patch("publish_aur.api", return_value={"draft": False, "prerelease": True}),
+                patch("publish_aur.approve") as download,
+                patch("publish_aur.run") as command,
+                patch("publish_aur.stage") as stage,
+            ):
+                with self.assertRaisesRegex(ValueError, "approved stable"):
+                    publish_aur()
+                download.assert_not_called()
+                command.assert_not_called()
+                stage.assert_not_called()
+
     def test_refreshes_stale_backup_but_leaves_installed_mod_and_clean_app_alone(self):
         with tempfile.TemporaryDirectory() as temporary:
             app = Path(temporary)
