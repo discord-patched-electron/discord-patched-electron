@@ -71,5 +71,17 @@
   "aur_recipe_readback_matches_verified_release": true,
   "aur_workflow_run": 40112820384,
   "release_approved_as_stable": false,
-  "source_commit": "fa52fc0a7d1c018f0f715f5109a8a25405f01d52"
+  "source_commit": "fa52fc0a7d1c018f0f715f5109a8a25405f01d52",
+  "aur_workflow_result": "success",
+  "completion_audit": {
+    "checked_at": "2026-10-24T16:52:59.135640+00:00",
+    "documentation": "README subtitle, experimental warning, concise features and stable-approval wording inspected; profile explained in docs/install.md.",
+    "client_mod_updates": "Official installer upgrade/reinstall/launch/removal checks and installed Arch upgrade passed; both guides remove the uninstall prerequisite.",
+    "release_assets": "Current public release has all four fixed filenames; downloaded bytes, release.json and SHA256SUMS match GitHub upload digests. The generator uses the same fixed names for future releases.",
+    "release_notes": "Current notes contain All checks passed. without a Checks section.",
+    "compiler_cache": "Only the separate org cache repo contains the runtime cache release. Archive and capacity hashes match; future writes and reads target that repo.",
+    "aur": "Public account he3als, version 20261024.162607-1, remote commit and all three recipe files verified. Publishing workflow 40112820384 completed successfully.",
+    "validation": "104 Python tests, 16 JavaScript tests and lint passed again; repository checks and release qualification both succeeded.",
+    "stable_approval": "Still a public prerelease; no stable approval performed."
+  }
 }
