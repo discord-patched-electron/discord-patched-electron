@@ -227,6 +227,7 @@ jobs:
             out/wayland-audio/*/*/identity.json
             out/wayland-audio/*/*/fixture.json
             out/wayland-audio/*/*/lifecycle.json
+            out/wayland-audio/*/*/device-control.json
             out/wayland-audio/*/*/*.log
             out/wayland-audio/*/*/discord-webrtc_*
           retention-days: 7

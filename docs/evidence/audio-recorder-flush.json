@@ -127,5 +127,15 @@
     }
   ],
   "thresholds_and_negative_tests_unchanged": true,
-  "real_call_and_microphone_continuity_verified": false
+  "real_call_and_microphone_continuity_verified": false,
+  "device_control_followup": {
+    "failed_run": 40111541170,
+    "failure": "The bundled fixture reported internal devices leaked or positive control missing; its combined error omitted the counts and device inventory.",
+    "change": "Poll the unfiltered asynchronous device inventory for the positive control within eight seconds, check both name and guid, and retain the control count, leak count and inventory on failures. Filtering assertions remain mandatory.",
+    "same_bundled_inputs": true,
+    "local_report": "out/audio-device-control-bundled/audio-report.json",
+    "all_cases_passed": true,
+    "internal_device_control": true,
+    "hidden_device_leaks": 0
+  }
 }

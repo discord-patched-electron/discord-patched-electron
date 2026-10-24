@@ -51,7 +51,10 @@ function devices(get, label) {
 }
 const events = [];
 const privateDevice = (d) =>
-  /^dpe-audio-[a-f0-9]{32}-(mix|native)(\.monitor)?$/.test(d.guid || d.name || "");
+  [d.guid, d.name].some(
+    (value) =>
+      typeof value === "string" && /^dpe-audio-[a-f0-9]{32}-(mix|native)(\.monitor)?$/.test(value),
+  );
 let internalDeviceControl = false,
   hiddenDeviceLeaks = 0;
 voice.setDeviceChangeCallback((inputs, outputs) => {
@@ -113,7 +116,14 @@ async function capture(name, change, settle = 2000) {
   await change();
   await wait(settle);
   if (name === "app-a") {
-    const raw = await devices(rawOutputDevices, "raw output enumeration");
+    // Discord refreshes its native device list asynchronously after the helper
+    // creates the mix. Wait for the positive control, not a fixed startup delay.
+    const deadline = Date.now() + 8000;
+    let raw = await devices(rawOutputDevices, "raw output enumeration");
+    while (!raw.some(privateDevice) && Date.now() < deadline) {
+      await wait(100);
+      raw = await devices(rawOutputDevices, "raw output enumeration");
+    }
     const filtered = await devices(
       voice.getOutputDevices.bind(voice),
       "filtered output enumeration",
@@ -174,7 +184,9 @@ async function capture(name, change, settle = 2000) {
   if (!frames.some((v) => v.pipewireFrames > 0) || frames.some((v) => v.x11Frames > 0))
     throw new Error("Expected actual Wayland/PipeWire video frames");
   if (!internalDeviceControl || hiddenDeviceLeaks)
-    throw new Error("Internal audio devices leaked or positive control missing");
+    throw new Error(
+      `Internal audio device check failed: control=${internalDeviceControl}, leaks=${hiddenDeviceLeaks}`,
+    );
   ipcRenderer.send("audio-result", {
     passed: true,
     events,
@@ -191,6 +203,9 @@ async function capture(name, change, settle = 2000) {
   ipcRenderer.send("audio-result", {
     passed: false,
     error: error.stack,
+    internal_device_control: internalDeviceControl,
+    hidden_device_leaks: hiddenDeviceLeaks,
+    pcmFormats,
     events,
     offload_adm_controls: offloadAdmControls,
   }),
