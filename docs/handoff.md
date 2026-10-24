@@ -152,6 +152,12 @@ key is configured. The tested runtime archive has a public prerelease asset for 
 client package release or AUR update has been published.
 See [current update behavior](discovery.md).
 
+The [latest source checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40085203754)
+and [three-channel update qualification](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40084710165)
+passed. A [repeat discovery run](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40085341335)
+scheduled no client tests or compiler. See
+[update/Equicord evidence](evidence/update-policy-equicord-local.json).
+
 Local monitor state is in
 `/mnt/storage/discord-patched-electron-ci/overnight-monitor.json`.
 The original unattended build finished and the scheduled build monitor remains
