@@ -1,7 +1,9 @@
 # Implementation status
 
-Updated 24 October 2026. A self-built reference runtime now launches Canary; the requested prerelease
-runtime is still compiling. No public binary release is published.
+Updated 24 October 2026. The requested Electron 46.0.0-alpha.1 prerelease now
+compiles and launches Canary on native Wayland. Native video, capture lifetime,
+offline Krisp, hardware graphics and physical camera timing checks pass.
+No public binary release is published. See [launch instructions](handoff.md).
 
 Wayland is the primary target, as clarified by the maintainer. X11 fixture success
 does not satisfy the application-audio release requirement. The current desktop
@@ -46,12 +48,13 @@ reports niri; its portal path is the first live qualification target.
 - The local reference run `40036898682` completed successfully. Its custom
   runtime passes the native Wayland Canary login, graphics/VA-API, native video,
   offline Krisp and physical-camera metadata checks. All three clients pass
-  native/Krisp CI and the full Wayland/X11 application-audio CI suite. Prerelease run `40043753884` is compiling; the full newer
-  runtime remains unverified. See [compiled-reference evidence](evidence/reference-runtime-local.json).
+  native/Krisp CI and the full Wayland/X11 application-audio CI suite.
+  Prerelease run `40053107555` also completed successfully and passes the local
+  checks plus native/Krisp/lifetime CI on all three channels. See [compiled-reference evidence](evidence/reference-runtime-local.json).
 - All three bundled runtimes pass synthetic native frame delivery and teardown,
   module loading, and an offline Krisp off/on/off comparison (53.6 dB reduction
   in the noise-only interval, retained speech). See [runtime checks](runtime-validation.md).
-  This does not establish custom-runtime, live-call or microphone behavior.
+  Those baseline results alone do not establish custom-runtime, live-call or microphone behavior.
   The same three-channel checks pass on standard GitHub runners; see
   [CI evidence](evidence/native-ci.json). Successful compiler jobs now trigger
   automatic validation of their reference artifact without another compile.
@@ -64,8 +67,8 @@ reports niri; its portal path is the first live qualification target.
   niri cast/window matching, multiple audio processes, native PipeWire and
   PulseAudio playback, source switching, cancellation, and crash cleanup now
   have real native Wayland fixtures. Other compositors have an explicit audio
-  selector. See [Wayland audio](wayland-audio.md); custom-runtime and live-call/
-  microphone qualification remain open. The Wayland adapter is now enabled by
+  selector. The compiled prerelease now passes all ten X11/Wayland audio fixtures.
+  See [Wayland audio](wayland-audio.md); live-call/microphone qualification remains open. The Wayland adapter is now enabled by
   default; `DPE_APP_AUDIO=0` restores upstream behavior.
 - Candidate builds now select x86-64-v3 through a project-owned GN toolchain.
   Real compiler fixtures verify cache hits, header/CPU invalidation and reuse
@@ -74,7 +77,7 @@ reports niri; its portal path is the first live qualification target.
   checks](build-caching.md). Candidate CI is wired for prerelease Electron,
   followed by automatic native/Krisp checks against all three Discord clients.
 
-## Current local verification
+## Earlier local baselines
 
 - A physical Logitech UVC webcam with the installed Canary 1.0.2360 module and
   its bundled Electron 44.9.3 reached the first 1280×720 frame in 1.74 seconds
@@ -93,7 +96,9 @@ The complete Canary bootstrap now reaches its real login form with a fresh profi
 on native Wayland. The bundled runtime also passes AMD hardware WebGL and VA-API
 H.264 decoding checks without extra feature flags. The latest physical camera
 pair measured 8.33 seconds upstream versus 2.33 seconds with the helper. These are
-bundled-runtime baselines; the queued custom runtime still needs qualification.
+bundled-runtime baselines. The finished custom runtime subsequently passed the
+same local checks, with camera timing of 8.37 seconds upstream and 2.33 patched;
+see [prerelease evidence](evidence/prerelease-runtime-local.json).
 No webcam frames were displayed, saved or uploaded. See
 [Linux runtime checks](linux-runtime.md).
 
@@ -118,30 +123,21 @@ qualification false. No binary release is advertised on this evidence.
 
 ## Outstanding before a release
 
-1. Reference compiler, native/Krisp CI, application-audio CI and local checks
-   have passed. Retain this baseline while qualifying the newer runtime.
-   Blacksmith has unlocked the account and the maintainer confirms 168 of the
-   3,000 allowance minutes used. The first hosted experiment failed before compilation;
-   use the installed PC runner's persistent cache to qualify the launcher fix.
-2. Measure the full prerelease cold build. The reference successfully resumed
-   retained objects; its archive and capacity diagnostics are now available.
-3. Finish compiling the enabled Electron 46 prerelease port. Its source tree,
-   Chromium/dependency patches, gclient hooks and GN generation now pass on the
-   PC. Disabled Electron 45/stable and 47/nightly are outside the active scope.
-4. Prove native streaming and Krisp behavior on the custom runtime.
-5. Validate the generated packages with real custom runtimes, then finish the
-   compiler coordinator, release ledger and automatic AUR publisher. Discovery
-   and the durable backlog are implemented; no publishable runtime exists yet.
-6. Qualify the completed Wayland audio adapter with the real client's UI and a
-   custom runtime, including a call with microphone/Krisp active. These are release
-   checks; Wayland routing is enabled by default. Test actual GNOME/KDE desktops and sandboxed
-   applications separately; automated identity is currently niri-specific.
+1. Qualify actual Discord calls with microphone/Krisp active and the client's
+   screen-sharing UI. Test GNOME/KDE sessions and sandboxed applications;
+   automatic compositor identity is currently niri-specific.
+2. Validate the generated Arch packages with the real custom runtime, then
+   finish the automatic compiler coordinator, release ledger and AUR publisher.
+   Release discovery and the durable backlog already exist.
+3. Configure AUR credentials before publication. No public runtime release or
+   AUR update has been published. The current deliverable is a local Canary test
+   build, not a claim that all Linux issues are fixed.
 
-The standard GitHub Actions workflow runs checks. Current local compilation has
-all 20 logical CPUs available, 26 GiB RAM and 36 GiB RAM plus swap, with 16 Ninja
-tasks and one linker. No Blacksmith compiler is running or queued. No AUR key is
-configured and no public binary is advertised. See [current handoff](handoff.md)
-and [overnight baseline evidence](evidence/linux-overnight-baselines.json).
+The completed local build used all 20 logical CPUs, 26 GiB RAM capacity and
+36 GiB combined RAM/swap capacity, with 20 low-priority Ninja tasks and one
+linker. Retained objects and verified archives remain available. No Blacksmith
+compiler is running or queued; the last reported allowance use is 168 of 3,000
+minutes. See [the current handoff](handoff.md).
 
 ## Probe incident
 

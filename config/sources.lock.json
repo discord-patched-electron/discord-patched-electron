@@ -89,7 +89,7 @@
         "shell/renderer/electron_api_service_impl.cc",
         "shell/renderer/electron_api_service_impl.h"
       ],
-      "status": "source-only",
+      "status": "runtime-fixtures-passed",
       "upstream_equivalents": {
         "build/zip.py": "Preserve upstream WER packaging and static-ANGLE stub exclusions for the Linux build.",
         "lib/browser/api/web-contents.ts": "The deviceScaleFactor property moves into the native WebContents template, matching the new upstream accessor layout.",

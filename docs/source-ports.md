@@ -1,8 +1,10 @@
 # Candidate source ports
 
-These are **source-only candidates**, not verified working Electron releases.
-They preserve Discord's public native bridge. Dependency patch application,
-compilation, private module ABI behavior and stream/audio tests remain gates.
+The pinned **Electron 46.0.0-alpha.1** port now compiles and opens Discord Canary
+on native Wayland. Native video, capture lifetime and offline Krisp tests pass
+against that runtime. See [the measured results](evidence/prerelease-runtime-local.json).
+The historical 45/47 ports remain source-only and disabled. None of these ports
+is a published release; real-call and wider desktop qualification remain gates.
 
 ## Structure
 
@@ -61,9 +63,9 @@ Source reports explicitly retain `dependencies_patched: false`, `compiled: false
 and `runtime_validated: false`.
 
 Discord's Chromium, FFmpeg and other dependency patches remain imported and
-ordered. Their applicability to newer Chromium versions is not established by
-Electron source assembly. Runtime publication must wait for those patches to
-apply, C++ compilation to succeed and the functional validation matrix to pass.
+ordered. Source assembly alone does not establish their applicability. The 46
+port additionally passed all dependency hooks and full C++ compilation; future
+upstream versions must repeat those checks and runtime validation.
 
 ## Electron 46 dependency refresh
 
@@ -102,8 +104,9 @@ allocation failure also follows this cleanup path. The dedicated wrapper pointer
 tag is appended without changing existing tags.
 
 Both affected C++ translation units compile with the pinned prerelease toolchain,
-and fresh assembly reproduces the locked tree. Full runtime lifecycle validation
-remains required before publication.
+and fresh assembly reproduces the locked tree. The completed runtime passes all
+four lifecycle cases under native Wayland locally and Xvfb in CI, including
+forced garbage collection and target/consumer destruction.
 
 The following `osr-child-views.patch` removes one loop over the deleted upstream
 `guest_host_views_` collection. Device-scale changes still propagate to the

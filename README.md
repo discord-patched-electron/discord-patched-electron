@@ -25,30 +25,37 @@ pinned current `discord_arch_electron` AUR recipe, not a replacement client.
 
 ## Current status
 
+- A local **Discord Canary 1.0.2357 / Electron 46.0.0-alpha.1** test build now
+  opens on native Wayland. Launch instructions and measured results are in the
+  [handoff](docs/handoff.md). The runtime was compiled on the PC for x86-64-v3;
+  no Blacksmith compiler was used for this build.
 - Imported the existing package, launcher and Krisp patcher with exact provenance.
 - Locked current Stable, PTB and Canary core/module distributions independently.
 - Implemented atomic source locks, strict channel validation, content fingerprints,
   the existing resource/bootstrap fixes and validated Krisp patch application.
 - Hourly [release discovery](docs/discovery.md) retains a durable queue on
   `ci-state`, including every new prerelease and separate Discord updates.
-  Identical polls create no commit; automatic compile/publication dispatch is
-  still gated on the unfinished runtime and audio qualification.
+  Identical polls create no commit. The automatic compile/release/AUR coordinator
+  remains unfinished; no AUR publishing key is configured.
 - Imported Discord's complete 44-branch delta and verified that applying it to its
   original upstream base reconstructs Discord's exact source tree.
-- The prerelease source candidate assembles with a pinned compatibility patch.
-  Historical stable/nightly ports are retained but disabled. Its Chromium/dependency port and compilation
-  are **not yet validated**. See [source ports](docs/source-ports.md).
-- A full custom runtime has **not been compiled**. Successful Krisp binary patching
-  is **not** a claim that noise suppression has been tested on the new runtime.
-- Native video delivery/teardown and offline Krisp suppression pass on all three
-  bundled-runtime baselines. The reusable [runtime checks](docs/runtime-validation.md)
-  still need to pass on the custom builds, alongside real call/audio checks.
+- The prerelease source and dependency ports compile successfully with pinned,
+  additive patches. Historical stable/nightly ports are retained but disabled.
+  See [source ports](docs/source-ports.md).
+- The compiled prerelease passes native video delivery/teardown, capture lifetime
+  through garbage collection, and offline Krisp suppression. Native CI passes
+  for Stable, PTB and Canary. Local checks also verify automatic Wayland selection,
+  hardware WebGL/VA-API decoding and physical webcam startup (8.37 to 2.33 seconds
+  with the helper). See [runtime evidence](docs/evidence/prerelease-runtime-local.json).
+  All ten custom-runtime X11/Wayland audio fixtures also pass, including both
+  PulseAudio setups and manual app selection. Real Discord calls and GNOME/KDE
+  desktop qualification remain untested.
 - A shared generator produces all three binary package recipes. Arch packaging
   checks use real client/modules and a dummy runtime; see [packaging](docs/packaging.md).
-- The reference build can use the containerized PC runner or a single bounded
-  Blacksmith experiment within the newly unlocked account's free allowance.
-  Recurring compilation and AUR publication remain disabled pending source
-  compatibility and runtime validation. No binary releases exist yet.
+- Compilation uses the containerized PC runner. A bounded Blacksmith experiment
+  remains available in code but is not used for the unattended build. Public
+  release and AUR publication remain disabled. Compiler artifacts and the local
+  test app are available; there is no published binary release yet.
 
 ## Local checks
 

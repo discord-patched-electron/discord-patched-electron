@@ -133,3 +133,13 @@ crash cleanup passed with `DPE_APP_AUDIO` absent. An additional automatic niri
 case passed with real PulseAudio plus PipeWire. See
 [local evidence](evidence/camera-wayland-local.json). These are native module tests
 with a controlled portal, not an account-connected Discord call.
+
+## Compiled prerelease result
+
+Electron 46.0.0-alpha.1 from compiler run `40053107555` passes all seven native
+Wayland fixtures and the three X11 channel fixtures in audio run `40055239278`.
+Reports verify the custom executable hash, selective audio, multiple processes,
+source changes, cancellation and cleanup. Both PipeWire-Pulse and real PulseAudio
+plus PipeWire pass, including manual app selection. See
+[the retained results](evidence/prerelease-runtime-local.json). These synthetic
+fixtures do not establish a real Discord call or GNOME/KDE desktop behavior.

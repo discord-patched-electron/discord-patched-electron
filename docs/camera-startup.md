@@ -65,6 +65,12 @@ frame and discards it. Only measurement metadata belongs in retained evidence;
 physical-camera test directories are never CI upload inputs. Do not take desktop
 screenshots while a physical-camera test is running.
 
+The compiled Electron 46.0.0-alpha.1 runtime with packaged Canary 1.0.2357 also
+passed the physical test: **8.37 seconds upstream versus 2.33 seconds patched**.
+The capability probe fell from 5.42 to 0.66 seconds. The report verifies the
+compiler artifact's version and keeps metadata only; see
+[compiled-prerelease evidence](evidence/prerelease-runtime-local.json).
+
 ## Build and packaging
 
 The standard GitHub checks compile this small x86-64-v3 library and retain it with

@@ -1,0 +1,784 @@
+{
+  "schema": 1,
+  "date": "2026-10-24",
+  "compiler_run": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40053107555",
+  "compiler_commit": "b26c58ec6174c1cd750adc97c04a6e7c29a30033",
+  "runtime_kind": "compiled prerelease",
+  "artifact": {
+    "compiled_version": "46.0.0-alpha.1",
+    "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+    "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+    "archive_bytes": 121484714,
+    "parallel_jobs": 20
+  },
+  "runtime_executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+  "source_tree": "b19b8ded4047b8b3f30e1a2bd039dd6059c80995",
+  "graphics": {
+    "passed": true,
+    "native_wayland_connection": true,
+    "gpuFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "disabled_software",
+      "vulkan": "disabled_off",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webgpu_on_vk_via_gl_interop": "disabled_off",
+      "webnn": "disabled_off"
+    },
+    "rendering": {
+      "pixel": [
+        25,
+        128,
+        229,
+        255
+      ],
+      "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "videoFrames": 5,
+      "videoHeight": 720,
+      "videoWidth": 1280,
+      "webglPassed": true
+    }
+  },
+  "video_decoders": [
+    {
+      "kIsPlatformVideoDecoder": "true",
+      "kResolution": "1280x720",
+      "kVideoDecoderName": "VaapiVideoDecoder"
+    }
+  ],
+  "frame_capture": {
+    "cases": [
+      {
+        "details": {
+          "captureId": "dpe-lifetime-explicit-stop",
+          "targetKind": "main-frame"
+        },
+        "mode": "explicit-stop",
+        "passed": true,
+        "reason": "stopped",
+        "stopCount": 1
+      },
+      {
+        "mode": "immediate-stop",
+        "passed": true,
+        "reason": "stopped",
+        "stopCount": 1
+      },
+      {
+        "details": {
+          "captureId": "dpe-lifetime-target-destroyed",
+          "targetKind": "main-frame"
+        },
+        "mode": "target-destroyed",
+        "passed": true,
+        "reason": "frame-destroyed",
+        "stopCount": 1
+      },
+      {
+        "details": {
+          "captureId": "dpe-lifetime-consumer-destroyed",
+          "targetKind": "main-frame"
+        },
+        "mode": "consumer-destroyed",
+        "passed": true,
+        "reason": "consumer-gone",
+        "stopCount": 1
+      }
+    ],
+    "compiler_run": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40053107555",
+    "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "fixture": "frame-capture-lifetime",
+    "frame_pixels_saved": false,
+    "native_sink_delivery_verified": false,
+    "passed": true,
+    "process_exit": 0,
+    "schema": 1,
+    "synthetic_content_only": true,
+    "versions": {
+      "acorn": "8.18.0",
+      "ada": "4.0.0",
+      "amaro": "1.1.11",
+      "ares": "1.34.9",
+      "brotli": "1.2.0",
+      "chrome": "158.0.8114.0",
+      "cldr": "48.0",
+      "electron": "46.0.0-alpha.1",
+      "icu": "78.2",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "154",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.70.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "node": "24.22.1",
+      "openssl": "0.0.0",
+      "simdjson": "4.6.11",
+      "simdutf": "7.7.0",
+      "sqlite": "3.53.4",
+      "tz": "2026e",
+      "undici": "7.30.1",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "15.8.24-electron.f82fa2307ebc179d",
+      "zlib": "1.3.2.1-motley",
+      "zstd": "1.6.0"
+    }
+  },
+  "native": {
+    "all_selected_passed": true,
+    "combinations": [
+      {
+        "channel": "canary",
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "native_fixture_passed": true,
+        "noise_reduction_db": 53.59615994882603,
+        "offline_krisp_verified": true,
+        "original_inputs": {
+          "executable": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+          "krisp": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+          "voice": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+        },
+        "passed": true,
+        "publishable": false,
+        "runtime_versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "amaro": "1.1.11",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "158.0.8114.0",
+          "cldr": "48.0",
+          "electron": "46.0.0-alpha.1",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "154",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026e",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.8.24-electron.f82fa2307ebc179d",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        }
+      }
+    ],
+    "per_app_audio_verified": false,
+    "publishable": false,
+    "real_discord_call_verified": false,
+    "runtime_kind": "custom",
+    "schema": 1,
+    "selected_channels": [
+      "canary"
+    ]
+  },
+  "camera_metadata": {
+    "camera": "UVC Camera (046d:0825)",
+    "physical_camera_verified": true,
+    "custom_runtime_verified": true,
+    "images_saved": false,
+    "microphone_used": false,
+    "runs": [
+      {
+        "passed": true,
+        "patched": false,
+        "first_frame_ms": 8373.90000000596,
+        "capability_probe_ms": 5415.0,
+        "width": 1280,
+        "height": 720
+      },
+      {
+        "passed": true,
+        "patched": true,
+        "first_frame_ms": 2330.0999999940395,
+        "capability_probe_ms": 658.0,
+        "width": 1280,
+        "height": 720
+      }
+    ]
+  },
+  "canary_launch": {
+    "app": "/mnt/storage/discord-patched-electron-ci/local-tests/prerelease-canary-40053107555",
+    "exited_before_check": null,
+    "native_wayland_connection": true,
+    "page": {
+      "loginForm": true,
+      "passwordField": true,
+      "ready": "complete",
+      "title": ""
+    },
+    "passed": true,
+    "profile": "/mnt/storage/discord-patched-electron-ci/local-tests/prerelease-launch-40053107555/profile",
+    "real_discord_call_verified": false,
+    "screenshots_saved": false,
+    "targets": [
+      {
+        "title": "canary.discord.com/app?_=1792809754172",
+        "type": "page",
+        "url": "https://canary.discord.com/login"
+      },
+      {
+        "title": "",
+        "type": "worker",
+        "url": ""
+      }
+    ]
+  },
+  "native_all_channels_ci": {
+    "run": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40055239309",
+    "status": "success",
+    "combinations": [
+      {
+        "channel": "stable",
+        "client_version": "1.0.166",
+        "passed": true,
+        "electron": "46.0.0-alpha.1",
+        "offline_krisp_verified": true
+      },
+      {
+        "channel": "ptb",
+        "client_version": "1.0.224",
+        "passed": true,
+        "electron": "46.0.0-alpha.1",
+        "offline_krisp_verified": true
+      },
+      {
+        "channel": "canary",
+        "client_version": "1.0.2357",
+        "passed": true,
+        "electron": "46.0.0-alpha.1",
+        "offline_krisp_verified": true
+      }
+    ]
+  },
+  "app_audio_ci": {
+    "run": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40055239278",
+    "status": "success",
+    "fixtures": [
+      {
+        "fixture": "app-audio/canary",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": false,
+        "phases": {
+          "app-a": {
+            "passed": true,
+            "samples": 15840
+          },
+          "app-b": {
+            "passed": true,
+            "samples": 15840
+          },
+          "app-exited": {
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "passed": true,
+            "samples": 15840
+          },
+          "system": {
+            "passed": true,
+            "samples": 15840
+          },
+          "unknown": {
+            "passed": true,
+            "samples": 0
+          }
+        }
+      },
+      {
+        "fixture": "app-audio/ptb",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": false,
+        "phases": {
+          "app-a": {
+            "passed": true,
+            "samples": 15840
+          },
+          "app-b": {
+            "passed": true,
+            "samples": 15840
+          },
+          "app-exited": {
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "passed": true,
+            "samples": 15840
+          },
+          "system": {
+            "passed": true,
+            "samples": 15840
+          },
+          "unknown": {
+            "passed": true,
+            "samples": 0
+          }
+        }
+      },
+      {
+        "fixture": "app-audio/stable",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": false,
+        "phases": {
+          "app-a": {
+            "passed": true,
+            "samples": 15840
+          },
+          "app-b": {
+            "passed": true,
+            "samples": 15840
+          },
+          "app-exited": {
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "passed": true,
+            "samples": 15840
+          },
+          "system": {
+            "passed": true,
+            "samples": 15840
+          },
+          "unknown": {
+            "passed": true,
+            "samples": 0
+          }
+        }
+      },
+      {
+        "fixture": "wayland-audio/canary/pipewire",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": true,
+        "phases": {
+          "app-a": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "app-b": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "app-exited": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "audio-cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "system": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          }
+        }
+      },
+      {
+        "fixture": "wayland-audio/canary/pulseaudio",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": true,
+        "phases": {
+          "app-a": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 36480
+          },
+          "app-b": {
+            "clean_frame_fraction": 0.975,
+            "passed": true,
+            "samples": 38400
+          },
+          "app-exited": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "audio-cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 36000
+          },
+          "system": {
+            "clean_frame_fraction": 0.974025974025974,
+            "passed": true,
+            "samples": 36960
+          }
+        }
+      },
+      {
+        "fixture": "wayland-audio/ptb/pipewire",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": true,
+        "phases": {
+          "app-a": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "app-b": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 59040
+          },
+          "app-exited": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "audio-cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "system": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          }
+        }
+      },
+      {
+        "fixture": "wayland-audio/ptb/pulseaudio",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": true,
+        "phases": {
+          "app-a": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 37920
+          },
+          "app-b": {
+            "clean_frame_fraction": 0.9743589743589743,
+            "passed": true,
+            "samples": 37440
+          },
+          "app-exited": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "audio-cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 36960
+          },
+          "system": {
+            "clean_frame_fraction": 0.9620253164556962,
+            "passed": true,
+            "samples": 37920
+          }
+        }
+      },
+      {
+        "fixture": "wayland-audio/stable/manual",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": true,
+        "phases": {
+          "app-a": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "app-b": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "app-exited": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "audio-cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "system": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          }
+        }
+      },
+      {
+        "fixture": "wayland-audio/stable/pipewire",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": true,
+        "phases": {
+          "app-a": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "app-b": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "app-exited": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "audio-cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          },
+          "system": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 57600
+          }
+        }
+      },
+      {
+        "fixture": "wayland-audio/stable/pulseaudio",
+        "passed": true,
+        "custom_runtime_verified": true,
+        "wayland_source_identity_verified": true,
+        "phases": {
+          "app-a": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 37440
+          },
+          "app-b": {
+            "clean_frame_fraction": 0.974025974025974,
+            "passed": true,
+            "samples": 36960
+          },
+          "app-exited": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "audio-cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cancelled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "cleared": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "disabled": {
+            "clean_frame_fraction": 0.0,
+            "passed": true,
+            "samples": 0
+          },
+          "re-enabled": {
+            "clean_frame_fraction": 1.0,
+            "passed": true,
+            "samples": 37440
+          },
+          "system": {
+            "clean_frame_fraction": 0.9620253164556962,
+            "passed": true,
+            "samples": 37920
+          }
+        }
+      }
+    ]
+  },
+  "webcam_images_saved_or_uploaded": false,
+  "real_discord_call_verified": false,
+  "publishable": false,
+  "completed_artifact_reuse": {
+    "passed": true,
+    "compiler_started": false,
+    "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a"
+  }
+}

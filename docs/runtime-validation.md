@@ -101,8 +101,9 @@ its checksum against the completed compiler report, and tests the resulting
 runtime with all three module sets. A manual `reference_run` input can retest a
 retained artifact without compiling it again. Only successful main-branch runs of
 the two compiler workflows qualify. Reports record the compiler and validation
-commits separately. This automatic custom-runtime path is wired but awaits the
-first completed reference build; it does not publish a release or update AUR.
+commits separately. This path has passed for both the compiled reference and
+Electron 46.0.0-alpha.1 prerelease on all three Discord channels; it does not
+publish a release or update AUR. See [prerelease evidence](evidence/prerelease-runtime-local.json).
 
 The separate [Wayland audio fixture](wayland-audio.md) now covers actual native
 portal video and selective application audio, including multiple processes and
