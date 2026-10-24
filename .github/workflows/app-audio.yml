@@ -100,8 +100,8 @@ jobs:
               cp out/app-audio/"$channel"/*.tar.br "out/wayland-audio/$channel/$server/"
             done
           done
-          mkdir -p out/wayland-audio/${channels[0]}/manual
-          cp out/app-audio/"${channels[0]}"/*.tar.br out/wayland-audio/${channels[0]}/manual/
+          mkdir -p "out/wayland-audio/${channels[0]}/manual"
+          cp out/app-audio/"${channels[0]}"/*.tar.br "out/wayland-audio/${channels[0]}/manual/"
       - name: Build disposable audio environment
         run: |
           docker build -t discord-electron-arch-packaging ci/arch

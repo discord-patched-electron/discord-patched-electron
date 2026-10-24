@@ -42,7 +42,11 @@ def check(directory: Path):
                 (name for name in package.getnames() if name.lstrip("./") == f"opt/{root}/{path}"),
                 None,
             )
-            if member is not None and package.getmember(member).mode & 0o444 != 0o444:
+            if (
+                member is not None
+                and package.getmember(member).isfile()
+                and package.getmember(member).mode & 0o444 != 0o444
+            ):
                 raise ValueError(f"Debian payload is not readable: {path}")
             if (
                 member is None

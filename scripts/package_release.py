@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import tarfile
+from datetime import UTC, datetime
 from pathlib import Path
 
 from common import ROOT, read_json, sha256, write_json
@@ -58,9 +59,7 @@ def metadata(app: Path, version: str, channel: str, epoch: int) -> dict:
         "license": "LicenseRef-Discord AND MIT AND BSD-3-Clause",
         "description": f"Discord {channel.title()} with patched prerelease Electron\n"
         "Requires an x86-64-v3 (AVX2) CPU. Includes native streaming, Krisp and Linux audio fixes.",
-        "mtime": __import__("datetime")
-        .datetime.fromtimestamp(epoch, __import__("datetime").UTC)
-        .isoformat(),
+        "mtime": datetime.fromtimestamp(epoch, UTC).isoformat(),
         "contents": [
             {"src": str(app), "dst": root, "type": "tree"},
             {"src": f"{root}/launch.sh", "dst": f"/usr/bin/{name}", "type": "symlink"},
