@@ -1,0 +1,147 @@
+{
+  "account_login_or_call": false,
+  "active_channels": {
+    "discord": [
+      "canary"
+    ],
+    "electron": [
+      "prerelease"
+    ]
+  },
+  "approval_checks_passed_without_promotion": true,
+  "checked_at": "2026-10-24T13:12:55.214566+00:00",
+  "client_reservation_reconciled_to_success": true,
+  "electron_recompiled": false,
+  "limitations": [
+    "Live Discord calls and physical-camera continuity require maintainer testing.",
+    "Arch and Fedora container checks verify installation and runtime loading, not full desktop sessions.",
+    "AUR publication remains disabled pending its credentials."
+  ],
+  "lint_and_formatting_passed": true,
+  "local_pacman_package": "/home/he3als/scratch-ai-repo/discord-patched-electron/out/approve-release/discord-canary-prerelease-patched-electron-bin-20261024.125646-1-x86_64.pkg.tar.zst",
+  "maintainer_approval_performed": false,
+  "physical_camera_used": false,
+  "release": {
+    "anonymous_api_access_verified": true,
+    "manifest": {
+      "assets": {
+        "discord-canary-prerelease-patched-electron-bin-20261024.125646-1-x86_64.deb": "15d53ed7405be257044c9135ad63352637c5bc9cb9a7bd10a95758df5282d88d",
+        "discord-canary-prerelease-patched-electron-bin-20261024.125646-1-x86_64.pkg.tar.zst": "7a8debfd32c13abdf2efa0e1d03bfd3e92372a9d4ac8c70cde80796090a02f29",
+        "discord-canary-prerelease-patched-electron-bin-20261024.125646-1-x86_64.rpm": "4ab992dfc471881bc3d04b90d8bc80f80dc943820bf2031795849c1e32c76e3c",
+        "discord-canary-prerelease-patched-electron-bin-20261024.125646-linux-x86_64.tar.gz": "b975acfab0ad68e6105965837b2d15bfcab14b121c78a66d507cc4a957016b09"
+      },
+      "channel": "canary",
+      "client_version": "1.0.2365",
+      "clients_state": "63c5935209b1efd4e45cb5fad38d055b615be58a",
+      "electron_version": "46.0.0-alpha.1",
+      "minimum_cpu": "x86-64-v3",
+      "minimum_glibc": "2.38",
+      "release_key": "2e32a06a2c47d0f9a7ea734709c3c86a10ac4f853089072f8c420a6413cbca02",
+      "runtime": {
+        "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+        "cache_release": "runtime-cache-b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+        "capacity_sha256": "626688df109415c4047b480fb7f89da8f329daf3aaf74b52e22372508dedea5b",
+        "compiler_commit": "b26c58ec6174c1cd750adc97c04a6e7c29a30033",
+        "run": "40053107555",
+        "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+        "version": "46.0.0-alpha.1"
+      },
+      "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+      "schema": 1,
+      "source_commit": "ef8cdac9713e215accc69615add129a9e2e8b62d",
+      "source_dirty": false,
+      "version": "20261024.125646",
+      "workflow_run": "40096032757"
+    },
+    "prerelease": true,
+    "public": true,
+    "tag": "canary-1.0.2365-2e32a06a2c47d0f9",
+    "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/tag/canary-1.0.2365-2e32a06a2c47d0f9"
+  },
+  "release_checks": {
+    "arch_pacman_install_and_unprivileged_runtime": true,
+    "fedora_rpm_install_and_unprivileged_runtime": true,
+    "identical_payload_files_in_all_four_formats": 1509,
+    "native_video_and_krisp": true,
+    "official_equicord_launch_and_relaunch": true,
+    "plain_launch_and_relaunch": true,
+    "ubuntu_installed_launch_and_relaunch": true,
+    "x11_and_wayland_audio": true
+  },
+  "schema": 1,
+  "state_commit": "0f4a62214f43307fea7c5238a3be1651859648b9",
+  "unit_tests": {
+    "javascript": 16,
+    "python": 101
+  },
+  "workflows": {
+    "checks": {
+      "conclusion": "success",
+      "id": 40096706564,
+      "jobs": {
+        "application-audio / validate": "success",
+        "arch-packaging / validate": "success",
+        "native-baselines / validate": "success",
+        "source-assembly": "success",
+        "tests": "success"
+      },
+      "source_commit": "43de8717236ae5687858f5b453a0c59702cbe75c",
+      "url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40096706564"
+    },
+    "discovery_no_work": {
+      "conclusion": "success",
+      "id": 40096896690,
+      "jobs": {
+        "clients": "skipped",
+        "discover": "success",
+        "electron": "skipped"
+      },
+      "source_commit": "43de8717236ae5687858f5b453a0c59702cbe75c",
+      "url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40096896690"
+    },
+    "discovery_reuses_release": {
+      "conclusion": "success",
+      "id": 40096648258,
+      "jobs": {
+        "clients (canary) / audio": "skipped",
+        "clients (canary) / bundled": "skipped",
+        "clients (canary) / inputs": "success",
+        "clients (canary) / native": "skipped",
+        "clients (canary) / package": "skipped",
+        "clients (canary) / publish": "skipped",
+        "discover": "success",
+        "electron": "skipped"
+      },
+      "source_commit": "ef8cdac9713e215accc69615add129a9e2e8b62d",
+      "url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40096648258"
+    },
+    "release": {
+      "conclusion": "success",
+      "id": 40096032757,
+      "jobs": {
+        "audio / validate": "success",
+        "bundled / validate": "success",
+        "inputs": "success",
+        "native / validate": "success",
+        "package": "success",
+        "publish": "success"
+      },
+      "source_commit": "ef8cdac9713e215accc69615add129a9e2e8b62d",
+      "url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40096032757"
+    },
+    "repeat_release": {
+      "conclusion": "success",
+      "id": 40096581802,
+      "jobs": {
+        "audio": "skipped",
+        "bundled": "skipped",
+        "inputs": "success",
+        "native": "skipped",
+        "package": "skipped",
+        "publish": "skipped"
+      },
+      "source_commit": "ef8cdac9713e215accc69615add129a9e2e8b62d",
+      "url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40096581802"
+    }
+  }
+}

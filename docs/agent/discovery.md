@@ -127,7 +127,7 @@ logs and reports are retained.
 
 Local validation of the exact discovered PTB 1.0.224 and Canary 1.0.2357 snapshot
 passed all six then-enabled packaging combinations. The current scope has one
-prerelease-Electron package per client. Both clients also passed native frame
+Canary/prerelease-Electron package. Both clients also passed native frame
 handoff/teardown and offline Krisp processing using their bundled Electron
 44.9.3, with 53.6 dB synthetic noise reduction. These are baseline results, not
 custom-runtime, live-call or per-application audio qualification. The existing

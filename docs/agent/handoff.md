@@ -4,6 +4,38 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Public Canary packages and approval, 24 October
+
+Only **Canary + prerelease Electron** is active. Stable/PTB remain in historical
+locks but are rejected by build/validation entry points. User docs explain that
+prerelease Electron brings Chromium's ongoing Wayland/Linux improvements sooner,
+and Canary keeps compatibility testing focused on Discord's earliest updates.
+
+Implementation `ef8cdac` published the first complete public test release:
+[Canary 1.0.2365 / Electron 46.0.0-alpha.1](https://github.com/discord-patched-electron/discord-patched-electron/releases/tag/canary-1.0.2365-2e32a06a2c47d0f9).
+It contains `.pkg.tar.zst`, `.deb`, `.rpm`, `.tar.gz`, a manifest and checksums.
+All four formats contain the same 1,509 app files. Arch/Fedora installation and
+unprivileged runtime loading passed; Ubuntu installed launch/relaunch passed.
+Native video/Krisp, X11/Wayland audio, and plain/official Equicord launches passed.
+No Electron compilation, account login, call or camera capture occurred.
+
+The package is also downloaded and hash-verified locally:
+`out/approve-release/discord-canary-prerelease-patched-electron-bin-20261024.125646-1-x86_64.pkg.tar.zst`.
+The release remains **public and awaiting maintainer testing**. The read-only
+`scripts/releases.py verify <tag>` command passed the same provenance and asset
+checks used by approval. **Do not approve on the user's behalf.** They should test
+the installed package, then run **Approve tested release** with its exact tag and
+the testing checkbox. Approval promotes those files and pins their runtime;
+it never rebuilds or replaces packages. GitHub **Watch → Custom → Releases**
+supplies notifications. No new API keys are required.
+
+Discovery now calls reusable release qualification, and successful candidate
+compiler runs also start it. An identical public candidate skips packaging.
+`43de871` fixes reconciliation of GitHub's shortened skipped reusable-job names.
+AUR publishing remains disabled pending its credentials; approval currently
+promotes GitHub releases only. See [release packaging](releases.md) and the
+[validation evidence](../evidence/canary-public-releases.json).
+
 ## User guides and shared mod instructions, 24 October
 
 The README now leads with features and patches. User guides omit runner details,
