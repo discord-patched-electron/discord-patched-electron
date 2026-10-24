@@ -254,6 +254,15 @@
       "run": "40084710165",
       "status": "success"
     },
+    "1d06db84e541c15592c9380d50f7e0f228b300c8dcbf84f197ad4251c14cd40b": {
+      "channel": "canary",
+      "client_digest": "fe2d549e88be374db23288ec1d9b69ce3fa28f0935e41bac1e8a57d1e75932e5",
+      "key": "1d06db84e541c15592c9380d50f7e0f228b300c8dcbf84f197ad4251c14cd40b",
+      "reference_run": "40053107555",
+      "requested_at": "2026-10-24T22:01:03.293400+00:00",
+      "run": "40136604122",
+      "status": "queued"
+    },
     "4ad292f93c782306ff0a64fd894283d59fd678d9842e2365b5b8ec4f5dfa90dd": {
       "channel": "canary",
       "client_digest": "fe2d549e88be374db23288ec1d9b69ce3fa28f0935e41bac1e8a57d1e75932e5",
@@ -261,7 +270,7 @@
       "reference_run": "40053107555",
       "requested_at": "2026-10-24T19:46:11.695476+00:00",
       "run": "40126661821",
-      "status": "queued"
+      "status": "success"
     },
     "61d3c16ae98f984542fb86eac5a20ea939286005cf840091ac14eaf9e7dfb0cf": {
       "channel": "canary",
