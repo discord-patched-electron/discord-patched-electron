@@ -1,4 +1,4 @@
-"""Publish tested Canary packages and promote the exact assets a maintainer tested."""
+"""Publish Canary test packages and promote the same assets after manual approval."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from fingerprints import integration_key
 
 PROJECT = "discord-patched-electron/discord-patched-electron"
 URL = "https://github.com/" + PROJECT
-PENDING = "**Awaiting maintainer testing.**"
+PENDING = "**I haven't tested and approved this build yet.**"
 FORMATS = (".pkg.tar.zst", ".deb", ".rpm", ".tar.gz")
 
 
@@ -116,7 +116,7 @@ def notes(manifest: dict, previous: str | None):
         else f"\n\n[Commit history]({URL}/commits/{commit})"
     )
     return (
-        f"{PENDING} Public test build; approval promotes these same files.\n\n"
+        f"{PENDING} This is a public test build. Once I approve it, these same files become the release.\n\n"
         f"- Discord Canary **{manifest['client_version']}**\n"
         f"- Electron **{manifest['electron_version']}**\n"
         f"- Requires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
@@ -168,7 +168,7 @@ def cache_runtime(manifest: dict):
             "--title",
             "Build cache: Electron " + runtime["version"],
             "--notes",
-            "Electron compiler cache for CI. For the complete Canary app, choose a Canary release. This cache is not maintainer approval.",
+            "Electron compiler cache for CI. For the complete Canary app, choose a Canary release. App releases are marked Latest after I test and approve them.",
         )
     run(
         "gh",
@@ -340,7 +340,7 @@ def approve(tag: str, *, check_only=False):
     if compiler["conclusion"] != "success" or compiler["head_sha"] != runtime["compiler_commit"]:
         raise ValueError("Compiler provenance changed")
     if check_only:
-        print("Approval checks passed. Release remains awaiting maintainer testing.")
+        print("Approval checks passed. Release still needs manual testing and approval.")
         return
     policy["last_good_runtime"] = {**runtime, "completed_at": compiler["updated_at"]}
     write_json(policy_path, policy)
@@ -383,7 +383,9 @@ def approve(tag: str, *, check_only=False):
         data={
             "prerelease": False,
             "make_latest": "true",
-            "body": release["body"].replace(PENDING, "**Approved after maintainer testing.**", 1),
+            "body": release["body"]
+            .replace("**Awaiting maintainer testing.**", PENDING, 1)
+            .replace(PENDING, "**I've tested and approved this build.**", 1),
         },
     )
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:

@@ -1,8 +1,8 @@
 # Install
 
 Choose a complete Canary app on the [Releases page](https://github.com/discord-patched-electron/discord-patched-electron/releases).
-Builds labelled **Pre-release** are public test packages awaiting maintainer
-approval. **Latest** identifies the newest approved package. Both use prerelease
+Builds labelled **Pre-release** are public test packages I haven't approved yet.
+**Latest** identifies the newest package I've tested and approved. Both use prerelease
 Electron and require **x86-64-v3** (AVX2).
 
 Download one package and `SHA256SUMS` into a new folder, then verify it:

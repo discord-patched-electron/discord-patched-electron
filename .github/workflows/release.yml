@@ -233,5 +233,5 @@ jobs:
         with:
           name: linux-packages-canary
           path: packages
-      - name: Publish complete packages for maintainer testing
+      - name: Publish complete test packages
         run: python3 scripts/releases.py publish packages

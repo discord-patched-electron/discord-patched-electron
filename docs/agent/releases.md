@@ -57,7 +57,7 @@ retained runtime. It records the approved version, updates the runtime used for
 future client-only updates, then marks that release **Latest**. It doesn't rebuild,
 re-upload or rename any package. It rejects an older candidate after a newer
 release has been approved. The four-day cadence is based on compilation time,
-not how long the maintainer took to approve it.
+not how long I took to approve it.
 
 AUR publication is still disabled pending its publishing credentials. Approval
 currently promotes GitHub packages only; don't claim an AUR update occurred.

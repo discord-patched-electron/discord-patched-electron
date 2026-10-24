@@ -41,8 +41,8 @@ build's completion). No new eligible input means no compilation. Official Electr
 high/critical security advisories bypass the wait only when their comparator range
 includes our current version and explicitly identifies a fixed candidate on that
 major. Unknown ranges and cross-major backport assumptions are not guessed.
-`urgent_versions` in `config/update-policy.json` provides an explicit maintainer
-exception for embargoed fixes/Chromium advisories that lack machine-readable data.
+I can use `urgent_versions` in `config/update-policy.json` to bypass the wait for
+embargoed fixes/Chromium advisories that lack machine-readable data.
 This is not a guarantee that every urgent Chromium fix will be labeled publicly.
 
 `advance_electron.py` first applies the existing patch queue in a disposable source
@@ -77,8 +77,8 @@ launcher, Equicord and application-audio sidecars, so their updates reuse C++.
 ## Qualification and publication
 
 A passing candidate is now published automatically as a **public prerelease**,
-including a pacman-installable `.pkg.tar.zst`. The maintainer tests that package,
-then runs **Approve tested release** to promote those exact files and update the
+including a pacman-installable `.pkg.tar.zst`. I test that package,
+then run **Approve tested release** to promote those exact files and update the
 runtime used by future client updates. Approval is never automatic. See
 [release packaging](releases.md) for the full workflow and checks.
 

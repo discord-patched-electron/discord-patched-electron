@@ -52,7 +52,7 @@ and instructions you changed.
 | `patches/`     | Discord's Electron changes and compatibility patches   |
 | `packaging/`   | Package templates and upstream reference files         |
 | `.github/`     | CI workflows                                           |
-| `docs/`        | User guides; maintainer notes live in `docs/agent/`    |
+| `docs/`        | User guides; implementation notes in `docs/agent/`     |
 
 Generated files belong in `out/`. Don't commit downloaded clients, compiler
 workspaces or test profiles. Don't edit `packaging/upstream/` or reformat
