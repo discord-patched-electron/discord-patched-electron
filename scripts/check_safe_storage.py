@@ -55,7 +55,8 @@ def main():
                 timeout=25,
             )
         result = read_json(output / "storage.json")
-        assert result["passed"] and result["reopened"] == bool(attempt)
+        if result.get("passed") is not True or result.get("reopened") != bool(attempt):
+            raise ValueError("Safe storage persistence check failed")
         results.append(result)
     write_json(
         output / "storage-report.json", {"passed": True, "synthetic_only": True, "runs": results}

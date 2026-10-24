@@ -16,15 +16,58 @@ test("private devices are hidden from initial lists and hotplug without changing
   };
   install(voice);
   install(voice);
-  voice.getOutputDevices((list) => assert.deepEqual(list, [real, other]));
-  voice.getInputDevices((list) => assert.deepEqual(list, [real]));
+  let outputCalls = 0,
+    inputCalls = 0,
+    changeCalls = 0;
+  voice.getOutputDevices((list) => {
+    outputCalls++;
+    assert.deepEqual(list, [real, other]);
+  });
+  voice.getInputDevices((list) => {
+    inputCalls++;
+    assert.deepEqual(list, [real]);
+  });
+  assert.equal(outputCalls, 1);
+  assert.equal(inputCalls, 1);
   const camera = { guid: "camera", name: "Camera" };
   voice.setDeviceChangeCallback((inputs, outputs, cameras) => {
+    changeCalls++;
     assert.deepEqual(inputs, [real]);
     assert.deepEqual(outputs, [other]);
     assert.deepEqual(cameras, [camera]);
   });
   change([real, monitor], [internal, other], [camera]);
+  assert.equal(changeCalls, 1);
   voice.setDeviceChangeCallback(null);
   assert.equal(change, null);
+});
+
+test("enumeration preserves receivers, return values, errors and extra callback arguments", () => {
+  let called = 0;
+  const error = new Error("native enumeration failed");
+  const voice = {
+    getInputDevices(callback, argument) {
+      assert.equal(this, voice);
+      assert.equal(argument, "request");
+      callback(null, "native-status");
+      return 17;
+    },
+    getOutputDevices() {
+      throw error;
+    },
+  };
+  install(voice);
+  assert.equal(
+    voice.getInputDevices((devices, status) => {
+      called++;
+      assert.equal(devices, null);
+      assert.equal(status, "native-status");
+    }, "request"),
+    17,
+  );
+  assert.equal(called, 1);
+  assert.throws(
+    () => voice.getOutputDevices(() => {}),
+    (value) => value === error,
+  );
 });

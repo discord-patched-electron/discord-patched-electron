@@ -137,41 +137,72 @@ class ReleaseApproval(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "checksum"):
                 verify_assets(directory, manifest)
 
-    def test_identical_public_candidate_skips_packaging_and_retains_immutable_snapshot(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            directory = Path(temporary)
-            client = read_json(ROOT / "config/clients.lock.json")["clients"]["canary"]
+    def test_prepare_retries_reuse_identity_and_only_reserve_unpublished_tags(self):
+        client = read_json(ROOT / "config/clients.lock.json")["clients"]["canary"]
+        key = "b" * 64
+        dated = release_tag(client["version"], key, version="20261024.130203")
+        legacy = release_tag(client["version"], key)
+        for kind in ("new", "draft", "published", "legacy"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
+                directory = Path(temporary)
+                existing = {
+                    "draft": kind == "draft",
+                    # GitHub's release creation timestamp can be the commit time,
+                    # which differs from the build version encoded in a date tag.
+                    "created_at": "2026-10-24T12:00:00Z",
+                    "tag_name": legacy if kind == "legacy" else dated,
+                }
 
-            def snapshot(commit, output):
-                self.assertEqual(commit, "d" * 40)
-                write_json(output, {"schema": 1, "clients": {"canary": client}})
+                def api(endpoint, kind=kind, existing=existing, **kwargs):
+                    if endpoint == "releases/tags/" + legacy:
+                        return existing if kind == "legacy" else None
+                    if endpoint == "releases?per_page=100&page=1":
+                        return [] if kind == "new" else [existing]
+                    if endpoint == "actions/runs/123":
+                        return {"created_at": "2026-10-24T13:02:03Z"}
+                    self.fail("Unexpected API call: " + endpoint)
 
-            with (
-                patch("releases.ROOT", directory),
-                patch("releases.fetch_clients", side_effect=snapshot),
-                patch("releases.fetch_runtime", return_value={"source": {"target": "prerelease"}}),
-                patch(
-                    "releases.api",
-                    return_value={
-                        "draft": False,
-                        "created_at": "2026-10-24T12:00:00Z",
-                        "tag_name": "v20261024.130203.0-canary." + "b" * 16,
-                    },
-                ) as api,
-                patch.dict(
-                    os.environ,
-                    {
-                        "CLIENTS_STATE": "d" * 40,
-                        "RUNTIME": "123",
-                        "GITHUB_OUTPUT": str(directory / "outputs"),
-                        "GITHUB_STEP_SUMMARY": str(directory / "summary"),
-                    },
-                ),
-            ):
-                prepare()
-            self.assertIn("needed=false", (directory / "outputs").read_text())
-            self.assertIn("version=20261024.130203", (directory / "outputs").read_text())
-            self.assertEqual(api.call_count, 1)
+                def snapshot(commit, output):
+                    self.assertEqual(commit, "d" * 40)
+                    write_json(output, {"schema": 1, "clients": {"canary": client}})
+
+                with (
+                    patch("releases.ROOT", directory),
+                    patch("releases.fetch_clients", side_effect=snapshot),
+                    patch(
+                        "releases.fetch_runtime", return_value={"source": {"target": "prerelease"}}
+                    ),
+                    patch("releases.integration_key", return_value=key),
+                    patch("releases.api", side_effect=api),
+                    patch("releases.reserve_tag") as reserve,
+                    patch.dict(
+                        os.environ,
+                        {
+                            "CHANNEL": "canary",
+                            "CLIENTS_STATE": "d" * 40,
+                            "RUNTIME": "123",
+                            "GITHUB_RUN_ID": "123",
+                            "GITHUB_SHA": "a" * 40,
+                            "PUBLISH": "true",
+                            "GITHUB_OUTPUT": str(directory / "outputs"),
+                            "GITHUB_STEP_SUMMARY": str(directory / "summary"),
+                        },
+                    ),
+                ):
+                    prepare()
+                output = dict(
+                    line.split("=", 1) for line in (directory / "outputs").read_text().splitlines()
+                )
+                self.assertEqual(output["tag"], existing["tag_name"])
+                if kind != "legacy":
+                    self.assertEqual(output["version"], "20261024.130203")
+                    self.assertEqual(output["epoch"], "1792846923")
+                if kind in ("new", "draft"):
+                    self.assertEqual(output["needed"], "true")
+                    reserve.assert_called_once_with(dated, "a" * 40)
+                else:
+                    self.assertEqual(output["needed"], "false")
+                    reserve.assert_not_called()
 
     def test_release_table_links_to_exact_assets_including_older_versioned_names(self):
         for prefix in ("app-x86_64", "app-20261024.120000-x86_64"):

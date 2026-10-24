@@ -109,6 +109,7 @@ function wrap(
         } catch {
           continue;
         }
+        if (value === null || typeof value !== "object" || Array.isArray(value)) continue;
         if (value.generation !== generation || !source || !requested || pickerPending) continue;
         const pid =
           value.state === "ready" && Number.isSafeInteger(value.pid) && value.pid > 1

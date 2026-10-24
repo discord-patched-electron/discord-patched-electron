@@ -15,6 +15,7 @@ globalThis.window.DiscordNative = {
 const voice = require(path.join(output, "voice"));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const events = [];
+const completedPhases = [];
 (async () => {
   const native = new voice.VoiceConnection(
     "1234",
@@ -22,25 +23,26 @@ const events = [];
     () => {},
   );
   let connection;
-  let phase = null;
-  voice.startRecordingRawSamples((samples, channels, rate) => {
-    if (phase && (rate === 48000 || rate === 8000)) {
-      const data = new Int16Array(samples);
-      fs.appendFileSync(
-        path.join(output, phase + (rate === 8000 ? "-microphone" : "") + ".raw"),
-        Buffer.from(data.buffer),
-      );
-    }
-  });
   native.setOnSoundshare((value) => events.push({ event: "soundshare", value }));
   native.setOnSoundshareFailed((...value) => events.push({ event: "failure", value }));
   async function capture(name, change, settle = 700) {
-    phase = null;
     change();
     await wait(settle);
-    phase = name;
+    // Flush each recording into its own phase, including delayed native buffers.
+    // A mutable phase label would discard or misattribute the final samples.
+    voice.startRecordingRawSamples((samples, channels, rate) => {
+      if (rate === 48000 || rate === 8000) {
+        const data = new Int16Array(samples);
+        fs.appendFileSync(
+          path.join(output, name + (rate === 8000 ? "-microphone" : "") + ".raw"),
+          Buffer.from(data.buffer),
+        );
+      }
+    });
     await wait(1500);
-    phase = null;
+    voice.stopRecordingRawSamples();
+    await wait(100);
+    completedPhases.push(name);
   }
   // Positive control demonstrates that the uncorrected system PID records both apps.
   await capture("system", () =>
@@ -76,6 +78,7 @@ const events = [];
   await wait(200);
   ipcRenderer.send("audio-result", {
     passed: true,
+    completed_phases: completedPhases,
     events,
     cases: [
       "system",

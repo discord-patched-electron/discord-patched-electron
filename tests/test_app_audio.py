@@ -65,3 +65,56 @@ class AudioEvidenceGate(unittest.TestCase):
             self.assertTrue(analyze(output)["all_cases_passed"])
             (a + b).astype("<i2").tofile(output / "app-a.raw")
             self.assertFalse(analyze(output)["all_cases_passed"])
+
+    def test_short_recordings_and_brief_cross_application_leaks_fail(self):
+        import numpy as np
+        from check_app_audio import analyze
+
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            t = np.arange(48000) / 48000
+            a = 5000 * np.sin(2 * np.pi * 440 * t)
+            b = 5000 * np.sin(2 * np.pi * 880 * t)
+            for name, samples in [("system", a + b), ("app-a", a), ("app-b", b), ("re-enabled", a)]:
+                samples.astype("<i2").tofile(output / (name + ".raw"))
+            self.assertTrue(analyze(output)["all_cases_passed"])
+            for replacement in (a[:480], np.zeros(48000), b):
+                with self.subTest(length=len(replacement)):
+                    replacement.astype("<i2").tofile(output / "app-a.raw")
+                    self.assertFalse(analyze(output)["cases"]["app-a"]["passed"])
+            burst = a.copy()
+            burst[480:960] += b[480:960]
+            burst.astype("<i2").tofile(output / "app-a.raw")
+            self.assertFalse(analyze(output)["cases"]["app-a"]["passed"])
+
+    def test_silent_phases_reject_unrelated_frequencies_and_short_bursts(self):
+        import numpy as np
+        from check_app_audio import analyze
+
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            t = np.arange(48000) / 48000
+            unrelated = 5000 * np.sin(2 * np.pi * 1399 * t)
+            burst = np.zeros(48000)
+            burst[100:110] = 1000
+            for phase in ("disabled", "unknown", "app-exited", "cleared"):
+                for samples in (unrelated, burst):
+                    with self.subTest(phase=phase, peak=float(np.max(samples))):
+                        samples.astype("<i2").tofile(output / (phase + ".raw"))
+                        self.assertFalse(analyze(output)["cases"][phase]["passed"])
+
+    def test_missing_silent_phase_or_duplicate_completion_cannot_pass(self):
+        from check_app_audio import validate_phases
+
+        expected = ["audible", "silent"]
+        validate_phases({"passed": True, "completed_phases": expected}, expected)
+        for completed in (
+            [],
+            ["audible"],
+            ["audible", "audible"],
+            ["audible", "other"],
+            "audible",
+            [None, "silent"],
+        ):
+            with self.subTest(completed=completed), self.assertRaises(ValueError):
+                validate_phases({"passed": True, "completed_phases": completed}, expected)

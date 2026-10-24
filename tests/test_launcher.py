@@ -31,11 +31,19 @@ class Launcher(unittest.TestCase):
                 .replace("@PROFILE_NAME@", "discordcanary")
                 .replace("root=/usr/lib/" + name, "root=" + temp)
             )
+            environment = {
+                key: value
+                for key, value in os.environ.items()
+                if not key.startswith(("DPE_", "DISCORD_", "ELECTRON_"))
+                and key
+                not in ("CHROME_DESKTOP", "LD_PRELOAD", "XDG_SESSION_TYPE", "WAYLAND_DISPLAY")
+            }
             result = subprocess.check_output(
                 ["bash", str(launcher), *args],
                 text=True,
+                timeout=10,
                 env={
-                    **os.environ,
+                    **environment,
                     "XDG_CONFIG_HOME": temp,
                     "DPE_CAMERA_FAST_PROBE": "0",
                     "WAYLAND_DISPLAY": "wayland-test",

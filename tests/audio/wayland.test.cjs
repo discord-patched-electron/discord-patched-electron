@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { wrap, installVoice } = require("../../integration/audio/wayland-audio.cjs");
-function fixture() {
+function fixture(t) {
   const calls = [],
     children = [];
   let ended;
@@ -40,6 +40,7 @@ function fixture() {
     return child;
   }
   const adapter = wrap(native, { spawnHelper, warn() {} });
+  t.after(() => adapter.destroy());
   const ready = (child, pid, generation = child.messages.at(-1).generation) =>
     child.stdout.emit(
       "data",
@@ -47,9 +48,9 @@ function fixture() {
     );
   return { adapter, native, calls, children, ready, end: () => ended() };
 }
-test("rejected native sources silence the old app and close its helper", () => {
+test("rejected native sources silence the old app and close its helper", (t) => {
   for (const method of ["setDesktopSource", "setDesktopSourceWithOptions"]) {
-    const f = fixture();
+    const f = fixture(t);
     f.adapter.setDesktopSource("screen:0:0");
     f.adapter.setTransportOptions({ soundsharePid: 1 });
     const first = f.children[0];
@@ -65,8 +66,8 @@ test("rejected native sources silence the old app and close its helper", () => {
     f.adapter.destroy();
   }
 });
-test("Wayland never forwards the system sentinel before the selected mix is ready", () => {
-  const f = fixture();
+test("Wayland never forwards the system sentinel before the selected mix is ready", (t) => {
+  const f = fixture(t);
   f.adapter.setDesktopSourceWithOptions({
     sourceId: "screen:0:0",
     type: "screen",
@@ -87,8 +88,8 @@ test("Wayland never forwards the system sentinel before the selected mix is read
   assert.equal(f.children[0].closed, true);
   f.adapter.destroy();
 });
-test("late helper responses cannot restore audio after switching or ending a source", () => {
-  const f = fixture();
+test("late helper responses cannot restore audio after switching or ending a source", (t) => {
+  const f = fixture(t);
   f.adapter.setDesktopSource("screen:0:0");
   f.adapter.setTransportOptions({ soundsharePid: 1 });
   const first = f.children[0],
@@ -104,7 +105,7 @@ test("late helper responses cannot restore audio after switching or ending a sou
   assert.equal(f.calls.at(-1).soundsharePid, 0);
   f.adapter.destroy();
 });
-test("native picker callbacks stop capture while choosing and after cancellation", () => {
+test("native picker callbacks stop capture while choosing and after cancellation", (t) => {
   const previous = process.env.DPE_APP_AUDIO;
   const previousLatency = process.env.PULSE_LATENCY_MSEC;
   delete process.env.PULSE_LATENCY_MSEC;
@@ -133,8 +134,8 @@ test("native picker callbacks stop capture while choosing and after cancellation
       () => forwarded++,
       () => forwarded++,
     );
-    const f = fixture();
-    const idle = fixture();
+    const f = fixture(t);
+    const idle = fixture(t);
     const microphoneOptions = {
       echoCancellation: true,
       noiseCancellation: true,
@@ -181,5 +182,41 @@ test("explicit Wayland opt-out leaves picker methods and buffer settings alone",
   } finally {
     if (previous === undefined) delete process.env.DPE_APP_AUDIO;
     else process.env.DPE_APP_AUDIO = previous;
+  }
+});
+
+test("fragmented helper messages and invalid PIDs never become system capture", (t) => {
+  const f = fixture(t);
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  const child = f.children[0];
+  const generation = child.messages.at(-1).generation;
+  const message = JSON.stringify({ generation, state: "ready", pid: 2500 });
+  child.stdout.emit("data", Buffer.from(message.slice(0, 10)));
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
+  child.stdout.emit("data", Buffer.from(message.slice(10) + "\n"));
+  assert.equal(f.calls.at(-1).soundsharePid, 2500);
+  for (const pid of [0, 1, -1, 1.5, "2500", null, Number.MAX_SAFE_INTEGER + 1]) {
+    f.ready(child, 2500);
+    f.ready(child, pid);
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
+  }
+  child.stdout.emit("data", Buffer.from("not-json\nnull\n[]\n"));
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
+  f.ready(child, 2700);
+  assert.equal(f.calls.at(-1).soundsharePid, 2700);
+});
+
+test("helper exit or failure silences capture and ignores stale messages", (t) => {
+  for (const event of ["exit", "error"]) {
+    const f = fixture(t);
+    f.adapter.setDesktopSource("screen:0:0");
+    f.adapter.setTransportOptions({ soundsharePid: 1 });
+    const child = f.children[0];
+    f.ready(child, 2500);
+    child.emit(event, new Error("fixture failure"));
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
+    f.ready(child, 2700);
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
   }
 });

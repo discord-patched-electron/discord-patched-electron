@@ -23,6 +23,7 @@ from pathlib import Path
 
 import numpy as np
 from channels import enabled_discord_channels
+from check_app_audio import validate_phases
 from client_inputs import load_clients, validate_channel
 from common import ROOT, digest, download, read_json, sha256, write_json
 from patch_app_audio import patch
@@ -70,7 +71,7 @@ def analyze(output):
         enough = (
             len(samples) >= 24000 and fraction >= 0.9
             if any(expected)
-            else (not len(samples) or float(np.sqrt(np.mean(samples**2))) < 100)
+            else (not len(samples) or float(np.max(np.abs(samples))) < 100)
         )
         results[name] = {
             "samples": len(samples),
@@ -562,12 +563,14 @@ def check(
         expected = read_json(provenance)["capacity"].get("compiled_version", "44.0.0-reference.1")
         if fixture["versions"]["electron"] != expected:
             raise ValueError("Wrong compiler runtime loaded")
+    analysis = analyze(output)
+    validate_phases(fixture, analysis["cases"])
     report = {
         "schema": 1,
         "identity": read_json(output / "identity.json"),
         "fixture": fixture,
         "lifecycle": read_json(output / "lifecycle.json"),
-        **analyze(output),
+        **analysis,
         "wayland_source_identity_verified": True,
         "multi_process_verified": True,
         "custom_runtime_verified": bool(runtime),

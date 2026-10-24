@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from common import ROOT, read_json
+from desktop_identity import desktop_id
 
 
 def main():
@@ -61,7 +62,7 @@ def main():
         **os.environ,
         "DPE_SHORTCUT_OUTPUT": str(output),
         "DPE_SHORTCUT_MODULE": str(args.utils.resolve()),
-        "DISCORD_PORTAL_APP_ID": "io.github.discord_patched_electron.DiscordCanary",
+        "DISCORD_PORTAL_APP_ID": desktop_id("canary"),
         "XDG_SESSION_TYPE": "wayland",
         "NO_AT_BRIDGE": "1",
         "GIO_USE_VFS": "local",
@@ -81,6 +82,8 @@ def main():
                 if portal.poll() is not None:
                     raise RuntimeError("Private test portal failed")
                 time.sleep(0.1)
+            else:
+                raise TimeoutError("Private test portal did not become ready")
             with (output / "console.log").open("w") as console:
                 subprocess.run(
                     [
@@ -96,7 +99,11 @@ def main():
                 )
             result = read_json(output / "shortcuts.json")
             identity = read_json(output / "portal.json")
-            assert result["passed"] and identity["app_id"] == env["DISCORD_PORTAL_APP_ID"]
+            if (
+                result.get("passed") is not True
+                or identity.get("app_id") != env["DISCORD_PORTAL_APP_ID"]
+            ):
+                raise ValueError("Native shortcut delivery or portal identity check failed")
             print("Native Wayland portal registration and press/release: passed")
         finally:
             portal.terminate()

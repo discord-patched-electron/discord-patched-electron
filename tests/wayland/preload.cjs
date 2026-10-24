@@ -50,6 +50,7 @@ function devices(get, label) {
   });
 }
 const events = [];
+const completedPhases = [];
 const privateDevice = (d) =>
   [d.guid, d.name].some(
     (value) =>
@@ -148,6 +149,7 @@ async function capture(name, change, settle = 2000) {
   await wait(1600);
   voice.stopRecordingRawSamples();
   await wait(100);
+  completedPhases.push(name);
 }
 (async () => {
   connection = voice.createVoiceConnectionWithOptions(
@@ -189,6 +191,7 @@ async function capture(name, change, settle = 2000) {
     );
   ipcRenderer.send("audio-result", {
     passed: true,
+    completed_phases: completedPhases,
     events,
     offload_adm_controls: offloadAdmControls,
     wayland_video_verified: true,

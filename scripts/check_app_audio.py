@@ -38,18 +38,37 @@ def analyze(output: Path) -> dict:
     for name, wanted in expected.items():
         file = output / (name + ".raw")
         samples = np.fromfile(file, dtype="<i2").astype(float) if file.exists() else np.array([])
-        amplitudes = []
-        for tone in (440, 880):
-            if len(samples) < 4800:
-                amplitudes.append(0.0)
-                continue
-            spectrum = abs(np.fft.rfft(samples * np.hanning(len(samples))))
-            frequencies = np.fft.rfftfreq(len(samples), 1 / 48000)
-            band = spectrum[abs(frequencies - tone) <= 20]
-            amplitudes.append(float(np.max(band) * 4 / len(samples)))
-        passed = all(
-            value > 500 if include else value < 100
-            for value, include in zip(amplitudes, wanted, strict=True)
+        # Fit independent tones per 10 ms callback frame. A whole-recording FFT
+        # can hide short leaks and creates sidebands across callback gaps.
+        width = 480
+        t = np.arange(width) / 48000
+        matrix = np.array(
+            [fn(2 * np.pi * hz * t) for hz in (440, 880) for fn in (np.cos, np.sin)]
+        ).T
+        if len(samples) >= width:
+            frames = samples[: len(samples) // width * width].reshape(-1, width).T
+            coefficients = np.linalg.lstsq(matrix, frames, rcond=None)[0]
+            residual = np.sqrt(np.mean((matrix @ coefficients - frames) ** 2, axis=0))
+            levels = np.linalg.norm(coefficients.T.reshape(-1, 2, 2), axis=2)
+            clean = residual < 100
+            fraction = float(np.mean(clean))
+            amplitudes = np.median(levels, axis=0).tolist()
+            maximum = levels[clean].max(axis=0).tolist() if np.any(clean) else [32768.0] * 2
+        else:
+            amplitudes = maximum = [0.0, 0.0]
+            fraction = 0.0
+        peak = float(np.max(np.abs(samples))) if len(samples) else 0.0
+        passed = (
+            # RawSamples is intermittent diagnostic output, not a clocked recording.
+            # Keep the original 100 ms evidence minimum (ten complete frames).
+            len(samples) >= 4800
+            and fraction >= 0.9
+            and all(
+                value > 500 if include else maximum[i] < 100
+                for i, (value, include) in enumerate(zip(amplitudes, wanted, strict=True))
+            )
+            if any(wanted)
+            else peak < 100
         )
         microphone = output / (name + "-microphone.raw")
         mic = (
@@ -61,11 +80,25 @@ def analyze(output: Path) -> dict:
         results[name] = {
             "passed": passed,
             "samples": len(samples),
+            "peak_amplitude": peak,
+            "clean_frame_fraction": fraction,
             "tone_440_amplitude": amplitudes[0],
             "tone_880_amplitude": amplitudes[1],
             "synthetic_microphone_rms": mic_rms,
         }
     return {"cases": results, "all_cases_passed": all(item["passed"] for item in results.values())}
+
+
+def validate_phases(fixture, cases):
+    completed = fixture.get("completed_phases", [])
+    if (
+        fixture.get("passed") is not True
+        or not isinstance(completed, list)
+        or any(not isinstance(name, str) for name in completed)
+        or len(completed) != len(cases)
+        or set(completed) != set(cases)
+    ):
+        raise ValueError("Audio fixture did not complete every required phase")
 
 
 def session(output: Path):
@@ -285,6 +318,7 @@ def check(
         if fixture["versions"]["electron"] != expected:
             raise ValueError("Audio fixture loaded a different runtime than the compiler report")
     analysis = analyze(output)
+    validate_phases(fixture, analysis["cases"])
     report = {
         "schema": 1,
         "identity": identity,

@@ -11,7 +11,17 @@ from update_policy import in_range, plan, urgent
 
 class UpdatePolicy(unittest.TestCase):
     def setUp(self):
-        self.policy = read_json(ROOT / "config/update-policy.json")
+        self.policy = {
+            "electron_interval_hours": 96,
+            "security_severities": ["critical", "high"],
+            "urgent_versions": [],
+            "last_good_runtime": {
+                "version": "46.0.0-alpha.1",
+                "completed_at": "2026-10-24T02:41:42Z",
+                "runtime_key": "e" * 64,
+                "run": "123",
+            },
+        }
         self.sources = read_json(ROOT / "config/sources.lock.json")
         self.state = {
             "clients": read_json(ROOT / "config/clients.lock.json")["clients"],
@@ -94,12 +104,12 @@ class UpdatePolicy(unittest.TestCase):
         schedule(
             self.state, self.policy, self.sources, "2026-10-25T04:00:00Z", "2", {"1": "failure"}
         )
-        self.assertTrue(all(w["status"] == "failure" for w in self.state["client_work"].values()))
+        self.assertEqual([w["status"] for w in self.state["client_work"].values()], ["failure"])
         result = schedule(
             self.state, self.policy, self.sources, "2026-10-25T05:00:00Z", "3", {"1": "success"}
         )
         self.assertEqual(result["clients"], [])
-        self.assertTrue(all(w["status"] == "success" for w in self.state["client_work"].values()))
+        self.assertEqual([w["status"] for w in self.state["client_work"].values()], ["success"])
 
     def test_one_channel_failure_does_not_fail_other_channels(self):
         jobs = [

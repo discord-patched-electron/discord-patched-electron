@@ -42,3 +42,16 @@ class AudioEvidence(unittest.TestCase):
             # Even a sub-frame burst is forbidden after the share is disabled.
             np.full(100, 2000, dtype="<i2").tofile(directory / "disabled.raw")
             self.assertFalse(analyze(directory)["cases"]["disabled"]["passed"])
+
+    def test_every_phase_rejects_missing_audio_or_brief_audio_after_stop(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            empty = analyze(directory)
+            for phase in ("app-a", "app-b", "system", "re-enabled"):
+                self.assertFalse(empty["cases"][phase]["passed"])
+            burst = np.zeros(48000, dtype="<i2")
+            burst[100:110] = 1000
+            for phase in ("disabled", "audio-cancelled", "cancelled", "app-exited", "cleared"):
+                with self.subTest(phase=phase):
+                    burst.tofile(directory / (phase + ".raw"))
+                    self.assertFalse(analyze(directory)["cases"][phase]["passed"])
