@@ -1,0 +1,309 @@
+diff --git a/shell/browser/api/electron_api_frame_capture.cc b/shell/browser/api/electron_api_frame_capture.cc
+index 79a0246a11..9ffb0ec60b 100644
+--- a/shell/browser/api/electron_api_frame_capture.cc
++++ b/shell/browser/api/electron_api_frame_capture.cc
+@@ -14,6 +14,7 @@
+ #include "content/public/browser/render_frame_host.h"
+ #include "content/public/browser/web_contents.h"
+ #include "gin/object_template_builder.h"
++#include "gin/persistent.h"
+ #include "gpu/config/gpu_info.h"
+ #include "media/base/audio_parameters.h"
+ #include "media/mojo/mojom/audio_data_pipe.mojom.h"
+@@ -23,8 +24,9 @@
+ #include "shell/browser/javascript_environment.h"
+ #include "shell/common/gin_converters/gfx_converter.h"
+ #include "shell/common/gin_helper/dictionary.h"
+-#include "shell/common/gin_helper/handle.h"
+-#include "shell/common/gin_helper/object_template_builder.h"
++#include "shell/common/gin_helper/wrappable_pointer_tags.h"
++#include "v8/include/cppgc/allocation.h"
++#include "v8/include/v8-cppgc.h"
+ 
+ namespace electron::api {
+ 
+@@ -46,24 +48,28 @@ const mojo::Remote<mojom::ElectronRenderer>& FrameCapture::GetRendererApi(
+   return WebFrameMain::From(isolate, rfh)->GetRendererApi();
+ }
+ 
+-gin::DeprecatedWrapperInfo FrameCapture::kWrapperInfo = {
+-    gin::kEmbedderNativeGin};
++gin::WrapperInfo FrameCapture::kWrapperInfo =
++    electron::MakeWrapperInfo(electron::kElectronFrameCapture);
+ 
+ FrameCapture::Options::Options() = default;
+ FrameCapture::Options::Options(const Options&) = default;
+ FrameCapture::Options::~Options() = default;
+ 
+ // static
+-gin_helper::Handle<FrameCapture> FrameCapture::Create(
++v8::Local<v8::Object> FrameCapture::Create(
+     v8::Isolate* isolate,
+     content::RenderFrameHost* target,
+     content::RenderFrameHost* consumer,
+     const Options& options) {
+-  auto handle = gin_helper::CreateHandle(
+-      isolate, new FrameCapture(target, consumer, options));
+-  handle->Pin(isolate);
+-  handle->Start();
+-  return handle;
++  auto* capture = cppgc::MakeGarbageCollected<FrameCapture>(
++      isolate->GetCppHeap()->GetAllocationHandle(), target, consumer, options);
++  v8::Local<v8::Object> wrapper;
++  if (!capture->GetWrapper(isolate).ToLocal(&wrapper)) {
++    capture->StopWithReason("wrapper-unavailable");
++    return {};
++  }
++  capture->Start();
++  return wrapper;
+ }
+ 
+ FrameCapture::FrameCapture(content::RenderFrameHost* target,
+@@ -92,9 +98,9 @@ FrameCapture::FrameCapture(content::RenderFrameHost* target,
+                                    session_.BindNewPipeAndPassReceiver(),
+                                    host_receiver_.BindNewPipeAndPassRemote());
+     session_.set_disconnect_handler(base::BindOnce(
+-        &FrameCapture::OnConsumerDisconnected, weak_factory_.GetWeakPtr()));
++        &FrameCapture::OnConsumerDisconnected, gin::WrapPersistent(GetWeakCell())));
+     host_receiver_.set_disconnect_handler(base::BindOnce(
+-        &FrameCapture::OnConsumerDisconnected, weak_factory_.GetWeakPtr()));
++        &FrameCapture::OnConsumerDisconnected, gin::WrapPersistent(GetWeakCell())));
+   }
+ }
+ 
+@@ -109,7 +115,7 @@ void FrameCapture::Start() {
+   capturer_ = std::make_unique<RemoteConsumerVideoCapturer>(
+       options_.pixel_format,
+       base::BindRepeating(&FrameCapture::AttachVideoConsumer,
+-                          weak_factory_.GetWeakPtr()));
++                          gin::WrapPersistent(GetWeakCell())));
+   capturer_->SetFrameRate(options_.max_frame_rate);
+   capturer_->SetMaxSize(options_.max_size);
+ 
+@@ -205,7 +211,7 @@ void FrameCapture::Retarget() {
+   parent_api->EnsureChildFrameCaptureTarget(
+       rfh->GetFrameToken(), target_lease_.BindNewPipeAndPassReceiver(),
+       base::BindOnce(&FrameCapture::OnSubtreeCaptureTarget,
+-                     weak_factory_.GetWeakPtr(), retarget_id,
++                     gin::WrapPersistent(GetWeakCell()), retarget_id,
+                      view->GetFrameSinkId(), std::move(previous_lease)));
+ }
+ 
+@@ -249,7 +255,7 @@ void FrameCapture::ApplyTarget(
+     // attach listeners.
+     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+         FROM_HERE, base::BindOnce(&FrameCapture::EmitStarted,
+-                                  weak_factory_.GetWeakPtr()));
++                                  gin::WrapPersistent(GetWeakCell())));
+   }
+ }
+ 
+@@ -382,12 +388,12 @@ void FrameCapture::StopWithReason(const std::string& reason) {
+   // listeners. The pin keeps this object alive until the event is delivered.
+   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+       FROM_HERE, base::BindOnce(&FrameCapture::EmitStopped,
+-                                weak_factory_.GetWeakPtr(), reason));
++                                gin::WrapPersistent(GetWeakCell()), reason));
+ }
+ 
+ void FrameCapture::EmitStopped(const std::string& reason) {
+   Emit("stopped", reason);
+-  Unpin();
++  keep_alive_.Clear();
+ }
+ 
+ void FrameCapture::RenderFrameHostChanged(content::RenderFrameHost* old_host,
+@@ -418,7 +424,7 @@ void FrameCapture::OnFrameVisibilityChanged(
+   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+       FROM_HERE,
+       base::BindOnce(
+-          &FrameCapture::SetPaused, weak_factory_.GetWeakPtr(),
++          &FrameCapture::SetPaused, gin::WrapPersistent(GetWeakCell()),
+           visibility != blink::mojom::FrameVisibility::kRenderedInViewport));
+ }
+ 
+@@ -442,8 +448,22 @@ gin::ObjectTemplateBuilder FrameCapture::GetObjectTemplateBuilder(
+       .SetProperty("capturing", &FrameCapture::IsCapturing);
+ }
+ 
+-const char* FrameCapture::GetTypeName() {
+-  return "FrameCapture";
++const gin::WrapperInfo* FrameCapture::wrapper_info() const {
++  return &kWrapperInfo;
++}
++
++const char* FrameCapture::GetHumanReadableName() const {
++  return "Electron / FrameCapture";
++}
++
++void FrameCapture::Trace(cppgc::Visitor* visitor) const {
++  gin::Wrappable<FrameCapture>::Trace(visitor);
++  visitor->Trace(weak_factory_);
++}
++
++gin::WeakCell<FrameCapture>* FrameCapture::GetWeakCell() {
++  return weak_factory_.GetWeakCell(
++      JavascriptEnvironment::GetIsolate()->GetCppHeap()->GetAllocationHandle());
+ }
+ 
+ }  // namespace electron::api
+diff --git a/shell/browser/api/electron_api_frame_capture.h b/shell/browser/api/electron_api_frame_capture.h
+index 3b5502eca2..c5b9b7533f 100644
+--- a/shell/browser/api/electron_api_frame_capture.h
++++ b/shell/browser/api/electron_api_frame_capture.h
+@@ -6,11 +6,12 @@
+ #include <string>
+ 
+ #include "base/functional/callback_helpers.h"
+-#include "base/memory/weak_ptr.h"
+ #include "base/token.h"
+ #include "components/viz/common/surfaces/frame_sink_id.h"
+ #include "content/public/browser/frame_tree_node_id.h"
+ #include "content/public/browser/web_contents_observer.h"
++#include "gin/weak_cell.h"
++#include "gin/wrappable.h"
+ #include "media/base/video_types.h"
+ #include "media/mojo/mojom/audio_input_stream.mojom.h"
+ #include "media/mojo/mojom/audio_stream_factory.mojom.h"
+@@ -19,8 +20,8 @@
+ #include "mojo/public/cpp/bindings/remote.h"
+ #include "shell/browser/event_emitter_mixin.h"
+ #include "shell/common/api/api.mojom.h"
+-#include "shell/common/gin_helper/pinnable.h"
+-#include "shell/common/gin_helper/wrappable.h"
++#include "shell/common/gc_plugin.h"
++#include "shell/common/gin_helper/self_keep_alive.h"
+ #include "ui/gfx/geometry/size.h"
+ 
+ namespace content {
+@@ -29,8 +30,6 @@ class RenderFrameHost;
+ 
+ namespace gin_helper {
+ class Dictionary;
+-template <typename T>
+-class Handle;
+ }  // namespace gin_helper
+ 
+ namespace electron {
+@@ -44,8 +43,7 @@ namespace electron::api {
+ // renderer. Only control runs here; frames go from the GPU process and audio
+ // from the audio service straight to the consumer renderer. See
+ // docs/api/frame-capture.md.
+-class FrameCapture final : public gin_helper::DeprecatedWrappable<FrameCapture>,
+-                           public gin_helper::Pinnable<FrameCapture>,
++class FrameCapture final : public gin::Wrappable<FrameCapture>,
+                            public gin_helper::EventEmitterMixin<FrameCapture>,
+                            public content::WebContentsObserver,
+                            public mojom::FrameCaptureHost,
+@@ -63,27 +61,33 @@ class FrameCapture final : public gin_helper::DeprecatedWrappable<FrameCapture>,
+     bool audio = false;
+   };
+ 
+-  static gin_helper::Handle<FrameCapture> Create(
++  static v8::Local<v8::Object> Create(
+       v8::Isolate* isolate,
+       content::RenderFrameHost* target,
+       content::RenderFrameHost* consumer,
+       const Options& options);
+ 
+-  // gin_helper::Wrappable
+-  static gin::DeprecatedWrapperInfo kWrapperInfo;
++  // Public for cppgc::MakeGarbageCollected.
++  FrameCapture(content::RenderFrameHost* target,
++               content::RenderFrameHost* consumer,
++               const Options& options);
++  ~FrameCapture() override;
++
++  // gin::Wrappable
++  static gin::WrapperInfo kWrapperInfo;
++  static const char* GetClassName() { return "FrameCapture"; }
++  const gin::WrapperInfo* wrapper_info() const override;
++  const char* GetHumanReadableName() const override;
++  void Trace(cppgc::Visitor* visitor) const override;
+   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
+       v8::Isolate* isolate) override;
+-  const char* GetTypeName() override;
+ 
+   // disable copy
+   FrameCapture(const FrameCapture&) = delete;
+   FrameCapture& operator=(const FrameCapture&) = delete;
+ 
+  private:
+-  FrameCapture(content::RenderFrameHost* target,
+-               content::RenderFrameHost* consumer,
+-               const Options& options);
+-  ~FrameCapture() override;
++  gin::WeakCell<FrameCapture>* GetWeakCell();
+ 
+   void Start();
+   void StartAudio();
+@@ -141,19 +145,24 @@ class FrameCapture final : public gin_helper::DeprecatedWrappable<FrameCapture>,
+   Options options_;
+   const content::FrameTreeNodeId frame_tree_node_id_;
+ 
++  GC_PLUGIN_IGNORE("Browser-process capture pipes are closed before unpinning.")
+   mojo::Remote<mojom::FrameCaptureSession> session_;
++  GC_PLUGIN_IGNORE("Browser-process capture pipes are closed before unpinning.")
+   mojo::Receiver<mojom::FrameCaptureHost> host_receiver_{this};
+   std::unique_ptr<RemoteConsumerVideoCapturer> capturer_;
+   base::ScopedClosureRunner capturer_count_;
+ 
++  GC_PLUGIN_IGNORE("Browser-process capture pipes are closed before unpinning.")
+   mojo::Remote<media::mojom::AudioStreamFactory> audio_stream_factory_;
+   // Holding the observer end keeps the loopback stream alive; clearing it
+   // makes the audio service close the stream.
++  GC_PLUGIN_IGNORE("Browser-process capture pipes are closed before unpinning.")
+   mojo::ReceiverSet<media::mojom::AudioInputStreamObserver> audio_observers_;
+ 
+   viz::FrameSinkId current_frame_sink_id_;
+   std::optional<base::Token> current_subtree_token_;
+   // Keeps a same-process target's owner element eligible for capture.
++  GC_PLUGIN_IGNORE("Browser-process capture pipes are closed before unpinning.")
+   mojo::Remote<mojom::FrameCaptureTargetLease> target_lease_;
+   uint64_t retarget_id_ = 0;
+   std::string target_kind_;
+@@ -165,7 +174,10 @@ class FrameCapture final : public gin_helper::DeprecatedWrappable<FrameCapture>,
+   uint32_t adapter_luid_low_ = 0;
+   int32_t adapter_luid_high_ = 0;
+ 
+-  base::WeakPtrFactory<FrameCapture> weak_factory_{this};
++  // Keep an active capture alive even if JS drops its wrapper. Clear only after
++  // delivering the asynchronous stopped event, including startup failures.
++  gin_helper::SelfKeepAlive<FrameCapture> keep_alive_{this};
++  gin::WeakCellFactory<FrameCapture> weak_factory_{this};
+ };
+ 
+ }  // namespace electron::api
+diff --git a/shell/browser/api/electron_api_web_frame_main.cc b/shell/browser/api/electron_api_web_frame_main.cc
+index 9f52f86ad6..2937cf825b 100644
+--- a/shell/browser/api/electron_api_web_frame_main.cc
++++ b/shell/browser/api/electron_api_web_frame_main.cc
+@@ -434,9 +434,11 @@ v8::Local<v8::Value> WebFrameMain::CaptureStream(gin::Arguments* args) {
+     }
+   }
+ 
+-  return FrameCapture::Create(isolate, render_frame_host(), consumer,
+-                              capture_options)
+-      .ToV8();
++  v8::Local<v8::Object> capture = FrameCapture::Create(
++      isolate, render_frame_host(), consumer, capture_options);
++  if (capture.IsEmpty())
++    return v8::Undefined(isolate);
++  return capture;
+ }
+ 
+ v8::Local<v8::Promise> WebFrameMain::CaptureImage(gin::Arguments* args) {
+diff --git a/shell/common/gin_helper/wrappable_pointer_tags.h b/shell/common/gin_helper/wrappable_pointer_tags.h
+index 2cac5a62a5..eb2dabac32 100644
+--- a/shell/common/gin_helper/wrappable_pointer_tags.h
++++ b/shell/common/gin_helper/wrappable_pointer_tags.h
+@@ -60,7 +60,8 @@ enum ElectronWrappablePointerTag : uint16_t {
+   kElectronWebFrameRenderer,  // (anonymous) WebFrameRenderer
+   kElectronWebRequest,        // electron::api::WebRequest
+   kElectronWebSocket,         // electron::api::WebSocketWrapper
+-  kLastElectronPointerTag = kElectronWebSocket,
++  kElectronFrameCapture,  // electron::api::FrameCapture
++  kLastElectronPointerTag = kElectronFrameCapture,
+ };
+ 
+ constexpr v8::CppHeapPointerTagRange kElectronWrappableTagRange(

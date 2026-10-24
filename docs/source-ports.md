@@ -90,3 +90,17 @@ other target lists are retained. Only Linux x64 is qualified by this project.
 The generated configuration preserves Discord's GIF, AAC/MP4/file and dynamically
 loaded OpenH264 functionality. It is committed as a patch, so ordinary CI builds
 do not regenerate it or need the standalone generation dependencies.
+
+## Electron 46 frame-capture lifetime
+
+`patches/ports/46/frame-capture-gc.patch` moves Discord's `FrameCapture` onto
+upstream's `gin::Wrappable` / cppgc allocation, tracing and weak-cell callbacks.
+Electron 46 removed the old `Pinnable` and deprecated wrapper APIs. An active
+capture keeps itself alive until its asynchronous `stopped` event is delivered;
+closing its Mojo pipes and capture sources precedes releasing that root. Wrapper
+allocation failure also follows this cleanup path. The dedicated wrapper pointer
+tag is appended without changing existing tags.
+
+Both affected C++ translation units compile with the pinned prerelease toolchain,
+and fresh assembly reproduces the locked tree. Full runtime lifecycle validation
+remains required before publication.
