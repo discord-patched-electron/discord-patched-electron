@@ -1,0 +1,75 @@
+{
+  "implementation_commit": "fa52fc0a7d1c018f0f715f5109a8a25405f01d52",
+  "cache_repository": "discord-patched-electron/cache",
+  "cache_assets_migrated_and_sha256_verified": true,
+  "old_cache_release_removed": true,
+  "runtime_fetched_and_verified_from_new_repository": true,
+  "electron_recompiled": false,
+  "python_tests": 104,
+  "javascript_tests": 16,
+  "lint_passed": true,
+  "mod_upgrade_checks": {
+    "vencord": {
+      "install_update_reinstall_uninstall": "passed",
+      "launch_and_relaunch_passed": true,
+      "native_wayland": true,
+      "current_bootstrap_restored": true,
+      "physical_camera_or_live_call_tested": false
+    },
+    "equicord": {
+      "install_update_reinstall_uninstall": "passed",
+      "launch_and_relaunch_passed": true,
+      "native_wayland": true,
+      "current_bootstrap_restored": true,
+      "physical_camera_or_live_call_tested": false
+    }
+  },
+  "package_payloads": {
+    "assets": {
+      "discord-canary-prerelease-patched-electron-bin-linux-x86_64.tar.gz": "e01900cea2797e0c4d0a5eda426c9d0609476905678128c3a590baab87cddb2e",
+      "discord-canary-prerelease-patched-electron-bin-x86_64.deb": "325b97826eb9e47b09da9cbbc4b0b10565cfa85abe5c71921b7d0d0e244df4f7",
+      "discord-canary-prerelease-patched-electron-bin-x86_64.pkg.tar.zst": "2a0d0147f5783439ee4979416fd68c95f1d170bb969915895038927c65703197",
+      "discord-canary-prerelease-patched-electron-bin-x86_64.rpm": "1798a0ec83014b8c997a3743bb23ecdb1f1a865e7ffde362fccdb606fb958f86"
+    },
+    "channel": "canary",
+    "client_version": "1.0.2365",
+    "clients_state": "9836003c6667e3112e317b8ae8b163f268180691",
+    "electron_version": "46.0.0-alpha.1",
+    "minimum_cpu": "x86-64-v3",
+    "minimum_glibc": "2.38",
+    "release_key": "8748f4696bd6b2f610da6fe93841b64c612f2d73e31d79efe6aae68a4f762644",
+    "runtime": {
+      "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+      "cache_release": "runtime-cache-b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+      "capacity_sha256": "626688df109415c4047b480fb7f89da8f329daf3aaf74b52e22372508dedea5b",
+      "compiler_commit": "b26c58ec6174c1cd750adc97c04a6e7c29a30033",
+      "run": "40053107555",
+      "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+      "version": "46.0.0-alpha.1"
+    },
+    "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+    "schema": 1,
+    "source_commit": "f067d86927c18b0575c51eefe1bd4b266e416935",
+    "source_dirty": false,
+    "version": "20261024.162607",
+    "workflow_run": "40111540714"
+  },
+  "aur_makepkg_install_and_upgrade": "passed in disposable Arch container",
+  "aur_local_and_container_srcinfo_identical": true,
+  "aur_published": true,
+  "release_workflow_run": 40111540714,
+  "no_account_login_calls_or_camera_capture": true,
+  "release_workflow_result": "success",
+  "release_tag": "canary-1.0.2365-8748f4696bd6b2f6",
+  "release_version": "20261024.162607",
+  "checks_run": 40112372445,
+  "checks_status": "success",
+  "audio_fixture_evidence": "docs/evidence/audio-recorder-flush.json",
+  "aur_recipe_verified_locally_against_public_assets": true,
+  "aur_version": "20261024.162607-1",
+  "aur_commit": "3dc49a45f0bbd7e3841f9081283997924b154fd0",
+  "aur_recipe_readback_matches_verified_release": true,
+  "aur_workflow_run": 40112820384,
+  "release_approved_as_stable": false,
+  "source_commit": "fa52fc0a7d1c018f0f715f5109a8a25405f01d52"
+}

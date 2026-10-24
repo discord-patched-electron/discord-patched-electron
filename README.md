@@ -42,7 +42,7 @@ the build as stable yet; **Latest** marks an approved release. Both use prerelea
 ## AI usage
 
 This project makes heavy use of AI, with human direction and design decisions.
-I use the app daily and test changes end to end on my own setup. Wider testing is limited.
+I use the app daily and test changes end to end on my own setup.
 
 [Report a bug](https://github.com/discord-patched-electron/discord-patched-electron/issues)
 with your version, distribution, desktop and steps to reproduce.

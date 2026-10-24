@@ -4,6 +4,50 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Cache, release and AUR publishing, 24 October
+
+The [new public candidate](https://github.com/discord-patched-electron/discord-patched-electron/releases/tag/canary-1.0.2365-8748f4696bd6b2f6)
+is `20261024.162607` (Canary 1.0.2365 / Electron 46.0.0-alpha.1). All four package
+filenames are now fixed. It remains a **prerelease**, pending the user's stable
+approval. The user explicitly requested initial AUR publication; the
+[AUR package](https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin)
+is published as `20261024.162607-1` under `he3als`, with commit
+`3dc49a45f0bbd7e3841f9081283997924b154fd0`. Its three files were read back and
+matched against the verified recipe. Future approvals publish AUR updates;
+**Publish AUR package** supports explicit publication or retries without approving
+GitHub releases. Do not approve as stable on the user's behalf.
+
+Compiler artifacts moved to `discord-patched-electron/cache`, with identical
+checksums; the old cache release and tag were removed from the app repository.
+`CACHE_TOKEN` is configured for future cache uploads. `AUR_SSH_PRIVATE_KEY` uses
+the existing approved AUR key, with strict host-key verification. No secrets are
+in source. No compiler was started.
+
+Package updates refresh an existing mod restore backup only when the app matches
+its new checksum. Vencord and Equicord both pass official install, upgrade,
+reinstall, launch/relaunch and removal checks. Users can update normally and
+rerun the official installer without uninstalling first.
+
+[Release qualification](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40111540714)
+and [repository checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40112372445)
+passed. The release includes Arch/Debian/RPM/tarball checks and AUR build/install
+validation. Local Arch reinstall testing also verifies the stale mod backup is
+refreshed. Native tests use synthetic audio and isolated profiles; live calls and
+microphone continuity remain unverified. No physical camera capture occurred.
+
+Two test issues surfaced: diagnostic PCM buffered across phase boundaries, and
+the hidden-device positive control queried an asynchronously refreshed list once.
+The fixture now explicitly stops and flushes recordings per phase and awaits that
+control within a bounded deadline, retaining device diagnostics. Production audio
+adapters and native modules did not change. See
+[audio evidence](../evidence/audio-recorder-flush.json) and
+[publishing evidence](../evidence/release-cleanup.json).
+
+The downloaded pacman package is at
+`out/approve-release/canary-1.0.2365-8748f4696bd6b2f6/discord-canary-prerelease-patched-electron-bin-x86_64.pkg.tar.zst`.
+The README is shorter, explains prerelease/stable status, and carries the requested
+experimental warning. User docs explain the separate settings/login/cache directory.
+
 ## Wayland audio test correction, 24 October
 
 `6ff29e5` removes the fixture's `offloadAdmControls=false` override. The shipped
