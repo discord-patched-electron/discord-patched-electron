@@ -151,6 +151,12 @@ def build(
     (output / "licenses").mkdir()
     for filename in ("LICENSE", "THIRD_PARTY.md"):
         shutil.copy2(ROOT / filename, output / "licenses")
+    if portable:
+        for filename, url in (
+            ("DISCORD-TERMS.html", "https://discord.com/terms"),
+            ("DISCORD-LICENSES.html", "https://discord.com/licenses"),
+        ):
+            download(url, output / "licenses" / filename)
     write_json(output / "client-inputs.json", client)
     write_json(
         output / "local-build.json",

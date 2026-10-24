@@ -54,6 +54,8 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
             raise ValueError("Packaged client identity, updater or module path is incorrect")
         if members[root + "/runtime/chrome-sandbox"].mode != 0o4755:
             raise ValueError("Missing sandbox executable permissions")
+        if members[root + "/resources/build_info.json"].mode & 0o444 != 0o444:
+            raise ValueError("Root-owned build info must be readable by ordinary users")
         if root + "/modules/discord_krisp/KMS/logs" not in members:
             raise ValueError("Missing Krisp initialization directory")
         for module in inputs["client"]["sources"]:

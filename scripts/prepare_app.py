@@ -104,6 +104,9 @@ def prepare(
     info["newUpdater"] = False
     info["localModulesRoot"] = "modules" if portable else str(install_root / "modules")
     write_json(info_path, info)
+    # Atomic writes are private by default; installed app data must be readable
+    # after makepkg/nFPM gives it to root.
+    info_path.chmod(0o644)
 
 
 def main():
