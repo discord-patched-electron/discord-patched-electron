@@ -83,6 +83,9 @@ jobs:
           profile discord-native-fixture "$GITHUB_WORKSPACE/out/native-runtime/*/probe/runtime/{Discord*,electron}" flags=(unconfined) {
             userns,
           }
+          profile discord-capture-fixture "$GITHUB_WORKSPACE/out/frame-capture/runtime/electron" flags=(unconfined) {
+            userns,
+          }
           EOF
           sudo apparmor_parser -r /etc/apparmor.d/discord-native-fixture
       - name: Download and verify a completed custom build
@@ -114,6 +117,13 @@ jobs:
             done
           fi
           python scripts/check_runtime_clients.py --output out/native-runtime "${args[@]}"
+      - name: Check frame capture lifetime through garbage collection and teardown
+        if: env.REFERENCE_RUN != ''
+        run: >-
+          xvfb-run -a python scripts/check_frame_capture.py
+          out/reference-download/runtime/electron
+          --provenance out/reference-download/artifact-provenance.json
+          --output out/frame-capture
       - name: Retain native fixture diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -130,5 +140,7 @@ jobs:
             out/native-runtime/*/probe/runtime-report.json
             out/native-runtime/*/probe/runtime.log
             out/native-runtime/*/probe/profile/voice/discord-webrtc_*
+            out/frame-capture/frame-capture.json
+            out/frame-capture/console.log
           retention-days: 7
           if-no-files-found: warn

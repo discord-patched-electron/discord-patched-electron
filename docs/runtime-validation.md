@@ -108,3 +108,18 @@ The separate [Wayland audio fixture](wayland-audio.md) now covers actual native
 portal video and selective application audio, including multiple processes and
 both Pulse servers. Its bundled-runtime result does not replace the custom-runtime
 and real-call checks above.
+
+## Frame-capture lifetime
+
+`scripts/check_frame_capture.py RUNTIME --provenance ARTIFACT_PROVENANCE --output
+FRESH_DIRECTORY` exercises Discord's main-process capture API with two synthetic
+local windows. It checks wrapper creation, started/stopped events, constraint
+changes, repeated stops, immediate stop, and target/consumer destruction after
+forced garbage collection. Active captures must remain alive until stopped;
+each stopped event must arrive exactly once. The test denies device permissions
+and external requests and saves no frame pixels.
+
+The fixture passes against the compiled reference on native Wayland. Native CI
+runs it against downloaded compiler artifacts under Xvfb, alongside the separate
+native-sink video delivery and offline Krisp checks. A passing lifecycle test
+alone does not establish native-sink delivery or a working Discord call.

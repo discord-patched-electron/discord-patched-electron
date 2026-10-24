@@ -190,3 +190,11 @@ AVX-512 routine does not require AVX-512 on every machine.
 [Actual generated-command checks](evidence/cpu-dispatch-local.json) confirm the
 normal target retains all v3 CPU features without AVX-512, while Skia’s dispatched
 variant retains its explicit v4 features.
+
+The frame-capture port restart exposed another incremental-build limit: moving
+the prepared source directory changes generated Clang module inputs and rebuilds
+their consumers (42,454 tasks in this restart). Keeping the object files alone
+does not avoid that work. For future reviewed local migrations, keep the physical
+checkout at its original absolute path and point the new identity directory at
+it; still verify the source tree, dependency patches and all changed inputs.
+Do not rewrite Ninja timestamps or dependency records to force object reuse.

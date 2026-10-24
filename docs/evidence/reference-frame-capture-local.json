@@ -1,0 +1,84 @@
+{
+  "cases": [
+    {
+      "details": {
+        "captureId": "dpe-lifetime-explicit-stop",
+        "targetKind": "main-frame"
+      },
+      "mode": "explicit-stop",
+      "passed": true,
+      "reason": "stopped",
+      "stopCount": 1
+    },
+    {
+      "mode": "immediate-stop",
+      "passed": true,
+      "reason": "stopped",
+      "stopCount": 1
+    },
+    {
+      "details": {
+        "captureId": "dpe-lifetime-target-destroyed",
+        "targetKind": "main-frame"
+      },
+      "mode": "target-destroyed",
+      "passed": true,
+      "reason": "frame-destroyed",
+      "stopCount": 1
+    },
+    {
+      "details": {
+        "captureId": "dpe-lifetime-consumer-destroyed",
+        "targetKind": "main-frame"
+      },
+      "mode": "consumer-destroyed",
+      "passed": true,
+      "reason": "consumer-gone",
+      "stopCount": 1
+    }
+  ],
+  "compiler_run": 40036898682,
+  "executable_sha256": "e372adb017786509fb7b9f8e6be6e1b1f7b39a1217b5e3eef129f50d183a33e0",
+  "fixture": "frame-capture-lifetime",
+  "frame_pixels_saved": false,
+  "native_sink_delivery_verified": false,
+  "passed": true,
+  "process_exit": 0,
+  "schema": 1,
+  "synthetic_content_only": true,
+  "versions": {
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.8",
+    "brotli": "1.2.0",
+    "chrome": "152.0.7977.167",
+    "cldr": "48.0",
+    "electron": "44.0.0-reference.1",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "149",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "node": "24.22.0",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.11",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.4",
+    "tz": "2026d",
+    "undici": "7.29.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.2.124.43-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0"
+  },
+  "display": "native Wayland (niri)",
+  "candidate_gc_port_validated": false
+}
