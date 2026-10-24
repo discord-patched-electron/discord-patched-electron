@@ -25,6 +25,9 @@ Validation passed 119 Python tests, 16 JavaScript tests, formatting, linting and
 actionlint. A live attempt to publish the latest test release was rejected before
 download or SSH, including the verified-directory path. The latest release's
 asset IDs and digests are unchanged. No AUR write or new compilation was performed.
+[GitHub checks for `978ccb4`](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40117098152)
+also passed, including source assembly, native runtime, Arch packaging and
+application audio. AUR HEAD remains `3dc49a45f0bbd7e3841f9081283997924b154fd0`.
 
 ## Documentation and channel switches, 24 October
 
