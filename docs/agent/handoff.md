@@ -4,6 +4,46 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Signed packages and standard Canary identity, 24 October
+
+The user explicitly authorized approval of the latest release. This supersedes
+older notes below about keeping AUR publication frozen or not approving on their
+behalf. Future releases still require explicit approval.
+
+Commits `08b1df5` and `0f924f8` add detached Arch package and checksum signatures,
+restore the normal Canary icon and desktop identity, and default to
+`~/.config/discordcanary`. Old private profiles are left untouched. Packages
+conflict with stock Canary because they now provide its launcher and desktop file.
+See [release signing](releases.md#release-signatures) for key maintenance.
+
+AUR metadata-only changes now increment `pkgrel` without changing the archive.
+An identical retry does nothing. Changing an archive under the same version is
+still rejected. Existing release assets were not replaced when signatures were
+backfilled.
+
+[Release checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40129779161)
+and [repository checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40129779733)
+passed. Local checks passed 125 Python tests, 16 JavaScript tests and linting.
+The audio fixture now creates its private-device positive control before native
+enumeration starts, avoiding dependence on an inconsistent device-list refresh.
+Production audio code is unchanged. The Arch fixture accepts the new standard
+launcher and icon paths while retaining its package-file allowlist.
+
+The final published package opens and relaunches on native Wayland with a
+disposable profile and no uncaught exceptions. The compositor receives
+`discord-canary` as its app ID. All nine files match GitHub upload digests, and
+the Arch package and checksum signatures verify against the pinned key.
+See [local evidence](../evidence/signed-canary-release.json).
+
+[Approval and AUR publication](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40130626614)
+both succeeded. Release `canary-1.0.2365-0127ebd36508aff4` is now Latest and stable.
+AUR is `20261024.202623-1` at commit `6bc60aa`. Its versioned source alias and
+checksum match the verified published archive. No host package or trust database
+was changed during verification. Arch users need the one-time signing-key import
+in [installation instructions](../install.md#arch-linux).
+No account login, calls, webcam capture or desktop screenshots were performed.
+No Electron compilation was needed.
+
 ## Release policy and hosted compilation, 24 October
 
 New compilation uses the budgeted Blacksmith workflow. The old PC-only instruction

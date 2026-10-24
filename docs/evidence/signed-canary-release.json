@@ -1,0 +1,83 @@
+{
+  "release_tag": "canary-1.0.2365-0127ebd36508aff4",
+  "version": "20261024.202623",
+  "source_commit": "0f924f8d83400367f1bd766f7329f80760d9fc3a",
+  "checks_run": 40129779733,
+  "release_run": 40129779161,
+  "approval_run": 40130626614,
+  "published_asset_digests_verified": true,
+  "arch_package_and_checksum_signatures_verified": true,
+  "signing_fingerprint": "6FC3C7F7D254C749E308113D89013A5DF4E2436C",
+  "app_path": "/mnt/storage/discord-patched-electron-ci/local-tests/signed-canary-final/discord-canary-prerelease-patched-electron-bin",
+  "launch": {
+    "app": "/mnt/storage/discord-patched-electron-ci/local-tests/signed-canary-final/discord-canary-prerelease-patched-electron-bin",
+    "equicord_required": false,
+    "exited_before_check": null,
+    "native_wayland_connection": true,
+    "page": {
+      "discordNative": true,
+      "equicordNative": false,
+      "equicordRenderer": false,
+      "loginForm": true,
+      "passwordField": true,
+      "ready": "complete",
+      "title": ""
+    },
+    "passed": true,
+    "profile": "/mnt/storage/discord-patched-electron-ci/local-tests/signed-canary-final-check/profile",
+    "real_discord_call_verified": false,
+    "screenshots_saved": false,
+    "targets": [
+      {
+        "title": "canary.discord.com/app?_=1792874250446",
+        "type": "page",
+        "url": "https://canary.discord.com/login"
+      },
+      {
+        "title": "",
+        "type": "worker",
+        "url": ""
+      }
+    ],
+    "uncaught_exception": false
+  },
+  "relaunch": {
+    "app": "/mnt/storage/discord-patched-electron-ci/local-tests/signed-canary-final/discord-canary-prerelease-patched-electron-bin",
+    "equicord_required": false,
+    "exited_before_check": null,
+    "native_wayland_connection": true,
+    "page": {
+      "discordNative": true,
+      "equicordNative": false,
+      "equicordRenderer": false,
+      "loginForm": true,
+      "passwordField": true,
+      "ready": "complete",
+      "title": ""
+    },
+    "passed": true,
+    "profile": "/mnt/storage/discord-patched-electron-ci/local-tests/signed-canary-final-check/profile",
+    "real_discord_call_verified": false,
+    "screenshots_saved": false,
+    "targets": [
+      {
+        "title": "canary.discord.com/app?_=1792874253739",
+        "type": "page",
+        "url": "https://canary.discord.com/login"
+      },
+      {
+        "title": "",
+        "type": "worker",
+        "url": ""
+      }
+    ],
+    "uncaught_exception": false
+  },
+  "live_call_tested": false,
+  "physical_camera_tested": false,
+  "images_or_video_saved": false,
+  "approval_succeeded": true,
+  "aur_publication_succeeded": true,
+  "aur_version": "20261024.202623-1",
+  "aur_commit": "6bc60aae04ffab59613475da0885943f5ec0c03e"
+}
