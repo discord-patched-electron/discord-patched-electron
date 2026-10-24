@@ -14,8 +14,9 @@ Electron build** also starts package qualification with that runtime.
 
 Each candidate uses an immutable client snapshot. The workflow verifies the
 compiler artifact, assembles the client, moves the app directory, and checks plain
-launch and relaunch. It installs Equicord using the official installer, checks it,
-then uninstalls it and verifies the original bootstrap before packaging.
+launch and relaunch. It checks the official Vencord and Equicord installers across installation, an
+app upgrade, reinstallation, launch/relaunch and removal. Both must restore the
+current bootstrap before packaging.
 Parallel jobs check bundled/native video and Krisp, plus isolated X11/Wayland audio.
 
 nFPM makes `.pkg.tar.zst`, `.deb` and `.rpm` packages from the same app tree as the
@@ -26,7 +27,7 @@ containers don't verify a full desktop session or live call.
 
 After all checks pass, CI uploads every asset before publishing a public GitHub
 prerelease. Release notes include upstream versions, installation instructions,
-test limitations and linked commits since the preceding app release. Runtime
+a link to check results and commits since the preceding app release. Runtime
 cache tags are excluded from the changelog.
 
 Candidate tags include the client version and a content hash. A repeat of the same
@@ -48,7 +49,7 @@ jobs**. A partial draft can be resumed; public assets are never overwritten.
 
 3. Launch **Discord Canary (Patched Electron)**. Test the features you use,
    including voice, camera startup, screen sharing with app audio, and Krisp.
-   Uninstall any client mod before updating and reinstall it afterwards.
+   Reinstall client mods after updating; uninstalling first is unnecessary.
 4. Run [**Approve tested release**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/approve-release.yml)
    on `main`, paste the exact release tag, and tick the local-testing confirmation.
 
@@ -59,8 +60,12 @@ re-upload or rename any package. It rejects an older candidate after a newer
 release has been approved. The four-day cadence is based on compilation time,
 not how long I took to approve it.
 
-AUR publication is still disabled pending its publishing credentials. Approval
-currently promotes GitHub packages only; don't claim an AUR update occurred.
+Approval also publishes the AUR recipe using `AUR_SSH_PRIVATE_KEY`. It installs the
+same verified portable app under `/opt/`; no patching or downloads happen during
+installation. `makepkg` verifies the pinned archive checksum, and `.SRCINFO` is
+produced with `makepkg --printsrcinfo`. Publishing is serialized and rejects older
+versions. **Publish AUR package** can retry a failed push or explicitly publish a
+public test release without marking it stable.
 
 ## Manual candidates and local packaging
 
@@ -106,7 +111,19 @@ The namespace sandbox stays enabled. Debian packages include a scoped AppArmor
 user-namespace rule for Ubuntu. No package enables audio services or overwrites
 user config. No runtime source flags change during packaging.
 
-A checksum-pinned runtime cache release retains the compiler output beyond Actions
-artifact expiry. That release is a CI cache, not app approval. The last approved
+A checksum-pinned release in [the cache repository](https://github.com/discord-patched-electron/cache)
+retains compiler output beyond Actions artifact expiry. `CACHE_TOKEN` needs Contents
+read/write access to that repository only; the regular workflow token handles app releases. That release is a CI cache, not app approval. The last approved
 capacity digest remains usable when unrelated packaging code changes, so client
 updates don't need an Electron rebuild or lose retained Ninja objects.
+
+## Package updates
+
+Release filenames are fixed; versions remain in package metadata, release tags
+and manifests. AUR download aliases include the version to avoid stale local
+source caches. Older public assets remain immutable.
+
+Package post-install/upgrade hooks refresh `_app.asar` only when it exists and
+`app.asar` matches the newly installed checksum. This keeps official mod installers
+from restoring an old bootstrap, without touching a currently installed mod loader.
+Tarball users extract into a fresh directory and rerun their official installer.

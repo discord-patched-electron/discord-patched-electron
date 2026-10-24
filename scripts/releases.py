@@ -12,17 +12,18 @@ from pathlib import Path
 
 from common import ROOT, digest, read_json, run, sha256, version_key, write_json
 from fetch_client_snapshot import fetch as fetch_clients
+from fetch_reference import CACHE_REPOSITORY
 from fetch_reference import fetch as fetch_runtime
 from fingerprints import integration_key
 
 PROJECT = "discord-patched-electron/discord-patched-electron"
 URL = "https://github.com/" + PROJECT
-PENDING = "**I haven't tested and approved this build yet.**"
+PENDING = "**I haven't approved this build as stable yet.**"
 FORMATS = (".pkg.tar.zst", ".deb", ".rpm", ".tar.gz")
 
 
-def api(endpoint, *, method="GET", data=None, missing=False):
-    command = ["gh", "api", "repos/" + PROJECT + "/" + endpoint, "--method", method]
+def api(endpoint, *, method="GET", data=None, missing=False, repository=PROJECT):
+    command = ["gh", "api", "repos/" + repository + "/" + endpoint, "--method", method]
     if data is not None:
         command += ["--input", "-"]
     result = subprocess.run(
@@ -116,21 +117,15 @@ def notes(manifest: dict, previous: str | None):
         else f"\n\n[Commit history]({URL}/commits/{commit})"
     )
     return (
-        f"{PENDING} This is a public test build. Once I approve it, these same files become the release.\n\n"
+        f"{PENDING}\n\n"
         f"- Discord Canary **{manifest['client_version']}**\n"
         f"- Electron **{manifest['electron_version']}**\n"
         f"- Requires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
         "## Install\n\n"
         "Choose `.pkg.tar.zst` for Arch, `.deb` for Debian/Ubuntu, `.rpm` for Fedora, or `.tar.gz` for a portable app.\n\n"
         f"```sh\nsudo pacman -U ./{package}\n```\n\n"
-        f"[Installation, checksums and updates]({URL}/blob/main/docs/install.md). "
-        "Uninstall Vencord or Equicord before updating, then reinstall it.\n\n"
-        "## Checks\n\n"
-        "Passed plain and Equicord launch/relaunch, native video/Krisp and isolated X11/Wayland audio checks. "
-        "Debian installation and launch passed; Arch and Fedora package installation and runtime loading passed. "
-        "Live Discord calls, physical camera behavior and full GNOME/KDE sessions need manual testing.\n\n"
-        f"[Test results]({URL}/actions/runs/{manifest['workflow_run']}) · "
-        f"[Test and approve a release]({URL}/blob/main/docs/agent/releases.md#test-and-approve)\n\n"
+        f"[Installation and updates]({URL}/blob/main/docs/install.md).\n\n"
+        f"[All checks passed.]({URL}/actions/runs/{manifest['workflow_run']})\n\n"
         "## Changes\n\n"
         + ("\n".join(changes) or "Discord or Electron inputs updated; no project commits changed.")
         + comparison
@@ -141,8 +136,11 @@ def notes(manifest: dict, previous: str | None):
 def cache_runtime(manifest: dict):
     runtime = manifest["runtime"]
     tag = runtime["cache_release"]
-    cached = api("releases/tags/" + tag, missing=True)
+    cached = api("releases/tags/" + tag, missing=True, repository=CACHE_REPOSITORY)
     if cached and not cached["draft"]:
+        assets = {asset["name"]: asset.get("digest") for asset in cached["assets"]}
+        if assets.get("runtime-dist.zip") != "sha256:" + runtime["archive_sha256"]:
+            raise ValueError("Published compiler cache has different bytes")
         return
     output = ROOT / "out/release-runtime-cache"
     fetch_runtime(runtime["run"], output)
@@ -152,6 +150,10 @@ def cache_runtime(manifest: dict):
         or sha256(output / "binary/runtime-dist.zip") != runtime["archive_sha256"]
     ):
         raise ValueError("Runtime cache differs from the tested package")
+    token = os.environ.get("CACHE_TOKEN")
+    if not token:
+        raise ValueError("Set CACHE_TOKEN with Contents write access to " + CACHE_REPOSITORY)
+    cache_environment = {**os.environ, "GH_TOKEN": token}
     if not cached:
         run(
             "gh",
@@ -159,16 +161,17 @@ def cache_runtime(manifest: dict):
             "create",
             tag,
             "--repo",
-            PROJECT,
+            CACHE_REPOSITORY,
             "--draft",
             "--prerelease",
             "--latest=false",
             "--target",
-            runtime["compiler_commit"],
+            "main",
             "--title",
             "Build cache: Electron " + runtime["version"],
             "--notes",
-            "Electron compiler cache for CI. For the complete Canary app, choose a Canary release. App releases are marked Latest after I test and approve them.",
+            "Compiler artifacts for CI. Download the app from https://github.com/discord-patched-electron/discord-patched-electron/releases.",
+            env=cache_environment,
         )
     run(
         "gh",
@@ -178,8 +181,9 @@ def cache_runtime(manifest: dict):
         output / "capacity/capacity.json",
         output / "binary/runtime-dist.zip",
         "--repo",
-        PROJECT,
+        CACHE_REPOSITORY,
         "--clobber",
+        env=cache_environment,
     )
     run(
         "gh",
@@ -187,10 +191,11 @@ def cache_runtime(manifest: dict):
         "edit",
         tag,
         "--repo",
-        PROJECT,
+        CACHE_REPOSITORY,
         "--draft=false",
         "--prerelease",
         "--latest=false",
+        env=cache_environment,
     )
 
 
@@ -296,8 +301,8 @@ def approve(tag: str, *, check_only=False):
     if not re.fullmatch(r"canary-[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{16}", tag):
         raise ValueError("Use a complete Canary release tag")
     release = api("releases/tags/" + tag)
-    directory = ROOT / "out/approve-release"
-    run("gh", "release", "download", tag, "--repo", PROJECT, "--dir", directory)
+    directory = ROOT / "out/approve-release" / tag
+    run("gh", "release", "download", tag, "--repo", PROJECT, "--dir", directory, "--clobber")
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
     approved_path = ROOT / "config/approved-release.json"
@@ -316,7 +321,7 @@ def approve(tag: str, *, check_only=False):
     runtime = manifest["runtime"]
     if version_key(runtime["version"]) < version_key(policy["last_good_runtime"]["version"]):
         raise ValueError("Candidate would roll back the approved Electron runtime")
-    cached = api("releases/tags/" + runtime["cache_release"])
+    cached = api("releases/tags/" + runtime["cache_release"], repository=CACHE_REPOSITORY)
     if cached["draft"]:
         raise ValueError("Runtime cache is not published")
     assets = {asset["name"]: asset.get("digest") for asset in cached["assets"]}
@@ -328,11 +333,12 @@ def approve(tag: str, *, check_only=False):
         "download",
         runtime["cache_release"],
         "--repo",
-        PROJECT,
+        CACHE_REPOSITORY,
         "--pattern",
         "capacity.json",
         "--dir",
         directory / "runtime",
+        "--clobber",
     )
     if digest(read_json(directory / "runtime/capacity.json")) != runtime["capacity_sha256"]:
         raise ValueError("Retained compiler report differs from tested report")
@@ -341,7 +347,7 @@ def approve(tag: str, *, check_only=False):
         raise ValueError("Compiler provenance changed")
     if check_only:
         print("Approval checks passed. Release still needs manual testing and approval.")
-        return
+        return directory
     policy["last_good_runtime"] = {**runtime, "completed_at": compiler["updated_at"]}
     write_json(policy_path, policy)
     write_json(
@@ -385,7 +391,8 @@ def approve(tag: str, *, check_only=False):
             "make_latest": "true",
             "body": release["body"]
             .replace("**Awaiting maintainer testing.**", PENDING, 1)
-            .replace(PENDING, "**I've tested and approved this build.**", 1),
+            .replace("**I haven't tested and approved this build yet.**", PENDING, 1)
+            .replace(PENDING, "**I've tested and approved this build as stable.**", 1),
         },
     )
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:

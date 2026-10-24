@@ -10,6 +10,7 @@ import argparse
 import gzip
 import os
 import re
+import shutil
 import subprocess
 import tarfile
 from datetime import UTC, datetime
@@ -201,6 +202,12 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     config["overrides"]["archlinux"]["depends"][0] = f"glibc>={libc}"
     output.mkdir(parents=True)
     name = config["name"]
+    shutil.copyfile(ROOT / "packaging/linux/refresh-mod-backup.sh", app / "refresh-mod-backup.sh")
+    (app / "refresh-mod-backup.sh").chmod(0o644)
+    refresh = output / "refresh-mod-backup.sh"
+    refresh.write_text(f"#!/bin/sh\nsh /opt/{name}/refresh-mod-backup.sh /opt/{name}\n")
+    config["scripts"] = {"postinstall": str(refresh)}
+    config["archlinux"]["scripts"] = {"postupgrade": str(refresh)}
     # AppArmor's user-namespace rule is needed on Ubuntu 24.04 and newer.
     # It applies only to this installed executable, never to all Chromium apps.
     profile = output / "apparmor-profile"
@@ -210,7 +217,8 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     )
     postinstall = output / "postinstall.sh"
     postinstall.write_text(
-        (ROOT / "packaging/linux/postinstall.sh").read_text().replace("@PKGNAME@", name)
+        refresh.read_text()
+        + (ROOT / "packaging/linux/postinstall.sh").read_text().replace("@PKGNAME@", name)
     )
     config["contents"].append(
         {"src": str(profile), "dst": f"/etc/apparmor.d/{name}", "type": "config", "packager": "deb"}
@@ -221,7 +229,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     (app / "SHA256SUMS").write_text(
         "".join(f"{sha256(path)}  {path.relative_to(app)}\n" for path in files)
     )
-    archive = output / f"{name}-{version}-linux-x86_64.tar.gz"
+    archive = output / f"{name}-linux-x86_64.tar.gz"
     tarball(app, archive, name, epoch)
     environment = {**os.environ, "SOURCE_DATE_EPOCH": str(epoch)}
     for kind, suffix in (("deb", "deb"), ("rpm", "rpm"), ("archlinux", "pkg.tar.zst")):
@@ -234,7 +242,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
                 "--packager",
                 kind,
                 "--target",
-                str(output / f"{name}-{version}-1-x86_64.{suffix}"),
+                str(output / f"{name}-x86_64.{suffix}"),
             ],
             check=True,
             env=environment,

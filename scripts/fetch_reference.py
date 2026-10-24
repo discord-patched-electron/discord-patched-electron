@@ -15,6 +15,8 @@ from build_reference import build_config
 from common import ROOT, digest, read_json, run, sha256, write_json
 from fingerprints import runtime_key
 
+CACHE_REPOSITORY = "discord-patched-electron/cache"
+
 
 def validate_capacity(capacity: dict, candidate: bool):
     # A new candidate must not strand client-only updates on the previously
@@ -122,7 +124,7 @@ def fetch(run_id: str, output: Path):
             "download",
             good["cache_release"],
             "--repo",
-            repository,
+            CACHE_REPOSITORY,
             "--pattern",
             "capacity.json",
             "--dir",
@@ -153,7 +155,7 @@ def fetch(run_id: str, output: Path):
             "download",
             good["cache_release"],
             "--repo",
-            repository,
+            CACHE_REPOSITORY,
             "--pattern",
             "runtime-dist.zip",
             "--dir",

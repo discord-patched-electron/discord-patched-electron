@@ -30,9 +30,9 @@ account. Always launch Discord as your normal user.
 
 ## Update or remove
 
-Before updating Discord, uninstall the mod through its installer. Update Discord,
-then install the mod again. For tarballs, extract the new version into a fresh
-folder before installing the mod there.
+Close Discord and update it normally, then run the official installer again.
+There is no need to uninstall the mod first. Your mod settings stay in place.
+For tarballs, extract the update into a fresh folder and install the mod there.
 
 To remove a mod or switch between them, use the current mod's **Uninstall** option.
 The CLI equivalent is `-uninstall -location /absolute/path/to/app`. Removing a mod

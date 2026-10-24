@@ -1,6 +1,9 @@
 name: Release Linux packages
 on:
   workflow_call:
+    secrets:
+      CACHE_TOKEN:
+        required: false
     inputs:
       clients_state:
         type: string
@@ -151,7 +154,7 @@ jobs:
           sudo apparmor_parser -r /etc/apparmor.d/discord-release-fixture
       - name: Launch and relaunch the relocated app
         run: xvfb-run -a python scripts/check_desktop_launch.py "out/relocated app" --output out/launch --relaunch
-      - uses: ./.github/actions/check-equicord
+      - uses: ./.github/actions/check-client-mods
         with:
           app: out/relocated app
           output: out/mod-launch
@@ -159,6 +162,7 @@ jobs:
         run: |
           python scripts/package_release.py "out/relocated app" --output out/packages --version "$VERSION" --epoch "$SOURCE_DATE_EPOCH"
           python scripts/check_release_packages.py out/packages
+          python scripts/publish_aur.py --manifest out/packages/release.json --output out/aur-recipe
       - name: Install the Debian package and check its shared libraries
         run: |
           sudo apt-get install -y ./out/packages/*.deb
@@ -182,6 +186,25 @@ jobs:
             archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 \
             bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /packages/*.pkg.tar.zst; python /check.py /opt/discord-canary-prerelease-patched-electron-bin' \
             > out/arch-install.log 2>&1
+      - name: Build and install the AUR recipe from the verified portable archive
+        run: |
+          docker run --rm \
+            -v "$PWD/out/aur-recipe:/recipe:ro" \
+            -v "$PWD/out/packages:/packages:ro" \
+            -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
+            archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 \
+            bash -ec '
+              pacman -Syu --noconfirm --needed base-devel python
+              useradd -m builder
+              cp -a /recipe /build
+              version=$(sed -n "s/^pkgver=//p" /build/PKGBUILD)
+              cp /packages/*-linux-x86_64.tar.gz "/build/discord-canary-prerelease-patched-electron-bin-$version.tar.gz"
+              chown -R builder:builder /build
+              cd /build
+              runuser -u builder -- makepkg --nodeps --noconfirm
+              pacman -U --noconfirm ./*.pkg.tar.zst
+              python /check.py /opt/discord-canary-prerelease-patched-electron-bin
+            ' > out/aur-install.log 2>&1
       - name: Keep release packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -203,10 +226,13 @@ jobs:
           path: |
             out/launch/**/launch-report.json
             out/mod-launch/**/launch-report.json
-            out/mod-launch/equicord-sha256.txt
+            out/mod-launch/mod-sha256.txt
             out/deb-launch/**/launch-report.json
             out/rpm-install.log
             out/arch-install.log
+            out/aur-install.log
+            out/aur-recipe/PKGBUILD
+            out/aur-recipe/.SRCINFO
             out/packages/package-checks.json
             out/relocated app/local-build.json
             out/clients.lock.json
@@ -234,4 +260,6 @@ jobs:
           name: linux-packages-canary
           path: packages
       - name: Publish complete test packages
+        env:
+          CACHE_TOKEN: ${{ secrets.CACHE_TOKEN }}
         run: python3 scripts/releases.py publish packages

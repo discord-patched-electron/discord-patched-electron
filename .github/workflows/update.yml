@@ -65,6 +65,8 @@ jobs:
       matrix:
         channel: ${{ fromJSON(needs.discover.outputs.clients) }}
     uses: ./.github/workflows/release.yml
+    secrets:
+      CACHE_TOKEN: ${{ secrets.CACHE_TOKEN }}
     with:
       clients_state: ${{ needs.discover.outputs.snapshot }}
       reference_run: ${{ needs.discover.outputs.reference_run }}

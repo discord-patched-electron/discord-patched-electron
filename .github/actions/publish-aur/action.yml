@@ -1,0 +1,35 @@
+name: Publish AUR package
+description: Verify a public release and push its binary recipe to the AUR.
+inputs:
+  tag:
+    description: Exact public Canary release tag
+    required: true
+  ssh-key:
+    description: AUR publishing key
+    required: true
+  verified-directory:
+    description: Previously verified release files, if available in this job
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      with:
+        python-version: "3.12"
+        enable-cache: true
+    - shell: bash
+      env:
+        AUR_KEY: ${{ inputs.ssh-key }}
+        RELEASE_TAG: ${{ inputs.tag }}
+        VERIFIED_DIRECTORY: ${{ inputs.verified-directory }}
+      run: |
+        set -euo pipefail
+        key=$(mktemp "$RUNNER_TEMP/aur-key.XXXXXX")
+        trap 'rm -f "$key"' EXIT
+        chmod 600 "$key"
+        printf '%s\n' "$AUR_KEY" > "$key"
+        unset AUR_KEY
+        export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o HostKeyAlgorithms=ssh-ed25519 -o UserKnownHostsFile=$GITHUB_WORKSPACE/packaging/aur-known-hosts"
+        args=()
+        if [[ -n "$VERIFIED_DIRECTORY" ]]; then args+=(--verified-directory "$VERIFIED_DIRECTORY"); fi
+        uv run --locked scripts/publish_aur.py "$RELEASE_TAG" "${args[@]}" --publish

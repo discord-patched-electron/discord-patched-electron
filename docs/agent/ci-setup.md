@@ -123,14 +123,16 @@ GitHub settings before replacing it.
 The Ubuntu base and downloaded Actions runner archive are pinned by digest.
 Runner self-updates remain enabled to keep GitHub connectivity supported.
 
-## Later AUR setup
+## Publishing credentials
 
-After runtime and package validation, create or select an AUR maintainer account
-and register a dedicated SSH public key. Store the private key in the repository's
-`AUR_SSH_PRIVATE_KEY` Actions secret, never in source or chat. Verify the AUR host
-key against Arch's published information. Only the separate GitHub-hosted
-publication job receives that credential. No submission is appropriate before a
-working downloadable runtime exists.
+`AUR_SSH_PRIVATE_KEY` authenticates the AUR account `he3als`. Only the publication
+job receives it. `packaging/aur-known-hosts` pins the existing verified AUR host
+key; the job requires strict host-key checking and deletes its temporary key file.
+
+`CACHE_TOKEN` is a fine-grained GitHub token with Contents read/write access only
+to `discord-patched-electron/cache`. It is passed explicitly to the reusable release
+workflow and used only for compiler-cache uploads. App releases use `GITHUB_TOKEN`.
+See [release packaging](releases.md) for the approval and AUR update flow.
 
 References: [GitHub runner setup](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners),
 [job limits](https://docs.github.com/en/actions/reference/limits),

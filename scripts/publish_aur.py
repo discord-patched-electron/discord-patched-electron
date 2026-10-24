@@ -1,0 +1,167 @@
+"""Publish an AUR recipe for the exact portable app verified by release CI."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import shlex
+import shutil
+import subprocess
+from pathlib import Path
+
+from common import ROOT, read_json, run, sha256
+from desktop_identity import desktop_id
+from package_release import metadata
+from releases import URL, api, approve, release_tag, validate_approval, verify_assets
+
+NAME = "discord-canary-prerelease-patched-electron-bin"
+REMOTE = f"ssh://aur@aur.archlinux.org/{NAME}.git"
+
+
+def recipe(manifest: dict, tag: str) -> str:
+    if tag != release_tag(manifest["client_version"], manifest["release_key"]):
+        raise ValueError("Release identity mismatch")
+    config = metadata(Path("/unused"), manifest["version"], manifest["channel"], 0)
+    dependencies = config["overrides"]["archlinux"]
+    dependencies["depends"][0] = "glibc>=" + manifest["minimum_glibc"]
+    asset = next(name for name in manifest["assets"] if name.endswith(".tar.gz"))
+    if Path(asset).name != asset or not re.fullmatch(r"[\w.-]+", asset):
+        raise ValueError("Invalid portable asset name")
+    checksum = manifest["assets"][asset]
+    if not re.fullmatch(r"[a-f0-9]{64}", checksum):
+        raise ValueError("Invalid archive checksum")
+
+    def array(items):
+        return "(" + " ".join(shlex.quote(item) for item in items) + ")"
+
+    return f"""# Maintainer: he3als <he3als@users.noreply.github.com>
+pkgname={NAME}
+pkgver={manifest["version"]}
+pkgrel=1
+pkgdesc='Discord Canary with patched prerelease Electron and Linux fixes (AVX2 required)'
+arch=('x86_64')
+url='{URL}'
+license=('LicenseRef-Discord' 'MIT' 'BSD-3-Clause')
+depends={array(dependencies["depends"])}
+optdepends={array(dependencies["recommends"])}
+options=('!strip' '!debug')
+install=discord.install
+source=("$pkgname-$pkgver.tar.gz::{URL}/releases/download/{tag}/{asset}")
+sha256sums=('{checksum}')
+
+package() {{
+  install -dm755 "$pkgdir/opt" "$pkgdir/usr/bin"
+  cp -a "$srcdir/$pkgname" "$pkgdir/opt/$pkgname"
+  ln -s "/opt/$pkgname/launch.sh" "$pkgdir/usr/bin/$pkgname"
+  install -Dm644 "$srcdir/$pkgname/{desktop_id("canary")}.desktop" \\
+    "$pkgdir/usr/share/applications/{desktop_id("canary")}.desktop"
+  install -Dm644 "$srcdir/$pkgname/discord.png" "$pkgdir/usr/share/pixmaps/$pkgname.png"
+  install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
+  cp -a "$srcdir/$pkgname/licenses/." "$pkgdir/usr/share/licenses/$pkgname/"
+}}
+"""
+
+
+def stage(directory: Path, manifest: dict, tag: str):
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "PKGBUILD").write_text(recipe(manifest, tag))
+    (directory / "discord.install").write_text(
+        "post_install() {\n"
+        f"  sh /opt/{NAME}/refresh-mod-backup.sh /opt/{NAME}\n"
+        "}\n\npost_upgrade() {\n  post_install\n}\n"
+    )
+    command = ["makepkg", "--printsrcinfo"]
+    if not shutil.which("makepkg"):
+        command = [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-v",
+            f"{directory.resolve()}:/package:ro",
+            "-w",
+            "/package",
+            "archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0",
+            *command,
+        ]
+    result = subprocess.check_output(command, cwd=directory, text=True)
+    (directory / ".SRCINFO").write_text(result)
+
+
+def publish(directory: Path, manifest: dict):
+    # Never overwrite a newer AUR package when jobs finish out of order.
+    previous = subprocess.run(
+        ["git", "show", "HEAD:.SRCINFO"], cwd=directory, capture_output=True, text=True
+    )
+    match = re.search(r"^\s*pkgver = ([0-9.]+)$", previous.stdout, re.MULTILINE)
+    if match:
+        installed = tuple(map(int, match[1].split(".")))
+        requested = tuple(map(int, manifest["version"].split(".")))
+        if installed > requested:
+            raise ValueError("AUR already has a newer version")
+    run("git", "add", "PKGBUILD", ".SRCINFO", "discord.install", cwd=directory)
+    if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=directory).returncode == 0:
+        print("AUR package is already current.")
+        return
+    if match and installed == requested:
+        raise ValueError("Refusing to change an already published AUR version")
+    run(
+        "git",
+        "-c",
+        "user.name=he3als",
+        "-c",
+        "user.email=he3als@users.noreply.github.com",
+        "commit",
+        "-m",
+        "Update to " + manifest["version"],
+        cwd=directory,
+    )
+    run("git", "push", "origin", "HEAD:master", cwd=directory)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("tag", nargs="?")
+    parser.add_argument(
+        "--manifest", type=Path, help="Generate a recipe locally, without publishing"
+    )
+    parser.add_argument("--verified-directory", type=Path)
+    parser.add_argument("--output", type=Path, default=ROOT / "out/aur-publish")
+    parser.add_argument("--publish", action="store_true")
+    args = parser.parse_args()
+    if args.manifest:
+        if args.publish or args.tag or args.verified_directory:
+            parser.error("--manifest only generates a local recipe")
+        manifest = read_json(args.manifest)
+        verify_assets(args.manifest.parent, manifest)
+        stage(
+            args.output, manifest, release_tag(manifest["client_version"], manifest["release_key"])
+        )
+        return
+    if not args.tag:
+        parser.error("A public Canary release tag is required")
+    directory = args.verified_directory or approve(args.tag, check_only=True)
+    manifest = read_json(directory / "release.json")
+    verify_assets(directory, manifest)
+    release = api("releases/tags/" + args.tag)
+    validate_approval(release, manifest, api("actions/runs/" + manifest["workflow_run"]), None)
+    if api("commits/" + args.tag)["sha"] != manifest["source_commit"]:
+        raise ValueError("Release tag changed")
+    uploaded = {asset["name"]: asset.get("digest") for asset in release["assets"]}
+    for name in [*manifest["assets"], "release.json", "SHA256SUMS"]:
+        if uploaded.get(name) != "sha256:" + sha256(directory / name):
+            raise ValueError("Published asset changed: " + name)
+    if args.publish:
+        if args.output.exists():
+            raise ValueError("Use a fresh AUR checkout")
+        run("git", "clone", REMOTE, args.output)
+    stage(args.output, manifest, args.tag)
+    if args.publish:
+        publish(args.output, manifest)
+        print("Published https://aur.archlinux.org/packages/" + NAME)
+
+
+if __name__ == "__main__":
+    main()

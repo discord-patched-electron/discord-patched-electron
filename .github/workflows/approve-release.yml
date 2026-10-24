@@ -35,3 +35,21 @@ jobs:
           ref: main
       - name: Verify and promote the tested files
         run: python3 scripts/releases.py approve "$RELEASE_TAG"
+  aur:
+    needs: approve
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: aur-publisher
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: main
+      - uses: ./.github/actions/publish-aur
+        with:
+          tag: ${{ inputs.release_tag }}
+          ssh-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}

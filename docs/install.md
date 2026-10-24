@@ -1,7 +1,7 @@
 # Install
 
 Choose a complete Canary app on the [Releases page](https://github.com/discord-patched-electron/discord-patched-electron/releases).
-Builds labelled **Pre-release** are public test packages I haven't approved yet.
+Builds labelled **Pre-release** are public test packages I haven't approved as stable yet.
 **Latest** identifies the newest package I've tested and approved. Both use prerelease
 Electron and require **x86-64-v3** (AVX2).
 
@@ -11,8 +11,6 @@ Download one package and `SHA256SUMS` into a new folder, then verify it:
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
-A release labelled **Build cache** contains only Electron; it isn't an app download.
-
 ## Arch Linux
 
 ```sh
@@ -20,7 +18,9 @@ sudo pacman -U ./discord-canary-prerelease-patched-electron-bin-*.pkg.tar.zst
 ```
 
 This works for test releases too. Install the next package with the same command.
-AUR publishing is not enabled yet.
+For package-manager updates, install
+[`discord-canary-prerelease-patched-electron-bin`](https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin)
+from the AUR. Public test builds are also available directly from Releases.
 
 ## Debian and Ubuntu
 
@@ -55,10 +55,13 @@ On GitHub, select **Watch → Custom → Releases** to get notifications of new 
 Choose email or inbox delivery in your [notification settings](https://github.com/settings/notifications).
 Release notes list the Discord and Electron versions, changes and test results.
 
-Install the next package or replace the extracted folder. Your profile and
-[launcher settings](linux-launcher.md) stay in your config directory.
-If you use Vencord or Equicord, follow the [mod update instructions](client-mods.md)
-before replacing the app.
+Close Discord, then install the next package or replace the extracted folder.
+Reinstall Vencord or Equicord afterward using its [official installer](client-mods.md);
+you do not need to uninstall it first.
+
+Settings, login sessions and cache are stored separately from stock Discord in
+`~/.config/discord-canary-prerelease-patched-electron-bin` (or under `XDG_CONFIG_HOME`
+if set). Updates preserve them and your [launcher settings](linux-launcher.md).
 
 Discord client updates are checked independently of Electron. Routine Electron
 updates are spaced at least four days apart, with an exception for identified

@@ -1,4 +1,8 @@
-# Binary package candidates
+# Historical binary package candidates
+
+The published AUR package now uses the complete CI-built tarball; see
+[release packaging](releases.md). This document describes the older source-staging
+recipe retained for regression tests. Stable and PTB are disabled.
 
 `scripts/generate_package.py` generates one AUR recipe from a locked Discord
 client, immutable runtime/camera-helper asset descriptors and a package revision. The shared
