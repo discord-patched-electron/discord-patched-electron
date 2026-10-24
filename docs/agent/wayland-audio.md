@@ -116,6 +116,7 @@ Discord's existing dedicated controls thread; the module and adapter patches are
 unchanged. Keep the real device-enumeration, private-device positive control and
 audio-isolation assertions enabled; retries or longer timeouts would conceal the
 configuration mismatch.
+See the [local and CI results](../evidence/wayland-audio-defaults.json).
 
 Independent tones distinguish an application's parent and child process,
 another application's native PipeWire playback, and simulated received Discord

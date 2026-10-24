@@ -4,6 +4,27 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Wayland audio test correction, 24 October
+
+`6ff29e5` removes the fixture's `offloadAdmControls=false` override. The shipped
+voice wrapper already defaults to dedicated audio controls. With the forced
+synchronous path, discovery run `40100767363` stalled inside native
+`StartRecording`; the device-enumeration timeout was a later symptom. One local
+repeat also stalled during a source switch. Six corrected runs passed across
+manual/automatic selection and both audio servers, with the same runtime, voice
+module and adapter hashes as the failing run. No runtime patch or longer timeout
+was needed. CI verifies both bundled and compiled runtimes. See
+[results](../evidence/wayland-audio-defaults.json).
+
+[Checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40106601920)
+and [release qualification](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40106617738)
+passed. The new [public test release](https://github.com/discord-patched-electron/discord-patched-electron/releases/tag/canary-1.0.2365-e638bfba564a2ac4)
+has all four package formats and remains unapproved. It reuses compiler run
+`40053107555`; no Electron compilation or physical camera test occurred.
+
+Project choices use neutral wording. First person is reserved for personal use,
+testing and approval. The AI disclosure stays in the README.
+
 ## Public Canary packages and approval, 24 October
 
 Only **Canary + prerelease Electron** is active. Stable/PTB remain in historical
