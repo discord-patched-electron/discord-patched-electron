@@ -8,12 +8,11 @@ PipeWire implementation. The protocol on stdin/stdout contains no audio data.
 """
 
 from __future__ import annotations
+
 import argparse
 import ctypes
-from functools import partial
 import json
 import os
-from pathlib import Path
 import select
 import signal
 import socket
@@ -21,6 +20,8 @@ import subprocess as sp
 import sys
 import time
 import uuid
+from functools import partial
+from pathlib import Path
 
 
 def child_guard(parent):
@@ -96,23 +97,18 @@ def graph():
 
 def video_sources(objects, owner):
     """Match links into this native process, not a guessed global active cast."""
-    clients = {
-        x["id"]: props(x) for x in objects if x["type"] == "PipeWire:Interface:Client"
-    }
+    clients = {x["id"]: props(x) for x in objects if x["type"] == "PipeWire:Interface:Client"}
     nodes = {x["id"]: x for x in objects if x["type"] == "PipeWire:Interface:Node"}
     consumers = set()
     for node_id, node in nodes.items():
         p = props(node)
         client = clients.get(integer(p.get("client.id")), {})
-        pid = integer(
-            client.get("application.process.id", p.get("application.process.id"))
-        )
+        pid = integer(client.get("application.process.id", p.get("application.process.id")))
         # A portal can pass an already-open FD: pipewire.sec.pid then belongs
         # to the portal broker. The native client's advertised PID identifies
         # its video consumer; correlation still requires the actual graph link.
         if pid == owner and (
-            p.get("media.class") == "Stream/Input/Video"
-            or p.get("media.type") == "Video"
+            p.get("media.class") == "Stream/Input/Video" or p.get("media.type") == "Video"
         ):
             consumers.add(node_id)
     sources = set()
@@ -163,9 +159,7 @@ def niri_target(sources, casts, windows):
     if "Output" in target:
         return {"kind": "system", "key": key, "backend": "niri"}
     window_id = target.get("Window", {}).get("id")
-    matches = [
-        w for w in windows if w.get("id") == window_id and type(w.get("pid")) is int
-    ]
+    matches = [w for w in windows if w.get("id") == window_id and type(w.get("pid")) is int]
     if window_id is not None and len(matches) == 1:
         return {
             "kind": "application",
@@ -229,8 +223,7 @@ class Route:
             found = [
                 x
                 for x in graph()
-                if x["type"] == "PipeWire:Interface:Node"
-                and props(x).get("node.name") == name
+                if x["type"] == "PipeWire:Interface:Node" and props(x).get("node.name") == name
             ]
             if len(found) == 1:
                 return str(props(found[0])["object.serial"])
@@ -310,9 +303,7 @@ class Route:
             )
             self.playback = self.spawn(self.pulse_playback(), stdin=recording.stdout)
             recording.stdout.close()
-            self.capture_pid = (
-                os.getpid() if self.module is not None else self.playback.pid
-            )
+            self.capture_pid = os.getpid() if self.module is not None else self.playback.pid
             return self.capture_pid
         except Exception:
             self.close()
@@ -328,11 +319,7 @@ class Route:
         desired = {}
         sinks = None
         native_pulse_serials = set()
-        clients = {
-            x["id"]: props(x)
-            for x in objects
-            if x["type"] == "PipeWire:Interface:Client"
-        }
+        clients = {x["id"]: props(x) for x in objects if x["type"] == "PipeWire:Interface:Client"}
 
         def wanted(pid):
             return (
@@ -351,9 +338,7 @@ class Route:
             ).startswith("dpe-audio-"):
                 continue
             client = clients.get(integer(p.get("client.id")), {})
-            pid = integer(
-                p.get("application.process.id", client.get("application.process.id"))
-            )
+            pid = integer(p.get("application.process.id", client.get("application.process.id")))
             if not wanted(pid):
                 continue
             serial = str(p.get("object.serial", ""))
@@ -380,20 +365,20 @@ class Route:
             pid = integer(p.get("application.process.id"))
             identity = process_identity(pid)
             # pipewire-pulse exposes the same stream twice. Never mix it twice.
-            if identity is None or str(p.get("object.serial")) in native_pulse_serials or not wanted(pid):
-                continue
             if (
-                "object.serial" in p
-            ):  # A PipeWire stream with no matching node is stale.
+                identity is None
+                or str(p.get("object.serial")) in native_pulse_serials
+                or not wanted(pid)
+            ):
+                continue
+            if "object.serial" in p:  # A PipeWire stream with no matching node is stale.
                 continue
             index = integer(stream.get("index"))
             sink = integer(stream.get("sink"))
             if min(index, sink) < 0:
                 continue
             if sinks is None:
-                sinks = json.loads(
-                    command(["/usr/bin/pactl", "-f", "json", "list", "sinks"])
-                )
+                sinks = json.loads(command(["/usr/bin/pactl", "-f", "json", "list", "sinks"]))
             monitor = next(
                 (
                     s.get("monitor_source_name", s.get("monitor_source"))
@@ -513,9 +498,7 @@ class Controller:
             self.choose_key = key
             choices = {}
             clients = {
-                x["id"]: props(x)
-                for x in objects
-                if x["type"] == "PipeWire:Interface:Client"
+                x["id"]: props(x) for x in objects if x["type"] == "PipeWire:Interface:Client"
             }
             entries = [
                 {**clients.get(integer(props(x).get("client.id")), {}), **props(x)}
@@ -523,8 +506,11 @@ class Controller:
                 if x["type"] == "PipeWire:Interface:Node"
                 and props(x).get("media.class") == "Stream/Output/Audio"
             ]
-            entries += [s.get("properties", {})
-                        for s in pulse if "object.serial" not in s.get("properties", {})]
+            entries += [
+                s.get("properties", {})
+                for s in pulse
+                if "object.serial" not in s.get("properties", {})
+            ]
             for entry in entries:
                 pid = integer(entry.get("application.process.id"))
                 identity = process_identity(pid)
@@ -538,13 +524,22 @@ class Controller:
                     label = "".join(c for c in label if c.isprintable())
                     choices[pid] = (identity, label)
             self.choices = choices
-            from window_inventory import windows, desktop_note
+            from window_inventory import desktop_note, windows
+
             inventory = windows()
             rows = ["system", "Entire system (except Discord)"]
             for pid, (identity, label) in sorted(choices.items()):
-                owners = [w for w in inventory if (root := process_identity(w['pid'])) and descendant(pid, root)]
-                titles = sorted({w['title'] for w in owners if w['title']})
-                detail = (" — " + titles[0]) if len(titles) == 1 else (f" — {len(titles)} windows" if titles else "")
+                owners = [
+                    w
+                    for w in inventory
+                    if (root := process_identity(w["pid"])) and descendant(pid, root)
+                ]
+                titles = sorted({w["title"] for w in owners if w["title"]})
+                detail = (
+                    (" — " + titles[0])
+                    if len(titles) == 1
+                    else (f" — {len(titles)} windows" if titles else "")
+                )
                 rows.extend([str(pid), label + " (all audio)" + detail])
             self.chooser = sp.Popen(
                 [
@@ -595,17 +590,13 @@ class Controller:
         if not self.enabled:
             return
         objects = graph()
-        pulse = json.loads(
-            command(["/usr/bin/pactl", "-f", "json", "list", "sink-inputs"])
-        )
+        pulse = json.loads(command(["/usr/bin/pactl", "-f", "json", "list", "sink-inputs"]))
         sources = video_sources(objects, self.owner)
         target = None
         niri_available = False
         if os.environ.get("NIRI_SOCKET"):
             try:
-                target = niri_target(
-                    sources, niri_request("Casts"), niri_request("Windows")
-                )
+                target = niri_target(sources, niri_request("Casts"), niri_request("Windows"))
                 niri_available = True
             except (OSError, ValueError, KeyError, StopIteration):
                 pass  # Older niri versions use the explicit audio selector.
@@ -625,20 +616,12 @@ class Controller:
                 self.reset()
             self.emit()
             return
-        identity = (
-            None if target["kind"] == "system" else process_identity(target["pid"])
-        )
-        if target["kind"] != "system" and (
-            identity is None or descendant(self.owner, identity)
-        ):
+        identity = None if target["kind"] == "system" else process_identity(target["pid"])
+        if target["kind"] != "system" and (identity is None or descendant(self.owner, identity)):
             self.reset()
             return
         key = (target["key"], identity)
-        if (
-            self.target_key
-            and self.target_key[0] == key[0]
-            and self.target_key[1] != identity
-        ):
+        if self.target_key and self.target_key[0] == key[0] and self.target_key[1] != identity:
             # The window/session is unchanged but its process identity vanished
             # or was reused. Require a new video selection before following it.
             if self.route:

@@ -98,13 +98,12 @@ the remote `ci-state` commit exactly unchanged, with no compiler job allocated.
 The activation baseline is **2026-10-23 19:59:51 UTC**. Both runs discovered
 Stable 1.0.166, PTB 1.0.224 and Canary 1.0.2357; the new PTB/Canary revisions
 subsequently passed the selected-channel checks described below.
-See [CI evidence](evidence/discovery-ci.json). The accompanying source, unit,
+See [CI evidence](../evidence/discovery-ci.json). The accompanying source, unit,
 native-baseline and nine-package checks passed at `c006ba1`.
 
 API references: [release pagination](https://docs.github.com/en/rest/releases/releases#list-releases),
 [Git references](https://docs.github.com/en/rest/git/refs#get-a-reference),
 [annotated tags](https://docs.github.com/en/rest/git/tags#get-a-tag).
-
 
 ## Validate a discovered client update without compiling
 
@@ -138,6 +137,6 @@ handoff/teardown and offline Krisp processing using their bundled Electron
 44.9.3, with 53.6 dB synthetic noise reduction. These are baseline results, not
 custom-runtime, live-call or per-application audio qualification. The existing
 narrow dispatch-library exception required no change. See
-[local evidence](evidence/client-updates-local.json). The CI snapshot checks subsequently passed;
-[CI evidence](evidence/client-updates-ci.json) records both runs. The bootstrap
+[local evidence](../evidence/client-updates-local.json). The CI snapshot checks subsequently passed;
+[CI evidence](../evidence/client-updates-ci.json) records both runs. The bootstrap
 locks now include those exact PTB/Canary snapshots.

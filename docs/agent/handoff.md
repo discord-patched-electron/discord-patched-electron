@@ -22,12 +22,12 @@ path. It uses a separate profile at
 stock Discord profile separate. Close the old instance before launching the new
 one. Flags can be placed one per line in
 `~/.config/discord-canary-patched-electron.conf`; the older package-specific
-`-flags.conf` is still read. See [launcher, codecs and shortcuts](linux-launcher.md).
+`-flags.conf` is still read. See [launcher, codecs and shortcuts](../linux-launcher.md).
 
 Wayland selection is automatic. Application audio and the camera startup helper
 are enabled by default. `DPE_APP_AUDIO=0` and `DPE_CAMERA_FAST_PROBE=0` disable the
 respective adapters. niri supports automatic shared-window audio matching; other
-compositors use the audio-app picker. See [Wayland audio](wayland-audio.md).
+compositors use the audio-app picker. See [Wayland audio](../wayland-audio.md).
 
 ## Client updates and Equicord, 24 October
 
@@ -36,7 +36,7 @@ compiled runtime. Its bundled upstream Electron bytes were unchanged from
 Canary 1.0.2357; no C++ build was needed. Equicord is installed in a separate
 user-owned directory and passes native Wayland first launch/relaunch on a fresh
 profile, including renderer, preload and DiscordNative checks. It can be disabled
-with `DPE_EQUICORD=0`. See [Equicord](equicord.md) and
+with `DPE_EQUICORD=0`. See [Equicord](../equicord.md) and
 [update ownership/scheduling](discovery.md).
 
 The update coordinator now checks Discord every 15 minutes independently of the
@@ -73,9 +73,9 @@ Blacksmith job was started. It includes:
 
 All three recipes pass an Arch packaging test with locked real client modules
 and a dummy runtime. Runtime evidence uses the actual compiled Electron.
-See [follow-up evidence](evidence/desktop-fixes-local.json).
+See [follow-up evidence](../evidence/desktop-fixes-local.json).
 The current app additionally restores automatic browser audio; see
-[restoration checks](evidence/automatic-audio-restored.json).
+[restoration checks](../evidence/automatic-audio-restored.json).
 
 The local desktop entry is installed at
 `~/.local/share/applications/io.github.discord_patched_electron.DiscordCanary.desktop`.
@@ -90,7 +90,7 @@ completed on the PC, using 20 compiler tasks at nice level 10 and one concurrent
 linker. No Blacksmith compiler was used. The final resumed portion took 1,776
 seconds; this is not the duration of a clean build.
 
-The [retained evidence](evidence/prerelease-runtime-local.json) records:
+The [retained evidence](../evidence/prerelease-runtime-local.json) records:
 
 - Actual Canary bootstrap reaches the login form on native Wayland with a fresh
   profile. No account was used and no message or call was sent.
@@ -156,7 +156,7 @@ The [latest source checks](https://github.com/discord-patched-electron/discord-p
 and [three-channel update qualification](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40084710165)
 passed. A [repeat discovery run](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40085341335)
 scheduled no client tests or compiler. See
-[update/Equicord evidence](evidence/update-policy-equicord-local.json).
+[update/Equicord evidence](../evidence/update-policy-equicord-local.json).
 
 Local monitor state is in
 `/mnt/storage/discord-patched-electron-ci/overnight-monitor.json`.

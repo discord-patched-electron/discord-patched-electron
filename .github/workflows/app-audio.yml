@@ -5,7 +5,7 @@ on:
       clients_state:
         type: string
         required: false
-        default: ''
+        default: ""
       discord_channels:
         type: string
         required: false
@@ -13,13 +13,13 @@ on:
       reference_run:
         type: string
         required: false
-        default: ''
+        default: ""
   workflow_dispatch:
     inputs:
       clients_state:
         type: string
         required: false
-        default: ''
+        default: ""
       discord_channels:
         type: string
         required: false
@@ -28,7 +28,7 @@ on:
         description: Successful compiler run ID; empty uses bundled baselines
         type: string
         required: false
-        default: ''
+        default: ""
   workflow_run:
     workflows: [Reference build capacity, Blacksmith reference capacity, Candidate Electron build]
     types: [completed]
@@ -53,12 +53,14 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          python-version: '3.12'
+          python-version: "3.12"
+          activate-environment: true
+          enable-cache: true
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24'
+          node-version: "24"
       - name: Fetch and verify the completed compiler artifact
         if: env.REFERENCE_RUN != ''
         env:
@@ -77,7 +79,7 @@ jobs:
           chmod 644 out/clients.lock.json
       - name: Prepare fixture tools and exact client archives
         run: |
-          python -m pip install -r requirements-test.txt
+          uv sync --locked
           npm ci --ignore-scripts
           channels=(stable ptb canary)
           if [ "$DISCORD_CHANNELS" != all ]; then

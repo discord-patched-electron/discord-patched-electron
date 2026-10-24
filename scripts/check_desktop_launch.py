@@ -3,22 +3,30 @@
 No login, call, message, screenshot, webcam or microphone capture. DevTools binds
 only to loopback and lives for the duration of this local smoke check.
 """
+
 from __future__ import annotations
+
 import argparse
 import json
 import os
-from pathlib import Path
 import signal
 import socket
 import subprocess
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 from common import read_json, write_json
 
 
-def check(app: Path, output: Path, profile: Path | None = None, equicord: bool = False):
+def check(
+    app: Path,
+    output: Path,
+    profile: Path | None = None,
+    equicord: bool = False,
+    read_only_app: bool = False,
+):
     app, output = app.resolve(), output.resolve()
     if output.exists():
         raise ValueError("Choose a fresh report directory")
@@ -26,31 +34,56 @@ def check(app: Path, output: Path, profile: Path | None = None, equicord: bool =
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    profile = profile or output / 'profile'
-    environment = {**os.environ, "DISCORD_USER_DATA_DIR": str(profile),
-        "EQUICORD_USER_DATA_DIR":str(profile / 'equicord'),
-        "DPE_EQUICORD": '1' if equicord else '0',
-        "WAYLAND_DEBUG":"client"}
+    profile = profile or output / "profile"
+    environment = {
+        **os.environ,
+        "DISCORD_USER_DATA_DIR": str(profile),
+        "EQUICORD_USER_DATA_DIR": str(profile / "equicord"),
+        "DPE_EQUICORD": "1" if equicord else "0",
+        "WAYLAND_DEBUG": "client",
+    }
     environment.pop("ELECTRON_RUN_AS_NODE", None)
-    report = {"passed":False, "profile":str(profile), "screenshots_saved":False,
-        "real_discord_call_verified":False, "app":str(app), "targets":[]}
+    report = {
+        "passed": False,
+        "profile": str(profile),
+        "screenshots_saved": False,
+        "real_discord_call_verified": False,
+        "app": str(app),
+        "targets": [],
+    }
     channel = read_json(app / "local-build.json")["channel"]
-    host = {"stable":"discord.com", "ptb":"ptb.discord.com", "canary":"canary.discord.com"}[channel]
+    host = {"stable": "discord.com", "ptb": "ptb.discord.com", "canary": "canary.discord.com"}[
+        channel
+    ]
     with (output / "console.log").open("w") as log:
-        process = subprocess.Popen([str(app / "launch.sh"), "--remote-debugging-address=127.0.0.1",
-            f"--remote-debugging-port={port}"], env=environment, stdout=log,
-            stderr=subprocess.STDOUT, start_new_session=True)
+        process = subprocess.Popen(
+            [
+                str(app / "launch.sh"),
+                "--remote-debugging-address=127.0.0.1",
+                f"--remote-debugging-port={port}",
+            ],
+            env=environment,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
         try:
             deadline = time.monotonic() + 120
             while time.monotonic() < deadline and process.poll() is None:
                 try:
-                    with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=2) as response:
+                    with urllib.request.urlopen(
+                        f"http://127.0.0.1:{port}/json/list", timeout=2
+                    ) as response:
                         targets = json.load(response)
-                    report["targets"] = [{k:t.get(k) for k in ("type", "url", "title")} for t in targets]
+                    report["targets"] = [
+                        {k: t.get(k) for k in ("type", "url", "title")} for t in targets
+                    ]
                     for target in targets:
-                        if target.get("type") != "page" or not target.get("url", "").startswith(f"https://{host}/"):
+                        if target.get("type") != "page" or not target.get("url", "").startswith(
+                            f"https://{host}/"
+                        ):
                             continue
-                        script = r'''
+                        script = r"""
 const ws = new WebSocket(process.argv[1]);
 const timer = setTimeout(() => {ws.close(); process.exit(2)}, 5000);
 ws.addEventListener("open", () => ws.send(JSON.stringify({id:1, method:"Runtime.evaluate", params:{
@@ -58,14 +91,32 @@ ws.addEventListener("open", () => ws.send(JSON.stringify({id:1, method:"Runtime.
 ws.addEventListener("message", event => { const value=JSON.parse(event.data); if(value.id!==1)return;
  clearTimeout(timer); console.log(value.result?.result?.value || "{}"); ws.close(); });
 ws.addEventListener("error", () => process.exit(3));
-'''
-                        result = subprocess.run(["node", "--input-type=module", "-e", script,
-                            target["webSocketDebuggerUrl"]], capture_output=True, text=True, timeout=8)
+"""
+                        result = subprocess.run(
+                            [
+                                "node",
+                                "--input-type=module",
+                                "-e",
+                                script,
+                                target["webSocketDebuggerUrl"],
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=8,
+                        )
                         if result.returncode == 0:
                             page = json.loads(result.stdout)
                             report["page"] = page
-                            if page.get("ready") == "complete" and page.get("loginForm") and page.get("passwordField"):
-                                report["passed"] = not equicord or (page.get('equicordNative') and page.get('equicordRenderer') and page.get('discordNative'))
+                            if (
+                                page.get("ready") == "complete"
+                                and page.get("loginForm")
+                                and page.get("passwordField")
+                            ):
+                                report["passed"] = not equicord or (
+                                    page.get("equicordNative")
+                                    and page.get("equicordRenderer")
+                                    and page.get("discordNative")
+                                )
                                 break
                     if report["passed"]:
                         break
@@ -78,15 +129,27 @@ ws.addEventListener("error", () => process.exit(3));
             # smoke check does not itself manufacture GPU/zygote crash reports.
             if process.poll() is None:
                 try:
-                    with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2) as response:
+                    with urllib.request.urlopen(
+                        f"http://127.0.0.1:{port}/json/version", timeout=2
+                    ) as response:
                         browser = json.load(response)["webSocketDebuggerUrl"]
-                    subprocess.run(["node", "--input-type=module", "-e", '''
+                    subprocess.run(
+                        [
+                            "node",
+                            "--input-type=module",
+                            "-e",
+                            """
 const ws = new WebSocket(process.argv[1]);
 const timer = setTimeout(() => {ws.close(); process.exit(0)}, 3000);
 ws.addEventListener("open", () => ws.send(JSON.stringify({id:1,method:"Browser.close"})));
 ws.addEventListener("close", () => {clearTimeout(timer); process.exit(0)});
 ws.addEventListener("error", () => process.exit(0));
-''', browser], capture_output=True, timeout=5)
+""",
+                            browser,
+                        ],
+                        capture_output=True,
+                        timeout=5,
+                    )
                 except (OSError, ValueError, KeyError, subprocess.SubprocessError):
                     pass
             try:
@@ -98,14 +161,17 @@ ws.addEventListener("error", () => process.exit(0));
                 except subprocess.TimeoutExpired:
                     os.killpg(process.pid, signal.SIGKILL)
                     process.wait()
-    console = (output / 'console.log').read_text(errors='replace')
+    console = (output / "console.log").read_text(errors="replace")
     report["native_wayland_connection"] = "wl_display" in console
-    report['equicord_required'] = equicord
-    report['uncaught_exception'] = ('uncaught exception:' in console.lower()
-        or 'UnhandledPromiseRejectionWarning' in console or 'App threw an error during load' in console)
-    report['passed'] = report['passed'] and not report['uncaught_exception']
+    report["equicord_required"] = equicord
+    report["uncaught_exception"] = (
+        "uncaught exception:" in console.lower()
+        or "UnhandledPromiseRejectionWarning" in console
+        or "App threw an error during load" in console
+    )
+    report["passed"] = report["passed"] and not report["uncaught_exception"]
     write_json(output / "launch-report.json", report)
-    if report["passed"]:
+    if report["passed"] and not read_only_app:
         manifest = read_json(app / "local-build.json")
         manifest["launch_verified"] = True
         manifest["launch_report"] = str(output / "launch-report.json")
@@ -118,11 +184,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("app", type=Path)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument('--relaunch', action='store_true', help='Repeat with the same newly created fixture profile')
-    parser.add_argument('--equicord', action='store_true', help='Require the separately installed Equicord preload and renderer')
+    parser.add_argument(
+        "--relaunch", action="store_true", help="Repeat with the same newly created fixture profile"
+    )
+    parser.add_argument(
+        "--equicord",
+        action="store_true",
+        help="Require the separately installed Equicord preload and renderer",
+    )
+    parser.add_argument(
+        "--read-only-app", action="store_true", help="Do not update the installed build manifest"
+    )
     args = parser.parse_args()
-    first = check(args.app, args.output, equicord=args.equicord)
-    passed = first['passed']
+    first = check(args.app, args.output, equicord=args.equicord, read_only_app=args.read_only_app)
+    passed = first["passed"]
     if passed and args.relaunch:
-        passed = check(args.app, args.output / 'relaunch', Path(first['profile']), args.equicord)['passed']
+        passed = check(
+            args.app,
+            args.output / "relaunch",
+            Path(first["profile"]),
+            args.equicord,
+            args.read_only_app,
+        )["passed"]
     raise SystemExit(0 if passed else 1)

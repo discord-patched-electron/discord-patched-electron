@@ -21,7 +21,7 @@ reports niri; its portal path is the first live qualification target.
   unchanged second poll left the remote state commit untouched. Discovered PTB
   1.0.224 and Canary 1.0.2357 passed separate CI native/Krisp baseline and
   six-recipe checks; the bootstrap locks now include those exact snapshots.
-  See [client-update evidence](evidence/client-updates-ci.json).
+  See [client-update evidence](../evidence/client-updates-ci.json).
 - The vendored AUR files match commit `3b290dffd5eb840faed445bdc2bdb18572839471`.
 - Current manifests lock Stable 1.0.166, PTB 1.0.224 and Canary 1.0.2357 separately.
 - The existing Krisp patcher applies to each channel's real native binary. The
@@ -35,7 +35,7 @@ reports niri; its portal path is the first live qualification target.
   container with an explicitly nonfunctional runtime fixture. This is packaging
   evidence only; see [packaging checks](packaging.md). The earlier nine-package
   checks also passed with native shared-library validation, including the narrowly
-  documented dispatch exception; see [CI evidence](evidence/packaging-native-dependencies-ci.json).
+  documented dispatch exception; see [CI evidence](../evidence/packaging-native-dependencies-ci.json).
 - The imported Discord patch exactly reconstructs the fork tree from its base.
 - Unit tests cover source integrity, cross-channel isolation, fingerprints,
   byte-preserving failure paths, patch idempotency and Arch prerelease ordering.
@@ -50,13 +50,13 @@ reports niri; its portal path is the first live qualification target.
   offline Krisp and physical-camera metadata checks. All three clients pass
   native/Krisp CI and the full Wayland/X11 application-audio CI suite.
   Prerelease run `40053107555` also completed successfully and passes the local
-  checks plus native/Krisp/lifetime CI on all three channels. See [compiled-reference evidence](evidence/reference-runtime-local.json).
+  checks plus native/Krisp/lifetime CI on all three channels. See [compiled-reference evidence](../evidence/reference-runtime-local.json).
 - All three bundled runtimes pass synthetic native frame delivery and teardown,
   module loading, and an offline Krisp off/on/off comparison (53.6 dB reduction
   in the noise-only interval, retained speech). See [runtime checks](runtime-validation.md).
   Those baseline results alone do not establish custom-runtime, live-call or microphone behavior.
   The same three-channel checks pass on standard GitHub runners; see
-  [CI evidence](evidence/native-ci.json). Successful compiler jobs now trigger
+  [CI evidence](../evidence/native-ci.json). Successful compiler jobs now trigger
   automatic validation of their reference artifact without another compile.
 - Current 45, 46 and 47 source candidates assemble reproducibly using the imported
   delta plus separate explicit compatibility patches. All skipped imported file
@@ -68,7 +68,7 @@ reports niri; its portal path is the first live qualification target.
   PulseAudio playback, source switching, cancellation, and crash cleanup now
   have real native Wayland fixtures. Other compositors have an explicit audio
   selector. The compiled prerelease now passes all ten X11/Wayland audio fixtures.
-  See [Wayland audio](wayland-audio.md); live-call/microphone qualification remains open. The Wayland adapter is now enabled by
+  See [Wayland audio](../wayland-audio.md); live-call/microphone qualification remains open. The Wayland adapter is now enabled by
   default; `DPE_APP_AUDIO=0` restores upstream behavior.
 - Candidate builds now select x86-64-v3 through a project-owned GN toolchain.
   Real compiler fixtures verify cache hits, header/CPU invalidation and reuse
@@ -87,7 +87,7 @@ reports niri; its portal path is the first live qualification target.
 - Wayland is default-enabled. Local native capture tests passed without the old
   opt-in variable on PipeWire-Pulse (operator-driven selector) and real PulseAudio
   plus PipeWire (automatic niri identity). All nine phases and crash cleanup passed.
-  See [retained local evidence](evidence/camera-wayland-local.json).
+  See [retained local evidence](../evidence/camera-wayland-local.json).
 - Ordinary voice/webcam connections keep unrelated transport options unchanged.
   The camera helper has fake-driver tests for exact caller scope, supported formats,
   unavailable enumeration, changed capabilities and explicit disablement.
@@ -98,7 +98,7 @@ H.264 decoding checks without extra feature flags. The latest physical camera
 pair measured 8.33 seconds upstream versus 2.33 seconds with the helper. These are
 bundled-runtime baselines. The finished custom runtime subsequently passed the
 same local checks, with camera timing of 8.37 seconds upstream and 2.33 patched;
-see [prerelease evidence](evidence/prerelease-runtime-local.json).
+see [prerelease evidence](../evidence/prerelease-runtime-local.json).
 No webcam frames were displayed, saved or uploaded. See
 [Linux runtime checks](linux-runtime.md).
 
@@ -112,7 +112,7 @@ Wayland covers Stable/PTB/Canary with PipeWire-Pulse and real PulseAudio, plus
 explicit audio selection/cancellation with automatic compositor discovery off.
 All cases verify native PipeWire video, selective audio, Discord exclusion,
 source/audio lifecycle, unchanged default devices and helper SIGKILL cleanup.
-See [retained reports](evidence/wayland-audio-ci.json).
+See [retained reports](../evidence/wayland-audio-ci.json).
 
 The earlier mixed-server PTB dropout was fixed by keeping Pulse streams on their
 server's clock. The final checks use a stricter 90% clean-frame requirement.

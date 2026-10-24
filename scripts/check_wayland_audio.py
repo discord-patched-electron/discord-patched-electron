@@ -6,10 +6,10 @@ No host display/audio sockets or account are used by the CI container.
 """
 
 from __future__ import annotations
+
 import argparse
 import json
 import os
-from pathlib import Path
 import resource
 import signal
 import socket
@@ -19,10 +19,11 @@ import tempfile
 import threading
 import time
 import wave
+from pathlib import Path
 
 import numpy as np
-from common import ROOT, digest, download, read_json, sha256, write_json
 from client_inputs import load_clients, validate_channel
+from common import ROOT, digest, download, read_json, sha256, write_json
 from patch_app_audio import patch
 
 
@@ -41,11 +42,7 @@ def analyze(output):
     results = {}
     for name, expected in cases.items():
         file = output / (name + ".raw")
-        samples = (
-            np.fromfile(file, dtype="<i2").astype(float)
-            if file.exists()
-            else np.array([])
-        )
+        samples = np.fromfile(file, dtype="<i2").astype(float) if file.exists() else np.array([])
         # RawSamples is a diagnostic callback, not a continuous clocked PCM
         # transport: callbacks at different rates can leave gaps. Concatenating
         # them into one FFT creates false sidebands at unrelated test frequencies.
@@ -54,11 +51,7 @@ def analyze(output):
         width = 480
         t = np.arange(width) / 48000
         matrix = np.array(
-            [
-                fn(2 * np.pi * hz * t)
-                for hz in (440, 660, 997, 1399)
-                for fn in (np.cos, np.sin)
-            ]
+            [fn(2 * np.pi * hz * t) for hz in (440, 660, 997, 1399) for fn in (np.cos, np.sin)]
         ).T
         if len(samples) >= width:
             frames = samples[: len(samples) // width * width].reshape(-1, width).T
@@ -68,11 +61,7 @@ def analyze(output):
             clean = residual < 100
             fraction = float(np.mean(clean))
             values = np.median(amplitudes, axis=0).tolist()
-            maximum = (
-                amplitudes[clean].max(axis=0).tolist()
-                if np.any(clean)
-                else [32768.0] * 4
-            )
+            maximum = amplitudes[clean].max(axis=0).tolist() if np.any(clean) else [32768.0] * 4
         else:
             values = maximum = [0.0] * 4
             fraction = 0.0
@@ -86,9 +75,7 @@ def analyze(output):
             "samples": len(samples),
             "clean_frame_fraction": fraction,
             "amplitudes": dict(zip(("440", "660", "997", "1399"), values)),
-            "maximum_clean_frame_amplitudes": dict(
-                zip(("440", "660", "997", "1399"), maximum)
-            ),
+            "maximum_clean_frame_amplitudes": dict(zip(("440", "660", "997", "1399"), maximum)),
             "passed": enough
             and all(
                 value > 500 if wanted else maximum[i] < 100
@@ -148,9 +135,7 @@ def session(output, pulse, selection):
         def ready(test):
             deadline = time.monotonic() + 15
             while not test():
-                if time.monotonic() > deadline or any(
-                    p.poll() is not None for p in children
-                ):
+                if time.monotonic() > deadline or any(p.poll() is not None for p in children):
                     raise ValueError("Fixture service failed; inspect logs")
                 time.sleep(0.1)
 
@@ -164,17 +149,9 @@ def session(output, pulse, selection):
                 while not selector_stop.wait(0.1):
                     for window in json.loads(command(["niri", "msg", "-j", "windows"])):
                         pid = window.get("pid")
-                        if (
-                            window.get("title") != "Screen-share audio"
-                            or pid in handled
-                        ):
+                        if window.get("title") != "Screen-share audio" or pid in handled:
                             continue
-                        args = (
-                            Path(f"/proc/{pid}/cmdline")
-                            .read_bytes()
-                            .decode()
-                            .split("\0")
-                        )
+                        args = Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0")
                         if Path(args[0]).name != "zenity":
                             continue
                         rows = args[args.index("--") + 1 :]
@@ -214,17 +191,13 @@ def session(output, pulse, selection):
                             ]
                         )
                         time.sleep(0.2)
-                        keys = (
-                            ["wtype", "-k", "Home"]
-                            + ["-k", "Down"] * index
-                            + ["-k", "Return"]
-                        )
+                        keys = ["wtype", "-k", "Home"] + ["-k", "Down"] * index + ["-k", "Return"]
                         if selected.get("no_audio"):
                             keys = ["wtype", "-k", "Escape"]
                         command(keys)
                         # Recording waits for the actual audio selection, not
                         # just the earlier video-portal callback.
-                        (output / 'audio-choice-done').touch()
+                        (output / "audio-choice-done").touch()
                         handled.add(pid)
             except Exception as error:
                 selector_errors.append(str(error))
@@ -243,9 +216,7 @@ def session(output, pulse, selection):
             ready(lambda: (run / "bus").exists())
             config = (ROOT / "tests/audio/pipewire.conf").read_text()
             if pulse == "pulseaudio":
-                config = config.replace(
-                    " { name = libpipewire-module-protocol-pulse }", ""
-                )
+                config = config.replace(" { name = libpipewire-module-protocol-pulse }", "")
             (output / "pipewire.conf").write_text(config)
             spawn(["pipewire", "-c", str(output / "pipewire.conf")], "pipewire")
             ready(lambda: (run / "dpe-audio").exists())
@@ -280,23 +251,41 @@ def session(output, pulse, selection):
             spawn(["wireplumber", "--profile=policy"], "wireplumber")
             # A ready socket is not a ready default recording device. Native
             # ADM initialization can hang if policy has not selected one yet.
-            ready(lambda: any(s['name'] == 'test-sink.monitor' for s in
-                json.loads(command(['pactl', '-f', 'json', 'list', 'sources']))))
+            ready(
+                lambda: any(
+                    s["name"] == "test-sink.monitor"
+                    for s in json.loads(command(["pactl", "-f", "json", "list", "sources"]))
+                )
+            )
+
             def select_defaults():
-                return all(sp.run(['pactl', action, device], env=env,
-                    stdout=sp.DEVNULL, stderr=sp.DEVNULL, timeout=5).returncode == 0
-                    for action, device in [('set-default-sink', 'test-sink'),
-                        ('set-default-source', 'test-sink.monitor')])
+                return all(
+                    sp.run(
+                        ["pactl", action, device],
+                        env=env,
+                        stdout=sp.DEVNULL,
+                        stderr=sp.DEVNULL,
+                        timeout=5,
+                    ).returncode
+                    == 0
+                    for action, device in [
+                        ("set-default-sink", "test-sink"),
+                        ("set-default-source", "test-sink.monitor"),
+                    ]
+                )
+
             ready(select_defaults)
-            ready(lambda: json.loads(command(['pactl', '-f', 'json', 'info'])).get(
-                'default_source_name') == 'test-sink.monitor')
+            ready(
+                lambda: (
+                    json.loads(command(["pactl", "-f", "json", "info"])).get("default_source_name")
+                    == "test-sink.monitor"
+                )
+            )
             command(["niri", "validate", "-c", str(ROOT / "tests/wayland/niri.kdl")])
             spawn(["niri", "-c", str(ROOT / "tests/wayland/niri.kdl")], "niri")
             ready(lambda: bool(list(run.glob("niri*.sock"))))
             env["NIRI_SOCKET"] = str(next(run.glob("niri*.sock")))
-            env["WAYLAND_DISPLAY"] = next(
-                p.name for p in run.glob("wayland-*") if p.is_socket()
-            )
+            env["WAYLAND_DISPLAY"] = next(p.name for p in run.glob("wayland-*") if p.is_socket())
             env["XDG_SESSION_TYPE"] = "wayland"
             env["XDG_CURRENT_DESKTOP"] = "niri"
             env["GDK_BACKEND"] = "wayland"
@@ -311,9 +300,7 @@ def session(output, pulse, selection):
             ]:
                 child = spawn([str(output / "tone"), *args], name)
                 inputs[name] = {"pid": child.pid}
-            ready(
-                lambda: len(json.loads(command(["niri", "msg", "-j", "windows"]))) >= 2
-            )
+            ready(lambda: len(json.loads(command(["niri", "msg", "-j", "windows"]))) >= 2)
             write_json(output / "inputs.json", inputs)
             spawn(["python3", str(ROOT / "tests/wayland/portal.py")], "portal")
             time.sleep(0.4)
@@ -337,13 +324,9 @@ def session(output, pulse, selection):
             )
             child.wait(timeout=610 if selection == "interactive" else 100)
             if child.returncode:
-                raise ValueError(
-                    "Native Wayland fixture failed; inspect fixture.json/native.log"
-                )
+                raise ValueError("Native Wayland fixture failed; inspect fixture.json/native.log")
             if selector_errors:
-                raise ValueError(
-                    "Fixture audio selector failed: " + repr(selector_errors)
-                )
+                raise ValueError("Fixture audio selector failed: " + repr(selector_errors))
             # Exercise an uncatchable helper crash as well as normal teardown.
             crash_ready = output / "crash-ready.json"
             crash = spawn(
@@ -371,8 +354,7 @@ def session(output, pulse, selection):
             deadline = time.monotonic() + 6
             while any(
                 Path(f"/proc/{pid}/stat").exists()
-                and Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
-                != "Z"
+                and Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
                 for pid in worker_pids
             ):
                 if time.monotonic() > deadline:
@@ -381,24 +363,19 @@ def session(output, pulse, selection):
             time.sleep(1)
             after = json.loads(command(["pactl", "-f", "json", "info"]))
             defaults_unchanged = all(
-                before[k] == after[k]
-                for k in ("default_sink_name", "default_source_name")
+                before[k] == after[k] for k in ("default_sink_name", "default_source_name")
             )
             objects = json.loads(command(["pw-dump"]))
             leftovers = [
                 x["id"]
                 for x in objects
-                if str(
-                    x.get("info", {}).get("props", {}).get("node.name", "")
-                ).startswith("dpe-audio-")
+                if str(x.get("info", {}).get("props", {}).get("node.name", "")).startswith(
+                    "dpe-audio-"
+                )
             ]
-            sources = json.loads(
-                command(["pactl", "-f", "json", "list", "source-outputs"])
-            )
+            sources = json.loads(command(["pactl", "-f", "json", "list", "source-outputs"]))
             sinks = json.loads(command(["pactl", "-f", "json", "list", "sinks"]))
-            private_sinks = [
-                s["name"] for s in sinks if s["name"].startswith("dpe-audio-")
-            ]
+            private_sinks = [s["name"] for s in sinks if s["name"].startswith("dpe-audio-")]
             lifecycle = {
                 "default_devices_unchanged": defaults_unchanged,
                 "remaining_private_nodes": leftovers,
@@ -447,9 +424,7 @@ def check(
     if output.exists() and any(
         p.name not in {"core.tar.br", "discord_voice.tar.br"} for p in output.iterdir()
     ):
-        raise ValueError(
-            "Use an empty fixture directory or one with only the locked archives"
-        )
+        raise ValueError("Use an empty fixture directory or one with only the locked archives")
     output.mkdir(parents=True, exist_ok=True)
     client = load_clients(clients, [channel])[channel]
     validate_channel(channel, client)
@@ -479,9 +454,7 @@ def check(
     executable = (
         "electron"
         if runtime
-        else {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[
-            channel
-        ]
+        else {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[channel]
     )
     if runtime:
         (output / "runtime").mkdir()
@@ -505,9 +478,7 @@ def check(
             "runtime_kind": "custom" if runtime else "bundled",
             "runtime_sha256": sha256(output / "runtime" / executable),
             "voice_sha256": sha256(output / "voice/discord_voice.node"),
-            "adapter_patch": patch(
-                output / "voice", ROOT / "integration/audio/app-audio.cjs"
-            ),
+            "adapter_patch": patch(output / "voice", ROOT / "integration/audio/app-audio.cjs"),
         },
     )
     sp.run(
@@ -536,9 +507,9 @@ def check(
     )
     # Independent frequencies avoid confusing harmonic distortion with leakage.
     for name, frequency in [("b", 997), ("discord", 1399)]:
-        samples = (
-            5000 * np.sin(2 * np.pi * frequency * np.arange(48000 * 100) / 48000)
-        ).astype("<i2")
+        samples = (5000 * np.sin(2 * np.pi * frequency * np.arange(48000 * 100) / 48000)).astype(
+            "<i2"
+        )
         with wave.open(str(output / (name + ".wav")), "wb") as wav:
             wav.setparams((2, 2, 48000, 0, "NONE", "not compressed"))
             wav.writeframes(np.repeat(samples, 2).tobytes())
@@ -571,9 +542,7 @@ def check(
     if not fixture["passed"]:
         raise ValueError("Native Wayland fixture did not complete")
     if provenance:
-        expected = read_json(provenance)["capacity"].get(
-            "compiled_version", "44.0.0-reference.1"
-        )
+        expected = read_json(provenance)["capacity"].get("compiled_version", "44.0.0-reference.1")
         if fixture["versions"]["electron"] != expected:
             raise ValueError("Wrong compiler runtime loaded")
     report = {
@@ -595,26 +564,16 @@ def check(
         report["custom_runtime_verified"] = False
     write_json(output / "audio-report.json", report)
     if not report["all_cases_passed"]:
-        raise ValueError(
-            "Wayland isolation/lifecycle failed; inspect audio-report.json"
-        )
-    print(
-        f"{channel}: Wayland native video and per-application audio passed with {pulse}"
-    )
+        raise ValueError("Wayland isolation/lifecycle failed; inspect audio-report.json")
+    print(f"{channel}: Wayland native video and per-application audio passed with {pulse}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument(
-        "--clients", type=Path, default=ROOT / "config/clients.lock.json"
-    )
-    parser.add_argument(
-        "--discord", choices=["stable", "ptb", "canary"], default="stable"
-    )
-    parser.add_argument(
-        "--pulse", choices=["pipewire", "pulseaudio"], default="pipewire"
-    )
+    parser.add_argument("--clients", type=Path, default=ROOT / "config/clients.lock.json")
+    parser.add_argument("--discord", choices=["stable", "ptb", "canary"], default="stable")
+    parser.add_argument("--pulse", choices=["pipewire", "pulseaudio"], default="pipewire")
     parser.add_argument("--download-only", action="store_true")
     parser.add_argument("--selection", choices=["auto", "manual", "interactive"], default="auto")
     parser.add_argument("--runtime", type=Path)

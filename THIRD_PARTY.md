@@ -32,5 +32,5 @@ native addons are not bundled by this audio adapter.
 
 `integration/camera/v4l2-probe.c` is project-owned MIT-licensed compatibility
 code, using Linux's public V4L2 userspace API. It does not include WebRTC source
-or modify Discord's proprietary camera binary. See `docs/camera-startup.md`
+or modify Discord's proprietary camera binary. See `docs/agent/camera-startup.md`
 for the upstream algorithm and kernel API references.

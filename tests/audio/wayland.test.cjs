@@ -1,10 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
-const {
-  wrap,
-  installVoice,
-} = require("../../integration/audio/wayland-audio.cjs");
+const { wrap, installVoice } = require("../../integration/audio/wayland-audio.cjs");
 function fixture() {
   const calls = [],
     children = [];
@@ -57,7 +54,9 @@ test("rejected native sources silence the old app and close its helper", () => {
     f.adapter.setTransportOptions({ soundsharePid: 1 });
     const first = f.children[0];
     f.ready(first, 2500);
-    f.native[method] = () => { throw new Error("source disappeared"); };
+    f.native[method] = () => {
+      throw new Error("source disappeared");
+    };
     assert.throws(() => f.adapter[method]("missing"), /source disappeared/);
     assert.equal(first.closed, true);
     assert.equal(f.calls.at(-1).soundsharePid, 0);
@@ -78,10 +77,7 @@ test("Wayland never forwards the system sentinel before the selected mix is read
     encryptionKey: "untouched",
   });
   assert.equal(f.calls.at(-1).soundsharePid, 0);
-  assert.equal(
-    f.calls.find((x) => x.encryptionKey)?.encryptionKey,
-    "untouched",
-  );
+  assert.equal(f.calls.find((x) => x.encryptionKey)?.encryptionKey, "untouched");
   f.ready(f.children[0], 2500);
   assert.equal(f.calls.at(-1).soundsharePid, 2500);
   f.adapter.setSelfMute(true);

@@ -6,7 +6,7 @@ on:
         description: Immutable ci-state commit; empty uses bootstrap locks
         type: string
         required: false
-        default: ''
+        default: ""
       discord_channels:
         description: Comma-separated Discord channels, or all
         type: string
@@ -18,7 +18,7 @@ on:
         description: Immutable ci-state commit; empty uses bootstrap locks
         type: string
         required: false
-        default: ''
+        default: ""
       discord_channels:
         description: Comma-separated Discord channels, or all
         type: string

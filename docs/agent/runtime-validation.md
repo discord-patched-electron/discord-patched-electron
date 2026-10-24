@@ -9,10 +9,10 @@ bootstrap, signs into an account or relies on `ELECTRON_RUN_AS_NODE`.
 ## Baseline measured on 23 October 2026
 
 | Discord payload | Bundled Electron | Native frame and teardown | Offline Krisp noise reduction |
-| --- | --- | --- | --- |
-| Stable 1.0.166 | 42.11.15 | Pass | 53.6 dB |
-| PTB 1.0.223 | 44.9.3 | Pass | 53.6 dB |
-| Canary 1.0.2354 | 44.9.3 | Pass | 53.6 dB |
+| --------------- | ---------------- | ------------------------- | ----------------------------- |
+| Stable 1.0.166  | 42.11.15         | Pass                      | 53.6 dB                       |
+| PTB 1.0.223     | 44.9.3           | Pass                      | 53.6 dB                       |
+| Canary 1.0.2354 | 44.9.3           | Pass                      | 53.6 dB                       |
 
 The input modules are the real channel-specific modules with the existing AUR
 Krisp patch applied. Evidence is in `evidence/*-runtime-baseline.json`, including
@@ -21,7 +21,7 @@ executable/module hashes, runtime versions, fixture hashes and measurements.
 
 The same checks passed for all three channels in GitHub Actions run
 [`40010461967`](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40010461967),
-at `3933811`, on Ubuntu 24.04. [CI evidence](evidence/native-ci.json) records each
+at `3933811`, on Ubuntu 24.04. [CI evidence](../evidence/native-ci.json) records each
 runtime's input hashes, native frame result, fixture identity and audio checks.
 
 The native helper compiles against the pinned Discord public frame header and
@@ -48,7 +48,7 @@ is a reproducible regression signal, not a human intelligibility assessment.
 
 ## Reproduction
 
-Install `requirements-test.txt`, the pinned npm dependencies, a C++ compiler,
+Run `uv sync --locked` to install the test dependencies, the pinned npm dependencies, a C++ compiler,
 Node development headers at `/usr/include/node`, Xvfb and `xauth`. Use an extracted
 distribution and staged, patched modules from the same locked Discord channel:
 
@@ -103,9 +103,9 @@ retained artifact without compiling it again. Only successful main-branch runs o
 the two compiler workflows qualify. Reports record the compiler and validation
 commits separately. This path has passed for both the compiled reference and
 Electron 46.0.0-alpha.1 prerelease on all three Discord channels; it does not
-publish a release or update AUR. See [prerelease evidence](evidence/prerelease-runtime-local.json).
+publish a release or update AUR. See [prerelease evidence](../evidence/prerelease-runtime-local.json).
 
-The separate [Wayland audio fixture](wayland-audio.md) now covers actual native
+The separate [Wayland audio fixture](../wayland-audio.md) now covers actual native
 portal video and selective application audio, including multiple processes and
 both Pulse servers. Its bundled-runtime result does not replace the custom-runtime
 and real-call checks above.

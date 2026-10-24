@@ -1,13 +1,23 @@
 """Verify hook recovery cannot reset a repository outside the build workspace."""
-from pathlib import Path
+
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build_reference import baseline_toolchain, build_config, build_inputs, enable_compiler_cache, reference_inputs, reset_patch_repositories, reuse_completed, verify_source
+from build_reference import (
+    baseline_toolchain,
+    build_config,
+    build_inputs,
+    enable_compiler_cache,
+    reference_inputs,
+    reset_patch_repositories,
+    reuse_completed,
+    verify_source,
+)
 from common import ROOT, digest, read_json, sha256, write_json
 
 
@@ -16,7 +26,7 @@ class HookRecovery(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp) / "source"
             head = self.repo(repo)
-            report = {"upstream_commit":head, "tree":self.git(repo, "write-tree")}
+            report = {"upstream_commit": head, "tree": self.git(repo, "write-tree")}
             verify_source(repo, report)
             (repo / "fixture").write_text("unrecorded edit\n")
             with self.assertRaisesRegex(ValueError, "unrecorded edits"):
@@ -26,8 +36,20 @@ class HookRecovery(unittest.TestCase):
                 verify_source(repo, report)
 
     def git(self, repo, *args):
-        return subprocess.check_output(["git", "-C", str(repo), "-c", "user.name=Test",
-            "-c", "user.email=test@example.invalid", *args], text=True, stderr=subprocess.DEVNULL).strip()
+        return subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.invalid",
+                *args,
+            ],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
 
     def repo(self, path):
         path.mkdir()
@@ -65,31 +87,33 @@ class HookRecovery(unittest.TestCase):
 
 class CompletedBuild(unittest.TestCase):
     def test_baseline_flags_precede_target_flags_without_changing_rust_linker(self):
-        template = '\n'.join([
-            'declare_args() { canonical_option = true }',
-            'template("single_gcc_toolchain") {',
-            '$cc {{cflags}} {{cflags_c}}${extra_cppflags}${extra_cflags}',
-            '$cxx {{cflags}} {{cflags_cc}}${extra_cppflags}${extra_cxxflags}',
-            '$cxx {{cflags}} {{cflags_cc}}${extra_cppflags}${extra_cxxflags} -emit-module',
-            '$asm {{asmflags}}${extra_asmflags}',
-            '-Clinker="${invoker.cxx}"',
-            '}',
-            'template("clang_toolchain") { single_gcc_toolchain(target_name) {} }',
-        ])
+        template = "\n".join(
+            [
+                "declare_args() { canonical_option = true }",
+                'template("single_gcc_toolchain") {',
+                "$cc {{cflags}} {{cflags_c}}${extra_cppflags}${extra_cflags}",
+                "$cxx {{cflags}} {{cflags_cc}}${extra_cppflags}${extra_cxxflags}",
+                "$cxx {{cflags}} {{cflags_cc}}${extra_cppflags}${extra_cxxflags} -emit-module",
+                "$asm {{asmflags}}${extra_asmflags}",
+                '-Clinker="${invoker.cxx}"',
+                "}",
+                'template("clang_toolchain") { single_gcc_toolchain(target_name) {} }',
+            ]
+        )
         adapted = baseline_toolchain(template)
-        self.assertIn('$cxx ${extra_cppflags} {{cflags}} {{cflags_cc}}', adapted)
-        self.assertIn('$asm ${extra_asmflags} {{asmflags}}', adapted)
+        self.assertIn("$cxx ${extra_cppflags} {{cflags}} {{cflags_cc}}", adapted)
+        self.assertIn("$asm ${extra_asmflags} {{asmflags}}", adapted)
         self.assertIn('-Clinker="${invoker.cxx}"', adapted)
-        self.assertNotIn('declare_args', adapted)
-        self.assertIn('dpe_single_gcc_toolchain(target_name)', adapted)
+        self.assertNotIn("declare_args", adapted)
+        self.assertIn("dpe_single_gcc_toolchain(target_name)", adapted)
         with self.assertRaisesRegex(ValueError, "template changed"):
-            baseline_toolchain(template.replace('{{cflags_c}}', '{{changed}}'))
+            baseline_toolchain(template.replace("{{cflags_c}}", "{{changed}}"))
 
     def test_cache_wrapper_does_not_invalidate_existing_reference_objects(self):
         with tempfile.TemporaryDirectory() as temp:
             args = Path(temp) / "args.gn"
             self.assertTrue(enable_compiler_cache("reference", args))
-            args.write_text('is_debug = false\n')
+            args.write_text("is_debug = false\n")
             self.assertFalse(enable_compiler_cache("reference", args))
             self.assertTrue(enable_compiler_cache("stable", args))
             args.write_text('cc_wrapper = "/path/to/sccache"\n')
@@ -103,9 +127,16 @@ class CompletedBuild(unittest.TestCase):
             archive = work / "checkout/src/out/Release/dist.zip"
             archive.parent.mkdir(parents=True)
             archive.write_bytes(b"fixture archive")
-            report = {"build_key": "key", "archive_sha256": sha256(archive),
-                      "source": {"target": "stable", "source_assembled": True,
-                                 "dependencies_patched": True, "compiled": True}}
+            report = {
+                "build_key": "key",
+                "archive_sha256": sha256(archive),
+                "source": {
+                    "target": "stable",
+                    "source_assembled": True,
+                    "dependencies_patched": True,
+                    "compiled": True,
+                },
+            }
             write_json(work / "completed.json", report)
             with patch("build_reference.run", side_effect=AssertionError("must not start a build")):
                 self.assertTrue(reuse_completed(work, output, "key"))
@@ -123,8 +154,10 @@ class CompletedBuild(unittest.TestCase):
     def test_reference_workspace_stays_reusable_and_candidates_use_v3(self):
         sources = read_json(ROOT / "config/sources.lock.json")
         reference = build_config("reference")
-        self.assertEqual(digest(reference_inputs(sources["fork"], reference)),
-                         "be92ed7160913c8b53ae06e6003e6de864d292f1199af9420a8c6dd22ec72aa4")
+        self.assertEqual(
+            digest(reference_inputs(sources["fork"], reference)),
+            "be92ed7160913c8b53ae06e6003e6de864d292f1199af9420a8c6dd22ec72aa4",
+        )
         keys = set()
         for target in ("prerelease",):
             config = build_config(target)

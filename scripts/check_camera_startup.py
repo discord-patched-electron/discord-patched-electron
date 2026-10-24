@@ -6,10 +6,10 @@ Does not start a call, load a profile, record a microphone or display camera pix
 
 import argparse
 import os
-from pathlib import Path
 import re
 import resource
 import subprocess
+from pathlib import Path
 
 from build_camera_support import build
 from camera_scope import write_scope
@@ -25,14 +25,18 @@ def main():
         required=True,
         help="Path to a bundled Discord or compiled Electron executable",
     )
-    parser.add_argument(
-        "--voice", type=Path, required=True, help="Path to discord_voice.node"
-    )
+    parser.add_argument("--voice", type=Path, required=True, help="Path to discord_voice.node")
     parser.add_argument("--device", required=True, help="Exact webcam name from V4L2")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--samples", type=int, default=2)
-    parser.add_argument("--compare-async", action="store_true", help="Compare sync/async initialization, with the fast probe enabled in both")
-    parser.add_argument("--provenance", type=Path, help="Verified compiler artifact provenance for a custom runtime")
+    parser.add_argument(
+        "--compare-async",
+        action="store_true",
+        help="Compare sync/async initialization, with the fast probe enabled in both",
+    )
+    parser.add_argument(
+        "--provenance", type=Path, help="Verified compiler artifact provenance for a custom runtime"
+    )
     args = parser.parse_args()
     if not 1 <= args.samples <= 5:
         parser.error("--samples must be between 1 and 5")
@@ -82,9 +86,15 @@ def main():
     import math
     import struct
     import wave
-    with wave.open(str(output / 'synthetic-audio.wav'), 'wb') as wav:
-        wav.setparams((1, 2, 48000, 0, 'NONE', 'not compressed'))
-        wav.writeframes(b''.join(struct.pack('<h', int(8000 * math.sin(2 * math.pi * 440 * i / 48000))) for i in range(48000 * 15)))
+
+    with wave.open(str(output / "synthetic-audio.wav"), "wb") as wav:
+        wav.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
+        wav.writeframes(
+            b"".join(
+                struct.pack("<h", int(8000 * math.sin(2 * math.pi * 440 * i / 48000)))
+                for i in range(48000 * 15)
+            )
+        )
     results = []
     for sample in range(args.samples):
         for enabled in (False, True):
@@ -94,7 +104,7 @@ def main():
                 **os.environ,
                 "DPE_CAMERA_OUTPUT": str(run),
                 "DPE_CAMERA_DEVICE": args.device,
-                "DPE_CAMERA_FAKE_AUDIO": str(output / 'synthetic-audio.wav'),
+                "DPE_CAMERA_FAKE_AUDIO": str(output / "synthetic-audio.wav"),
                 "DPE_CAMERA_VOICE_MODULE": str(output / "voice/discord_voice.node"),
                 "DPE_CAMERA_PROBE_START": str(scope["start"]),
                 "DPE_CAMERA_PROBE_END": str(scope["end"]),
@@ -119,7 +129,10 @@ def main():
                     check=True,
                 )
             result = read_json(run / "result.json")
-            if provenance is not None and result["versions"]["electron"] != capacity["compiled_version"]:
+            if (
+                provenance is not None
+                and result["versions"]["electron"] != capacity["compiled_version"]
+            ):
                 raise ValueError("Loaded Electron version differs from the compiler report")
             result.update(patched=enabled, sample=sample + 1)
             result["async_video_input_device_init"] = env["DPE_CAMERA_ASYNC_INIT"] == "1"

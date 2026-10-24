@@ -2,42 +2,74 @@
 
 Only operates on a staging tree, never a user's installed client or profile.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
-import re
-import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
-from common import enabled_electron_channels, ROOT, package_name, read_json, write_json
+from common import ROOT, enabled_electron_channels, package_name, read_json, write_json
 from desktop_identity import desktop_id
 
 
 def replace(text: str, before: str, after: str, *, exact: int | None = 1) -> str:
     count = text.count(before)
     if (exact is not None and count != exact) or (exact is None and count == 0):
-        raise ValueError(f"Unsupported bootstrap: expected {exact or 'at least one'} occurrence(s) of {before!r}; got {count}")
+        raise ValueError(
+            f"Unsupported bootstrap: expected {exact or 'at least one'} occurrence(s) of {before!r}; got {count}"
+        )
     return text.replace(before, after)
 
 
-def patch_bundle(text: str, package: str, install_root: Path | None = None) -> str:
-    resource = json.dumps(str((install_root or Path(f"/usr/lib/{package}")) / "resources"))
-    text = replace(text, 'resourcesPath=path_1.default.join(require.main.filename,"..",".."),', f"resourcesPath={resource},")
+def resource_path(package: str, install_root: Path | None, portable: bool) -> str:
+    if portable:
+        return '(process.env.DPE_APP_ROOT+"/resources")'
+    return json.dumps(str((install_root or Path(f"/usr/lib/{package}")) / "resources"))
+
+
+def patch_bundle(
+    text: str, package: str, install_root: Path | None = None, *, portable: bool = False
+) -> str:
+    resource = resource_path(package, install_root, portable)
+    text = replace(
+        text,
+        'resourcesPath=path_1.default.join(require.main.filename,"..",".."),',
+        f"resourcesPath={resource},",
+    )
     text = replace(text, "process.resourcesPath", resource, exact=None)
+    if portable:
+        # Override the exported build info, not the file on disk. This also
+        # works for read-only installs and Equicord's user-owned bootstrap copy.
+        text = replace(
+            text,
+            '"build_info.json")),disableUpdater:',
+            '"build_info.json")),localModulesRoot:process.env.DPE_APP_ROOT+"/modules",disableUpdater:',
+        )
     # A package manager owns both host and modules. The legacy updater already
     # skips module updates for localModulesRoot, but otherwise blocks the entire
     # app whenever Discord publishes a newer host while CI is still compiling.
-    text = replace(text, 'skipHostUpdate=settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable',
-                   'skipHostUpdate=locallyInstalledModules||settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable')
+    text = replace(
+        text,
+        'skipHostUpdate=settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable',
+        'skipHostUpdate=locallyInstalledModules||settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable',
+    )
     text = replace(text, "Exec=${exePath}", f"Exec=/usr/bin/{package}")
     text = replace(text, "Name=${appName}", f"Name={package}")
     return replace(text, "Icon=${iconPath}", f"Icon={package}")
 
 
-def prepare(core: Path, discord: str, electron: str, asar: str, *, install_root: Path | None = None) -> None:
+def prepare(
+    core: Path,
+    discord: str,
+    electron: str,
+    asar: str,
+    *,
+    install_root: Path | None = None,
+    portable: bool = False,
+) -> None:
     package = package_name(discord, electron)
     install_root = install_root or Path(f"/usr/lib/{package}")
     if not install_root.is_absolute():
@@ -52,17 +84,25 @@ def prepare(core: Path, discord: str, electron: str, asar: str, *, install_root:
         extracted = Path(work) / "app"
         subprocess.run([asar, "extract", str(archive), str(extracted)], check=True)
         bundle = extracted / "bundle.js"
-        bundle.write_text(patch_bundle(bundle.read_text(), package, install_root))
+        bundle.write_text(
+            patch_bundle(bundle.read_text(), package, install_root, portable=portable)
+        )
         splash = extracted / "splashScreenPreload.js"
-        splash.write_text(replace(splash.read_text(), "process.resourcesPath", json.dumps(str(install_root / "resources"))))
+        splash.write_text(
+            replace(
+                splash.read_text(),
+                "process.resourcesPath",
+                resource_path(package, install_root, portable),
+            )
+        )
         metadata = read_json(extracted / "package.json")
-        metadata["desktopName"] = desktop_id(discord) + '.desktop'
+        metadata["desktopName"] = desktop_id(discord) + ".desktop"
         write_json(extracted / "package.json", metadata)
         result = Path(work) / "app.asar"
         subprocess.run([asar, "pack", str(extracted), str(result)], check=True)
         result.replace(archive)
     info["newUpdater"] = False
-    info["localModulesRoot"] = str(install_root / "modules")
+    info["localModulesRoot"] = "modules" if portable else str(install_root / "modules")
     write_json(info_path, info)
 
 

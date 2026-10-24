@@ -1,9 +1,9 @@
-from pathlib import Path
 import re
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from assemble import hydrate_patch_base
@@ -14,8 +14,12 @@ class PartialSourceCache(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             origin, cache, checkout = (root / name for name in ("origin", "cache.git", "candidate"))
+
             def git(directory, *args):
-                return subprocess.check_output(["git", "-C", str(directory), *args], text=True, stderr=subprocess.DEVNULL).strip()
+                return subprocess.check_output(
+                    ["git", "-C", str(directory), *args], text=True, stderr=subprocess.DEVNULL
+                ).strip()
+
             subprocess.run(["git", "init", "-q", str(origin)], check=True)
             git(origin, "config", "user.name", "Fixture")
             git(origin, "config", "user.email", "fixture@example.invalid")
@@ -37,18 +41,27 @@ class PartialSourceCache(unittest.TestCase):
             (origin / "code.txt").write_text("".join(lines))
             git(origin, "commit", "-qam", "upstream")
             upstream = git(origin, "rev-parse", "HEAD")
-            subprocess.run(["git", "clone", "-q", "--bare", "--filter=blob:none", origin.as_uri(), str(cache)], check=True)
+            subprocess.run(
+                ["git", "clone", "-q", "--bare", "--filter=blob:none", origin.as_uri(), str(cache)],
+                check=True,
+            )
             git(cache, "worktree", "add", "--detach", str(checkout), upstream)
             prefix = re.search(r"^index (\w+)\.\.", patch.read_text(), re.M)[1]
-            missing = subprocess.run(["git", "-C", str(cache), "cat-file", "-e", prefix], capture_output=True)
+            missing = subprocess.run(
+                ["git", "-C", str(cache), "cat-file", "-e", prefix], capture_output=True
+            )
             self.assertNotEqual(missing.returncode, 0)
-            hydrate_patch_base(cache, {"patch": str(patch), "base": base, "repository": origin.as_uri()})
+            hydrate_patch_base(
+                cache, {"patch": str(patch), "base": base, "repository": origin.as_uri()}
+            )
             self.assertEqual(git(cache, "cat-file", "-t", prefix), "blob")
             git(checkout, "apply", "--3way", "--index", str(patch))
             self.assertIn("Discord addition", (checkout / "code.txt").read_text())
             self.assertIn("Upstream addition", (checkout / "code.txt").read_text())
             # An already hydrated cache remains usable without the remote.
-            hydrate_patch_base(cache, {"patch": str(patch), "base": base, "repository": "/missing-remote"})
+            hydrate_patch_base(
+                cache, {"patch": str(patch), "base": base, "repository": "/missing-remote"}
+            )
 
 
 if __name__ == "__main__":

@@ -2,8 +2,7 @@
 
 Repository: `discord-patched-electron/discord-patched-electron`.
 Standard GitHub-hosted runners run checks. The maintainer's containerized PC
-runner remains available. Blacksmith unlocked the organization on 23 October
-2026. The last reported allowance use is 168/3,000 minutes. Current builds use
+runner remains available. Blacksmith unlocked the organization on 23 October 2026. The last reported allowance use is 168/3,000 minutes. Current builds use
 only the PC; no further Blacksmith compiler is authorized for the overnight task.
 
 ## Blacksmith capacity experiment

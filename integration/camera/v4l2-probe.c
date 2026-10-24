@@ -22,7 +22,8 @@ static const char *voice_module;
 static uintptr_t address(const char *name) {
   const char *value = getenv(name);
   char *end;
-  if (!value || !*value) return 0;
+  if (!value || !*value)
+    return 0;
   errno = 0;
   unsigned long long parsed = strtoull(value, &end, 0);
   return errno || *end || parsed > UINTPTR_MAX ? 0 : (uintptr_t)parsed;
@@ -30,8 +31,8 @@ static uintptr_t address(const char *name) {
 
 static void initialize(void) {
   next_ioctl = (ioctl_fn)dlsym(RTLD_NEXT, "ioctl");
-  if (getenv("DPE_CAMERA_FAST_PROBE") &&
-      !strcmp(getenv("DPE_CAMERA_FAST_PROBE"), "0")) return;
+  if (getenv("DPE_CAMERA_FAST_PROBE") && !strcmp(getenv("DPE_CAMERA_FAST_PROBE"), "0"))
+    return;
   voice_module = getenv("DPE_CAMERA_VOICE_MODULE");
   probe_start = address("DPE_CAMERA_PROBE_START");
   probe_end = address("DPE_CAMERA_PROBE_END");
@@ -41,30 +42,31 @@ static void initialize(void) {
 // Unknown/failed/truncated enumeration keeps the upstream probing behavior.
 static int unsupported(int fd, const struct v4l2_format *format) {
   for (unsigned i = 0; i < 256; ++i) {
-    struct v4l2_fmtdesc description = {
-        .index = i, .type = V4L2_BUF_TYPE_VIDEO_CAPTURE};
+    struct v4l2_fmtdesc description = {.index = i, .type = V4L2_BUF_TYPE_VIDEO_CAPTURE};
     if (next_ioctl(fd, VIDIOC_ENUM_FMT, &description) < 0)
       return i > 0 && errno == EINVAL;
-    if (description.pixelformat == format->fmt.pix.pixelformat) return 0;
+    if (description.pixelformat == format->fmt.pix.pixelformat)
+      return 0;
   }
   return 0;
 }
 
-__attribute__((visibility("default")))
-int ioctl(int fd, unsigned long request, ...) {
+__attribute__((visibility("default"))) int ioctl(int fd, unsigned long request, ...) {
   va_list args;
   va_start(args, request);
   void *argument = va_arg(args, void *);
   va_end(args);
   int saved_errno = errno;
   pthread_once(&once, initialize);
-  if (!next_ioctl) { errno = ENOSYS; return -1; }
-  if (request == VIDIOC_TRY_FMT && argument && voice_module &&
-      probe_start && probe_end > probe_start) {
+  if (!next_ioctl) {
+    errno = ENOSYS;
+    return -1;
+  }
+  if (request == VIDIOC_TRY_FMT && argument && voice_module && probe_start &&
+      probe_end > probe_start) {
     void *caller = __builtin_extract_return_addr(__builtin_return_address(0));
     Dl_info info;
-    if (dladdr(caller, &info) && info.dli_fname &&
-        !strcmp(info.dli_fname, voice_module)) {
+    if (dladdr(caller, &info) && info.dli_fname && !strcmp(info.dli_fname, voice_module)) {
       uintptr_t offset = (uintptr_t)caller - (uintptr_t)info.dli_fbase;
       if (offset >= probe_start && offset < probe_end &&
           ((struct v4l2_format *)argument)->type == V4L2_BUF_TYPE_VIDEO_CAPTURE &&

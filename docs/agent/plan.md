@@ -126,7 +126,7 @@ For repeated conflicts, recorded, reviewed resolutions can help, but initially p
 
 ## 4. Free CI feasibility and runner selection
 
-**Implementation decision (23 October 2026):** Blacksmith unlocked the account after the initial suspension. The maintainer reports the organization connected and 0/3,000 free minutes used. Run one bounded hosted capacity experiment on the 16-vCPU/64-GB/750-GB runner: a 300-minute job cap consumes at most 2,400 equivalent allowance minutes. Reject repeated dispatches and reruns before hosted allocation; enable no paid storage. This one-time experiment relies on the reported unused allowance and is not an account-wide or recurring budget gate. Retain the explicitly authorized PC runner and its persistent cache as fallback. See `docs/ci-setup.md`. Before recurring hosted builds, implement the live account-wide allowance checks below or verify a provider-enforced free-only cap.
+**Implementation decision (23 October 2026):** Blacksmith unlocked the account after the initial suspension. The maintainer reports the organization connected and 0/3,000 free minutes used. Run one bounded hosted capacity experiment on the 16-vCPU/64-GB/750-GB runner: a 300-minute job cap consumes at most 2,400 equivalent allowance minutes. Reject repeated dispatches and reruns before hosted allocation; enable no paid storage. This one-time experiment relies on the reported unused allowance and is not an account-wide or recurring budget gate. Retain the explicitly authorized PC runner and its persistent cache as fallback. See `docs/agent/ci-setup.md`. Before recurring hosted builds, implement the live account-wide allowance checks below or verify a provider-enforced free-only cap.
 
 Evaluate Depot and Blacksmith on equal terms: sufficient disk/RAM/job duration, sustainable included compute, storage charges and enforceable usage limits. Start with the same build scripts on GitHub Actions-compatible runners; do not introduce a second orchestration platform just to switch providers. A time-limited trial can support a bounded feasibility experiment, but does not establish a free recurring service.
 
@@ -146,7 +146,7 @@ Before enabling recurring compilation:
 2. Confirm that the account cannot incur charges under the selected configuration. A workflow budget check is useful but is not a substitute for a provider-enforced billing limit where one is available.
 3. Run one budget-bounded cold build on a runner with sufficient disk. Measure fetch time, peak disk/RAM, compile time, archive size and charged minutes. Stop if the reserved free allowance is insufficient.
 4. Compare the smallest feasible size with a larger size only if free allowance remains. Choose the configuration consuming the fewest allowance units per successful build, not necessarily the fewest CPUs.
-5. Estimate a month of Electron prerelease builds, validation across all three combinations, Discord channel updates and retries using observed numbers. Count shared runtime builds once; account separately for any required compiled variants. Record measurements and the account's confirmed conversion rules in `docs/build-capacity.md`.
+5. Estimate a month of Electron prerelease builds, validation across all three combinations, Discord channel updates and retries using observed numbers. Count shared runtime builds once; account separately for any required compiled variants. Record measurements and the account's confirmed conversion rules in `docs/agent/build-capacity.md`.
 
 For conservative planning, a 2-vCPU-equivalent accounting model would allow `3000 / (vCPUs / 2)` wall-clock minutes: 750 at 8 vCPU or 375 at 16 vCPU. Treat this calculation as a budget model until the account's actual rules are verified, not a promise of capacity.
 
@@ -178,7 +178,6 @@ archives; ordinary Discord fork commits must not schedule compilation. See
 work. Keep optional Equicord in a user-owned loader so packaging updates do not
 erase it. Only the PC compiles Electron; historical hosted-provider experiments
 below are not authorization to start Blacksmith now.
-
 
 Run discovery every 15 minutes (7/22/37/52), plus `workflow_dispatch`. GitHub schedules can be delayed; record and catch up missed releases. A `release` event in our repository does not subscribe to releases in Electron's repository. An upstream webhook is optional, not required infrastructure.
 
@@ -398,10 +397,10 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 ### Phase 2 — prerelease automation and packaging
 
 - [ ] Implement discovery, canonical hashes, durable state and bounded retry behavior.
-  Discovery and durable backlog are implemented in `scripts/discover.py`,
-  `scripts/state_branch.py` and hourly `update.yml`, with missed-release/tag/race
-  tests. Compiler-job reconciliation and explicit retry remain to be connected;
-  see [discovery](discovery.md).
+      Discovery and durable backlog are implemented in `scripts/discover.py`,
+      `scripts/state_branch.py` and hourly `update.yml`, with missed-release/tag/race
+      tests. Compiler-job reconciliation and explicit retry remain to be connected;
+      see [discovery](discovery.md).
 - [x] Derive the shared package template and stable launcher/layout from the imported current package, retaining its resource/bootstrap and Krisp fixes.
 - [ ] Implement compile/validate/release/AUR jobs with publication-only credentials.
 - [ ] Register the package and configure its AUR access during deployment setup.
@@ -427,13 +426,13 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 - [x] Trace native Wayland selection and locate the native PID-based audio input.
 - [x] Implement the smallest module-wrapper correction for X11.
 - [x] Implement selective PipeWire mixing, exact niri identity, an explicit
-  audio selector for other compositors, and teardown/crash cleanup.
+      audio selector for other compositors, and teardown/crash cleanup.
 - [x] Pass native Wayland video/audio fixtures for Stable/PTB/Canary with
-  PipeWire-Pulse and PulseAudio, multi-process sources, Discord exclusion,
-  selection/cancellation and crash cleanup. All seven Wayland CI cases pass;
-  see `docs/evidence/wayland-audio-ci.json`.
+      PipeWire-Pulse and PulseAudio, multi-process sources, Discord exclusion,
+      selection/cancellation and crash cleanup. All seven Wayland CI cases pass;
+      see `docs/evidence/wayland-audio-ci.json`.
 - [ ] Qualify custom runtimes and a real call with microphone/Krisp active;
-  validate actual GNOME/KDE and sandboxed applications separately.
+      validate actual GNOME/KDE and sandboxed applications separately.
 - [ ] Release the fix through the same fingerprinted pipeline, without remote client UI changes if the proven boundary allows it.
 
 ### Phase 5 — maintenance hardening
@@ -443,16 +442,15 @@ Exit: one working custom runtime, one reproducible build manifest, and a measure
 - [ ] Add selective caching only when measured savings justify it and storage remains free or sponsored.
 - [ ] Remove patches absorbed by upstream and reuse Discord's newer ports as they appear.
 
-
-Implementation evidence (23 October 2026): `docs/packaging.md` and
+Implementation evidence (23 October 2026): `docs/agent/packaging.md` and
 `docs/evidence/packaging-arch.json` cover recipe/layout checks with real client
 payloads and an explicit dummy runtime. Nine-combination CI run `40004302310` at `09395d0` passed all package checks
 and retained the reports; see `docs/evidence/packaging-ci.json`. These checks do not satisfy native
 streaming, effective Krisp suppression or per-app audio acceptance. Static native
-audio findings are recorded in `docs/audio-investigation.md`.
+audio findings are recorded in `docs/agent/audio-investigation.md`.
 Native video-frame delivery/teardown and offline Krisp suppression now pass
 for all three bundled-runtime baselines, locally and in GitHub CI; see
-`docs/runtime-validation.md` and `docs/evidence/native-ci.json`. The custom
+`docs/agent/runtime-validation.md` and `docs/evidence/native-ci.json`. The custom
 reference build remains in progress. These baseline results do not satisfy
 the custom-runtime, real-call, microphone or per-app-audio acceptance gates.
 
@@ -473,10 +471,10 @@ Supported/unknown formats and other callers retain upstream behavior. No binary
 rewrite, Electron rebuild or continuing fork merge is needed. Include helper source,
 compiler metadata and checksum in package identity. Publish its immutable asset
 before auto-pushing the AUR recipe; never compile it in makepkg. See
-`docs/camera-startup.md` for physical measurements and validation limits.
+`docs/agent/camera-startup.md` for physical measurements and validation limits.
 
 Docker CPU/RAM limits apply live. Ninja concurrency is chosen on a new dispatch
-using `parallel_jobs`, preserving incremental objects; see `docs/ci-setup.md`.
+using `parallel_jobs`, preserving incremental objects; see `docs/agent/ci-setup.md`.
 
 ## Prerelease scope and compiler scheduling
 
@@ -502,4 +500,4 @@ a pinned depot_tools object already present, and download independent Discord
 manifests concurrently. Existing zero-symbol and no-ThinLTO settings reduce build
 cost. Avoid a RAM-backed source tree on this swapping host; do not add unverified
 jumbo flags, paid remote execution or a second compiler racing the same cache.
-See `docs/build-caching.md` for sources and validation.
+See `docs/agent/build-caching.md` for sources and validation.

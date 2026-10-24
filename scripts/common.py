@@ -1,13 +1,14 @@
 """Small shared primitives; no network access at import time."""
+
 from __future__ import annotations
 
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import tempfile
+from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +22,9 @@ def sha256(path: Path) -> str:
 
 
 def digest(value: object) -> str:
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
 
 
 def read_json(path: Path):
@@ -30,7 +33,11 @@ def read_json(path: Path):
 
 def enabled_electron_channels() -> tuple[str, ...]:
     channels = read_json(ROOT / "config/channels.json")["electron_channels"]
-    if not channels or len(set(channels)) != len(channels) or any(channel not in ELECTRON_CHANNELS for channel in channels):
+    if (
+        not channels
+        or len(set(channels)) != len(channels)
+        or any(channel not in ELECTRON_CHANNELS for channel in channels)
+    ):
         raise ValueError("Invalid enabled Electron channels")
     return tuple(channels)
 
@@ -68,9 +75,26 @@ def download(url: str, target: Path, expected: str | None = None) -> Path:
     with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as stream:
         temp = Path(stream.name)
     try:
-        run("curl", "--fail", "--silent", "--show-error", "--location", "--proto", "=https",
-            "--proto-redir", "=https", "--retry", "2", "--connect-timeout", "30",
-            "--max-time", "600", "--output", temp, url)
+        run(
+            "curl",
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--location",
+            "--proto",
+            "=https",
+            "--proto-redir",
+            "=https",
+            "--retry",
+            "2",
+            "--connect-timeout",
+            "30",
+            "--max-time",
+            "600",
+            "--output",
+            temp,
+            url,
+        )
         if expected and sha256(temp) != expected:
             raise ValueError(f"Checksum mismatch: {url}")
         os.replace(temp, target)
@@ -92,7 +116,13 @@ def version_key(version: str):
     if not match:
         raise ValueError(f"Unsupported Electron version: {version}")
     major, minor, patch, phase, serial = match.groups()
-    return (int(major), int(minor), int(patch), {"nightly": 0, "alpha": 1, "beta": 2, None: 3}[phase], int(serial or 0))
+    return (
+        int(major),
+        int(minor),
+        int(patch),
+        {"nightly": 0, "alpha": 1, "beta": 2, None: 3}[phase],
+        int(serial or 0),
+    )
 
 
 def electron_channel(version: str) -> str:

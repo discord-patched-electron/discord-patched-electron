@@ -1,11 +1,12 @@
 """Scheduling policy, separate from native input keys and incremental workspaces."""
+
 from __future__ import annotations
 
 import math
 import os
 from pathlib import Path
 
-GIB = 1024 ** 3
+GIB = 1024**3
 
 
 def cgroup_directories(root: Path, membership: Path) -> list[Path]:
@@ -23,11 +24,22 @@ def cgroup_directories(root: Path, membership: Path) -> list[Path]:
     return directories
 
 
-def limits(cgroup: Path = Path("/sys/fs/cgroup"), membership: Path = Path("/proc/self/cgroup"),
-           meminfo: Path = Path("/proc/meminfo")) -> tuple[float, int]:
+def limits(
+    cgroup: Path = Path("/sys/fs/cgroup"),
+    membership: Path = Path("/proc/self/cgroup"),
+    meminfo: Path = Path("/proc/meminfo"),
+) -> tuple[float, int]:
     cpus = float(len(os.sched_getaffinity(0)))
-    memory = int(next(line.split()[1] for line in meminfo.read_text().splitlines()
-                      if line.startswith("MemTotal:"))) * 1024
+    memory = (
+        int(
+            next(
+                line.split()[1]
+                for line in meminfo.read_text().splitlines()
+                if line.startswith("MemTotal:")
+            )
+        )
+        * 1024
+    )
     for directory in cgroup_directories(cgroup, membership):
         cpu_file = directory / "cpu.max"
         if cpu_file.exists():
@@ -51,12 +63,20 @@ def select(cpus: float, memory: int, requested: str = "auto") -> dict:
         try:
             jobs = int(requested)
         except ValueError as error:
-            raise ValueError("ELECTRON_BUILD_JOBS must be auto or an integer from 1 to 32") from error
+            raise ValueError(
+                "ELECTRON_BUILD_JOBS must be auto or an integer from 1 to 32"
+            ) from error
         if not 1 <= jobs <= 32:
             raise ValueError("ELECTRON_BUILD_JOBS must be auto or an integer from 1 to 32")
-    return {"parallel_jobs": jobs, "automatic_jobs": automatic, "requested_jobs": requested,
-            "cpu_capacity": cpus, "memory_limit_bytes": memory,
-            "sync_jobs": min(8, jobs), "concurrent_links": 1}
+    return {
+        "parallel_jobs": jobs,
+        "automatic_jobs": automatic,
+        "requested_jobs": requested,
+        "cpu_capacity": cpus,
+        "memory_limit_bytes": memory,
+        "sync_jobs": min(8, jobs),
+        "concurrent_links": 1,
+    }
 
 
 def build_resources() -> dict:

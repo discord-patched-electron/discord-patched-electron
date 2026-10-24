@@ -1,0 +1,18 @@
+{
+  "printWidth": 100,
+  "ignorePatterns": [
+    ".work/**",
+    "out/**",
+    "node_modules/**",
+    ".venv/**",
+    "packaging/upstream/**",
+    "patches/**",
+    "docs/evidence/**",
+    "package-lock.json",
+    "config/*.json",
+    "tests/**/package.json",
+    "tests/**/header.lock.json",
+    "tests/audio/speech.json"
+  ],
+  "sortPackageJson": false
+}

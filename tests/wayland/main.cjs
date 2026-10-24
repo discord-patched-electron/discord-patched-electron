@@ -8,9 +8,17 @@ function finish(result) {
   finished = true;
   fs.writeFileSync(
     path.join(process.env.DPE_AUDIO_OUTPUT, "fixture.json"),
-    JSON.stringify({ ...result, versions: process.versions,
-      stage: fs.existsSync(path.join(process.env.DPE_AUDIO_OUTPUT, 'stage.json'))
-        ? JSON.parse(fs.readFileSync(path.join(process.env.DPE_AUDIO_OUTPUT, 'stage.json'))) : null }, null, 2),
+    JSON.stringify(
+      {
+        ...result,
+        versions: process.versions,
+        stage: fs.existsSync(path.join(process.env.DPE_AUDIO_OUTPUT, "stage.json"))
+          ? JSON.parse(fs.readFileSync(path.join(process.env.DPE_AUDIO_OUTPUT, "stage.json")))
+          : null,
+      },
+      null,
+      2,
+    ),
   );
   app.exit(result.passed ? 0 : 1);
 }

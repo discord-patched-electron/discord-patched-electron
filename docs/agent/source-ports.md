@@ -2,7 +2,7 @@
 
 The pinned **Electron 46.0.0-alpha.1** port now compiles and opens Discord Canary
 on native Wayland. Native video, capture lifetime and offline Krisp tests pass
-against that runtime. See [the measured results](evidence/prerelease-runtime-local.json).
+against that runtime. See [the measured results](../evidence/prerelease-runtime-local.json).
 The historical 45/47 ports remain source-only and disabled. None of these ports
 is a published release; real-call and wider desktop qualification remain gates.
 
@@ -114,4 +114,4 @@ current popup and child views, matching upstream's current ownership graph.
 All 16 remaining Discord-modified Electron C++ translation units pass a syntax
 preflight with the generated build's real flags and headers. This check writes
 separate diagnostics; it neither replaces objects nor establishes successful
-linking. See [the preflight evidence](evidence/remaining-port-preflight.json).
+linking. See [the preflight evidence](../evidence/remaining-port-preflight.json).

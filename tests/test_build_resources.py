@@ -1,13 +1,13 @@
-from pathlib import Path
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build_resources import GIB, limits, select
-from build_reference import build_config, build_inputs
 from assemble import prepare_cache
+from build_reference import build_config, build_inputs
+from build_resources import GIB, limits, select
 from common import ROOT, read_json
 
 
@@ -42,9 +42,13 @@ class Scheduling(unittest.TestCase):
             (child / "cpu.max").write_text("800000 100000")
             (child / "memory.max").write_text(str(24 * GIB))
             with patch("build_resources.os.sched_getaffinity", return_value=set(range(20))):
-                self.assertEqual(limits(group, root / "membership", root / "meminfo"), (4, 12 * GIB))
+                self.assertEqual(
+                    limits(group, root / "membership", root / "meminfo"), (4, 12 * GIB)
+                )
             with patch("build_resources.os.sched_getaffinity", return_value={0, 1}):
-                self.assertEqual(limits(group, root / "membership", root / "meminfo"), (2, 12 * GIB))
+                self.assertEqual(
+                    limits(group, root / "membership", root / "meminfo"), (2, 12 * GIB)
+                )
 
 
 class ActiveChannels(unittest.TestCase):
@@ -63,13 +67,22 @@ class ActiveChannels(unittest.TestCase):
 
     def test_candidate_source_fetches_only_patch_base_and_selected_commit(self):
         sources = read_json(ROOT / "config/sources.lock.json")
-        with tempfile.TemporaryDirectory() as temp, patch("assemble.run") as run, patch("assemble.subprocess.run") as exists:
+        with (
+            tempfile.TemporaryDirectory() as temp,
+            patch("assemble.run") as run,
+            patch("assemble.subprocess.run") as exists,
+        ):
             exists.return_value.returncode = 1
             prepare_cache(Path(temp), sources, "prerelease")
             fetches = [call.args for call in run.call_args_list if "fetch" in call.args]
             self.assertEqual(len(fetches), 2)
-            self.assertEqual(fetches[0][-2:], (sources["fork"]["repository"], sources["fork"]["base"]))
-            self.assertEqual(fetches[1][-2:], (sources["upstream_repository"], sources["targets"]["prerelease"]["commit"]))
+            self.assertEqual(
+                fetches[0][-2:], (sources["fork"]["repository"], sources["fork"]["base"])
+            )
+            self.assertEqual(
+                fetches[1][-2:],
+                (sources["upstream_repository"], sources["targets"]["prerelease"]["commit"]),
+            )
 
 
 if __name__ == "__main__":

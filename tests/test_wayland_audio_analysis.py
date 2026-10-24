@@ -1,7 +1,8 @@
-from pathlib import Path
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -17,10 +18,7 @@ class AudioEvidence(unittest.TestCase):
             def tone(frequencies):
                 return np.concatenate(
                     [
-                        sum(
-                            5000 * np.sin(2 * np.pi * hz * t + frame * 0.731)
-                            for hz in frequencies
-                        )
+                        sum(5000 * np.sin(2 * np.pi * hz * t + frame * 0.731) for hz in frequencies)
                         for frame in range(100)
                     ]
                 ).astype("<i2")

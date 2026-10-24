@@ -1,10 +1,9 @@
-import hashlib
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from patch_krisp import INITIALIZE, SIGNATURE, patch
@@ -43,14 +42,25 @@ fail:
 .size {INITIALIZE}, .-{INITIALIZE}
 .section .note.GNU-stack,"",@progbits
 """)
-        subprocess.run(["gcc", "-shared", "-nostdlib", "-Wl,-Bsymbolic", str(assembly), "-o", str(self.binary)], check=True)
+        subprocess.run(
+            [
+                "gcc",
+                "-shared",
+                "-nostdlib",
+                "-Wl,-Bsymbolic",
+                str(assembly),
+                "-o",
+                str(self.binary),
+            ],
+            check=True,
+        )
 
     def test_changes_only_checked_branch_and_is_idempotent(self):
         original = self.binary.read_bytes()
         report = patch(self.binary)
         modified = self.binary.read_bytes()
         offset, size = report["offset"], report["size"]
-        self.assertEqual(modified, original[:offset] + b"\x90" * size + original[offset + size:])
+        self.assertEqual(modified, original[:offset] + b"\x90" * size + original[offset + size :])
         self.assertFalse(report["runtime_validated"])
         second = patch(self.binary)
         self.assertTrue(second["already_patched"])

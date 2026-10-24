@@ -34,7 +34,7 @@ does not launch Discord or access a user's profile.
 
 Packaging uses Arch's `asar`, `python-capstone` and `python-pyelftools` packages,
 as the upstream recipe does. Clean-container reports record their installed
-versions. Project unit tests use `requirements.txt`; the byte-level Krisp
+versions. Project unit tests use the locked `pyproject.toml` dependencies; the byte-level Krisp
 validator also checks the exact allowed edit in the Arch environment. The Arch
 base image is pinned, while its package repositories remain rolling. This is
 input traceability, not a claim of byte-for-byte package reproducibility.
@@ -54,7 +54,7 @@ This check does **not** establish Electron linking/dependency completeness,
 launchability, native streaming, effective Krisp suppression or per-app audio.
 Those checks must run again with the compiled custom runtime before release.
 The initial local host check is recorded in
-[`evidence/packaging-local.json`](evidence/packaging-local.json); clean Arch CI
+[`evidence/packaging-local.json`](../evidence/packaging-local.json); clean Arch CI
 provides the stronger ongoing packaging check.
 
 ## Independent camera support binary

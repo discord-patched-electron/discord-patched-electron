@@ -17,6 +17,6 @@ cd /build/source
 cargo build --locked --no-default-features --features dbus,xdp-gnome-screencast
 install -m755 target/debug/niri /build/niri
 strip /build/niri
-printf '%s\n' "$revision" > /build/niri-source
+printf '%s\n' "$revision" >/build/niri-source
 cd /build
-sha256sum niri > niri.sha256
+sha256sum niri >niri.sha256

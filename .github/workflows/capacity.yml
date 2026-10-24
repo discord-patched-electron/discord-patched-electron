@@ -5,7 +5,7 @@ on:
       parallel_jobs:
         description: Ninja tasks (auto respects CPU/RAM limits; takes effect on this dispatch)
         type: choice
-        options: [auto, '1', '2', '3', '4', '6', '8', '12', '16', '20', '24', '32']
+        options: [auto, "1", "2", "3", "4", "6", "8", "12", "16", "20", "24", "32"]
         default: auto
 permissions:
   contents: read
@@ -20,18 +20,18 @@ jobs:
     timeout-minutes: 1320
     env:
       ELECTRON_BUILD_CACHE: /work/build-cache
-      ELECTRON_COMPILER_CACHE_SIZE: '32G'
+      ELECTRON_COMPILER_CACHE_SIZE: "32G"
       ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || 'auto' }}
       # Sentry's CLI only uploads debug symbols; no symbol upload is performed.
       # Its optional CDN download must not block a runtime-only build.
-      SENTRYCLI_SKIP_DOWNLOAD: '1'
+      SENTRYCLI_SKIP_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24'
+          node-version: "24"
       - name: Build the locked reference fork
         shell: bash
         run: |

@@ -1,17 +1,26 @@
 import copy
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from common import ROOT, arch_version, digest, electron_channel, package_name, read_json, sha256, version_key, write_json
+from assemble import validate_port
+from common import (
+    ROOT,
+    arch_version,
+    electron_channel,
+    package_name,
+    read_json,
+    sha256,
+    version_key,
+    write_json,
+)
+from fingerprints import integration_key, runtime_key
 from lock_clients import normalize
 from prepare_app import patch_bundle, replace
-from fingerprints import integration_key, runtime_key
-from assemble import validate_port
 
 
 class SourceLocks(unittest.TestCase):
@@ -62,12 +71,18 @@ class SourceLocks(unittest.TestCase):
 
 class Manifests(unittest.TestCase):
     def fixture(self):
-        entry = {"host_version": [1, 0, 123], "package_sha256": "a" * 64,
-                 "url": "https://ptb.dl2.discordapp.net/distro/app/ptb/linux/x64/1.0.123/full.distro"}
+        entry = {
+            "host_version": [1, 0, 123],
+            "package_sha256": "a" * 64,
+            "url": "https://ptb.dl2.discordapp.net/distro/app/ptb/linux/x64/1.0.123/full.distro",
+        }
         modules = {}
         for name in ("discord_voice", "discord_krisp", "discord_desktop_core"):
-            module = {**entry, "module_version": 2,
-                      "url": entry["url"].replace("/full.distro", f"/{name}/2/full.distro")}
+            module = {
+                **entry,
+                "module_version": 2,
+                "url": entry["url"].replace("/full.distro", f"/{name}/2/full.distro"),
+            }
             modules[name] = {"full": module}
         return {"full": entry, "modules": modules}
 
@@ -101,11 +116,14 @@ class VersionsAndKeys(unittest.TestCase):
 
     def test_arch_order_matches_semver(self):
         import shutil
+
         if not shutil.which("vercmp"):
             self.skipTest("Arch vercmp is not installed on this host")
         values = ["45.0.0-alpha.1", "45.0.0-beta.2", "45.0.0-beta.10", "45.0.0"]
         for older, newer in zip(values, values[1:]):
-            result = subprocess.check_output(["vercmp", arch_version(older), arch_version(newer)], text=True)
+            result = subprocess.check_output(
+                ["vercmp", arch_version(older), arch_version(newer)], text=True
+            )
             self.assertLess(int(result), 0)
 
     def test_discord_changes_reuse_runtime_but_invalidate_integration(self):
@@ -123,7 +141,9 @@ class VersionsAndKeys(unittest.TestCase):
     def test_changed_compile_inputs_rebuild(self):
         sources = read_json(ROOT / "config/sources.lock.json")
         target = sources["targets"]["prerelease"]
-        self.assertNotEqual(runtime_key(target, sources, {"gn": "a"}), runtime_key(target, sources, {"gn": "b"}))
+        self.assertNotEqual(
+            runtime_key(target, sources, {"gn": "a"}), runtime_key(target, sources, {"gn": "b"})
+        )
         changed = copy.deepcopy(sources)
         changed["ports"]["46"]["candidate_tree"] = "f" * 40
         self.assertNotEqual(runtime_key(target, sources, {}), runtime_key(target, changed, {}))
@@ -138,15 +158,20 @@ class VersionsAndKeys(unittest.TestCase):
 
 class BootstrapPatches(unittest.TestCase):
     def test_package_owned_host_ignores_manual_update_gate_without_rewriting_version(self):
-        source = ('resourcesPath=path_1.default.join(require.main.filename,"..",".."),'
-                  'process.resourcesPath;skipHostUpdate=settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable;'
-                  'Exec=${exePath};Name=${appName};Icon=${iconPath}')
+        source = (
+            'resourcesPath=path_1.default.join(require.main.filename,"..",".."),'
+            'process.resourcesPath;skipHostUpdate=settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable;'
+            "Exec=${exePath};Name=${appName};Icon=${iconPath}"
+        )
         patched = patch_bundle(source, "test-package", Path('/tmp/test "quoted" app'))
-        self.assertIn('skipHostUpdate=locallyInstalledModules||settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable', patched)
+        self.assertIn(
+            'skipHostUpdate=locallyInstalledModules||settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable',
+            patched,
+        )
         self.assertIn(json.dumps('/tmp/test "quoted" app/resources'), patched)
-        self.assertNotIn('buildInfo.version=', patched)
+        self.assertNotIn("buildInfo.version=", patched)
         with self.assertRaisesRegex(ValueError, "Unsupported bootstrap"):
-            patch_bundle(source.replace('skipHostUpdate=', 'newHostUpdate='), 'test-package')
+            patch_bundle(source.replace("skipHostUpdate=", "newHostUpdate="), "test-package")
 
     def test_exact_edit_and_unknown_layout(self):
         self.assertEqual(replace("a X b", "X", "Y"), "a Y b")

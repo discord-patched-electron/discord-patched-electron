@@ -2,7 +2,7 @@
 
 **Wayland is the primary target; X11 is additional support.** The maintainer
 clarified this on 23 October 2026. The initial X11 experiment below established the native audio boundary. The
-subsequent [Wayland implementation](wayland-audio.md) now covers native portal
+subsequent [Wayland implementation](../wayland-audio.md) now covers native portal
 video, application routing, multi-process mixing and teardown in private fixtures.
 
 Static inspection on 23 October 2026 found an existing Linux application-audio
@@ -10,21 +10,21 @@ path in all three locked `discord_voice.node` binaries. No module was loaded,
 no client was launched and no personal profile or microphone was accessed.
 The binaries differ; reports identify each by its own SHA-256:
 
-- [Stable](evidence/stable-voice-interface.json)
-- [PTB](evidence/ptb-voice-interface.json)
-- [Canary](evidence/canary-voice-interface.json)
+- [Stable](../evidence/stable-voice-interface.json)
+- [PTB](../evidence/ptb-voice-interface.json)
+- [Canary](../evidence/canary-voice-interface.json)
 
 ## Observations
 
-| Native boundary | Observed field references or calls |
-| --- | --- |
-| Connection `SetTransportOptions` | `soundsharePid`, `soundshareLoopback`, `soundshareDiscardRearChannels` |
-| `SetDesktopSourceWithOptions` | `sourceId`, `type` |
-| `SetGoLiveDevices` | `videoInputDeviceId`, `audioInputDeviceId` |
-| PulseAudio sink identification | `application.process.id` |
-| PulseAudio client identification | `application.process.id`, `pipewire.sec.pid` |
-| PulseAudio stream monitor | `pa_stream_new`, `pa_stream_set_monitor_stream`, `pa_stream_connect_record` |
-| PulseAudio attachment | Enumerates sink inputs through `pa_context_get_sink_input_info_list` |
+| Native boundary                  | Observed field references or calls                                          |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| Connection `SetTransportOptions` | `soundsharePid`, `soundshareLoopback`, `soundshareDiscardRearChannels`      |
+| `SetDesktopSourceWithOptions`    | `sourceId`, `type`                                                          |
+| `SetGoLiveDevices`               | `videoInputDeviceId`, `audioInputDeviceId`                                  |
+| PulseAudio sink identification   | `application.process.id`                                                    |
+| PulseAudio client identification | `application.process.id`, `pipewire.sec.pid`                                |
+| PulseAudio stream monitor        | `pa_stream_new`, `pa_stream_set_monitor_stream`, `pa_stream_connect_record` |
+| PulseAudio attachment            | Enumerates sink inputs through `pa_context_get_sink_input_info_list`        |
 
 These names are referenced by the corresponding native functions, rather than
 merely appearing somewhere in the binary. The existing JavaScript wrapper
@@ -113,7 +113,7 @@ GitHub runners. The fixture's tiny tone program is compiled there; it does not
 allocate the Electron compiler or Blacksmith. Successful reference/candidate
 compiler runs also trigger this workflow against their verified runtime
 artifact, reusing the same three-client tests. See
-[local audio evidence](evidence/app-audio-local.json).
+[local audio evidence](../evidence/app-audio-local.json).
 
 ## Implemented Wayland path
 
@@ -121,7 +121,7 @@ The follow-up implementation now resolves the exact native PipeWire video link
 through niri's cast/window IPC and mixes the application's audio subprocesses.
 Other compositors have an explicit audio-app selector. Both PipeWire-Pulse and
 PulseAudio server configurations use a private PipeWire mix and retain native
-Discord video. See [Wayland implementation and validation](wayland-audio.md) for
+Discord video. See [Wayland implementation and validation](../wayland-audio.md) for
 the route, lifecycle, test fixture and remaining live-call/custom-runtime checks.
 
 The key observation was the module-level native picker API:

@@ -1,16 +1,16 @@
 """Exercise the real preload boundary with a fake V4L2 driver; no camera needed."""
 
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from common import ROOT
-from camera_scope import scope
 from build_camera_support import build
+from camera_scope import scope
+from common import ROOT
 
 
 class CameraProbe(unittest.TestCase):
@@ -80,9 +80,7 @@ class CameraProbe(unittest.TestCase):
     def test_disable_and_invalid_function_scope_preserve_the_driver(self):
         self.run_probe(DPE_CAMERA_FAST_PROBE="0", DPE_TEST_BYPASS="1")
         self.run_probe(DPE_CAMERA_PROBE_START="invalid", DPE_TEST_BYPASS="1")
-        self.run_probe(
-            DPE_CAMERA_PROBE_START="1", DPE_CAMERA_PROBE_END="2", DPE_TEST_BYPASS="1"
-        )
+        self.run_probe(DPE_CAMERA_PROBE_START="1", DPE_CAMERA_PROBE_END="2", DPE_TEST_BYPASS="1")
 
     def test_unknown_voice_layout_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unknown camera"):

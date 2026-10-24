@@ -50,10 +50,7 @@ function installVoice(voice) {
 
 function wrap(
   instance,
-  {
-    spawnHelper = spawn,
-    warn = (message) => console.warn("[dpe-app-audio]", message),
-  } = {},
+  { spawnHelper = spawn, warn = (message) => console.warn("[dpe-app-audio]", message) } = {},
 ) {
   const nativeTransport = instance.setTransportOptions.bind(instance);
   let helper = null,
@@ -82,11 +79,7 @@ function wrap(
     if (helper) return helper;
     const child = spawnHelper(
       "/usr/bin/python3",
-      [
-        path.join(__dirname, "dpe-pipewire-audio.py"),
-        "--owner",
-        String(process.pid),
-      ],
+      [path.join(__dirname, "dpe-pipewire-audio.py"), "--owner", String(process.pid)],
       { stdio: ["pipe", "pipe", "pipe"] },
     );
     helper = child;
@@ -96,8 +89,7 @@ function wrap(
     child.stderr.on("data", (data) => {
       if (process.env.DPE_APP_AUDIO_TRACE === "1")
         for (const line of data.toString().split("\n"))
-          if (line.startsWith("[dpe-audio-helper-error] "))
-            console.warn(line.slice(0, 512));
+          if (line.startsWith("[dpe-audio-helper-error] ")) console.warn(line.slice(0, 512));
     });
     child.stdout.on("data", (data) => {
       if (helper !== child || disposed) return;
@@ -117,17 +109,9 @@ function wrap(
         } catch {
           continue;
         }
-        if (
-          value.generation !== generation ||
-          !source ||
-          !requested ||
-          pickerPending
-        )
-          continue;
+        if (value.generation !== generation || !source || !requested || pickerPending) continue;
         const pid =
-          value.state === "ready" &&
-          Number.isSafeInteger(value.pid) &&
-          value.pid > 1
+          value.state === "ready" && Number.isSafeInteger(value.pid) && value.pid > 1
             ? value.pid
             : 0;
         if (pid !== readyPid) {
@@ -160,9 +144,7 @@ function wrap(
       return;
     }
     const child = ensureHelper();
-    child.stdin.write(
-      JSON.stringify({ generation, enabled: true, hint }) + "\n",
-    );
+    child.stdin.write(JSON.stringify({ generation, enabled: true, hint }) + "\n");
   }
   function onPicker(event) {
     // Global picker events also reach ordinary voice/webcam connections. They
@@ -206,8 +188,7 @@ function wrap(
       let changed = false;
       if (Object.hasOwn(options, "soundsharePid")) {
         const value =
-          Number.isSafeInteger(options.soundsharePid) &&
-          options.soundsharePid > 0
+          Number.isSafeInteger(options.soundsharePid) && options.soundsharePid > 0
             ? options.soundsharePid
             : 0;
         changed = value !== requested;

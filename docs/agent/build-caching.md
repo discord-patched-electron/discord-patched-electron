@@ -90,7 +90,7 @@ Completed-artifact reuse and persistent Ninja objects remain effective: the
 reference resumed its partial build and finished successfully. These are the
 verified reuse layers for the current full build. Any replacement compiler cache
 must first pass representative Chromium commands, module changes, optional-header
-creation and cross-workspace invalidation checks. See the [actual build statistics](evidence/prerelease-cache-bypass.json);
+creation and cross-workspace invalidation checks. See the [actual build statistics](../evidence/prerelease-cache-bypass.json);
 no claim of full-build cache hits is justified yet.
 
 ## Verification and current limits
@@ -173,7 +173,7 @@ resource helper selected four tasks inside the actual runner. GN generated
 33,637 targets in a separate overlay against read-only source and produced a
 one-deep link pool. A copy of the real discovery ledger migrated to prerelease
 only and was unchanged on the second reconciliation. See
-[retained evidence](evidence/prerelease-scheduling-local.json).
+[retained evidence](../evidence/prerelease-scheduling-local.json).
 
 The Electron 46.0.0-alpha.1 candidate now also passes complete dependency patching,
 gclient hooks and GN generation in its own prepared workspace (38,464 targets).
@@ -187,7 +187,7 @@ first, preserving target-specific instructions. The previously failing
 Ordinary code still targets v3; the presence of an upstream CPU-dispatched
 AVX-512 routine does not require AVX-512 on every machine.
 
-[Actual generated-command checks](evidence/cpu-dispatch-local.json) confirm the
+[Actual generated-command checks](../evidence/cpu-dispatch-local.json) confirm the
 normal target retains all v3 CPU features without AVX-512, while Skia’s dispatched
 variant retains its explicit v4 features.
 

@@ -53,15 +53,17 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24'
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+          node-version: "24"
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          python-version: '3.12'
+          python-version: "3.12"
+          activate-environment: true
+          enable-cache: true
       - name: Prepare launch dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential xvfb xauth brotli libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6
-          python -m pip install -r requirements-test.txt
+          uv sync --locked
           npm ci --ignore-scripts
           cat <<EOF | sudo tee /etc/apparmor.d/discord-launch-fixture >/dev/null
           abi <abi/4.0>,

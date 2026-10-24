@@ -30,16 +30,16 @@ Two alternating upstream/patched runs used the same installed Canary module and
 bundled Electron 44.9.3, in a local test app on Wayland:
 
 | Run | Upstream probe | Patched probe | Upstream first frame | Patched first frame |
-| --- | ---: | ---: | ---: | ---: |
-| 1 | 5.382 s | 0.652 s | 7.770 s | 1.736 s |
-| 2 | 4.964 s | 0.654 s | 6.047 s | 1.736 s |
+| --- | -------------: | ------------: | -------------------: | ------------------: |
+| 1   |        5.382 s |       0.652 s |              7.770 s |             1.736 s |
+| 2   |        4.964 s |       0.654 s |              6.047 s |             1.736 s |
 
 Both paths produced a 1280×720 frame. Camera warm-up varies; the helper removes
 the unnecessary probing, not the device's own startup latency. These measurements
 verify this physical camera and native module, not every camera or an end-to-end
 Discord call. Images were neither displayed nor saved, and microphone capture used
 the native fake-audio option. The normal client/profile was not opened by the test.
-[Retained evidence](evidence/camera-wayland-local.json) records hashes, runtime
+[Retained evidence](../evidence/camera-wayland-local.json) records hashes, runtime
 versions and each measurement.
 
 To reproduce with an explicitly selected camera, supply an installed Discord
@@ -70,7 +70,7 @@ The compiled Electron 46.0.0-alpha.1 runtime with packaged Canary 1.0.2357 also
 passed the physical test: **8.37 seconds upstream versus 2.33 seconds patched**.
 The capability probe fell from 5.42 to 0.66 seconds. The report verifies the
 compiler artifact's version and keeps metadata only; see
-[compiled-prerelease evidence](evidence/prerelease-runtime-local.json).
+[compiled-prerelease evidence](../evidence/prerelease-runtime-local.json).
 
 ## Voice interruption while the camera initializes
 
@@ -88,7 +88,7 @@ This directly verifies removal of the engine-thread stall. The fake-audio
 loopback sent only its ten startup silence packets, so it did **not** establish
 sustained voice transmission during capture; a real-call continuity check remains
 unperformed. No camera images/video were displayed or saved.
-See [measurement metadata](evidence/desktop-fixes-local.json).
+See [measurement metadata](../evidence/desktop-fixes-local.json).
 
 ## Build and packaging
 

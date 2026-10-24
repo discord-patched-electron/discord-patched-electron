@@ -8,17 +8,17 @@ Build implementation: `d517391c3ebecfc11e5478ea67fa0c0aa0219e00`.
 The standard [checks for that commit](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/39997828518)
 passed.
 
-| Setting | Initial configuration |
-| --- | --- |
-| Host | Maintainer's Arch Linux PC, 20 logical CPUs, about 32 GiB RAM |
-| Build storage | `/mnt/storage/discord-patched-electron-ci`, about 651 GiB initially available |
-| Isolation | Dedicated Ubuntu 24.04 Docker container, one workspace mount |
-| CPU limit | Four logical CPUs; two concurrent compiler tasks |
-| Memory limit | 12 GiB RAM; 20 GiB combined RAM and swap |
-| Compiler configuration | Release, no debug symbols, no ThinLTO, no remote execution |
-| Job bounds | Compile command interrupted after 21 hours; job limit 22 hours |
-| Recovery | Persistent source and object files keyed by exact build inputs |
-| Hosted compiler cost | None; PC electricity/storage use remains local |
+| Setting                | Initial configuration                                                         |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| Host                   | Maintainer's Arch Linux PC, 20 logical CPUs, about 32 GiB RAM                 |
+| Build storage          | `/mnt/storage/discord-patched-electron-ci`, about 651 GiB initially available |
+| Isolation              | Dedicated Ubuntu 24.04 Docker container, one workspace mount                  |
+| CPU limit              | Four logical CPUs; two concurrent compiler tasks                              |
+| Memory limit           | 12 GiB RAM; 20 GiB combined RAM and swap                                      |
+| Compiler configuration | Release, no debug symbols, no ThinLTO, no remote execution                    |
+| Job bounds             | Compile command interrupted after 21 hours; job limit 22 hours                |
+| Recovery               | Persistent source and object files keyed by exact build inputs                |
+| Hosted compiler cost   | None; PC electricity/storage use remains local                                |
 
 Runner registration, checkout, Chromium 152 fetch, dependency installation and
 initial dependency patch application succeeded. Attempt 1 failed after 621 seconds

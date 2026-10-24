@@ -1,28 +1,43 @@
 """Exercise the generated recipes as shell and Arch metadata, without launching clients."""
+
 import copy
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import stage_package
 from common import ROOT, read_json
 from desktop_identity import desktop_id
 from generate_package import generate
-import stage_package
 
 
 def runtime(channel):
-    version = {"stable": "45.0.0", "prerelease": "46.0.0-beta.2", "nightly": "47.0.0-nightly.20261023"}[channel]
-    return {"version": version, "runtime_key": "a" * 64, "sha256": "b" * 64,
-        "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/test-fixture/runtime.zip"}
+    version = {
+        "stable": "45.0.0",
+        "prerelease": "46.0.0-beta.2",
+        "nightly": "47.0.0-nightly.20261023",
+    }[channel]
+    return {
+        "version": version,
+        "runtime_key": "a" * 64,
+        "sha256": "b" * 64,
+        "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/test-fixture/runtime.zip",
+    }
 
 
-CAMERA = {"schema": 1, "sha256": "c" * 64, "minimum_cpu": "x86-64-v3",
-    "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/camera-" + "c" * 64 + "/libdpe-camera-probe.so"}
+CAMERA = {
+    "schema": 1,
+    "sha256": "c" * 64,
+    "minimum_cpu": "x86-64-v3",
+    "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/camera-"
+    + "c" * 64
+    + "/libdpe-camera-probe.so",
+}
 
 
 class Recipes(unittest.TestCase):
@@ -33,7 +48,14 @@ class Recipes(unittest.TestCase):
             source = root / "src"
             source.mkdir()
             (source / "package-inputs.json").symlink_to(root / "package-inputs.json")
-            with patch.object(sys, "argv", ["stage", "--inputs", str(source / "package-inputs.json"), "--asar", "asar"]), patch.object(stage_package, "stage") as stage:
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    ["stage", "--inputs", str(source / "package-inputs.json"), "--asar", "asar"],
+                ),
+                patch.object(stage_package, "stage") as stage,
+            ):
                 stage_package.main()
             stage.assert_called_once_with({}, source, "asar")
 
@@ -44,32 +66,59 @@ class Recipes(unittest.TestCase):
             for discord, client in clients.items():
                 for electron in ("prerelease",):
                     directory = Path(temp) / (discord + "-" + electron)
-                    result = generate(runtime(electron), client, electron, 1, directory, camera=CAMERA)
+                    result = generate(
+                        runtime(electron), client, electron, 1, directory, camera=CAMERA
+                    )
                     names.add(result["package"])
                     launcher = (directory / "discord-launcher.sh").read_text()
                     self.assertIn("root=/usr/lib/" + result["package"], launcher)
                     self.assertIn("DISCORD_USER_DATA_DIR", launcher)
                     self.assertIn(desktop_id(discord), launcher)
-                    self.assertNotIn('@DESKTOP_ID@', launcher)
-                    self.assertIn(desktop_id(discord) + '.desktop', (directory / 'PKGBUILD').read_text())
+                    self.assertNotIn("@DESKTOP_ID@", launcher)
+                    self.assertIn(
+                        desktop_id(discord) + ".desktop", (directory / "PKGBUILD").read_text()
+                    )
                     subprocess.run(["bash", "-n", str(directory / "PKGBUILD")], check=True)
-                    metadata = subprocess.check_output(["bash", "-c",
-                        'source "$1"; printf "%s\\n" "$pkgname" "$pkgver"; '
-                        'for i in "${!source[@]}"; do printf "%s %s\\n" "${sha256sums[$i]}" "${source[$i]}"; done',
-                        "check", str(directory / "PKGBUILD")], text=True)
+                    metadata = subprocess.check_output(
+                        [
+                            "bash",
+                            "-c",
+                            'source "$1"; printf "%s\\n" "$pkgname" "$pkgver"; '
+                            'for i in "${!source[@]}"; do printf "%s %s\\n" "${sha256sums[$i]}" "${source[$i]}"; done',
+                            "check",
+                            str(directory / "PKGBUILD"),
+                        ],
+                        text=True,
+                    )
                     lines = metadata.splitlines()
                     self.assertEqual(lines[0], result["package"])
-                    binary_lines = [line for line in lines[2:] if "full.distro" in line or "runtime.zip::" in line or "libdpe-camera-probe.so::" in line]
+                    binary_lines = [
+                        line
+                        for line in lines[2:]
+                        if "full.distro" in line
+                        or "runtime.zip::" in line
+                        or "libdpe-camera-probe.so::" in line
+                    ]
                     self.assertEqual(len(binary_lines), len(client["sources"]) + 2)
                     self.assertTrue(all(len(line.split()[0]) == 64 for line in binary_lines))
                     if shutil.which("makepkg"):
-                        srcinfo = subprocess.check_output(["makepkg", "--printsrcinfo"], cwd=directory, text=True)
+                        srcinfo = subprocess.check_output(
+                            ["makepkg", "--printsrcinfo"], cwd=directory, text=True
+                        )
                         self.assertIn("pkgname = " + result["package"], srcinfo)
                         self.assertNotIn("conflicts =", srcinfo)
                         self.assertNotIn("depends = electron", srcinfo)
-                    before = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()}
+                    before = {
+                        p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()
+                    }
                     generate(runtime(electron), client, electron, 1, directory, camera=CAMERA)
-                    self.assertEqual(before, {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()})
+                    self.assertEqual(
+                        before,
+                        {
+                            p.name: (p.read_bytes(), p.stat().st_mtime_ns)
+                            for p in directory.iterdir()
+                        },
+                    )
             self.assertEqual(len(names), 3)
 
     def test_rejects_channel_and_module_revision_mismatches(self):
@@ -84,12 +133,27 @@ class Recipes(unittest.TestCase):
             wrong["sources"]["discord_voice"]["module_version"] += 1
             with self.assertRaises(ValueError):
                 generate(runtime("prerelease"), wrong, "prerelease", 1, Path(temp), camera=CAMERA)
-            for url in ("https://github.com/a/b/releases/latest/download/runtime.zip", "file:///tmp/runtime.zip"):
+            for url in (
+                "https://github.com/a/b/releases/latest/download/runtime.zip",
+                "file:///tmp/runtime.zip",
+            ):
                 with self.assertRaises(ValueError):
-                    generate({**runtime("prerelease"), "url": url}, client, "prerelease", 1, Path(temp), camera=CAMERA)
-            for camera in ({**CAMERA, "sha256": "SKIP"}, {**CAMERA, "url": "https://github.com/a/b/releases/latest/download/helper.so"}):
+                    generate(
+                        {**runtime("prerelease"), "url": url},
+                        client,
+                        "prerelease",
+                        1,
+                        Path(temp),
+                        camera=CAMERA,
+                    )
+            for camera in (
+                {**CAMERA, "sha256": "SKIP"},
+                {**CAMERA, "url": "https://github.com/a/b/releases/latest/download/helper.so"},
+            ):
                 with self.assertRaisesRegex(ValueError, "Camera helper"):
-                    generate(runtime("prerelease"), client, "prerelease", 1, Path(temp), camera=camera)
+                    generate(
+                        runtime("prerelease"), client, "prerelease", 1, Path(temp), camera=camera
+                    )
 
 
 if __name__ == "__main__":

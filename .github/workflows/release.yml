@@ -1,0 +1,216 @@
+name: Release Linux packages
+on:
+  workflow_dispatch:
+    inputs:
+      clients_state:
+        description: Full immutable ci-state commit containing the client snapshot
+        type: string
+        required: true
+      reference_run:
+        description: Successful local compiler run ID (empty uses the last tested runtime)
+        type: string
+        default: ""
+      discord_channel:
+        description: Discord channel
+        type: choice
+        options: [all, stable, ptb, canary]
+        default: all
+      publish:
+        description: Publish a GitHub prerelease after all checks pass
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: linux-release
+  cancel-in-progress: false
+jobs:
+  inputs:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.inputs.outputs.matrix }}
+      runtime: ${{ steps.inputs.outputs.runtime }}
+      version: ${{ steps.inputs.outputs.version }}
+      epoch: ${{ steps.inputs.outputs.epoch }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - id: inputs
+        env:
+          CHANNEL: ${{ inputs.discord_channel }}
+          RUNTIME: ${{ inputs.reference_run }}
+          CLIENTS_STATE: ${{ inputs.clients_state }}
+        run: |
+          python3 - <<'PY'
+          import datetime, json, os, re
+          from pathlib import Path
+          if not re.fullmatch(r'[0-9a-f]{40}', os.environ['CLIENTS_STATE']):
+              raise SystemExit('Use a full immutable ci-state commit SHA')
+          channel = os.environ['CHANNEL']
+          if channel not in ('all', 'stable', 'ptb', 'canary'):
+              raise SystemExit('Unknown Discord channel')
+          runtime = os.environ['RUNTIME'] or json.loads(Path('config/update-policy.json').read_text())['last_good_runtime']['run']
+          if not re.fullmatch(r'[1-9][0-9]*', runtime):
+              raise SystemExit('Expected a compiler run ID')
+          now = datetime.datetime.now(datetime.timezone.utc)
+          channels = ['stable', 'ptb', 'canary'] if channel == 'all' else [channel]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'matrix={json.dumps(channels)}\nruntime={runtime}\nversion={now:%Y%m%d.%H%M%S}\nepoch={int(now.timestamp())}\n')
+          PY
+  native:
+    needs: inputs
+    uses: ./.github/workflows/native-runtime.yml
+    with:
+      reference_run: ${{ needs.inputs.outputs.runtime }}
+      clients_state: ${{ inputs.clients_state }}
+      discord_channels: ${{ inputs.discord_channel }}
+  audio:
+    needs: inputs
+    uses: ./.github/workflows/app-audio.yml
+    with:
+      reference_run: ${{ needs.inputs.outputs.runtime }}
+      clients_state: ${{ inputs.clients_state }}
+      discord_channels: ${{ inputs.discord_channel }}
+  package:
+    needs: inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ${{ fromJSON(needs.inputs.outputs.matrix) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CHANNEL: ${{ matrix.channel }}
+      CLIENTS_STATE: ${{ inputs.clients_state }}
+      RUNTIME: ${{ needs.inputs.outputs.runtime }}
+      VERSION: ${{ needs.inputs.outputs.version }}
+      SOURCE_DATE_EPOCH: ${{ needs.inputs.outputs.epoch }}
+      DPE_EQUICORD_HOME: ${{ github.workspace }}/out/equicord
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: "3.12"
+          activate-environment: true
+          enable-cache: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: stable
+          cache: false
+      - name: Install packaging tools
+        run: |
+          uv sync --locked
+          npm ci --ignore-scripts
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential brotli xvfb xauth libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6 rpm libarchive-tools
+      - name: Assemble pinned inputs without compiling Electron
+        run: |
+          python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
+          python scripts/fetch_reference.py "$RUNTIME" --output out/runtime
+          python scripts/build_local_app.py --portable --discord "$CHANNEL" --clients out/clients.lock.json --artifact out/runtime --cache out/downloads --output out/staged-app
+          mv out/staged-app "out/relocated app"
+          cat <<EOF_RULE | sudo tee /etc/apparmor.d/discord-release-fixture >/dev/null
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile discord-release-fixture "$GITHUB_WORKSPACE/out/relocated app/runtime/electron" flags=(unconfined) {
+            userns,
+          }
+          EOF_RULE
+          sudo apparmor_parser -r /etc/apparmor.d/discord-release-fixture
+      - name: Launch and relaunch the relocated app, plain and with Equicord
+        run: |
+          xvfb-run -a python scripts/check_desktop_launch.py "out/relocated app" --output out/launch --relaunch
+          python integration/launcher/equicord.py install --home "$DPE_EQUICORD_HOME"
+          xvfb-run -a python scripts/check_desktop_launch.py "out/relocated app" --output out/mod-launch --relaunch --equicord
+      - name: Create tarball, Debian and RPM packages
+        run: |
+          python scripts/package_release.py "out/relocated app" --output out/packages --version "$VERSION" --epoch "$SOURCE_DATE_EPOCH"
+          python scripts/check_release_packages.py out/packages
+      - name: Install the Debian package and check its shared libraries
+        run: |
+          sudo apt-get install -y ./out/packages/*.deb
+          root="/opt/discord-$CHANNEL-prerelease-patched-electron-bin"
+          if ldd "$root/runtime/electron" | grep -q 'not found'; then exit 1; fi
+          xvfb-run -a python scripts/check_desktop_launch.py "$root" --output out/deb-launch --relaunch --read-only-app
+      - name: Install the RPM on Fedora and check it as an ordinary user
+        run: |
+          docker run --rm \
+            -v "$PWD/out/packages:/packages:ro" \
+            -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
+            -e CHANNEL \
+            fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
+            bash -ec 'dnf install -y --setopt=install_weak_deps=False /packages/*.rpm; python3 /check.py "/opt/discord-$CHANNEL-prerelease-patched-electron-bin"' \
+            > out/rpm-install.log 2>&1
+      - name: Keep release packages
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: linux-packages-${{ matrix.channel }}
+          compression-level: 0
+          retention-days: 30
+          path: |
+            out/packages/*.tar.gz
+            out/packages/*.deb
+            out/packages/*.rpm
+            out/packages/release.json
+            out/packages/SHA256SUMS
+      - name: Keep test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-checks-${{ matrix.channel }}
+          path: |
+            out/launch/**/launch-report.json
+            out/mod-launch/**/launch-report.json
+            out/deb-launch/**/launch-report.json
+            out/rpm-install.log
+            out/packages/package-checks.json
+            out/relocated app/local-build.json
+            out/clients.lock.json
+          retention-days: 30
+  publish:
+    if: inputs.publish
+    needs: [inputs, native, audio, package]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.inputs.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: linux-packages-*
+          path: packages
+      - name: Publish tested app packages as a prerelease
+        run: |
+          mkdir release
+          for directory in packages/*; do
+            channel=${directory##*linux-packages-}
+            cp "$directory"/*.tar.gz "$directory"/*.deb "$directory"/*.rpm release/
+            cp "$directory/release.json" "release/manifest-$channel.json"
+          done
+          (cd release && sha256sum ./*.tar.gz ./*.deb ./*.rpm ./manifest-*.json > SHA256SUMS)
+          cat > notes.md <<'NOTES'
+          Linux test builds with patched prerelease Electron. Requires **x86-64-v3 (AVX2)**.
+
+          Choose Stable, PTB or Canary, then `.deb`, `.rpm` or `.tar.gz`.
+          [Installation and configuration](https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/install.md).
+          Manifests record the exact Discord and Electron versions; SHA256SUMS covers every asset.
+
+          Native video/Krisp, isolated X11/Wayland audio and plain/Equicord launch checks passed.
+          Live Discord calls and GNOME/KDE desktop sessions remain unverified.
+          NOTES
+          gh release create "app-$VERSION" release/* --target "$GITHUB_SHA" --title "Linux packages $VERSION" --notes-file notes.md --prerelease --latest=false

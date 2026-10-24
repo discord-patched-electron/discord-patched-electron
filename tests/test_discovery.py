@@ -1,8 +1,8 @@
 import copy
-from pathlib import Path
 import sys
 import unittest
-from unittest.mock import Mock, patch
+from pathlib import Path
+from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT, read_json
@@ -12,23 +12,39 @@ NOW = "2026-10-23T20:00:00Z"
 
 
 def release(version, identity, published="2026-10-22T12:00:00Z"):
-    return {"tag_name": "v" + version, "id": identity, "draft": False,
-            "prerelease": "-" in version, "published_at": published,
-            "repository": "electron/nightlies" if "-nightly." in version else "electron/electron"}
+    return {
+        "tag_name": "v" + version,
+        "id": identity,
+        "draft": False,
+        "prerelease": "-" in version,
+        "published_at": published,
+        "repository": "electron/nightlies" if "-nightly." in version else "electron/electron",
+    }
 
 
 class Discovery(unittest.TestCase):
     def setUp(self):
         self.sources = read_json(ROOT / "config/sources.lock.json")
         self.clients = read_json(ROOT / "config/clients.lock.json")["clients"]
-        self.records = [release("45.0.0", 1), release("46.0.0-alpha.1", 2),
-                        release("47.0.0-nightly.20261023", 3), release("43.8.2", 4)]
+        self.records = [
+            release("45.0.0", 1),
+            release("46.0.0-alpha.1", 2),
+            release("47.0.0-nightly.20261023", 3),
+            release("43.8.2", 4),
+        ]
         self.tags = {record["tag_name"]: f"{record['id']:040x}" for record in self.records}
         self.verify = Mock()
 
     def reconcile(self, state=None, records=None, clients=None):
-        return reconcile(state, self.records if records is None else records, self.tags,
-                         clients or self.clients, self.sources, NOW, self.verify)
+        return reconcile(
+            state,
+            self.records if records is None else records,
+            self.tags,
+            clients or self.clients,
+            self.sources,
+            NOW,
+            self.verify,
+        )
 
     def add(self, version, identity, published="2026-10-23T20:01:00Z"):
         value = release(version, identity, published)
@@ -45,19 +61,25 @@ class Discovery(unittest.TestCase):
 
     def test_prerelease_history_survives_but_only_newest_pending_release_is_built(self):
         before = self.reconcile()
-        for version, identity in [("45.0.1", 10), ("45.0.2", 11), ("43.8.3", 12),
-                                  ("46.0.0-alpha.2", 13), ("46.0.0-beta.1", 14),
-                                  ("47.0.0-nightly.20261024", 15)]:
+        for version, identity in [
+            ("45.0.1", 10),
+            ("45.0.2", 11),
+            ("43.8.3", 12),
+            ("46.0.0-alpha.2", 13),
+            ("46.0.0-beta.1", 14),
+            ("47.0.0-nightly.20261024", 15),
+        ]:
             self.add(version, identity)
         state = self.reconcile(before)
         ordered = [state["runtimes"][key]["target"]["version"] for key in pending(state)]
         self.assertEqual(ordered, ["46.0.0-beta.1"])
-        self.assertEqual(len(state['releases']), 3)
-        self.assertEqual(sum(r['status'] == 'superseded' for r in state['runtimes'].values()), 2)
+        self.assertEqual(len(state["releases"]), 3)
+        self.assertEqual(sum(r["status"] == "superseded" for r in state["runtimes"].values()), 2)
         self.assertEqual(self.reconcile(state), state)
 
     def test_disabled_pending_work_is_retired_without_changing_running_or_completed_work(self):
         from discover import normalize_release
+
         for status in ("pending", "building", "compiled", "failed"):
             with self.subTest(status=status):
                 state = self.reconcile()
@@ -65,16 +87,26 @@ class Discovery(unittest.TestCase):
                     release = normalize_release(record)
                     key = release["channel"] + "-legacy-key"
                     identity = release["channel"] + ":" + release["version"]
-                    state["releases"][identity] = {**release, "commit": self.tags[release["tag"]],
-                        "status": "available", "runtime_key": key}
-                    state["runtimes"][key] = {"channel": release["channel"], "target": release,
-                        "status": status, "attempts": [{"run": 123}]}
+                    state["releases"][identity] = {
+                        **release,
+                        "commit": self.tags[release["tag"]],
+                        "status": "available",
+                        "runtime_key": key,
+                    }
+                    state["runtimes"][key] = {
+                        "channel": release["channel"],
+                        "target": release,
+                        "status": status,
+                        "attempts": [{"run": 123}],
+                    }
                 # Even an old ledger cannot dispatch disabled work before migration.
                 self.assertEqual(len(pending(state)), 1)
                 migrated = self.reconcile(state, records=[self.records[1]])
                 for channel in ("stable", "nightly"):
                     runtime = migrated["runtimes"][channel + "-legacy-key"]
-                    self.assertEqual(runtime["status"], "disabled" if status == "pending" else status)
+                    self.assertEqual(
+                        runtime["status"], "disabled" if status == "pending" else status
+                    )
                     self.assertEqual(runtime["attempts"], [{"run": 123}])
                 self.assertEqual(migrated["releases"], state["releases"])
                 self.assertEqual(self.reconcile(migrated), migrated)
@@ -101,7 +133,9 @@ class Discovery(unittest.TestCase):
         self.assertEqual(removed["releases"]["prerelease:46.0.0-alpha.1"]["status"], "withdrawn")
         self.records[1]["id"] = 99
         replaced = self.reconcile(state)
-        self.assertEqual(replaced["releases"]["prerelease:46.0.0-alpha.1"]["status"], "release-replaced")
+        self.assertEqual(
+            replaced["releases"]["prerelease:46.0.0-alpha.1"]["status"], "release-replaced"
+        )
         self.assertEqual(pending(replaced), [])
 
     def test_release_id_cannot_be_silently_retagged(self):
@@ -109,7 +143,9 @@ class Discovery(unittest.TestCase):
         self.records[1] = release("46.0.0-alpha.2", 2, "2026-10-23T20:01:00Z")
         self.tags["v46.0.0-alpha.2"] = "f" * 40
         updated = self.reconcile(state)
-        self.assertEqual(updated["releases"]["prerelease:46.0.0-alpha.1"]["status"], "release-replaced")
+        self.assertEqual(
+            updated["releases"]["prerelease:46.0.0-alpha.1"]["status"], "release-replaced"
+        )
         self.assertNotIn("prerelease:46.0.0-alpha.2", updated["releases"])
         self.assertEqual(pending(updated), [])
 
@@ -117,16 +153,23 @@ class Discovery(unittest.TestCase):
         state = self.reconcile()
         self.add("46.0.0-alpha.2", 10)
         self.add("46.0.0-alpha.3", 11)
+
         def verify(commit):
             if commit == f"{11:040x}":
                 raise ValueError("not a commit")
+
         self.verify.side_effect = verify
         updated = self.reconcile(state)
-        self.assertEqual(updated["releases"]["prerelease:46.0.0-alpha.3"]["status"], "invalid-source")
-        self.assertIn(updated["releases"]["prerelease:46.0.0-alpha.2"]["runtime_key"], pending(updated))
+        self.assertEqual(
+            updated["releases"]["prerelease:46.0.0-alpha.3"]["status"], "invalid-source"
+        )
+        self.assertIn(
+            updated["releases"]["prerelease:46.0.0-alpha.2"]["runtime_key"], pending(updated)
+        )
 
     def test_only_the_official_prerelease_feed_is_requested(self):
         from discover import release_repositories
+
         self.assertEqual(release_repositories(), ("electron/electron",))
 
     def test_client_only_change_does_not_queue_more_native_builds(self):
@@ -155,9 +198,14 @@ class Discovery(unittest.TestCase):
         self.assertEqual(len(pending(updated)), 1)
 
     def test_annotated_and_lightweight_tags(self):
-        parsed = parse_tags("a" * 40 + "\trefs/tags/v45.0.0\n" +
-                            "b" * 40 + "\trefs/tags/v45.0.0^{}\n" +
-                            "c" * 40 + "\trefs/tags/v46.0.0-alpha.1\n")
+        parsed = parse_tags(
+            "a" * 40
+            + "\trefs/tags/v45.0.0\n"
+            + "b" * 40
+            + "\trefs/tags/v45.0.0^{}\n"
+            + "c" * 40
+            + "\trefs/tags/v46.0.0-alpha.1\n"
+        )
         self.assertEqual(parsed["v45.0.0"], "b" * 40)
         self.assertEqual(parsed["v46.0.0-alpha.1"], "c" * 40)
 

@@ -1,8 +1,8 @@
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import read_json, write_json
@@ -21,7 +21,10 @@ class StateBranch(unittest.TestCase):
             self.assertTrue(save(a))
             first = git(a, "rev-parse", "HEAD", capture_output=True, text=True, check=True).stdout
             self.assertFalse(save(a))
-            self.assertEqual(first, git(a, "rev-parse", "HEAD", capture_output=True, text=True, check=True).stdout)
+            self.assertEqual(
+                first,
+                git(a, "rev-parse", "HEAD", capture_output=True, text=True, check=True).stdout,
+            )
             b = root / "b"
             checkout(str(remote), b)
             write_json(a / "state.json", {"schema": 1, "releases": ["seed", "stable-1"]})
@@ -32,9 +35,13 @@ class StateBranch(unittest.TestCase):
             c = root / "c"
             checkout(str(remote), c)
             self.assertEqual(read_json(c / "state.json")["releases"], ["seed", "stable-1"])
-            write_json(c / "state.json", {"schema": 1, "releases": ["seed", "stable-1", "stable-2"]})
+            write_json(
+                c / "state.json", {"schema": 1, "releases": ["seed", "stable-1", "stable-2"]}
+            )
             self.assertTrue(save(c))
-            files = git(c, "ls-tree", "--name-only", "HEAD", capture_output=True, text=True, check=True).stdout
+            files = git(
+                c, "ls-tree", "--name-only", "HEAD", capture_output=True, text=True, check=True
+            ).stdout
             self.assertEqual(files.strip(), "state.json")
 
 

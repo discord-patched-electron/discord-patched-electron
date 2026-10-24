@@ -1,9 +1,16 @@
-import dbus, dbus.service, dbus.mainloop.glib, os, json, subprocess, socket
-from gi.repository import GLib
+import json
+import os
+import socket
+import subprocess
 from pathlib import Path
 
+import dbus
+import dbus.mainloop.glib
+import dbus.service
+from gi.repository import GLib
+
 # Test-only portal: permits ONLY the private compositor's synthetic fixture windows.
-O = Path(os.environ["DPE_AUDIO_OUTPUT"])
+OUTPUT = Path(os.environ["DPE_AUDIO_OUTPUT"])
 dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 bus = dbus.SessionBus()
 name = dbus.service.BusName("org.freedesktop.portal.Desktop", bus)
@@ -14,17 +21,13 @@ class Request(dbus.service.Object):
     def Response(self, code, results):
         pass
 
-    @dbus.service.method(
-        "org.freedesktop.portal.Request", in_signature="", out_signature=""
-    )
+    @dbus.service.method("org.freedesktop.portal.Request", in_signature="", out_signature="")
     def Close(self):
         pass
 
 
 class Session(dbus.service.Object):
-    @dbus.service.method(
-        "org.freedesktop.portal.Session", in_signature="", out_signature=""
-    )
+    @dbus.service.method("org.freedesktop.portal.Session", in_signature="", out_signature="")
     def Close(self):
         if hasattr(self, "native"):
             dbus.Interface(
@@ -52,9 +55,7 @@ class Portal(dbus.service.Object):
         self.requests.append(r)
         return path, r
 
-    @dbus.service.method(
-        "org.freedesktop.DBus.Properties", in_signature="s", out_signature="a{sv}"
-    )
+    @dbus.service.method("org.freedesktop.DBus.Properties", in_signature="s", out_signature="a{sv}")
     def GetAll(self, interface):
         return {
             "version": dbus.UInt32(4),
@@ -62,9 +63,7 @@ class Portal(dbus.service.Object):
             "AvailableCursorModes": dbus.UInt32(3),
         }
 
-    @dbus.service.method(
-        "org.freedesktop.DBus.Properties", in_signature="ss", out_signature="v"
-    )
+    @dbus.service.method("org.freedesktop.DBus.Properties", in_signature="ss", out_signature="v")
     def Get(self, interface, prop):
         return self.GetAll(interface)[prop]
 
@@ -108,22 +107,18 @@ class Portal(dbus.service.Object):
     def Start(self, session, parent, opts, sender=None):
         print("start", flush=True)
         path, r = self.req(sender, opts)
-        choice = json.loads((O / "selection.json").read_text())
+        choice = json.loads((OUTPUT / "selection.json").read_text())
         if choice["kind"] == "cancel":
             GLib.timeout_add(50, lambda: r.Response(1, {}))
             return path
         window = None
         if choice["kind"] == "window":
-            allowed = json.loads((O / "inputs.json").read_text())
+            allowed = json.loads((OUTPUT / "inputs.json").read_text())
             assert choice["pid"] in [item["pid"] for item in allowed.values()]
-            windows = json.loads(
-                subprocess.check_output(["niri", "msg", "-j", "windows"])
-            )
+            windows = json.loads(subprocess.check_output(["niri", "msg", "-j", "windows"]))
             window = next(w for w in windows if w["pid"] == choice["pid"])
         interface = dbus.Interface(
-            bus.get_object(
-                "org.gnome.Mutter.ScreenCast", "/org/gnome/Mutter/ScreenCast"
-            ),
+            bus.get_object("org.gnome.Mutter.ScreenCast", "/org/gnome/Mutter/ScreenCast"),
             "org.gnome.Mutter.ScreenCast",
         )
         native = interface.CreateSession(dbus.Dictionary({}, signature="sv"))
@@ -161,9 +156,7 @@ class Portal(dbus.service.Object):
                                     dbus.UInt32(node),
                                     dbus.Dictionary(
                                         {
-                                            "source_type": dbus.UInt32(
-                                                2 if window else 1
-                                            ),
+                                            "source_type": dbus.UInt32(2 if window else 1),
                                             "size": dbus.Struct(
                                                 (dbus.Int32(240), dbus.Int32(160)),
                                                 signature="ii",

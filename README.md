@@ -1,97 +1,42 @@
 # Discord patched Electron
 
-Work in progress: preserve Discord's native desktop streaming on newer Electron,
-with working Krisp and application-specific screen-share audio. Package names use
-`discord-<discord-channel>-<electron-channel>-patched-electron-bin`:
-Discord Stable/PTB/Canary × prerelease Electron (three packages). Stable and
-nightly Electron targets are disabled.
+Discord's desktop app on a newer Electron, with Linux fixes for screen sharing,
+application audio and camera startup. It keeps Discord's native streaming and Krisp.
 
-**Wayland is the primary desktop target; X11 is additional support.** The current
-audio adapter is enabled by default on Wayland and supports native Wayland capture with a private PipeWire
-mix, including PulseAudio applications and multiple audio processes. niri has
-automatic window matching; other compositors get an audio-app picker. See
-[Wayland audio](docs/wayland-audio.md) for usage, tests and remaining live-call
-and custom-runtime qualification.
+Supports Discord **Stable, PTB and Canary**, all using prerelease Electron.
+Wayland is the main target; X11 is supported too. Requires an **x86-64-v3** CPU
+(AVX2: Intel Haswell, AMD Ryzen or newer) and PipeWire for screen-share audio.
 
-A separately compiled [camera probe fix](docs/camera-startup.md) reduces native
-webcam startup time without rebuilding Electron. [Runner controls](docs/ci-setup.md#changing-local-limits-while-the-build-runs) explain live CPU/RAM limits.
+## Install
 
-[Launcher configuration](docs/linux-launcher.md) covers the channel-level `.conf`
-file, tested codec defaults, Wayland shortcut identity and Electron 46 storage
-compatibility. Application audio is selected automatically where supported,
-including audio from that application's other windows.
+This is still a test build. See [Releases](https://github.com/discord-patched-electron/discord-patched-electron/releases)
+for available downloads and [installation](docs/install.md) for package formats.
+A release labelled **runtime cache** contains only Electron, not a runnable Discord app.
+AUR publication is not enabled yet.
 
-Published binaries will require **x86-64-v3** (AVX2, including Haswell/first Ryzen;
-no AVX-512 requirement). See [CPU targeting and build reuse](docs/build-caching.md)
-for incremental Ninja builds, compiler caching and completed-artifact reuse.
+The app uses its own profile, so it can coexist with stock Discord.
+Live calls and GNOME/KDE sessions still need testing; see the
+[known limitations](docs/wayland-audio.md).
 
-The implementation follows [the plan](docs/plan.md). Packaging is based on the
-pinned current `discord_arch_electron` AUR recipe, not a replacement client.
+## Configure
 
-## Current status
+Put launch flags in `~/.config/discord-canary-patched-electron.conf`, one per line.
+Replace `canary` with `stable` or `ptb` for those channels. For example:
 
-- A local **Discord Canary 1.0.2365 / Electron 46.0.0-alpha.1** test build now
-  opens on native Wayland. Launch instructions and measured results are in the
-  [handoff](docs/handoff.md). The runtime was compiled on the PC for x86-64-v3;
-  no Blacksmith compiler was used for this build.
-- Imported the existing package, launcher and Krisp patcher with exact provenance.
-- Locked current Stable, PTB and Canary core/module distributions independently.
-- Implemented atomic source locks, strict channel validation, content fingerprints,
-  the existing resource/bootstrap fixes and validated Krisp patch application.
-- [Update discovery](docs/discovery.md) checks Discord every 15 minutes and
-  immediately qualifies changed clients on the retained tested runtime. Routine
-  Electron prereleases are coalesced into a 96-hour cadence; identified urgent
-  security fixes can bypass it. Shipped Discord runtime hashes, not fork commits,
-  drive compatibility review. Public client/AUR promotion remains unfinished;
-  no AUR publishing key is configured.
-- Optional [Equicord](docs/equicord.md) is installed and verified in the local
-  Canary app. Its user-owned loader survives package updates.
-- Imported Discord's complete 44-branch delta and verified that applying it to its
-  original upstream base reconstructs Discord's exact source tree.
-- The prerelease source and dependency ports compile successfully with pinned,
-  additive patches. Historical stable/nightly ports are retained but disabled.
-  See [source ports](docs/source-ports.md).
-- The compiled prerelease passes native video delivery/teardown, capture lifetime
-  through garbage collection, and offline Krisp suppression. Native CI passes
-  for Stable, PTB and Canary. Local checks also verify automatic Wayland selection,
-  hardware WebGL/VA-API decoding and physical webcam startup (8.37 to 2.33 seconds
-  with the helper). See [runtime evidence](docs/evidence/prerelease-runtime-local.json).
-  All ten custom-runtime X11/Wayland audio fixtures also pass, including both
-  PulseAudio setups and manual app selection. Real Discord calls and GNOME/KDE
-  desktop qualification remain untested.
-- A shared generator produces all three binary package recipes. Arch packaging
-  checks use real client/modules and a dummy runtime; see [packaging](docs/packaging.md).
-- Compilation uses the containerized PC runner. A bounded Blacksmith experiment
-  remains available in code but is not used for the unattended build. Public
-  release and AUR publication remain disabled. Compiler artifacts and the local
-  test app are available; there is no published binary release yet.
-
-## Local checks
-
-```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-test.txt
-npm ci --ignore-scripts
-.venv/bin/python -m unittest discover -s tests -v
-python3 scripts/lock_clients.py
+```text
+# Use Xwayland instead of native Wayland.
+--ozone-platform=x11
 ```
 
-The client-lock command accesses Discord's manifests; tests use pinned local data.
-Re-running the lock command without changed distributions leaves the file untouched.
+- [Launcher settings and hardware acceleration](docs/linux-launcher.md)
+- [Screen-share audio](docs/wayland-audio.md)
+- [Optional Equicord installation](docs/equicord.md)
 
-To reproduce source assembly without downloading Chromium:
+## Contribute
 
-```sh
-python3 scripts/assemble.py patch-base \
-  --destination .work/patch-base --report .work/patch-base.json
-python3 scripts/assemble.py prerelease \
-  --destination .work/prerelease --report .work/prerelease.json
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks. Build history,
+implementation notes and test evidence live in [agent docs](docs/agent/README.md).
 
-Use a fresh destination each time. The current prerelease port assembles;
-later conflicts still fail explicitly and preserve diagnostics. Textual assembly
-does not qualify a runtime for publication. `reference` assembles the exact Discord fork for the
-initial capacity build; it is not the requested latest-Electron product.
-
-See [CI setup](docs/ci-setup.md), [build status](docs/status.md) and
-[upstream attribution](THIRD_PARTY.md).
+This project is unofficial and is not affiliated with Discord.
+The automation is [MIT licensed](LICENSE); bundled software keeps its own licenses.
+See [third-party credits](THIRD_PARTY.md).

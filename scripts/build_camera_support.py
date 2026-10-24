@@ -1,8 +1,8 @@
 """Compile the small camera helper in CI, independently of Electron and makepkg."""
 
 import argparse
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 from common import ROOT, digest, hash_files, sha256, write_json
 
@@ -26,9 +26,7 @@ FLAGS = [
 def build(output: Path, compiler="cc") -> dict:
     output.mkdir(parents=True, exist_ok=True)
     source_key = digest(
-        hash_files(
-            ["integration/camera/v4l2-probe.c", "scripts/build_camera_support.py"]
-        )
+        hash_files(["integration/camera/v4l2-probe.c", "scripts/build_camera_support.py"])
     )
     subprocess.run(
         [
@@ -48,9 +46,7 @@ def build(output: Path, compiler="cc") -> dict:
         "source_key": source_key,
         "sha256": checksum,
         "url": f"https://github.com/discord-patched-electron/discord-patched-electron/releases/download/camera-{checksum}/{ASSET}",
-        "compiler": subprocess.check_output(
-            [compiler, "--version"], text=True
-        ).splitlines()[0],
+        "compiler": subprocess.check_output([compiler, "--version"], text=True).splitlines()[0],
         "flags": FLAGS,
         "minimum_cpu": "x86-64-v3",
     }

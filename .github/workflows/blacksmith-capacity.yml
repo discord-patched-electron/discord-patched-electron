@@ -34,16 +34,16 @@ jobs:
     # No sticky disks, Docker cache or other paid add-ons.
     timeout-minutes: 300
     env:
-      ELECTRON_BUILD_JOBS: '12'
-      SENTRYCLI_SKIP_DOWNLOAD: '1'
-      PYTHONUNBUFFERED: '1'
+      ELECTRON_BUILD_JOBS: "12"
+      SENTRYCLI_SKIP_DOWNLOAD: "1"
+      PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24'
+          node-version: "24"
       - name: Restore bounded compiler cache
         id: compiler-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6

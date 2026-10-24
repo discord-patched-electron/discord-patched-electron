@@ -1,11 +1,12 @@
 """Ensure reduced noise cannot pass the gate by muting or bypassing speech."""
+
 import array
-from pathlib import Path
 import shutil
 import sys
 import tempfile
 import unittest
 import wave
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from check_krisp_audio import analyze, generate, read_wav
@@ -21,10 +22,22 @@ class AudioGate(unittest.TestCase):
         generate(self.fixture)
         shutil.copytree(self.fixture / "input", self.probe / "audio-input")
         (self.probe / "profile/voice").mkdir(parents=True)
-        (self.probe / "profile/voice/discord-webrtc_0").write_text("Krisp initialized successfully\n")
-        self.report = {"passed": True, "audio_batches": {"errors": [], "batches": [
-            {"enabled": enabled, "processed": 1, "failed": 0} for enabled in [False, True, False]]},
-            "versions": {}, "original_inputs": {}, "fixture_inputs": {}}
+        (self.probe / "profile/voice/discord-webrtc_0").write_text(
+            "Krisp initialized successfully\n"
+        )
+        self.report = {
+            "passed": True,
+            "audio_batches": {
+                "errors": [],
+                "batches": [
+                    {"enabled": enabled, "processed": 1, "failed": 0}
+                    for enabled in [False, True, False]
+                ],
+            },
+            "versions": {},
+            "original_inputs": {},
+            "fixture_inputs": {},
+        }
         write_json(self.probe / "runtime-report.json", self.report)
         for i in range(3):
             directory = self.probe / "profile" / f"audio-{i}"
