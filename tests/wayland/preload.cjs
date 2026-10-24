@@ -57,9 +57,7 @@ let internalDeviceControl = false,
 voice.setDeviceChangeCallback((inputs, outputs) => {
   hiddenDeviceLeaks += [...inputs, ...outputs].filter(privateDevice).length;
 });
-let phase = null,
-  connection,
-  pickerResult;
+let connection, pickerResult;
 voice.setNativeScreenSharePickerCallbacks(
   () => {
     events.push({ event: "selected" });
@@ -80,17 +78,7 @@ voice.setNativeScreenSharePickerCallbacks(
 );
 voice.setNativeDesktopVideoSourcePickerActive(true);
 const pcmFormats = {};
-voice.startRecordingRawSamples((samples, channels, rate) => {
-  const key = [phase, channels, rate, samples.length].join(":");
-  pcmFormats[key] = (pcmFormats[key] || 0) + 1;
-  if (phase && rate === 48000)
-    fs.appendFileSync(
-      path.join(output, phase + ".raw"),
-      Buffer.from(new Int16Array(samples).buffer),
-    );
-});
 async function choose(selection) {
-  phase = null;
   connection.clearDesktopSource();
   voice.releaseNativeDesktopVideoSourcePickerStream();
   await wait(300);
@@ -122,7 +110,6 @@ async function choose(selection) {
 }
 async function capture(name, change, settle = 2000) {
   stage(name + ":select");
-  phase = null;
   await change();
   await wait(settle);
   if (name === "app-a") {
@@ -135,10 +122,22 @@ async function capture(name, change, settle = 2000) {
     internalDeviceControl = raw.some(privateDevice);
     hiddenDeviceLeaks += filtered.filter(privateDevice).length;
   }
-  phase = name;
   stage(name + ":record");
+  // RawSamples can buffer until the format changes or recording stops. Use a
+  // separate callback for each phase and explicitly flush it; a global phase
+  // label would discard or misattribute late buffers after a source switch.
+  voice.startRecordingRawSamples((samples, channels, rate) => {
+    const key = [name, channels, rate, samples.length].join(":");
+    pcmFormats[key] = (pcmFormats[key] || 0) + 1;
+    if (rate === 48000)
+      fs.appendFileSync(
+        path.join(output, name + ".raw"),
+        Buffer.from(new Int16Array(samples).buffer),
+      );
+  });
   await wait(1600);
-  phase = null;
+  voice.stopRecordingRawSamples();
+  await wait(100);
 }
 (async () => {
   connection = voice.createVoiceConnectionWithOptions(
@@ -169,7 +168,6 @@ async function capture(name, change, settle = 2000) {
     voice.releaseNativeDesktopVideoSourcePickerStream();
   });
   discordPlayback.kill("SIGTERM");
-  voice.stopRecordingRawSamples();
   connection.destroy();
   await wait(700);
   const frames = events.filter((e) => e.event === "video-status").map((e) => e.value);

@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "failed_run": 40110382935,
+  "failure": "The raw-sample callback buffered audio until format changes/stop. After app-a, a 473760-sample buffer arrived outside the global phase window, leaving enabled phases with no recorded samples.",
+  "fix": "Start and explicitly stop the diagnostic recorder for each settled phase; bind the callback to the phase name so late buffers keep their identity. Production runtime, native module and audio adapters are unchanged.",
+  "identity": {
+    "adapter_patch": {
+      "adapter_sha256": "31aa153032eeac700863cdbf0594b180e386b64fd1f38b5f34c6b7c5e3461227",
+      "default_sessions": [
+        "wayland"
+      ],
+      "disable_environment": "DPE_APP_AUDIO=0",
+      "enabled_by_default": true,
+      "helper_sha256": {
+        "dpe-pipewire-audio.py": "b03274cff04db98395f2997393f1906f17baf4bba77ac63bcc4bf500a6c0e586",
+        "dpe-voice-devices.cjs": "7b7f02786eefd20d388fe8b561e02df41c762178ab9f60f1e2150dbf93d2b4d8",
+        "dpe-wayland-audio.cjs": "3ef75ccee99ea6bcdc6011dffb7e29b1064cce084186d72911dc27e1da7e7315",
+        "window_inventory.py": "d8027055b51e561f05b73bf593291df782af19c75e26be7cd33db9285d70baa2"
+      },
+      "input_sha256": "7acbb4f074f1103af63532c1062f3f81b6cf7a8a09877bd13acc52f7f6e26e68",
+      "output_sha256": "674e54a6e5fab8501dcedfb897870d6d3300c671b8191ffdb7e586b7d2e6085d",
+      "publishable": false,
+      "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+      "x11_enable_environment": "DPE_APP_AUDIO=1"
+    },
+    "channel": "canary",
+    "client_digest": "fe2d549e88be374db23288ec1d9b69ce3fa28f0935e41bac1e8a57d1e75932e5",
+    "client_version": "1.0.2365",
+    "executable": "electron",
+    "runtime_kind": "custom",
+    "runtime_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "voice_sha256": "dd2845167cceb3cb60861ca4703fdb9312f3be8639e04152a76100978a8ea8dc"
+  },
+  "local_checks": [
+    {
+      "path": "out/audio-recorder-canary-manual-1/audio-report.json",
+      "selection": "manual",
+      "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+      "all_cases_passed": true,
+      "case_samples": {
+        "app-a": 58080,
+        "app-b": 57600,
+        "app-exited": 0,
+        "audio-cancelled": 0,
+        "cancelled": 0,
+        "cleared": 0,
+        "disabled": 0,
+        "re-enabled": 58080,
+        "system": 57600
+      },
+      "native_wayland_video": true,
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "manual"
+      }
+    },
+    {
+      "path": "out/audio-recorder-canary-manual-2/audio-report.json",
+      "selection": "manual",
+      "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+      "all_cases_passed": true,
+      "case_samples": {
+        "app-a": 58080,
+        "app-b": 58080,
+        "app-exited": 0,
+        "audio-cancelled": 0,
+        "cancelled": 0,
+        "cleared": 0,
+        "disabled": 0,
+        "re-enabled": 57600,
+        "system": 58080
+      },
+      "native_wayland_video": true,
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "manual"
+      }
+    },
+    {
+      "path": "out/audio-recorder-canary-pulseaudio/audio-report.json",
+      "selection": "auto",
+      "pulse_server": "pulseaudio",
+      "all_cases_passed": true,
+      "case_samples": {
+        "app-a": 36960,
+        "app-b": 37440,
+        "app-exited": 0,
+        "audio-cancelled": 0,
+        "cancelled": 0,
+        "cleared": 0,
+        "disabled": 0,
+        "re-enabled": 36960,
+        "system": 36960
+      },
+      "native_wayland_video": true,
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "pulseaudio",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "auto"
+      }
+    }
+  ],
+  "thresholds_and_negative_tests_unchanged": true,
+  "real_call_and_microphone_continuity_verified": false
+}
