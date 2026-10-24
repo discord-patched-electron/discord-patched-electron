@@ -104,3 +104,11 @@ tag is appended without changing existing tags.
 Both affected C++ translation units compile with the pinned prerelease toolchain,
 and fresh assembly reproduces the locked tree. Full runtime lifecycle validation
 remains required before publication.
+
+The following `osr-child-views.patch` removes one loop over the deleted upstream
+`guest_host_views_` collection. Device-scale changes still propagate to the
+current popup and child views, matching upstream's current ownership graph.
+All 16 remaining Discord-modified Electron C++ translation units pass a syntax
+preflight with the generated build's real flags and headers. This check writes
+separate diagnostics; it neither replaces objects nor establishes successful
+linking. See [the preflight evidence](evidence/remaining-port-preflight.json).

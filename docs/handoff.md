@@ -12,8 +12,8 @@ dimensions and version metadata only; do not take desktop screenshots during the
   completed successfully. Its compiled runtime passes local Canary login on
   native Wayland, native video/offline Krisp, AMD WebGL/VA-API and the physical
   camera metadata test. All three channels also pass native/Krisp CI.
-- [Prerelease 40043753884](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40043753884)
-  is compiling at `577e2a9` with the CPU-flag ordering fix: Electron 46.0.0-alpha.1 with x86-64-v3,
+- [Prerelease 40050257141](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40050257141)
+  is compiling at `18c652f` with the frame-capture GC port: Electron 46.0.0-alpha.1 with x86-64-v3,
   16 Ninja tasks, one linker and a bounded 32 GiB sccache store. Live stats show
   Chromium module/plugin flags bypass sccache; persistent Ninja reuse remains
   effective. See [the full-build limitation](build-caching.md#current-full-build-cache-limitation). Source assembly, all dependency
@@ -23,6 +23,11 @@ dimensions and version metadata only; do not take desktop screenshots during the
   fixed both failed generators; this run resumes the same prepared workspace.
   A subsequent Skia failure exposed baseline flags overriding its dispatched v4
   target. The corrected generated toolchain now compiles that target successfully.
+  The next failure was Discord FrameCapture's removed `Pinnable` API. Its new
+  cppgc lifetime code and WebFrameMain caller now compile, with a separate
+  checksum-pinned follow-up patch. Moving the physical checkout changed generated
+  Clang module inputs and triggered 42,454 tasks; keep that physical path stable
+  during any further reviewed source migrations.
   The full candidate has not completed yet; consult `overnight-monitor.json` for
   the current resume run ID.
 
@@ -34,7 +39,7 @@ running or queued. The last reported Blacksmith allowance use remains 168 minute
 ```sh
 tail -f /mnt/storage/discord-patched-electron-ci/actions/discord-patched-electron/discord-patched-electron/out/capacity/build.log
 gh run view 40036898682 --repo discord-patched-electron/discord-patched-electron
-gh run view 40043753884 --repo discord-patched-electron/discord-patched-electron
+gh run view 40050257141 --repo discord-patched-electron/discord-patched-electron
 docker stats discord-electron-runner
 ```
 
@@ -76,6 +81,10 @@ The [overnight baseline evidence](evidence/linux-overnight-baselines.json) recor
 - All three generated Arch packages pass preparation/packaging with real Discord
   payloads and an explicitly nonfunctional runtime fixture.
 
+The reference also passes four synthetic frame-capture lifetime cases under
+native Wayland and Xvfb, including forced GC and window destruction. The new
+prerelease GC port still needs this runtime check.
+
 The dependency port and toolchain fix pass 73 Python tests and source reconstruction; the audio
 adapters pass 12 JavaScript tests. CI checks use standard GitHub runners. Native
 video/offline Krisp and audio CI baselines use Discord's bundled runtimes until a
@@ -86,12 +95,13 @@ successful compiler artifact triggers the custom-runtime jobs.
 1. Reference compile, native and audio CI have all passed. Diagnose
    concrete failures before resuming; a quiet log is not itself a failure.
 2. Let the prerelease compiler finish in the prepared workspace. Its identity
-   is `59d31d272325f2393301ebbff1f160351f597770c1ba30a6baf87fa1c2c51915` under
+   is `f6a6a79b20ad975b5e64ad64d45df92dd007d514785f46cd66cd58baed91a390` under
    `/mnt/storage/discord-patched-electron-ci/build-cache/prerelease/`.
 3. Fetch the successful artifact using `scripts/fetch_reference.py`. Build the
    actual Canary folder with `scripts/build_local_app.py --artifact ...`, then
    run `scripts/check_desktop_launch.py`; see [exact commands](linux-runtime.md).
-4. Check native video/Krisp, isolated Wayland audio, local graphics and physical
+4. Check frame-capture lifetime with `scripts/check_frame_capture.py`, native
+   video/Krisp, isolated Wayland audio, local graphics and physical
    camera metadata against the custom runtime. Use the camera probe's
    `--provenance` argument so its report identifies the completed compiler run.
    Never use an account, send messages or join a call unattended.

@@ -1,0 +1,14 @@
+diff --git a/shell/browser/osr/osr_render_widget_host_view.cc b/shell/browser/osr/osr_render_widget_host_view.cc
+index fc810b5697..39534dfeb7 100644
+--- a/shell/browser/osr/osr_render_widget_host_view.cc
++++ b/shell/browser/osr/osr_render_widget_host_view.cc
+@@ -964,9 +964,6 @@ void OffScreenRenderWidgetHostView::PropagateDeviceScaleFactor() {
+ 
+   if (child_host_view_)
+     child_host_view_->SetDeviceScaleFactor(offscreen_device_scale_factor_);
+-
+-  for (auto* guest_host_view : guest_host_views_)
+-    guest_host_view->SetDeviceScaleFactor(offscreen_device_scale_factor_);
+ }
+ 
+ void OffScreenRenderWidgetHostView::SetSizeAndDeviceScaleFactor(

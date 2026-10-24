@@ -1,0 +1,72 @@
+{
+  "syntax_only": true,
+  "compiled_objects_untouched": true,
+  "results": [
+    {
+      "source": "../../electron/shell/browser/api/electron_api_web_contents.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/browser/capture/frame_still.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/browser/capture/remote_consumer_video_capturer.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/browser/osr/osr_web_contents_view.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/browser/web_contents_preferences.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/common/api/electron_bindings.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/common/gin_helper/wrappable.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/common/node_bindings.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/renderer/electron_api_service_impl.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/renderer/electron_render_frame_observer.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/renderer/renderer_client_base.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/renderer/service_worker_data.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/discord/overlay_linux.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/browser/native_window_views.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/browser/ui/views/root_view.cc",
+      "passed": true
+    },
+    {
+      "source": "../../electron/shell/browser/osr/osr_render_widget_host_view.cc",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "source_tree": "b19b8ded4047b8b3f30e1a2bd039dd6059c80995"
+}

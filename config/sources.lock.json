@@ -42,7 +42,7 @@
     },
     "46": {
       "anchor_commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
-      "candidate_tree": "78eea0d895e4f3a2d065e4645a1c27bfe3d6a1ee",
+      "candidate_tree": "b19b8ded4047b8b3f30e1a2bd039dd6059c80995",
       "dependency_notes": {
         "chromium/add_missing_lock_annotation.patch": "Omitted from dependency series: upstream Environment::Create already has EXCLUSIVE_LOCKS_REQUIRED(GetLock()).",
         "chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch": "Preserve frame-scoped audio authorization and resolve every pending RestrictionTarget resolver with the Discord capture token.",
@@ -58,6 +58,10 @@
         {
           "patch": "patches/ports/46/frame-capture-gc.patch",
           "patch_sha256": "490ea9a2b5c59b28cdaad4e98f8ea986c4310aa950e8f7d6467cb7a4d56e0a37"
+        },
+        {
+          "patch": "patches/ports/46/osr-child-views.patch",
+          "patch_sha256": "a247a00ee140e83ce32b07989c90dc2f67f5787ca8e04732743a9ace61e569a6"
         }
       ],
       "patch": "patches/ports/46/compatibility.patch",
