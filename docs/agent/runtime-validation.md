@@ -53,11 +53,11 @@ Node development headers at `/usr/include/node`, Xvfb and `xauth`. Use an extrac
 distribution and staged, patched modules from the same locked Discord channel:
 
 ```sh
-python3 scripts/check_krisp_audio.py generate .work/audio-fixture
-python3 scripts/probe_runtime.py /path/to/runtime \
+uv run python scripts/check_krisp_audio.py generate .work/audio-fixture
+uv run python scripts/probe_runtime.py /path/to/runtime \
   --executable electron --modules /path/to/staged/modules \
   --audio-fixtures .work/audio-fixture/input --output .work/runtime-test
-python3 scripts/check_krisp_audio.py analyze \
+uv run python scripts/check_krisp_audio.py analyze \
   .work/audio-fixture .work/runtime-test --report .work/runtime-test/audio-report.json
 ```
 

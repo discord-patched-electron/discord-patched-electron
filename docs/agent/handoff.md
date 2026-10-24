@@ -17,6 +17,25 @@ caused Equicord's `require.main` lookup to fail on Electron 46. CI now installs,
 launches, uninstalls and checks the restored bootstrap before making packages.
 Old helper instructions below apply only to the older local installation.
 
+The implementation at `f6204f1` passes [Checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40092738013)
+and the [all-channel release dry run](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40092737843).
+All three formats pass payload checks, Ubuntu installed launch/relaunch and Fedora
+installation/unprivileged runtime loading. Native video/Krisp and both audio
+server fixtures pass. Local checks: 96 Python tests and 16 JavaScript tests.
+See [Bun and installer evidence](../evidence/bun-official-installer.json).
+
+The new portable, unmodded Canary app is at:
+
+```text
+/mnt/storage/discord-patched-electron-ci/local-tests/bun-official-installer-canary-20261024/launch.sh
+```
+
+It uses the package profile (without the older local build's `-local` suffix).
+The existing desktop shortcut still points to the older installation. Official
+installer install/relaunch/removal and reapply-after-update were tested on
+fresh profiles and disposable trees. No account login, messages, calls, camera
+media or desktop screenshots were used. No Electron compile was started.
+
 ## Repository cleanup and portable packages, 24 October
 
 The user-facing docs are now short guides under `docs/`; implementation history

@@ -1,6 +1,10 @@
-# Implementation status
+# Implementation history
 
-Updated 24 October 2026. The requested Electron 46.0.0-alpha.1 prerelease now
+> This page preserves earlier milestones. See [handoff](handoff.md) for the
+> current build, tooling and validation results. Version lists below belong to
+> the milestone being described.
+
+Recorded 24 October 2026. The requested Electron 46.0.0-alpha.1 prerelease now
 compiles and launches Canary on native Wayland. Native video, capture lifetime,
 offline Krisp, hardware graphics and physical camera timing checks pass.
 No public binary release is published. See [launch instructions](handoff.md).

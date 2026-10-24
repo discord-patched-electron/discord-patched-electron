@@ -1,0 +1,348 @@
+{
+  "ci": {
+    "channels": {
+      "canary": {
+        "launches": {
+          "deb-launch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "deb-launch/relaunch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "launch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "launch/relaunch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "mod-launch/launch-report.json": {
+            "equicord_required": true,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "mod-launch/relaunch/launch-report.json": {
+            "equicord_required": true,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          }
+        },
+        "packages": {
+          "assets": {
+            "discord-canary-prerelease-patched-electron-bin-20261024.120906-linux-x86_64.tar.gz": "b9c1dfcfdca97f05e2dcc179a9f902ee4eee9fee5c13bb7a33af3733acae73bd",
+            "discord-canary-prerelease-patched-electron-bin-20261024.120906.deb": "9a97b52d291a4aee02fb0b82b585c7ec709928e4596b603edfb34a52e327545a",
+            "discord-canary-prerelease-patched-electron-bin-20261024.120906.rpm": "8f40804a8947684ffb24aa1f58fcfd1f9c9e285824f815a5aaed54cdb97298f6"
+          },
+          "channel": "canary",
+          "passed": true,
+          "payload_files": 1509,
+          "rpm_dependency_install_verified": false,
+          "same_app_payload_in_all_formats": true
+        },
+        "rpm_install_passed": true
+      },
+      "ptb": {
+        "launches": {
+          "deb-launch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "deb-launch/relaunch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "launch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "launch/relaunch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "mod-launch/launch-report.json": {
+            "equicord_required": true,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "mod-launch/relaunch/launch-report.json": {
+            "equicord_required": true,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          }
+        },
+        "packages": {
+          "assets": {
+            "discord-ptb-prerelease-patched-electron-bin-20261024.120906-linux-x86_64.tar.gz": "c104f28db8bf0e8e2e1db79974bf16bb798cae241ffe8a359fec85f39f33ed72",
+            "discord-ptb-prerelease-patched-electron-bin-20261024.120906.deb": "6ed200560fb40af013af741c531db1415ded86b843ebd532c2c8ff764bfb4958",
+            "discord-ptb-prerelease-patched-electron-bin-20261024.120906.rpm": "99aec020aafe6c70c01997413dcf8e13d787cb0f632e3a51be57b57a3d93a97d"
+          },
+          "channel": "ptb",
+          "passed": true,
+          "payload_files": 1509,
+          "rpm_dependency_install_verified": false,
+          "same_app_payload_in_all_formats": true
+        },
+        "rpm_install_passed": true
+      },
+      "stable": {
+        "launches": {
+          "deb-launch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "deb-launch/relaunch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "launch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "launch/relaunch/launch-report.json": {
+            "equicord_required": false,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "mod-launch/launch-report.json": {
+            "equicord_required": true,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          },
+          "mod-launch/relaunch/launch-report.json": {
+            "equicord_required": true,
+            "passed": true,
+            "screenshots_saved": false,
+            "uncaught_exception": false
+          }
+        },
+        "packages": {
+          "assets": {
+            "discord-stable-prerelease-patched-electron-bin-20261024.120906-linux-x86_64.tar.gz": "10b1dca76e08c76e51576b050c171cbd9545efa91bca9f3c5325910f44b7b2e0",
+            "discord-stable-prerelease-patched-electron-bin-20261024.120906.deb": "c1b70f59cf20c1098690e54d51570964f6ea6b98f1915c417de7532e81b95d59",
+            "discord-stable-prerelease-patched-electron-bin-20261024.120906.rpm": "5054a3aaeaeba48db5863898ca685e503f4516c788ac87ea501bac3f4757db5d"
+          },
+          "channel": "stable",
+          "passed": true,
+          "payload_files": 1536,
+          "rpm_dependency_install_verified": false,
+          "same_app_payload_in_all_formats": true
+        },
+        "rpm_install_passed": true
+      }
+    },
+    "checks_run": 40092738013,
+    "checks_url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40092738013",
+    "fedora_gui_verified": false,
+    "formats": [
+      "tar.gz",
+      "deb",
+      "rpm"
+    ],
+    "isolated_x11_wayland_audio_passed": true,
+    "native_video_krisp_passed": true,
+    "publishing_requested": false,
+    "release_run": 40092737843,
+    "release_url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40092737843",
+    "status": "success"
+  },
+  "date": "2026-10-24",
+  "electron_recompiled": false,
+  "equicord_installer": {
+    "asset": "EquilotlCli-linux",
+    "custom_loader_removed": true,
+    "reapply_after_package_update_preserved_new_bootstrap": true,
+    "release": "v2.3.0",
+    "sha256": "1ee134c7295bbbb2ef7058d157509508832e17a543ac1bf753ca63b16d4a8bbd",
+    "uninstall_restored_bootstrap": true
+  },
+  "launch_reports": {
+    "official_equicord": {
+      "app": "/mnt/storage/discord-patched-electron-ci/local-tests/bun-official-installer-canary-20261024",
+      "equicord_required": true,
+      "exited_before_check": null,
+      "native_wayland_connection": true,
+      "page": {
+        "discordNative": true,
+        "equicordNative": true,
+        "equicordRenderer": true,
+        "loginForm": true,
+        "passwordField": true,
+        "ready": "complete",
+        "title": ""
+      },
+      "passed": true,
+      "profile": "/home/he3als/scratch-ai-repo/discord-patched-electron/out/bun-official-equicord-launch/profile",
+      "real_discord_call_verified": false,
+      "screenshots_saved": false,
+      "targets": [
+        {
+          "title": "canary.discord.com/app?_=1792843731717",
+          "type": "page",
+          "url": "https://canary.discord.com/login"
+        },
+        {
+          "title": "",
+          "type": "worker",
+          "url": ""
+        }
+      ],
+      "uncaught_exception": false
+    },
+    "official_equicord_relaunch": {
+      "app": "/mnt/storage/discord-patched-electron-ci/local-tests/bun-official-installer-canary-20261024",
+      "equicord_required": true,
+      "exited_before_check": null,
+      "native_wayland_connection": true,
+      "page": {
+        "discordNative": true,
+        "equicordNative": true,
+        "equicordRenderer": true,
+        "loginForm": true,
+        "passwordField": true,
+        "ready": "complete",
+        "title": ""
+      },
+      "passed": true,
+      "profile": "/home/he3als/scratch-ai-repo/discord-patched-electron/out/bun-official-equicord-launch/profile",
+      "real_discord_call_verified": false,
+      "screenshots_saved": false,
+      "targets": [
+        {
+          "title": "canary.discord.com/app?_=1792843735264",
+          "type": "page",
+          "url": "https://canary.discord.com/login"
+        },
+        {
+          "title": "",
+          "type": "worker",
+          "url": ""
+        }
+      ],
+      "uncaught_exception": false
+    },
+    "plain": {
+      "app": "/mnt/storage/discord-patched-electron-ci/local-tests/bun-official-installer-canary-20261024",
+      "equicord_required": false,
+      "exited_before_check": null,
+      "native_wayland_connection": true,
+      "page": {
+        "discordNative": true,
+        "equicordNative": false,
+        "equicordRenderer": false,
+        "loginForm": true,
+        "passwordField": true,
+        "ready": "complete",
+        "title": ""
+      },
+      "passed": true,
+      "profile": "/home/he3als/scratch-ai-repo/discord-patched-electron/out/bun-canary-launch/profile",
+      "real_discord_call_verified": false,
+      "screenshots_saved": false,
+      "targets": [
+        {
+          "title": "canary.discord.com/app?_=1792843605582",
+          "type": "page",
+          "url": "https://canary.discord.com/login"
+        },
+        {
+          "title": "",
+          "type": "worker",
+          "url": ""
+        }
+      ],
+      "uncaught_exception": false
+    },
+    "plain_relaunch": {
+      "app": "/mnt/storage/discord-patched-electron-ci/local-tests/bun-official-installer-canary-20261024",
+      "equicord_required": false,
+      "exited_before_check": null,
+      "native_wayland_connection": true,
+      "page": {
+        "discordNative": true,
+        "equicordNative": false,
+        "equicordRenderer": false,
+        "loginForm": true,
+        "passwordField": true,
+        "ready": "complete",
+        "title": ""
+      },
+      "passed": true,
+      "profile": "/home/he3als/scratch-ai-repo/discord-patched-electron/out/bun-canary-launch/profile",
+      "real_discord_call_verified": false,
+      "screenshots_saved": false,
+      "targets": [
+        {
+          "title": "canary.discord.com/app?_=1792843608090",
+          "type": "page",
+          "url": "https://canary.discord.com/login"
+        },
+        {
+          "title": "",
+          "type": "worker",
+          "url": ""
+        }
+      ],
+      "uncaught_exception": false
+    }
+  },
+  "limits": [
+    "No account login, messages or calls.",
+    "No physical camera tests were needed for this packaging change. No screenshots or webcam media saved.",
+    "Live-call and full GNOME/KDE session behavior remains unverified."
+  ],
+  "local_app": "/mnt/storage/discord-patched-electron-ci/local-tests/bun-official-installer-canary-20261024/launch.sh",
+  "local_packages": {
+    "assets": {
+      "discord-canary-prerelease-patched-electron-bin-20261024.121500-linux-x86_64.tar.gz": "c063906aeb16cd3b2414758d87a8b80b181a9d096addb1643c9b040c042019bd",
+      "discord-canary-prerelease-patched-electron-bin-20261024.121500.deb": "437c38a67c537372f2e4da3ea1aee9a115cad6280c21314e59bc7529701b32df",
+      "discord-canary-prerelease-patched-electron-bin-20261024.121500.rpm": "725b50afaa94ceff8df99bc7ed40dc860976dafeee33d31d04448bba680166cf"
+    },
+    "channel": "canary",
+    "passed": true,
+    "payload_files": 1509,
+    "rpm_dependency_install_verified": false,
+    "same_app_payload_in_all_formats": true
+  },
+  "schema": 1,
+  "source_commit": "f6204f1b664f97e1011352845fca4a81d1829920",
+  "tooling": {
+    "actionlint_passed": true,
+    "bun": "1.4.4",
+    "frozen_install_passed": true,
+    "javascript_tests": 16,
+    "lint_and_format_passed": true,
+    "python_tests": 96,
+    "user_doc_links_passed": true
+  }
+}

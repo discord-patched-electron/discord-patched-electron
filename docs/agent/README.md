@@ -7,7 +7,7 @@ using the app. Older reports describe the code and inputs at the time they ran.
 ## Start here
 
 - [Handoff and local build paths](handoff.md)
-- [Current implementation status](status.md)
+- [Implementation history](status.md)
 - [Release packaging](releases.md)
 - [Update discovery and scheduling](discovery.md)
 - [Original plan](plan.md)
@@ -26,7 +26,7 @@ using the app. Older reports describe the code and inputs at the time they ran.
 - [Audio investigation](audio-investigation.md)
 - [Camera startup](camera-startup.md)
 - [Launcher, codecs and shortcuts](linux-launcher.md)
-- [Equicord loader](equicord.md)
+- [Previous Equicord loader](equicord.md) (historical)
 - [Native runtime](linux-runtime.md)
 - [Runtime validation](runtime-validation.md)
 - [Saved test evidence](../evidence/)

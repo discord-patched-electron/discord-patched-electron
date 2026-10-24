@@ -21,8 +21,9 @@ bun run lint
 ```
 
 The normal test suite needs no Discord account or Electron compilation. Some
-Arch-specific assertions are skipped when `vercmp` is unavailable; CI runs them
-on Arch. Container integration tests need Docker and are separate from this suite.
+Arch-specific assertions are skipped when `vercmp` is unavailable. CI also checks
+generated packages in an Arch container. Container integration tests need Docker
+and are separate from this suite.
 
 ## Find your way around
 
