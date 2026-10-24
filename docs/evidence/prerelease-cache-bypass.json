@@ -1,0 +1,56 @@
+{
+  "basedirs": [
+    "/work/build-cache/prerelease/f775fe99a963381720338a1ad78e7d72ef5f3444acedc3725394752f61f0cc31/checkout/src/"
+  ],
+  "cache_location": "Local disk: \"/work/build-cache/sccache\"",
+  "cache_size": null,
+  "max_cache_size": 34359738368,
+  "stats": {
+    "cache_errors": {
+      "adv_counts": {},
+      "counts": {}
+    },
+    "cache_hits": {
+      "adv_counts": {},
+      "counts": {}
+    },
+    "cache_misses": {
+      "adv_counts": {},
+      "counts": {}
+    },
+    "cache_read_errors": 0,
+    "cache_read_hit_duration": {
+      "nanos": 0,
+      "secs": 0
+    },
+    "cache_timeouts": 0,
+    "cache_write_duration": {
+      "nanos": 0,
+      "secs": 0
+    },
+    "cache_write_errors": 0,
+    "cache_writes": 0,
+    "compilations": 0,
+    "compile_fails": 0,
+    "compile_requests": 6755,
+    "compiler_write_duration": {
+      "nanos": 0,
+      "secs": 0
+    },
+    "dist_compiles": {},
+    "dist_errors": 0,
+    "forced_recaches": 0,
+    "multi_level": null,
+    "non_cacheable_compilations": 0,
+    "not_cached": {
+      "-fmodules": 5501,
+      "Can't handle UnknownFlag arguments with -Xclang": 1254
+    },
+    "requests_executed": 0,
+    "requests_not_cacheable": 6755,
+    "requests_not_compile": 0,
+    "requests_unsupported_compiler": 0
+  },
+  "use_preprocessor_cache_mode": false,
+  "version": "0.18.0"
+}

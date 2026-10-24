@@ -1,8 +1,10 @@
 # Project-owned toolchain: keep Chromium's pinned Clang, sysroot and tool rules.
 # No edit to an upstream file is required. Host tools keep their normal toolchain.
-import("//build/toolchain/gcc_toolchain.gni")
+# Generated from the pinned upstream template with baseline flags before each
+# target's flags. This preserves CPU-dispatched AVX-512/SIMD implementations.
+import("//dpe_build/gcc_toolchain.gni")
 
-clang_toolchain("clang_x64_v3") {
+dpe_clang_toolchain("clang_x64_v3") {
   enable_linker_map = true
   extra_cppflags = "@CPU_FLAGS@"
   extra_asmflags = "@CPU_FLAGS@"

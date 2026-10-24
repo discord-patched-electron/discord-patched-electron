@@ -9,13 +9,22 @@ dimensions and version metadata only; do not take desktop screenshots during the
 ## Current compiler queue
 
 - [Reference 40036898682](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40036898682)
-  is compiling incrementally after the earlier two-task run was cancelled. It
-  retains its original CPU flags and all usable objects.
-- [Prerelease 40040828617](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40040828617)
-  is queued behind it at `ab9f0c2`: Electron 46.0.0-alpha.1 with x86-64-v3,
-  16 Ninja tasks, one linker and 32 GiB sccache. Source assembly, all dependency
+  completed successfully. Its compiled runtime passes local Canary login on
+  native Wayland, native video/offline Krisp, AMD WebGL/VA-API and the physical
+  camera metadata test. All three channels also pass native/Krisp CI.
+- [Prerelease 40042681236](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40042681236)
+  stopped at `c04b0b0` on a CPU-flag ordering issue; the corrected build is being resumed: Electron 46.0.0-alpha.1 with x86-64-v3,
+  16 Ninja tasks, one linker and a bounded 32 GiB sccache store. Live stats show
+  Chromium module/plugin flags bypass sccache; persistent Ninja reuse remains
+  effective. See [the full-build limitation](build-caching.md#current-full-build-cache-limitation). Source assembly, all dependency
   patches, gclient hooks and GN generation already pass on the PC. GN generated
-  38,464 targets. No candidate C++ compilation has completed yet.
+  38,464 targets. The first candidate attempt stopped because a workflow
+  `TARGET` environment variable conflicted with Chromium bindgen. Renaming it
+  fixed both failed generators; this run resumes the same prepared workspace.
+  A subsequent Skia failure exposed baseline flags overriding its dispatched v4
+  target. The corrected generated toolchain now compiles that target successfully.
+  The full candidate has not completed yet; consult `overnight-monitor.json` for
+  the current resume run ID.
 
 Both use runner `he3als-pc-container` in Docker container `discord-electron-runner`.
 The container has all 20 logical CPUs available, a 26 GiB RAM limit and 36 GiB
@@ -25,7 +34,7 @@ running or queued. The last reported Blacksmith allowance use remains 168 minute
 ```sh
 tail -f /mnt/storage/discord-patched-electron-ci/actions/discord-patched-electron/discord-patched-electron/out/capacity/build.log
 gh run view 40036898682 --repo discord-patched-electron/discord-patched-electron
-gh run view 40040828617 --repo discord-patched-electron/discord-patched-electron
+gh run view 40042681236 --repo discord-patched-electron/discord-patched-electron
 docker stats discord-electron-runner
 ```
 
@@ -33,6 +42,24 @@ The log path is shared by successive Actions checkouts; check the run ID before
 interpreting it. Ninja's resumed-task counter is not a percentage of elapsed time.
 Leave the PC/container running. No terminal must remain open. Do not restart a
 healthy compiler or delete its persistent build cache. See [live runner controls](ci-setup.md#changing-local-limits-while-the-build-runs).
+
+## Available reference test build
+
+```sh
+/mnt/storage/discord-patched-electron-ci/local-tests/reference-canary-40036898682/launch.sh
+```
+
+This is a working local Canary build using the compiled reference Electron
+44.0.0-reference.1, not the pending Electron 46 prerelease. It uses a separate
+profile and passed the real login-form check. The [compiled-reference evidence](evidence/reference-runtime-local.json)
+contains metadata only. Camera timing was 8.36 seconds upstream and 2.33 seconds
+with the helper; no frames were displayed, saved or uploaded.
+
+A one-shot local process (`run-overnight-smoke.py` under the CI storage directory)
+waits for the new candidate, then fetches/verifies it and runs Canary assembly,
+graphics, native/Krisp and login checks. Inspect `overnight-smoke.json` and the
+live process before duplicating this work. It does not open a camera or hibernate.
+The scheduled monitor and current run IDs are in `overnight-monitor.json` there.
 
 ## Checks already passed
 
@@ -56,9 +83,9 @@ successful compiler artifact triggers the custom-runtime jobs.
 
 ## Completion sequence
 
-1. Inspect the reference result and automatic native/audio validation. Diagnose
+1. Reference compile, native and audio CI have all passed. Diagnose
    concrete failures before resuming; a quiet log is not itself a failure.
-2. Let the queued prerelease compiler reuse the prepared workspace. Its identity
+2. Let the prerelease compiler finish in the prepared workspace. Its identity
    is `f775fe99a963381720338a1ad78e7d72ef5f3444acedc3725394752f61f0cc31` under
    `/mnt/storage/discord-patched-electron-ci/build-cache/prerelease/`.
 3. Fetch the successful artifact using `scripts/fetch_reference.py`. Build the

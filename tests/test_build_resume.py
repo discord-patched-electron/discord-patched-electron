@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build_reference import build_config, build_inputs, enable_compiler_cache, reference_inputs, reset_patch_repositories, reuse_completed, verify_source
+from build_reference import baseline_toolchain, build_config, build_inputs, enable_compiler_cache, reference_inputs, reset_patch_repositories, reuse_completed, verify_source
 from common import ROOT, digest, read_json, sha256, write_json
 
 
@@ -64,6 +64,27 @@ class HookRecovery(unittest.TestCase):
 
 
 class CompletedBuild(unittest.TestCase):
+    def test_baseline_flags_precede_target_flags_without_changing_rust_linker(self):
+        template = '\n'.join([
+            'declare_args() { canonical_option = true }',
+            'template("single_gcc_toolchain") {',
+            '$cc {{cflags}} {{cflags_c}}${extra_cppflags}${extra_cflags}',
+            '$cxx {{cflags}} {{cflags_cc}}${extra_cppflags}${extra_cxxflags}',
+            '$cxx {{cflags}} {{cflags_cc}}${extra_cppflags}${extra_cxxflags} -emit-module',
+            '$asm {{asmflags}}${extra_asmflags}',
+            '-Clinker="${invoker.cxx}"',
+            '}',
+            'template("clang_toolchain") { single_gcc_toolchain(target_name) {} }',
+        ])
+        adapted = baseline_toolchain(template)
+        self.assertIn('$cxx ${extra_cppflags} {{cflags}} {{cflags_cc}}', adapted)
+        self.assertIn('$asm ${extra_asmflags} {{asmflags}}', adapted)
+        self.assertIn('-Clinker="${invoker.cxx}"', adapted)
+        self.assertNotIn('declare_args', adapted)
+        self.assertIn('dpe_single_gcc_toolchain(target_name)', adapted)
+        with self.assertRaisesRegex(ValueError, "template changed"):
+            baseline_toolchain(template.replace('{{cflags_c}}', '{{changed}}'))
+
     def test_cache_wrapper_does_not_invalidate_existing_reference_objects(self):
         with tempfile.TemporaryDirectory() as temp:
             args = Path(temp) / "args.gn"

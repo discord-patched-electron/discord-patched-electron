@@ -1,6 +1,7 @@
 # Implementation status
 
-Updated 24 October 2026. This is a bootstrap implementation, not a working binary release.
+Updated 24 October 2026. A self-built reference runtime now launches Canary; the requested prerelease
+runtime is still compiling. No public binary release is published.
 
 Wayland is the primary target, as clarified by the maintainer. X11 fixture success
 does not satisfy the application-audio release requirement. The current desktop
@@ -42,9 +43,11 @@ reports niri; its portal path is the first live qualification target.
 - Blacksmith's first reference attempt completed fetching and hooks, then failed
   at the depot_tools Python launcher before C++ compilation. Explicit tool
   bootstrap fixes the launcher locally without moving the pinned tool revision.
-- The local reference run `40036898682` is compiling with 16 tasks and retained
-  incremental objects. Prerelease run `40040828617` is queued behind it; no
-  completed custom runtime exists yet.
+- The local reference run `40036898682` completed successfully. Its custom
+  runtime passes the native Wayland Canary login, graphics/VA-API, native video,
+  offline Krisp and physical-camera metadata checks. All three clients pass
+  native/Krisp CI. Prerelease run `40042681236` is compiling; the full newer
+  runtime remains unverified. See [compiled-reference evidence](evidence/reference-runtime-local.json).
 - All three bundled runtimes pass synthetic native frame delivery and teardown,
   module loading, and an offline Krisp off/on/off comparison (53.6 dB reduction
   in the noise-only interval, retained speech). See [runtime checks](runtime-validation.md).
@@ -115,11 +118,13 @@ qualification false. No binary release is advertised on this evidence.
 
 ## Outstanding before a release
 
-1. Finish the bounded reference capacity build and inspect its diagnostics.
+1. Reference compiler, native/Krisp CI, application-audio CI and local checks
+   have passed. Retain this baseline while qualifying the newer runtime.
    Blacksmith has unlocked the account and the maintainer confirms 168 of the
    3,000 allowance minutes used. The first hosted experiment failed before compilation;
    use the installed PC runner's persistent cache to qualify the launcher fix.
-2. Confirm cold-build disk/memory use and successful incremental resumption.
+2. Measure the full prerelease cold build. The reference successfully resumed
+   retained objects; its archive and capacity diagnostics are now available.
 3. Finish compiling the enabled Electron 46 prerelease port. Its source tree,
    Chromium/dependency patches, gclient hooks and GN generation now pass on the
    PC. Disabled Electron 45/stable and 47/nightly are outside the active scope.

@@ -10,7 +10,11 @@ requirement stated in each package description.
 project-owned `ci/gn/BUILD.gn.in` toolchain. It wraps Chromium's existing Clang
 toolchain, preserving its pinned compiler, sysroot and release configuration.
 The builder installs it under `src/dpe_build` and selects it through GN's
-`custom_toolchain`. This requires no edit to an upstream Chromium file.
+`custom_toolchain`. It derives local copies of the upstream tool templates with
+baseline flags placed before target-specific flags. Arguments remain declared in
+the canonical upstream file; the derived templates have private names. Expected
+command patterns are checked before rewriting, so an upstream layout change
+requires review. No upstream Chromium file is edited.
 
 The flags affect target C/C++, compiler-driven assembly and linking. Host tools,
 Rust code and Discord's prebuilt proprietary modules retain their upstream
@@ -63,6 +67,31 @@ upload. All compiler workflows share the `electron-compilation` concurrency
 group. Candidate builds are manual until runtime/release gates are complete;
 `build.yml` accepts prerelease only and automatically triggers
 native validation against all three Discord channels after success.
+
+## Current full-build cache limitation
+
+Live statistics from the Electron 46 build exposed a limitation that the small
+compiler fixture did not cover: all 6,755 requests bypassed sccache.
+Of these, 5,501 used `-fmodules` and 1,254 used unsupported `-Xclang` arguments.
+There were no cache errors or incorrect hits. The pinned wrapper safely runs
+Clang for these commands, but **cross-workspace compiler reuse is not effective
+for the current Chromium flags**. Do not infer full-build caching from the
+passing small C fixture.
+
+The [sccache documentation](https://github.com/mozilla/sccache#c20-modules)
+explicitly excludes Clang header modules. [ccache's module support](https://ccache.dev/manual/latest.html#_c_modules)
+requires direct/depend mode and relaxed module checks, whereas this project
+currently disables direct mode to catch newly appearing optional headers.
+Switching blindly would weaken the tested invalidation contract. Disabling
+Chromium modules would change every compile command and sacrifice its existing
+cold-build acceleration. The running candidate keeps its current configuration.
+
+Completed-artifact reuse and persistent Ninja objects remain effective: the
+reference resumed its partial build and finished successfully. These are the
+verified reuse layers for the current full build. Any replacement compiler cache
+must first pass representative Chromium commands, module changes, optional-header
+creation and cross-workspace invalidation checks. See the [actual build statistics](evidence/prerelease-cache-bypass.json);
+no claim of full-build cache hits is justified yet.
 
 ## Verification and current limits
 
@@ -150,3 +179,10 @@ The Electron 46.0.0-alpha.1 candidate now also passes complete dependency patchi
 gclient hooks and GN generation in its own prepared workspace (38,464 targets).
 Its generated `args.gn` selects the v3 toolchain, sccache and one-deep link pool.
 This validates the current port configuration, not yet its C++ compilation.
+
+The first real v3 build found that appending `-march=x86-64-v3` overrode Skia's
+separately dispatched v4 code. The derived tool templates now put the baseline
+first, preserving target-specific instructions. The previously failing
+`skcms_TransformSkx.o` and its module compiled successfully after this change.
+Ordinary code still targets v3; the presence of an upstream CPU-dispatched
+AVX-512 routine does not require AVX-512 on every machine.

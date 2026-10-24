@@ -9,6 +9,7 @@ from contextlib import nullcontext
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import subprocess
@@ -41,6 +42,37 @@ def install_toolchain(source: Path, config: dict):
     content = (ROOT / "ci/gn/BUILD.gn.in").read_text().replace("@CPU_FLAGS@", " ".join(config["cpu_flags"]))
     if not destination.exists() or destination.read_text() != content:
         destination.write_text(content)
+    # Upstream's extra flags are appended after a target's flags, overriding
+    # runtime-dispatched SIMD targets (e.g. Skia's x86-64-v4 implementation).
+    # Derive a local template with baseline flags first; keep the upstream file
+    # untouched and preserve its compiler, Rust linker and all other tool rules.
+    template = baseline_toolchain((source / "build/toolchain/gcc_toolchain.gni").read_text())
+    adapted = destination.with_name("gcc_toolchain.gni")
+    if not adapted.exists() or adapted.read_text() != template:
+        adapted.write_text(template)
+
+
+def baseline_toolchain(template: str) -> str:
+    replacements = [
+        ("{{cflags}} {{cflags_c}}${extra_cppflags}", "${extra_cppflags} {{cflags}} {{cflags_c}}", 1),
+        ("{{cflags}} {{cflags_cc}}${extra_cppflags}", "${extra_cppflags} {{cflags}} {{cflags_cc}}", 2),
+        ("{{asmflags}}${extra_asmflags}", "${extra_asmflags} {{asmflags}}", 1),
+    ]
+    for old, new, count in replacements:
+        if template.count(old) != count:
+            raise ValueError("Upstream compiler template changed; review baseline flag ordering")
+        template = template.replace(old, new)
+    # Keep build arguments declared at their one canonical upstream location.
+    # Only derive the templates, under private names so the imported originals
+    # remain available to Chromium's host toolchains.
+    start = 'template("single_gcc_toolchain")'
+    if template.count(start) != 1:
+        raise ValueError("Upstream compiler template changed; missing toolchain entry")
+    template = template[template.index(start):]
+    names = re.findall(r'template\("(\w+)"\)', template)
+    template = re.sub(r'\b(' + '|'.join(map(re.escape, names)) + r')\b',
+                      lambda match: 'dpe_' + match[0], template)
+    return 'import("//build/toolchain/gcc_toolchain.gni")\n\n' + template
 
 
 def enable_compiler_cache(target: str, args_file: Path) -> bool:
