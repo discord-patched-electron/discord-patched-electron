@@ -46,7 +46,7 @@ reports niri; its portal path is the first live qualification target.
 - The local reference run `40036898682` completed successfully. Its custom
   runtime passes the native Wayland Canary login, graphics/VA-API, native video,
   offline Krisp and physical-camera metadata checks. All three clients pass
-  native/Krisp CI. Prerelease run `40042681236` is compiling; the full newer
+  native/Krisp CI and the full Wayland/X11 application-audio CI suite. Prerelease run `40043753884` is compiling; the full newer
   runtime remains unverified. See [compiled-reference evidence](evidence/reference-runtime-local.json).
 - All three bundled runtimes pass synthetic native frame delivery and teardown,
   module loading, and an offline Krisp off/on/off comparison (53.6 dB reduction

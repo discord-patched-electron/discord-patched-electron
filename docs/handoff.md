@@ -12,8 +12,8 @@ dimensions and version metadata only; do not take desktop screenshots during the
   completed successfully. Its compiled runtime passes local Canary login on
   native Wayland, native video/offline Krisp, AMD WebGL/VA-API and the physical
   camera metadata test. All three channels also pass native/Krisp CI.
-- [Prerelease 40042681236](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40042681236)
-  stopped at `c04b0b0` on a CPU-flag ordering issue; the corrected build is being resumed: Electron 46.0.0-alpha.1 with x86-64-v3,
+- [Prerelease 40043753884](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40043753884)
+  is compiling at `577e2a9` with the CPU-flag ordering fix: Electron 46.0.0-alpha.1 with x86-64-v3,
   16 Ninja tasks, one linker and a bounded 32 GiB sccache store. Live stats show
   Chromium module/plugin flags bypass sccache; persistent Ninja reuse remains
   effective. See [the full-build limitation](build-caching.md#current-full-build-cache-limitation). Source assembly, all dependency
@@ -34,7 +34,7 @@ running or queued. The last reported Blacksmith allowance use remains 168 minute
 ```sh
 tail -f /mnt/storage/discord-patched-electron-ci/actions/discord-patched-electron/discord-patched-electron/out/capacity/build.log
 gh run view 40036898682 --repo discord-patched-electron/discord-patched-electron
-gh run view 40042681236 --repo discord-patched-electron/discord-patched-electron
+gh run view 40043753884 --repo discord-patched-electron/discord-patched-electron
 docker stats discord-electron-runner
 ```
 
@@ -76,7 +76,7 @@ The [overnight baseline evidence](evidence/linux-overnight-baselines.json) recor
 - All three generated Arch packages pass preparation/packaging with real Discord
   payloads and an explicitly nonfunctional runtime fixture.
 
-The dependency port passes 72 Python tests and source reconstruction; the audio
+The dependency port and toolchain fix pass 73 Python tests and source reconstruction; the audio
 adapters pass 12 JavaScript tests. CI checks use standard GitHub runners. Native
 video/offline Krisp and audio CI baselines use Discord's bundled runtimes until a
 successful compiler artifact triggers the custom-runtime jobs.
@@ -86,7 +86,7 @@ successful compiler artifact triggers the custom-runtime jobs.
 1. Reference compile, native and audio CI have all passed. Diagnose
    concrete failures before resuming; a quiet log is not itself a failure.
 2. Let the prerelease compiler finish in the prepared workspace. Its identity
-   is `f775fe99a963381720338a1ad78e7d72ef5f3444acedc3725394752f61f0cc31` under
+   is `59d31d272325f2393301ebbff1f160351f597770c1ba30a6baf87fa1c2c51915` under
    `/mnt/storage/discord-patched-electron-ci/build-cache/prerelease/`.
 3. Fetch the successful artifact using `scripts/fetch_reference.py`. Build the
    actual Canary folder with `scripts/build_local_app.py --artifact ...`, then

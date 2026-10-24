@@ -1,0 +1,44 @@
+{
+  "passed": true,
+  "ordinary_minimum": "x86-64-v3",
+  "dispatched_skia_target_retains_avx512": true,
+  "checks": {
+    "baseline": {
+      "target": "obj/net/net/net_errors.o",
+      "actual_cpu_flags": [
+        "-march=x86-64-v3",
+        "-mtune=generic",
+        "-msse3"
+      ],
+      "macros": {
+        "__AVX2__": true,
+        "__FMA__": true,
+        "__BMI__": true,
+        "__BMI2__": true,
+        "__F16C__": true,
+        "__LZCNT__": true,
+        "__MOVBE__": true,
+        "__AVX512F__": false
+      }
+    },
+    "dispatched": {
+      "target": "obj/skia/skcms_TransformSkx/skcms_TransformSkx.o",
+      "actual_cpu_flags": [
+        "-march=x86-64-v3",
+        "-mtune=generic",
+        "-msse3",
+        "-march=x86-64-v4"
+      ],
+      "macros": {
+        "__AVX2__": true,
+        "__FMA__": true,
+        "__BMI__": true,
+        "__BMI2__": true,
+        "__F16C__": true,
+        "__LZCNT__": true,
+        "__MOVBE__": true,
+        "__AVX512F__": true
+      }
+    }
+  }
+}

@@ -186,3 +186,7 @@ first, preserving target-specific instructions. The previously failing
 `skcms_TransformSkx.o` and its module compiled successfully after this change.
 Ordinary code still targets v3; the presence of an upstream CPU-dispatched
 AVX-512 routine does not require AVX-512 on every machine.
+
+[Actual generated-command checks](evidence/cpu-dispatch-local.json) confirm the
+normal target retains all v3 CPU features without AVX-512, while Skia’s dispatched
+variant retains its explicit v4 features.
