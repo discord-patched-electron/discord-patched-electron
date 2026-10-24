@@ -6,7 +6,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from common import ROOT, read_json
 from update_policy import plan, urgent, in_range
-from schedule_updates import schedule
+from schedule_updates import schedule, client_result
 
 
 class UpdatePolicy(unittest.TestCase):
@@ -55,6 +55,29 @@ class UpdatePolicy(unittest.TestCase):
         self.assertEqual(result['electron']['action'],'deferred')
         self.assertEqual(self.state['electron_work'], {})
         self.assertEqual(len(result['clients']),3)
+
+    def test_successful_github_rerun_updates_failed_work_without_dispatch(self):
+        schedule(self.state,self.policy,self.sources,'2026-10-25T03:00:00Z','1',{})
+        schedule(self.state,self.policy,self.sources,'2026-10-25T04:00:00Z','2',{'1':'failure'})
+        self.assertTrue(all(w['status'] == 'failure' for w in self.state['client_work'].values()))
+        result = schedule(self.state,self.policy,self.sources,'2026-10-25T05:00:00Z','3',{'1':'success'})
+        self.assertEqual(result['clients'], [])
+        self.assertTrue(all(w['status'] == 'success' for w in self.state['client_work'].values()))
+
+    def test_one_channel_failure_does_not_fail_other_channels(self):
+        jobs = [{'name':f'clients ({channel}) / {suffix}', 'status':'completed',
+                 'conclusion':'failure' if channel == 'canary' and suffix == 'launch' else 'success'}
+                for channel in ('stable','ptb','canary') for suffix in
+                ('launch','native / validate','bundled / validate','audio / validate','packaging / validate')]
+        self.assertEqual(client_result('stable', jobs, True), 'success')
+        self.assertEqual(client_result('canary', jobs, True), 'failure')
+        self.assertIsNone(client_result('canary', jobs[:-1], False))
+        self.assertEqual(client_result('canary', jobs[:-1], True), 'failure')
+        schedule(self.state,self.policy,self.sources,'2026-10-25T03:00:00Z','1',{})
+        schedule(self.state,self.policy,self.sources,'2026-10-25T04:00:00Z','2',
+            {'1':'failure', '1:stable':'success','1:ptb':'success','1:canary':'failure'})
+        self.assertEqual({w['channel']:w['status'] for w in self.state['client_work'].values()},
+                         {'stable':'success','ptb':'success','canary':'failure'})
 
     def test_bundled_binary_change_does_not_schedule_native_rebuild(self):
         self.state['releases'] = {}

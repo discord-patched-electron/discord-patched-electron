@@ -21,7 +21,7 @@
   "plain_first_launch_and_relaunch": "passed on native Wayland",
   "previous_canary": "1.0.2357",
   "ptb_pipewire_fixture": "passed after default device readiness handshake",
-  "python_tests": 89,
+  "python_tests": 91,
   "runtime_retention": "runtime-only prerelease retrieved; compiler report and archive hashes verified",
   "runtime_version": "46.0.0-alpha.1",
   "schema": 1,
