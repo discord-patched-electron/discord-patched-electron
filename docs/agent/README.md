@@ -33,4 +33,5 @@ pacman packages. I test them before approving them through a manual action.
 - [Previous Equicord loader](equicord.md) (historical)
 - [Native runtime](linux-runtime.md)
 - [Runtime validation](runtime-validation.md)
+- [Test quality review](test-quality.md)
 - [Saved test evidence](../evidence/)

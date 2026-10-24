@@ -4,6 +4,20 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Test quality review, 24 October
+
+`a8890d6` strengthens callback assertions, launcher isolation, fixed scheduling
+fixtures, release retry tests, audio phase completion and leak detection. It also
+fixes a null JSON helper reply that could throw. See the
+[test quality review](test-quality.md) and [evidence](../evidence/test-quality-review.json).
+The review reuses compiler run `40053107555`. No new release approval, compilation,
+physical-camera recording, account login or real Discord call was performed.
+The local suite passes 134 Python and 19 JavaScript tests, three shuffled Python
+runs, hostile launcher environment settings and seven isolated fault injections.
+Native video/Krisp, capture teardown, safe storage, graphics, private shortcut
+portal and the X11/Wayland audio matrix also pass locally. CI run `40133245248`
+passed all hosted checks.
+
 ## Signed packages and standard Canary identity, 24 October
 
 The user explicitly authorized approval of the latest release. This supersedes
