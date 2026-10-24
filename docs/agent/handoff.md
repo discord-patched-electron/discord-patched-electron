@@ -30,6 +30,10 @@ The generator and template now include it. A regression test runs the real
 preparation copy step outside the repository and imports its Python entry point.
 The final artwork files use the user's newer PNG export and matching
 `discord-patched-electron.png.kra`, stored as `discord-patched-electron.kra` here.
+The corrected commit `8df1bc2` passed [all GitHub checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40114953501),
+including standalone Arch packaging, source assembly, native modules and audio.
+The live README image, About description and all three release download tables
+were verified. Release assets and approval status are unchanged.
 
 ## Cache, release and AUR publishing, 24 October
 
