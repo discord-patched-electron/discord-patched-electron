@@ -48,7 +48,7 @@ jobs**. A partial draft can be resumed. Public assets are never overwritten.
    sudo pacman -U ./discord-canary-prerelease-patched-electron-bin-*.pkg.tar.zst
    ```
 
-3. Launch **Discord Canary (Patched Electron)**. Test the features you use,
+3. Launch **Discord Canary**. Test the features you use,
    including voice, camera startup, screen sharing with app audio, and Krisp.
    Reinstall client mods after updating. Uninstalling first is unnecessary.
 4. Run [**Approve tested release**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/approve-release.yml)
@@ -138,3 +138,23 @@ Package post-install/upgrade hooks refresh `_app.asar` only when it exists and
 `app.asar` matches the newly installed checksum. This keeps official mod installers
 from restoring an old bootstrap, without touching a currently installed mod loader.
 Tarball users extract into a fresh directory and rerun their official installer.
+
+## Release signatures
+
+The publishing job signs the Arch package and `SHA256SUMS` only after all release
+gates pass. It receives `RELEASE_SIGNING_KEY`, a dedicated Ed25519 key with no
+personal signing keys. The public key is pinned in `packaging/release-signing-key.asc`
+and uploaded with each release. New manifests require signatures for approval.
+Signatures are verified against the pinned key before upload and approval.
+
+The local backup and revocation certificate are in
+`~/.local/share/discord-patched-electron/signing`, outside the repository. Back up
+that directory privately. The key expires in October 2028. Before expiry, renew
+it and update both the pinned public key and the Actions secret. Never log or
+commit the private key. Published package archives and manifests are immutable.
+Detached signatures can be added to an older release without replacing its files.
+
+AUR metadata-only changes increment `pkgrel` when the archive URL and checksum
+are unchanged. Repeating the same publication is a no-op. Archive changes require
+a new `pkgver`. Desktop identity is recorded in new manifests so recipes can also
+handle older archives with the previous desktop filename.

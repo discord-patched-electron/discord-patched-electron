@@ -8,6 +8,8 @@ arch=('x86_64')
 url='https://github.com/discord-patched-electron/discord-patched-electron'
 license=('LicenseRef-custom' 'MIT' 'BSD-3-Clause')
 options=('!strip')
+provides=('@DESKTOP_ID@')
+conflicts=('@DESKTOP_ID@')
 depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse' 'python' 'pipewire' 'pipewire-audio' 'zenity')
 makedepends=('asar' 'brotli' 'unzip' 'python-capstone' 'python-pyelftools')
 optdepends=('xdg-utils: open links and files'
@@ -39,8 +41,9 @@ package() {
   ln -s ../resources "$root/runtime/resources"
   chmod 4755 "$root/runtime/chrome-sandbox"
   install -Dm755 discord-launcher.sh "$pkgdir/usr/bin/$pkgname"
+  ln -s "$pkgname" "$pkgdir/usr/bin/@DESKTOP_ID@"
   install -Dm644 discord.desktop "$pkgdir/usr/share/applications/@DESKTOP_ID@.desktop"
-  install -Dm644 stage/core/discord.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/$pkgname.png"
+  install -Dm644 stage/core/discord.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/@DESKTOP_ID@.png"
   install -Dm644 LICENSE.html "$pkgdir/usr/share/licenses/$pkgname/LICENSE.html"
   install -Dm644 OSS-LICENSES.html "$pkgdir/usr/share/licenses/$pkgname/OSS-LICENSES.html"
   install -Dm644 THIRD_PARTY.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY.md"

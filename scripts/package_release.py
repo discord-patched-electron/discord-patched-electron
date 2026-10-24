@@ -67,6 +67,8 @@ def metadata(
         "version": version,
         "version_schema": "none",
         "release": "1",
+        "provides": [desktop_id(channel)],
+        "conflicts": [desktop_id(channel)],
         "maintainer": "discord-patched-electron contributors <he3als@users.noreply.github.com>",
         "homepage": REPOSITORY,
         "license": "LicenseRef-Discord AND MIT AND BSD-3-Clause",
@@ -77,10 +79,18 @@ def metadata(
             {"src": str(app), "dst": root, "type": "tree"},
             {"src": f"{root}/launch.sh", "dst": f"/usr/bin/{name}", "type": "symlink"},
             {
+                "src": f"{root}/launch.sh",
+                "dst": f"/usr/bin/{desktop_id(channel)}",
+                "type": "symlink",
+            },
+            {
                 "src": str(app / (desktop_id(channel) + ".desktop")),
                 "dst": f"/usr/share/applications/{desktop_id(channel)}.desktop",
             },
-            {"src": str(app / "discord.png"), "dst": f"/usr/share/pixmaps/{name}.png"},
+            {
+                "src": str(app / "discord.png"),
+                "dst": f"/usr/share/icons/hicolor/256x256/apps/{desktop_id(channel)}.png",
+            },
         ],
         "overrides": {
             "archlinux": {
@@ -263,8 +273,10 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
         output / "release.json",
         {
             "schema": 1,
+            "signing_required": True,
             "version": version,
             "channel": build["channel"],
+            "desktop_id": desktop_id(build["channel"]),
             "client_version": build["client_version"],
             "electron_version": build["capacity"]["compiled_version"],
             "runtime_key": build["capacity"]["runtime_key"],

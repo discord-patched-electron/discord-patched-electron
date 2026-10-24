@@ -13,6 +13,7 @@ from pathlib import Path
 from common import ROOT, electron_channel, package_name, read_json, run, sha256
 from desktop_identity import desktop_id
 from package_release import metadata
+from release_signing import verify as verify_signatures
 from releases import URL, api, approval_path, approve, release_tag, validate_approval, verify_assets
 
 
@@ -38,7 +39,7 @@ def manifest_name(manifest: dict) -> str:
     return package_name(manifest["channel"], electron_channel(manifest["electron_version"]))
 
 
-def recipe(manifest: dict, tag: str) -> str:
+def recipe(manifest: dict, tag: str, revision: int = 1) -> str:
     if tag != release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"]):
         raise ValueError("Release identity mismatch")
     config = metadata(
@@ -50,6 +51,22 @@ def recipe(manifest: dict, tag: str) -> str:
     )
     dependencies = config["overrides"]["archlinux"]
     dependencies["depends"][0] = "glibc>=" + manifest["minimum_glibc"]
+    legacy_id = (
+        "io.github.discord_patched_electron."
+        + {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[manifest["channel"]]
+    )
+    identity = manifest.get("desktop_id", legacy_id)
+    if identity not in (legacy_id, desktop_id(manifest["channel"])):
+        raise ValueError("Unexpected desktop identity")
+    icon = identity if "desktop_id" in manifest else manifest_name(manifest)
+    ownership = (
+        f"provides=('{identity}')\nconflicts=('{identity}')\n" if "desktop_id" in manifest else ""
+    )
+    command_link = (
+        f'  ln -s "/opt/$pkgname/launch.sh" "$pkgdir/usr/bin/{identity}"\n'
+        if "desktop_id" in manifest
+        else ""
+    )
     asset = next(name for name in manifest["assets"] if name.endswith(".tar.gz"))
     if Path(asset).name != asset or not re.fullmatch(r"[\w.-]+", asset):
         raise ValueError("Invalid portable asset name")
@@ -63,7 +80,7 @@ def recipe(manifest: dict, tag: str) -> str:
     return f"""# Maintainer: he3als <he3als@users.noreply.github.com>
 pkgname={config["name"]}
 pkgver={manifest["version"]}
-pkgrel=1
+pkgrel={revision}
 pkgdesc='Discord {manifest["channel"].title()} with patched Electron and Linux fixes (AVX2 required)'
 arch=('x86_64')
 url='{URL}'
@@ -71,6 +88,7 @@ license=('LicenseRef-Discord' 'MIT' 'BSD-3-Clause')
 depends={array(dependencies["depends"])}
 optdepends={array(dependencies["recommends"])}
 options=('!strip' '!debug')
+{ownership}\
 install=discord.install
 source=("$pkgname-$pkgver.tar.gz::{URL}/releases/download/{tag}/{asset}")
 sha256sums=('{checksum}')
@@ -79,9 +97,10 @@ package() {{
   install -dm755 "$pkgdir/opt" "$pkgdir/usr/bin"
   cp -a "$srcdir/$pkgname" "$pkgdir/opt/$pkgname"
   ln -s "/opt/$pkgname/launch.sh" "$pkgdir/usr/bin/$pkgname"
-  install -Dm644 "$srcdir/$pkgname/{desktop_id(manifest["channel"])}.desktop" \\
-    "$pkgdir/usr/share/applications/{desktop_id(manifest["channel"])}.desktop"
-  install -Dm644 "$srcdir/$pkgname/discord.png" "$pkgdir/usr/share/pixmaps/$pkgname.png"
+{command_link}\
+  install -Dm644 "$srcdir/$pkgname/{identity}.desktop" \\
+    "$pkgdir/usr/share/applications/{identity}.desktop"
+  install -Dm644 "$srcdir/$pkgname/discord.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/{icon}.png"
   install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
   cp -a "$srcdir/$pkgname/licenses/." "$pkgdir/usr/share/licenses/$pkgname/"
 }}
@@ -91,12 +110,35 @@ package() {{
 def stage(directory: Path, manifest: dict, tag: str):
     name = manifest_name(manifest)
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / "PKGBUILD").write_text(recipe(manifest, tag))
+    previous = (
+        read_srcinfo((directory / ".SRCINFO").read_text())
+        if (directory / ".SRCINFO").exists()
+        else {}
+    )
+    revision = (
+        int(previous.get("pkgrel", ["1"])[0])
+        if previous.get("pkgver") == [manifest["version"]]
+        else 1
+    )
+    (directory / "PKGBUILD").write_text(recipe(manifest, tag, revision))
     (directory / "discord.install").write_text(
         "post_install() {\n"
         f"  sh /opt/{name}/refresh-mod-backup.sh /opt/{name}\n"
         "}\n\npost_upgrade() {\n  post_install\n}\n"
     )
+    write_srcinfo(directory)
+
+
+def read_srcinfo(text: str) -> dict[str, list[str]]:
+    fields = {}
+    for line in text.splitlines():
+        if " = " in line:
+            key, value = line.strip().split(" = ", 1)
+            fields.setdefault(key, []).append(value)
+    return fields
+
+
+def write_srcinfo(directory: Path):
     command = ["makepkg", "--printsrcinfo"]
     if not shutil.which("makepkg"):
         command = [
@@ -132,7 +174,19 @@ def publish(directory: Path, manifest: dict):
         print("AUR package is already current.")
         return
     if match and installed == requested:
-        raise ValueError("Refusing to change an already published AUR version")
+        old = read_srcinfo(previous.stdout)
+        current = read_srcinfo((directory / ".SRCINFO").read_text())
+        if any(old.get(key) != current.get(key) for key in ("source", "sha256sums")):
+            raise ValueError(
+                "Refusing to change archive contents for an already published AUR version"
+            )
+        revision = int(old["pkgrel"][0]) + 1
+        path = directory / "PKGBUILD"
+        path.write_text(
+            re.sub(r"^pkgrel=\d+$", f"pkgrel={revision}", path.read_text(), flags=re.MULTILINE)
+        )
+        write_srcinfo(directory)
+        run("git", "add", "PKGBUILD", ".SRCINFO", cwd=directory)
     run(
         "git",
         "-c",
@@ -176,6 +230,7 @@ def main():
     directory = args.verified_directory or approve(args.tag, check_only=True)
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
+    verify_signatures(directory, required=manifest.get("signing_required", False))
     if args.publish:
         path = approval_path(manifest)
         require_approved(

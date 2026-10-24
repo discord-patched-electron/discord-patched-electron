@@ -67,6 +67,7 @@ jobs:
     uses: ./.github/workflows/release.yml
     secrets:
       CACHE_TOKEN: ${{ secrets.CACHE_TOKEN }}
+      RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
     with:
       discord_channel: ${{ matrix.channel }}
       clients_state: ${{ needs.discover.outputs.snapshot }}

@@ -40,6 +40,8 @@ def integration_key(
                     "packaging/linux/refresh-mod-backup.sh",
                     "packaging/linux/postinstall.sh",
                     "scripts/releases.py",
+                    "scripts/release_signing.py",
+                    "packaging/release-signing-key.asc",
                     "scripts/publish_aur.py",
                     "scripts/channels.py",
                     "config/channels.json",

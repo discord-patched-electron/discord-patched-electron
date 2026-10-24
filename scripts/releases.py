@@ -28,6 +28,8 @@ from fetch_client_snapshot import fetch as fetch_clients
 from fetch_reference import CACHE_REPOSITORY
 from fetch_reference import fetch as fetch_runtime
 from fingerprints import integration_key
+from release_signing import signature_files
+from release_signing import verify as verify_signatures
 
 PROJECT = "discord-patched-electron/discord-patched-electron"
 URL = "https://github.com/" + PROJECT
@@ -92,6 +94,8 @@ def prepare():
         "epoch": str(int(now.timestamp())),
         "needed": "false" if existing and not existing["draft"] else "true",
     }
+    if values["needed"] == "true" and os.environ.get("PUBLISH") == "true":
+        reserve_tag(tag, os.environ["GITHUB_SHA"])
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
         for name, value in values.items():
             output.write(f"{name}={value}\n")
@@ -101,6 +105,20 @@ def prepare():
             + ("already published" if values["needed"] == "false" else "preparing test packages")
             + f".\n\n[{tag}]({URL}/releases/tag/{tag})\n"
         )
+
+
+def reserve_tag(tag: str, commit: str):
+    # Reserve while the workflow commit is still main's tip. Creating a tag for
+    # an older workflow-changing commit later can require workflows:write,
+    # which GITHUB_TOKEN cannot grant. Never move an existing release tag.
+    existing = api("git/ref/tags/" + tag, missing=True)
+    if existing:
+        if existing["object"]["sha"] != commit:
+            raise ValueError(
+                "Release tag already pins another commit. Retry its original workflow."
+            )
+        return
+    api("git/refs", method="POST", data={"ref": "refs/tags/" + tag, "sha": commit})
 
 
 def verify_assets(directory: Path, manifest: dict):
@@ -136,7 +154,10 @@ def install_notes(manifest: dict) -> str:
     ):
         name = next(name for name in manifest["assets"] if name.endswith(extension))
         repository = aur if extension == ".pkg.tar.zst" else "—"
-        rows.append(f"| {distribution} | [{extension}]({downloads}/{name}) | {repository} |")
+        download = f"[{extension}]({downloads}/{name})"
+        if extension == ".pkg.tar.zst" and manifest.get("signing_required"):
+            download += f" ([signature]({downloads}/{name}.sig))"
+        rows.append(f"| {distribution} | {download} | {repository} |")
     return (
         "## Install\n\n| Distribution | Package | AUR/Repo |\n| --- | --- | --- |\n"
         + "\n".join(rows)
@@ -244,6 +265,7 @@ def cache_runtime(manifest: dict):
 def publish(directory: Path):
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
+    verify_signatures(directory)
     tag = release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"])
     existing = api("releases/tags/" + tag, missing=True)
     if existing and not existing["draft"]:
@@ -288,6 +310,7 @@ def publish(directory: Path):
         "upload",
         tag,
         *[directory / name for name in [*manifest["assets"], "release.json", "SHA256SUMS"]],
+        *signature_files(directory),
         "--repo",
         PROJECT,
         "--clobber",
@@ -363,6 +386,7 @@ def approve(tag: str, *, check_only=False):
     run("gh", "release", "download", tag, "--repo", PROJECT, "--dir", directory, "--clobber")
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
+    verify_signatures(directory, required=manifest.get("signing_required", False))
     channel = manifest["channel"]
     approved_path = approval_path(manifest)
     approved = read_json(approved_path) if approved_path.exists() else None
@@ -372,7 +396,12 @@ def approve(tag: str, *, check_only=False):
         raise ValueError("Release tag moved away from the tested commit")
     # Verify the published hashes against GitHub's own upload digests as well.
     uploaded = {asset["name"]: asset.get("digest") for asset in release["assets"]}
-    for name in [*manifest["assets"], "release.json", "SHA256SUMS"]:
+    for name in [
+        *manifest["assets"],
+        "release.json",
+        "SHA256SUMS",
+        *[path.name for path in signature_files(directory) if path.exists()],
+    ]:
         if uploaded.get(name) != "sha256:" + sha256(directory / name):
             raise ValueError("Published asset identity changed: " + name)
     policy_path = ROOT / "config/update-policy.json"
@@ -405,7 +434,7 @@ def approve(tag: str, *, check_only=False):
     if compiler["conclusion"] != "success" or compiler["head_sha"] != runtime["compiler_commit"]:
         raise ValueError("Compiler provenance changed")
     if check_only:
-        print("Approval checks passed. Release still needs manual testing and approval.")
+        print("Release integrity and provenance checks passed. Approval status unchanged.")
         return directory
     policy["last_good_runtime"] = {**runtime, "completed_at": compiler["updated_at"]}
     write_json(policy_path, policy)

@@ -7,7 +7,7 @@ on:
         type: string
         required: true
       tested:
-        description: I tested this package locally, including the Linux features I use
+        description: Approve this exact build as stable after reviewing its test results
         type: boolean
         required: true
         default: false

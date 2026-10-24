@@ -26,7 +26,7 @@ from common import (
     sha256,
     write_json,
 )
-from desktop_identity import desktop_id
+from desktop_identity import desktop_id, display_name, profile_name
 from fetch_reference import extract, validate_capacity
 from patch_app_audio import patch as audio_patch
 from patch_desktop_core import patch as desktop_patch
@@ -137,6 +137,7 @@ def build(
         .read_text()
         .replace("@PKGNAME@", name)
         .replace("@DESKTOP_ID@", desktop_id(channel))
+        .replace("@PROFILE_NAME@", profile_name(channel))
     )
     root_line = (
         'root=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")'
@@ -145,7 +146,9 @@ def build(
     )
     launcher = launcher.replace("root=/usr/lib/" + name, root_line)
     if not portable:
-        launcher = launcher.replace('"$config_root/$name"', '"$config_root/$name-local"')
+        launcher = launcher.replace(
+            f'"$config_root/{profile_name(channel)}"', '"$config_root/$name-local"'
+        )
     # A user-owned directory cannot supply a root-owned setuid helper. Chromium
     # still uses its user-namespace sandbox; never disable the whole sandbox.
     launcher = launcher.replace(
@@ -157,8 +160,8 @@ def build(
     entry.chmod(0o755)
     desktop_exec = f"/usr/bin/{name}" if portable else f'"{entry}"'
     (output / (desktop_id(channel) + ".desktop")).write_text(
-        f"[Desktop Entry]\nType=Application\nName=Discord {channel.title()} (Patched Electron)\n"
-        f"Exec={desktop_exec} %U\nIcon={name}\nTerminal=false\nCategories=Network;InstantMessaging;\nStartupWMClass=discord\n"
+        f"[Desktop Entry]\nType=Application\nName={display_name(channel)}\n"
+        f"Exec={desktop_exec} %U\nIcon={desktop_id(channel)}\nTerminal=false\nCategories=Network;InstantMessaging;\nStartupWMClass={desktop_id(channel)}\n"
     )
     (output / "licenses").mkdir()
     for filename in ("LICENSE", "THIRD_PARTY.md"):
@@ -196,7 +199,7 @@ def build(
             "Extract the whole folder, then run ./launch.sh. You can move the folder.\n"
             "Requires x86-64-v3, Linux desktop libraries, Python 3, PipeWire and PulseAudio tools.\n"
             f"Settings: ~/.config/discord-{channel}-patched-electron.conf\n"
-            f"Profile: ~/.config/{name}\n"
+            f"Profile: ~/.config/{profile_name(channel)}\n"
             "See https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/install.md\n"
         )
     else:

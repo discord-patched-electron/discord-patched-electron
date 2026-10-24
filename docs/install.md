@@ -13,11 +13,23 @@ sha256sum --check --ignore-missing SHA256SUMS
 
 ## Arch Linux
 
+Import the [release signing key](../packaging/release-signing-key.asc) once. Its fingerprint is
+`6FC3C7F7D254C749E308113D89013A5DF4E2436C`.
+
+```sh
+curl -fLO https://raw.githubusercontent.com/discord-patched-electron/discord-patched-electron/main/packaging/release-signing-key.asc
+sudo pacman-key --add release-signing-key.asc
+sudo pacman-key --lsign-key 6FC3C7F7D254C749E308113D89013A5DF4E2436C
+```
+
+Download the package and its matching `.sig` into the same folder, then install:
+
 ```sh
 sudo pacman -U ./discord-canary-prerelease-patched-electron-bin-*.pkg.tar.zst
 ```
 
-This works for test releases too. Install the next package with the same command.
+This works for test releases too. After importing the key, `pacman -U` also accepts
+the package download URL directly. Install the next package with the same command.
 For package-manager updates, install
 [`discord-canary-prerelease-patched-electron-bin`](https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin)
 from the AUR. Public test builds are also available directly from Releases.
@@ -34,7 +46,8 @@ sudo apt install ./discord-canary-prerelease-patched-electron-bin-*.deb
 sudo dnf install ./discord-canary-prerelease-patched-electron-bin-*.rpm
 ```
 
-Packages add **Discord Canary (Patched Electron)** to your app menu.
+Packages add **Discord Canary** to your app menu and replace the stock Canary
+package if it is installed.
 Check the release notes for the minimum glibc version. Other RPM distributions
 may need different dependencies.
 
@@ -59,9 +72,13 @@ Close Discord, then install the next package or replace the extracted folder.
 Reinstall Vencord or Equicord afterward using its [official installer](client-mods.md).
 You do not need to uninstall it first.
 
-Settings, login sessions and cache are stored separately from stock Discord in
-`~/.config/discord-canary-prerelease-patched-electron-bin` (or under `XDG_CONFIG_HOME`
-if set). Updates preserve them and your [launcher settings](linux-launcher.md).
+Settings, login sessions and cache use the standard `~/.config/discordcanary`
+folder (or under `XDG_CONFIG_HOME` if set). Updates preserve them and your
+[launcher settings](linux-launcher.md). Close any running Canary instance first.
+
+Older builds used `~/.config/discord-canary-prerelease-patched-electron-bin`.
+That folder is left untouched. To keep using it, set `DISCORD_USER_DATA_DIR`
+to its full path when launching.
 
 Discord client updates are checked independently of Electron. Routine Electron
 updates are spaced at least four days apart, with an exception for identified

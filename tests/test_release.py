@@ -60,7 +60,7 @@ class PortableReleases(unittest.TestCase):
                     env={**os.environ, "DPE_CAMERA_FAST_PROBE": "0", "DPE_DEFAULT_FLAGS": "0"},
                 )
             )
-            self.assertEqual(result, [str(app), ["--ozone-platform=x11"]])
+            self.assertEqual(result, [str(app), ["--class=test.app", "--ozone-platform=x11"]])
 
     def test_tarball_is_reproducible_and_removes_privileged_bits(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -58,8 +58,13 @@ def patch_bundle(
         'skipHostUpdate=locallyInstalledModules||settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable',
     )
     text = replace(text, "Exec=${exePath}", f"Exec=/usr/bin/{package}")
-    text = replace(text, "Name=${appName}", f"Name={package}")
-    return replace(text, "Icon=${iconPath}", f"Icon={package}")
+    return replace(
+        text,
+        "Icon=${iconPath}",
+        "Icon=" + desktop_id(package.split("-")[1])
+        if package.startswith("discord-")
+        else f"Icon={package}",
+    )
 
 
 def prepare(

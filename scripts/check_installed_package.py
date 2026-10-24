@@ -17,6 +17,15 @@ def check(app: Path):
         os.setgid(user.pw_gid)
         os.setuid(user.pw_uid)
     os.chdir("/tmp")
+    desktop = next(app.glob("*.desktop"))
+    fields = dict(line.split("=", 1) for line in desktop.read_text().splitlines() if "=" in line)
+    identity = desktop.stem
+    installed = Path("/usr/share/applications") / desktop.name
+    icon = Path("/usr/share/icons/hicolor/256x256/apps") / (fields["Icon"] + ".png")
+    if installed.read_bytes() != desktop.read_bytes() or fields["StartupWMClass"] != identity:
+        raise ValueError("Installed desktop identity does not match the app")
+    if fields["Icon"] != identity or icon.read_bytes() != (app / "discord.png").read_bytes():
+        raise ValueError("Installed icon is missing or does not match the desktop identity")
     for path in app.rglob("*"):
         if path.is_file():
             with path.open("rb") as stream:
@@ -39,6 +48,7 @@ def check(app: Path):
                 "uid": os.getuid(),
                 "versions": versions,
                 "files_readable": True,
+                "desktop_and_icon_verified": True,
                 "runtime_libraries_found": True,
                 "gui_verified": False,
             },

@@ -8,7 +8,7 @@ config_root=${XDG_CONFIG_HOME:-$HOME/.config}
 export DISCORD_PORTAL_APP_ID=${DISCORD_PORTAL_APP_ID:-@DESKTOP_ID@}
 export CHROME_DESKTOP=${CHROME_DESKTOP:-@DESKTOP_ID@.desktop}
 flags_file="$config_root/$name-flags.conf"
-flags=()
+flags=(--class=@DESKTOP_ID@)
 declare -A feature_state=() feature_value=()
 add_flag() {
   local line=$1 feature key state
@@ -67,8 +67,8 @@ if ((${#disabled[@]})); then flags+=("--disable-features=$(
   IFS=,
   echo "${disabled[*]}"
 )"); fi
-# The existing desktop bootstrap honors this variable. Never use the stock profile.
-export DISCORD_USER_DATA_DIR=${DISCORD_USER_DATA_DIR:-"$config_root/$name"}
+# Use the standard channel profile unless a test or user explicitly overrides it.
+export DISCORD_USER_DATA_DIR=${DISCORD_USER_DATA_DIR:-"$config_root/@PROFILE_NAME@"}
 if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
   read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$root/camera-probe.conf"
   export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END

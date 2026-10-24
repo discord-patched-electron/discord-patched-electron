@@ -29,7 +29,8 @@ DPE_CAMERA_FAST_PROBE=0 discord-canary-prerelease-patched-electron-bin
 
 To remove Vencord or Equicord for troubleshooting, use its [installer](client-mods.md).
 
-Each package has a separate profile under `~/.config/<package-name>`.
+Canary uses the standard `~/.config/discordcanary` profile.
+Set `DISCORD_USER_DATA_DIR` to a different path to override it.
 `DISCORD_USER_DATA_DIR` overrides that location.
 
 Wayland global shortcuts require a desktop portal that supports GlobalShortcuts.

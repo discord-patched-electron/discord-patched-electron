@@ -9,13 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Launcher(unittest.TestCase):
-    def launch(self, config="", legacy="", args=(), env=None):
+    def launch(self, config="", legacy="", args=(), env=None, details=False):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "runtime").mkdir()
             runtime = root / "runtime/electron"
             runtime.write_text(
-                "#!/usr/bin/env python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n"
+                "#!/usr/bin/env python3\nimport json,sys,os\n"
+                'print(json.dumps({"flags":sys.argv[1:], "profile":os.environ["DISCORD_USER_DATA_DIR"], "desktop":os.environ["CHROME_DESKTOP"]}))\n'
             )
             runtime.chmod(0o755)
             name = "discord-canary-prerelease-patched-electron-bin"
@@ -26,7 +27,8 @@ class Launcher(unittest.TestCase):
                 (ROOT / "integration/launcher/discord-launcher.sh")
                 .read_text()
                 .replace("@PKGNAME@", name)
-                .replace("@DESKTOP_ID@", "io.github.discord_patched_electron.DiscordCanary")
+                .replace("@DESKTOP_ID@", "discord-canary")
+                .replace("@PROFILE_NAME@", "discordcanary")
                 .replace("root=/usr/lib/" + name, "root=" + temp)
             )
             result = subprocess.check_output(
@@ -40,7 +42,16 @@ class Launcher(unittest.TestCase):
                     **(env or {}),
                 },
             )
-            return json.loads(result)
+            result = json.loads(result)
+            return result if details else result["flags"]
+
+    def test_standard_canary_profile_and_explicit_override(self):
+        default = self.launch(details=True, env={"DISCORD_USER_DATA_DIR": "", "CHROME_DESKTOP": ""})
+        self.assertTrue(default["profile"].endswith("/discordcanary"))
+        self.assertEqual(default["desktop"], "discord-canary.desktop")
+        self.assertIn("--class=discord-canary", default["flags"])
+        custom = self.launch(details=True, env={"DISCORD_USER_DATA_DIR": "/temporary/test-profile"})
+        self.assertEqual(custom["profile"], "/temporary/test-profile")
 
     def test_defaults_and_feature_precedence(self):
         flags = self.launch(
@@ -72,5 +83,10 @@ class Launcher(unittest.TestCase):
             env={"DPE_DEFAULT_FLAGS": "0"},
         )
         self.assertEqual(
-            set(flags), {"--disable-features=AcceleratedVideoEncoder", "--example=$(false)"}
+            set(flags),
+            {
+                "--class=discord-canary",
+                "--disable-features=AcceleratedVideoEncoder",
+                "--example=$(false)",
+            },
         )

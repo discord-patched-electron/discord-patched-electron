@@ -24,7 +24,7 @@ from common import (
     sha256,
     write_json,
 )
-from desktop_identity import desktop_id
+from desktop_identity import desktop_id, display_name, profile_name
 from fingerprints import integration_key
 from lock_clients import normalize
 
@@ -133,12 +133,13 @@ def generate(
         .read_text()
         .replace("@PKGNAME@", name)
         .replace("@DESKTOP_ID@", desktop_id(client["channel"]))
+        .replace("@PROFILE_NAME@", profile_name(client["channel"]))
     )
     write_file(output / "discord-launcher.sh", launcher.encode())
     desktop = (
-        f"[Desktop Entry]\nName=Discord {client['channel'].upper()} (Electron {channel})\n"
-        f"Exec=/usr/bin/{name} %U\nIcon={name}\nType=Application\nTerminal=false\n"
-        f"Categories=Network;InstantMessaging;\nStartupWMClass=discord\n"
+        f"[Desktop Entry]\nName={display_name(client['channel'])}\n"
+        f"Exec=/usr/bin/{name} %U\nIcon={desktop_id(client['channel'])}\nType=Application\nTerminal=false\n"
+        f"Categories=Network;InstantMessaging;\nStartupWMClass={desktop_id(client['channel'])}\n"
     )
     # No shared x-scheme-handler/discord association: installing a second channel
     # must not silently change which client receives the user's Discord links.

@@ -4,6 +4,8 @@ on:
     secrets:
       CACHE_TOKEN:
         required: false
+      RELEASE_SIGNING_KEY:
+        required: false
     inputs:
       discord_channel:
         type: string
@@ -28,7 +30,7 @@ on:
         type: string
         default: ""
       reference_run:
-        description: Successful local compiler run ID (empty uses the last approved runtime)
+        description: Successful compiler run ID (empty uses the last approved runtime)
         type: string
         default: ""
       publish:
@@ -47,6 +49,9 @@ jobs:
       github.repository == 'discord-patched-electron/discord-patched-electron' &&
       github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
     outputs:
       runtime: ${{ steps.inputs.outputs.runtime }}
       electron: ${{ steps.inputs.outputs.electron }}
@@ -62,6 +67,7 @@ jobs:
       RUNTIME: ${{ inputs.reference_run || '' }}
       CHANNEL: ${{ inputs.discord_channel }}
       CLIENTS_STATE: ${{ inputs.clients_state || '' }}
+      PUBLISH: ${{ inputs.publish }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -265,6 +271,11 @@ jobs:
           name: linux-packages-${{ inputs.discord_channel }}
           path: packages
       - name: Publish complete test packages
+        # Only the publishing job receives the signing key, after all tests pass.
         env:
           CACHE_TOKEN: ${{ secrets.CACHE_TOKEN }}
-        run: python3 scripts/releases.py publish packages
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          python3 scripts/release_signing.py sign packages
+          unset RELEASE_SIGNING_KEY
+          python3 scripts/releases.py publish packages

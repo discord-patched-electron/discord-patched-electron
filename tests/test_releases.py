@@ -18,6 +18,7 @@ from releases import (
     notes,
     prepare,
     release_tag,
+    reserve_tag,
     validate_approval,
     verify_assets,
 )
@@ -25,6 +26,18 @@ from schedule_updates import client_result
 
 
 class ReleaseApproval(unittest.TestCase):
+    def test_tag_reservation_is_idempotent_and_never_moves_existing_tags(self):
+        with patch("releases.api", return_value=None) as api:
+            reserve_tag("candidate", "a" * 40)
+            self.assertEqual(
+                api.call_args.kwargs["data"], {"ref": "refs/tags/candidate", "sha": "a" * 40}
+            )
+        with patch("releases.api", return_value={"object": {"sha": "a" * 40}}) as api:
+            reserve_tag("candidate", "a" * 40)
+            self.assertEqual(api.call_count, 1)
+            with self.assertRaisesRegex(ValueError, "another commit"):
+                reserve_tag("candidate", "b" * 40)
+
     def setUp(self):
         self.manifest = {
             "version": "20261024.120000",
