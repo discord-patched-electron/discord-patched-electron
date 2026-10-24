@@ -17,7 +17,7 @@ Discord Canary with the latest Electron for better Linux support.
 - Faster camera startup and hardware video decoding where supported.
 - Support for [Vencord and Equicord](docs/client-mods.md) through their official installers.
 
-Electron's alpha and beta builds bring Chromium's ongoing Wayland and Linux
+Electron's beta builds bring Chromium's ongoing Wayland and Linux
 improvements sooner. Only Discord Canary is supported because it has better
 compatibility with newer Electron versions.
 
