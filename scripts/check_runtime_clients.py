@@ -6,6 +6,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
+from channels import enabled_discord_channels
 from check_krisp_audio import analyze, generate
 from client_inputs import load_clients, validate_channel
 from common import ROOT, digest, download, read_json, write_json
@@ -152,7 +153,7 @@ def main():
     parser.add_argument(
         "--discord",
         action="append",
-        choices=["canary"],
+        choices=enabled_discord_channels(),
         help="Validate only these channels; default is all three",
     )
     args = parser.parse_args()

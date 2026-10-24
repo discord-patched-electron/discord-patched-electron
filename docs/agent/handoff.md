@@ -4,6 +4,27 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## Documentation and channel switches, 24 October
+
+The README now uses the supplied PNG artwork, with its editable Krita source kept
+beside it. It distinguishes alpha/beta Electron from public test releases, explains
+Canary compatibility, and directs unofficial-package issues to this repository.
+Release notes use a distribution/download table. Older release assets keep their
+original filenames and checksums.
+
+[`config/channels.json`](../../config/channels.json) is the single source for
+enabled channels. Only Canary and alpha/beta Electron are enabled. The
+[channel guide](channels.md) describes the disabled options. Release, validation,
+source-check and package entry points now read the switches instead of hard-coding
+Canary. **Qualify compiled runtime** dispatches qualification for enabled clients.
+Client-only updates still share one approved runtime.
+
+Local validation passed 110 Python tests, 16 JavaScript tests, formatting, linting
+and actionlint. A live read-only release preparation verified the discovered client
+snapshot and downloaded only the pinned compiler report. Native build inputs are
+unchanged from the preceding commit. No Electron compilation or physical camera
+test was started. The disabled tracks have not received new end-to-end qualification.
+
 ## Cache, release and AUR publishing, 24 October
 
 The [new public candidate](https://github.com/discord-patched-electron/discord-patched-electron/releases/tag/canary-1.0.2365-8748f4696bd6b2f6)

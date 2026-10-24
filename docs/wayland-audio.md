@@ -15,7 +15,7 @@ your audio services or default devices.
 
 KDE's optional `kdotool` and GNOME's optional Window Calls extension improve
 window names in the picker. The dialog explains missing dependencies. They do
-not enable automatic capture matching; audio selection remains manual there.
+not enable automatic capture matching. Audio selection remains manual there.
 
 ## Known limitations
 

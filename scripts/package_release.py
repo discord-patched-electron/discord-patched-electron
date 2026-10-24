@@ -17,7 +17,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from channels import require_enabled_discord
-from common import ROOT, digest, read_json, sha256, write_json
+from common import (
+    ROOT,
+    digest,
+    package_name,
+    read_json,
+    require_enabled_electron,
+    sha256,
+    write_json,
+)
 from desktop_identity import desktop_id
 from elftools.elf.elffile import ELFFile
 from fetch_reference import validate_capacity
@@ -43,11 +51,14 @@ def required_glibc(app: Path) -> str:
     return ".".join(map(str, max(versions)))
 
 
-def metadata(app: Path, version: str, channel: str, epoch: int) -> dict:
+def metadata(
+    app: Path, version: str, channel: str, epoch: int, electron: str = "prerelease"
+) -> dict:
     if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", version):
         raise ValueError("Use a numeric release version, such as 20261024.120000")
     require_enabled_discord(channel)
-    name = f"discord-{channel}-prerelease-patched-electron-bin"
+    require_enabled_electron(electron)
+    name = package_name(channel, electron)
     root = f"/opt/{name}"
     return {
         "name": name,
@@ -59,7 +70,7 @@ def metadata(app: Path, version: str, channel: str, epoch: int) -> dict:
         "maintainer": "discord-patched-electron contributors <he3als@users.noreply.github.com>",
         "homepage": REPOSITORY,
         "license": "LicenseRef-Discord AND MIT AND BSD-3-Clause",
-        "description": f"Discord {channel.title()} with patched prerelease Electron\n"
+        "description": f"Discord {channel.title()} with patched Electron for better Linux support\n"
         "Requires an x86-64-v3 (AVX2) CPU. Includes native streaming, Krisp and Linux audio fixes.",
         "mtime": datetime.fromtimestamp(epoch, UTC).isoformat(),
         "contents": [
@@ -195,7 +206,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     if output.exists():
         raise ValueError("Choose a fresh package output directory")
     normalize_permissions(app)
-    config = metadata(app, version, build["channel"], epoch)
+    config = metadata(app, version, build["channel"], epoch, build["capacity"]["source"]["target"])
     libc = required_glibc(app)
     config["overrides"]["deb"]["depends"][0] = f"libc6 (>= {libc})"
     config["overrides"]["rpm"]["depends"][0] = f"glibc >= {libc}"

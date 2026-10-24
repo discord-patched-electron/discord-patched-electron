@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Exact Canary release tag you installed and tested
+        description: Exact app release tag you installed and tested
         type: string
         required: true
       tested:

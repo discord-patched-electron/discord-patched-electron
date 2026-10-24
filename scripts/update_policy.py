@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 from channels import enabled_discord_channels
-from common import digest, version_key
+from common import digest, electron_channel, enabled_electron_channels, version_key
 from fingerprints import integration_key
 
 
@@ -67,7 +67,7 @@ def plan(state: dict, policy: dict, sources: dict, now: str) -> dict:
         r
         for r in state.get("releases", {}).values()
         if r.get("status") == "available"
-        and r["channel"] == "prerelease"
+        and r["channel"] in enabled_electron_channels()
         and version_key(r["version"]) > version_key(good["version"])
     ]
     candidate = max(available, key=lambda r: version_key(r["version"])) if available else None
@@ -89,14 +89,15 @@ def plan(state: dict, policy: dict, sources: dict, now: str) -> dict:
             action=action,
             target=spec,
             runtime_key=candidate["runtime_key"],
+            channel=candidate["channel"],
             urgent_reasons=reasons,
-            source_prepared=sources["targets"]["prerelease"] == spec,
+            source_prepared=sources["targets"].get(candidate["channel"]) == spec,
         )
     clients = []
     for channel, client in state["clients"].items():
         if channel not in enabled_discord_channels() or channel in state.get("client_errors", {}):
             continue
-        key = integration_key(good["runtime_key"], client, "prerelease")
+        key = integration_key(good["runtime_key"], client, electron_channel(good["version"]))
         work = state.get("client_work", {}).get(key)
         if not work:
             clients.append(

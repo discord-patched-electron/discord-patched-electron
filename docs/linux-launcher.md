@@ -15,7 +15,7 @@ The app uses native Wayland in a Wayland session and X11 otherwise. Hardware
 video decoding is enabled when your driver supports it. Hardware encoding is
 not forced.
 
-Settings in your `.conf` override the defaults; command-line arguments override
+Settings in your `.conf` override the defaults. Command-line arguments override
 the file. Set `DPE_DEFAULT_FLAGS=0` to turn off the default flags.
 
 ## Troubleshooting

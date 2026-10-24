@@ -47,6 +47,7 @@ class PackageUpdates(unittest.TestCase):
         manifest = {
             "version": "20261024.120000",
             "channel": "canary",
+            "electron_version": "46.0.0-alpha.1",
             "minimum_glibc": "2.38",
             "client_version": "1.0.2365",
             "release_key": "a" * 64,

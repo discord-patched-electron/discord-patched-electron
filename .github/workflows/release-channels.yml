@@ -1,0 +1,41 @@
+name: Qualify compiled runtime
+on:
+  workflow_run:
+    workflows: [Candidate Electron build]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  channels:
+    if: >-
+      github.repository == 'discord-patched-electron/discord-patched-electron' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    outputs:
+      discord: ${{ steps.channels.outputs.discord }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - id: channels
+        run: echo "discord=$(python3 scripts/channels.py --json)" >> "$GITHUB_OUTPUT"
+  clients:
+    needs: channels
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ${{ fromJSON(needs.channels.outputs.discord) }}
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+      actions: read
+    secrets:
+      CACHE_TOKEN: ${{ secrets.CACHE_TOKEN }}
+    with:
+      discord_channel: ${{ matrix.channel }}
+      clients_state: ""
+      reference_run: ${{ format('{0}', github.event.workflow_run.id) }}
+      publish: true

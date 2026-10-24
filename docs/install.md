@@ -2,8 +2,8 @@
 
 Choose a complete Canary app on the [Releases page](https://github.com/discord-patched-electron/discord-patched-electron/releases).
 Builds labelled **Pre-release** are public test packages I haven't approved as stable yet.
-**Latest** identifies the newest package I've tested and approved. Both use prerelease
-Electron and require **x86-64-v3** (AVX2).
+**Latest** identifies the newest package I've tested and approved. All packages
+require **x86-64-v3** (AVX2).
 
 Download one package and `SHA256SUMS` into a new folder, then verify it:
 
@@ -56,8 +56,8 @@ Choose email or inbox delivery in your [notification settings](https://github.co
 Release notes list the Discord and Electron versions, changes and test results.
 
 Close Discord, then install the next package or replace the extracted folder.
-Reinstall Vencord or Equicord afterward using its [official installer](client-mods.md);
-you do not need to uninstall it first.
+Reinstall Vencord or Equicord afterward using its [official installer](client-mods.md).
+You do not need to uninstall it first.
 
 Settings, login sessions and cache are stored separately from stock Discord in
 `~/.config/discord-canary-prerelease-patched-electron-bin` (or under `XDG_CONFIG_HOME`

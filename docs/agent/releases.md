@@ -1,16 +1,17 @@
 # Release packaging
 
-Only Discord Canary and prerelease Electron are active. Historical locks and
-upstream templates can still describe other channels; entry points reject them.
+Only Discord Canary and alpha/beta Electron are enabled. Other tracks remain
+available through the [CI channel switches](channels.md).
 
 ## Automatic candidates
 
 **Discover upstream releases** polls Discord and reserves work by content identity.
 A changed Canary host or module starts **Release Linux packages** immediately on
-the approved runtime. Routine Electron updates have a 96-hour cooldown; identified
+the approved runtime. Routine Electron updates have a 96-hour cooldown. Identified
 high/critical fixes can bypass it. Discord's bundled executable hash, rather than
 fork commits, detects changes to its own Electron. A successful **Candidate
-Electron build** also starts package qualification with that runtime.
+Electron build** starts **Qualify compiled runtime**, which runs package
+qualification for each enabled Discord channel with that runtime.
 
 Each candidate uses an immutable client snapshot. The workflow verifies the
 compiler artifact, assembles the client, moves the app directory, and checks plain
@@ -21,25 +22,25 @@ Parallel jobs check bundled/native video and Krisp, plus isolated X11/Wayland au
 
 nFPM makes `.pkg.tar.zst`, `.deb` and `.rpm` packages from the same app tree as the
 portable `.tar.gz`. Payload hashes are compared across all four formats. Ubuntu
-checks Debian installation and GUI launch; Arch and Fedora containers install the
+checks Debian installation and GUI launch. Arch and Fedora containers install the
 packages and check file access and runtime loading as an ordinary user. Those
 containers don't verify a full desktop session or live call.
 
 After all checks pass, CI uploads every asset before publishing a public GitHub
-prerelease. Release notes include upstream versions, installation instructions,
+test release. Release notes include upstream versions, a distribution/package table,
 a link to check results and commits since the preceding app release. Runtime
 cache tags are excluded from the changelog.
 
 Candidate tags include the client version and a content hash. A repeat of the same
 runtime/client/integration inputs skips packaging if that release is already
 public. Failed work remains visible and can be retried with GitHub's **Re-run all
-jobs**. A partial draft can be resumed; public assets are never overwritten.
+jobs**. A partial draft can be resumed. Public assets are never overwritten.
 
 ## Test and approve
 
 1. Select **Watch → Custom → Releases** on the repository and enable your preferred
    notification delivery in GitHub settings.
-2. Open the new public prerelease. Download its `.pkg.tar.zst` and `SHA256SUMS` into
+2. Open the new public test release. Download its `.pkg.tar.zst` and `SHA256SUMS` into
    a new folder. Check the hashes and install it:
 
    ```sh
@@ -49,7 +50,7 @@ jobs**. A partial draft can be resumed; public assets are never overwritten.
 
 3. Launch **Discord Canary (Patched Electron)**. Test the features you use,
    including voice, camera startup, screen sharing with app audio, and Krisp.
-   Reinstall client mods after updating; uninstalling first is unnecessary.
+   Reinstall client mods after updating. Uninstalling first is unnecessary.
 4. Run [**Approve tested release**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/approve-release.yml)
    on `main`, paste the exact release tag, and tick the local-testing confirmation.
 
@@ -61,7 +62,7 @@ release has been approved. The four-day cadence is based on compilation time,
 not how long I took to approve it.
 
 Approval also publishes the AUR recipe using `AUR_SSH_PRIVATE_KEY`. It installs the
-same verified portable app under `/opt/`; no patching or downloads happen during
+same verified portable app under `/opt/`. No patching or downloads happen during
 installation. `makepkg` verifies the pinned archive checksum, and `.SRCINFO` is
 produced with `makepkg --printsrcinfo`. Publishing is serialized and rejects older
 versions. **Publish AUR package** can retry a failed push or explicitly publish a
@@ -104,7 +105,7 @@ public release qualification adds the remaining CI checks.
 All released packages install the portable tree under `/opt/<package>`. A tarball
 can run anywhere. Bootstraps find resources through `DPE_APP_ROOT`, set by the
 launcher. `runtime/resources` points to `../resources`, matching the official mod
-installers' expected app layout. The older generated AUR recipe uses `/usr/lib/`;
+installers' expected app layout. The older generated AUR recipe uses `/usr/lib/`.
 it is retained for validation, not published as the pacman test artifact.
 
 The namespace sandbox stays enabled. Debian packages include a scoped AppArmor
@@ -113,13 +114,13 @@ user config. No runtime source flags change during packaging.
 
 A checksum-pinned release in [the cache repository](https://github.com/discord-patched-electron/cache)
 retains compiler output beyond Actions artifact expiry. `CACHE_TOKEN` needs Contents
-read/write access to that repository only; the regular workflow token handles app releases. That release is a CI cache, not app approval. The last approved
+read/write access to that repository only. The regular workflow token handles app releases. That release is a CI cache, not app approval. The last approved
 capacity digest remains usable when unrelated packaging code changes, so client
 updates don't need an Electron rebuild or lose retained Ninja objects.
 
 ## Package updates
 
-Release filenames are fixed; versions remain in package metadata, release tags
+Release filenames are fixed. Versions remain in package metadata, release tags
 and manifests. AUR download aliases include the version to avoid stale local
 source caches. Older public assets remain immutable.
 

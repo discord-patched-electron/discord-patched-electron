@@ -1,10 +1,12 @@
 # Agent docs
 
 These notes preserve implementation details and investigation history. They are
-useful to contributors and coding agents; the [main README](../../README.md) covers
+useful to contributors and coding agents. The [main README](../../README.md) covers
 using the app. Older reports describe the code and inputs at the time they ran.
-Current support is **Canary + prerelease Electron** only. Public test releases
-include pacman packages; I test them before approving them through a manual action.
+Only **Canary + alpha/beta Electron** is enabled. Canary has better compatibility
+with newer Electron versions. [Channel switches](channels.md) retain the other
+Discord and Electron options without enabling them. Public test releases include
+pacman packages. I test them before approving them through a manual action.
 
 ## Start here
 

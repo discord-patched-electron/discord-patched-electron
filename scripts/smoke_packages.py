@@ -19,6 +19,7 @@ import zipfile
 from pathlib import Path
 
 from build_camera_support import build as build_camera
+from channels import enabled_discord_channels
 from client_inputs import load_clients, validate_channel
 from common import ROOT, digest, download, enabled_electron_channels, read_json, sha256, write_json
 from desktop_identity import desktop_id
@@ -328,7 +329,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--clients", type=Path, default=ROOT / "config/clients.lock.json")
-    parser.add_argument("--discord", action="append", choices=["canary"])
+    parser.add_argument("--discord", action="append", choices=enabled_discord_channels())
     args = parser.parse_args()
     report = smoke(args.output.absolute(), args.clients, args.discord)
     raise SystemExit(0 if report["all_selected_passed"] else 1)

@@ -7,9 +7,8 @@ on:
         type: string
         default: ""
       target:
-        description: Locked Electron channel to compile and validate
-        type: choice
-        options: [prerelease]
+        description: Electron track enabled in config/channels.json
+        type: string
         default: prerelease
       parallel_jobs:
         description: Ninja tasks (auto respects CPU/RAM limits; takes effect on this dispatch)
@@ -46,7 +45,7 @@ jobs:
         shell: bash
         run: |
           if [ -n "$EXPECTED_RUNTIME_KEY" ]; then
-            PYTHONPATH=scripts python -c 'import os; from common import read_json; from build_reference import build_config; from runtime_fingerprints import runtime_key; s=read_json("config/sources.lock.json"); assert runtime_key(s["targets"]["prerelease"], s, build_config("prerelease")) == os.environ["EXPECTED_RUNTIME_KEY"], "Source changed since scheduling"'
+            PYTHONPATH=scripts python -c 'import os; from common import read_json; from build_reference import build_config; from runtime_fingerprints import runtime_key; s=read_json("config/sources.lock.json"); target=os.environ["ELECTRON_BUILD_TARGET"]; assert runtime_key(s["targets"][target], s, build_config(target)) == os.environ["EXPECTED_RUNTIME_KEY"], "Source changed since scheduling"'
           fi
           mkdir -p out/capacity
           set -o pipefail
@@ -62,7 +61,7 @@ jobs:
             out/capacity/*.log
           retention-days: 90
           if-no-files-found: warn
-      - name: Retain binary for Canary compatibility tests
+      - name: Retain binary for client compatibility tests
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: candidate-runtime-${{ github.run_id }}

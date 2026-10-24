@@ -68,6 +68,7 @@ jobs:
     secrets:
       CACHE_TOKEN: ${{ secrets.CACHE_TOKEN }}
     with:
+      discord_channel: ${{ matrix.channel }}
       clients_state: ${{ needs.discover.outputs.snapshot }}
       reference_run: ${{ needs.discover.outputs.reference_run }}
       publish: true

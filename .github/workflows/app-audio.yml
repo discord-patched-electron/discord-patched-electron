@@ -79,13 +79,8 @@ jobs:
         run: |
           uv sync --locked
           bun install --frozen-lockfile --ignore-scripts
-          channels=(canary)
-          if [ "$DISCORD_CHANNELS" != all ]; then
-            IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
-          fi
-          for channel in "${channels[@]}"; do
-            case "$channel" in canary) ;; *) exit 1 ;; esac
-          done
+          selected=$(python scripts/channels.py "$DISCORD_CHANNELS")
+          mapfile -t channels <<< "$selected"
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
             args+=(--runtime out/reference-download/runtime --provenance out/reference-download/artifact-provenance.json)
@@ -139,13 +134,8 @@ jobs:
         shell: bash
         run: |
           sudo chown -R 1000:1000 out/app-audio
-          channels=(canary)
-          if [ "$DISCORD_CHANNELS" != all ]; then
-            IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
-          fi
-          for channel in "${channels[@]}"; do
-            case "$channel" in canary) ;; *) exit 1 ;; esac
-          done
+          selected=$(python scripts/channels.py "$DISCORD_CHANNELS")
+          mapfile -t channels <<< "$selected"
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
             args+=(--runtime /repo/out/reference-download/runtime --provenance /repo/out/reference-download/artifact-provenance.json)
@@ -166,13 +156,8 @@ jobs:
         shell: bash
         run: |
           sudo chown -R 1000:1000 out/wayland-audio
-          channels=(canary)
-          if [ "$DISCORD_CHANNELS" != all ]; then
-            IFS=',' read -r -a channels <<< "$DISCORD_CHANNELS"
-          fi
-          for channel in "${channels[@]}"; do
-            case "$channel" in canary) ;; *) exit 1 ;; esac
-          done
+          selected=$(python scripts/channels.py "$DISCORD_CHANNELS")
+          mapfile -t channels <<< "$selected"
           args=()
           if [ -n "$REFERENCE_RUN" ]; then
             args+=(--runtime /repo/out/reference-download/runtime --provenance /repo/out/reference-download/artifact-provenance.json)

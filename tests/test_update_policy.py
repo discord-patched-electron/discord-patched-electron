@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT, read_json
@@ -143,3 +144,27 @@ class UpdatePolicy(unittest.TestCase):
         result = plan(self.state, self.policy, self.sources, "2026-10-28T03:00:00Z")
         self.assertEqual(result["electron"]["action"], "unchanged")
         self.assertEqual(result["bundled_runtime_changes"], ["canary"])
+
+    def test_electron_switches_control_scheduling_and_target_lock(self):
+        self.state["releases"]["stable"] = {
+            "status": "available",
+            "version": "46.0.0",
+            "channel": "stable",
+            "commit": "c" * 40,
+            "runtime_key": "d" * 64,
+        }
+        now = "2026-10-28T03:00:00Z"
+        self.assertEqual(
+            plan(self.state, self.policy, self.sources, now)["electron"]["channel"], "prerelease"
+        )
+        with patch("update_policy.enabled_electron_channels", return_value=("stable",)):
+            decision = plan(self.state, self.policy, self.sources, now)["electron"]
+        self.assertEqual(decision["channel"], "stable")
+        self.assertEqual(decision["target"]["version"], "46.0.0")
+        self.assertEqual(decision["action"], "prepare-source")
+
+    def test_discord_switches_schedule_each_client_independently(self):
+        with patch("update_policy.enabled_discord_channels", return_value=("ptb", "canary")):
+            decision = plan(self.state, self.policy, self.sources, "2026-10-25T03:00:00Z")
+        self.assertEqual({x["channel"] for x in decision["clients"]}, {"ptb", "canary"})
+        self.assertEqual(len({x["key"] for x in decision["clients"]}), 2)

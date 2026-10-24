@@ -1,4 +1,4 @@
-"""Publish Canary test packages and promote the same assets after manual approval."""
+"""Publish test packages and promote the same assets after manual approval."""
 
 from __future__ import annotations
 
@@ -10,7 +10,19 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from common import ROOT, digest, read_json, run, sha256, version_key, write_json
+from channels import require_enabled_discord
+from common import (
+    DISCORD_CHANNELS,
+    ROOT,
+    digest,
+    electron_channel,
+    read_json,
+    require_enabled_electron,
+    run,
+    sha256,
+    version_key,
+    write_json,
+)
 from fetch_client_snapshot import fetch as fetch_clients
 from fetch_reference import CACHE_REPOSITORY
 from fetch_reference import fetch as fetch_runtime
@@ -38,15 +50,19 @@ def api(endpoint, *, method="GET", data=None, missing=False, repository=PROJECT)
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
-def release_tag(client_version, key):
-    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", client_version) or not re.fullmatch(
-        r"[a-f0-9]{64}", key
+def release_tag(client_version, key, channel="canary"):
+    if (
+        channel not in DISCORD_CHANNELS
+        or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", client_version)
+        or not re.fullmatch(r"[a-f0-9]{64}", key)
     ):
         raise ValueError("Invalid release identity")
-    return f"canary-{client_version}-{key[:16]}"
+    return f"{channel}-{client_version}-{key[:16]}"
 
 
 def prepare():
+    channel = os.environ.get("CHANNEL", "canary")
+    require_enabled_discord(channel)
     state = os.environ.get("CLIENTS_STATE") or api("git/ref/heads/ci-state")["object"]["sha"]
     runtime = (
         os.environ.get("RUNTIME")
@@ -55,9 +71,12 @@ def prepare():
     if not re.fullmatch(r"[1-9][0-9]*", runtime):
         raise ValueError("Expected a compiler run ID")
     fetch_clients(state, ROOT / "out/release-clients.json")
-    client = read_json(ROOT / "out/release-clients.json")["clients"]["canary"]
-    key = integration_key(runtime, client, "prerelease")
-    tag = release_tag(client["version"], key)
+    client = read_json(ROOT / "out/release-clients.json")["clients"][channel]
+    capacity = fetch_runtime(runtime, ROOT / "out/release-capacity", capacity_only=True)
+    electron = capacity["source"]["target"]
+    require_enabled_electron(electron)
+    key = integration_key(runtime, client, electron)
+    tag = release_tag(client["version"], key, channel)
     existing = api("releases/tags/" + tag, missing=True)
     # Run creation time survives retries. A partial draft also retains its version.
     timestamp = (existing or api("actions/runs/" + os.environ["GITHUB_RUN_ID"]))["created_at"]
@@ -65,6 +84,7 @@ def prepare():
     values = {
         "state": state,
         "runtime": runtime,
+        "electron": electron,
         "key": key,
         "tag": tag,
         "version": now.strftime("%Y%m%d.%H%M%S"),
@@ -76,7 +96,7 @@ def prepare():
             output.write(f"{name}={value}\n")
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
         summary.write(
-            f"Canary {client['version']}: "
+            f"{channel.title()} {client['version']}: "
             + ("already published" if values["needed"] == "false" else "preparing test packages")
             + f".\n\n[{tag}]({URL}/releases/tag/{tag})\n"
         )
@@ -93,10 +113,32 @@ def verify_assets(directory: Path, manifest: dict):
             raise ValueError("Invalid asset name or checksum")
         if sha256(directory / name) != expected:
             raise ValueError(f"Release checksum mismatch: {name}")
-    if manifest.get("source_dirty") is not False or manifest.get("channel") != "canary":
-        raise ValueError("Only clean Canary builds can be published or approved")
+    if manifest.get("source_dirty") is not False:
+        raise ValueError("Only clean builds can be published or approved")
+    require_enabled_discord(manifest.get("channel"))
+    require_enabled_electron(electron_channel(manifest["electron_version"]))
     if not re.fullmatch(r"[a-f0-9]{40}", manifest.get("source_commit", "")):
         raise ValueError("Missing immutable source commit")
+
+
+def install_notes(manifest: dict) -> str:
+    tag = release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"])
+    downloads = f"{URL}/releases/download/{tag}"
+    rows = []
+    for distribution, extension in (
+        ("Arch Linux", ".pkg.tar.zst"),
+        ("Debian / Ubuntu", ".deb"),
+        ("Fedora", ".rpm"),
+        ("Other distributions", ".tar.gz"),
+    ):
+        name = next(name for name in manifest["assets"] if name.endswith(extension))
+        rows.append(f"| {distribution} | [{extension}]({downloads}/{name}) |")
+    return (
+        "## Install\n\n| Distribution | Package |\n| --- | --- |\n"
+        + "\n".join(rows)
+        + f"\n\n[Checksums]({downloads}/SHA256SUMS) · "
+        + f"[Installation and updates]({URL}/blob/main/docs/install.md)\n\n"
+    )
 
 
 def notes(manifest: dict, previous: str | None):
@@ -110,7 +152,6 @@ def notes(manifest: dict, previous: str | None):
         sha, subject = entry.split("\t", 1)
         subject = re.sub(r"([\\`*_\[\]<>])", r"\\\1", subject).replace("@", "＠")
         changes.append(f"- {subject} ([{sha[:7]}]({URL}/commit/{sha}))")
-    package = next(name for name in manifest["assets"] if name.endswith(".pkg.tar.zst"))
     comparison = (
         f"\n\n[Full changelog]({URL}/compare/{previous}...{commit})"
         if previous
@@ -118,16 +159,13 @@ def notes(manifest: dict, previous: str | None):
     )
     return (
         f"{PENDING}\n\n"
-        f"- Discord Canary **{manifest['client_version']}**\n"
+        f"- Discord {manifest['channel'].title()} **{manifest['client_version']}**\n"
         f"- Electron **{manifest['electron_version']}**\n"
         f"- Requires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
-        "## Install\n\n"
-        "Choose `.pkg.tar.zst` for Arch, `.deb` for Debian/Ubuntu, `.rpm` for Fedora, or `.tar.gz` for a portable app.\n\n"
-        f"```sh\nsudo pacman -U ./{package}\n```\n\n"
-        f"[Installation and updates]({URL}/blob/main/docs/install.md).\n\n"
-        f"[All checks passed.]({URL}/actions/runs/{manifest['workflow_run']})\n\n"
+        + install_notes(manifest)
+        + f"[All checks passed.]({URL}/actions/runs/{manifest['workflow_run']})\n\n"
         "## Changes\n\n"
-        + ("\n".join(changes) or "Discord or Electron inputs updated; no project commits changed.")
+        + ("\n".join(changes) or "Discord or Electron inputs updated. No project commits changed.")
         + comparison
         + "\n"
     )
@@ -202,7 +240,7 @@ def cache_runtime(manifest: dict):
 def publish(directory: Path):
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
-    tag = release_tag(manifest["client_version"], manifest["release_key"])
+    tag = release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"])
     existing = api("releases/tags/" + tag, missing=True)
     if existing and not existing["draft"]:
         return
@@ -211,7 +249,7 @@ def publish(directory: Path):
         release
         for release in api("releases?per_page=100")
         if not release["draft"]
-        and release["tag_name"].startswith("canary-")
+        and release["tag_name"].startswith(manifest["channel"] + "-")
         and release["tag_name"] != tag
     ]
     previous = (
@@ -221,7 +259,7 @@ def publish(directory: Path):
     )
     body = directory.parent / "release-notes.md"
     body.write_text(notes(manifest, previous))
-    title = f"Canary {manifest['client_version']} · Electron {manifest['electron_version']} · {manifest['version']}"
+    title = f"{manifest['channel'].title()} {manifest['client_version']} · Electron {manifest['electron_version']} · {manifest['version']}"
     if not existing:
         run(
             "gh",
@@ -274,16 +312,21 @@ def publish(directory: Path):
 
 def validate_approval(release: dict, manifest: dict, workflow: dict, approved: dict | None):
     if release["draft"] or release["tag_name"] != release_tag(
-        manifest["client_version"], manifest["release_key"]
+        manifest["client_version"], manifest["release_key"], manifest["channel"]
     ):
-        raise ValueError("Select a published Canary candidate")
+        raise ValueError("Select a published test release")
     if (
         workflow["conclusion"] != "success"
         or workflow["status"] != "completed"
         or workflow["head_branch"] != "main"
         or workflow["head_repository"]["full_name"] != PROJECT
         or workflow["head_sha"] != manifest["source_commit"]
-        or workflow["path"] not in (".github/workflows/release.yml", ".github/workflows/update.yml")
+        or workflow["path"]
+        not in (
+            ".github/workflows/release.yml",
+            ".github/workflows/update.yml",
+            ".github/workflows/release-channels.yml",
+        )
     ):
         raise ValueError("Candidate does not come from a successful main-branch release workflow")
     if (
@@ -293,19 +336,29 @@ def validate_approval(release: dict, manifest: dict, workflow: dict, approved: d
         <= tuple(map(int, approved["version"].split(".")))
     ):
         raise ValueError(
-            "An equal or newer release is already approved; refusing an accidental rollback"
+            "An equal or newer release is already approved. Refusing an accidental rollback."
         )
 
 
 def approve(tag: str, *, check_only=False):
-    if not re.fullmatch(r"canary-[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{16}", tag):
-        raise ValueError("Use a complete Canary release tag")
+    if not re.fullmatch(r"(?:canary|ptb|stable)-[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{16}", tag):
+        raise ValueError("Use a complete app release tag")
     release = api("releases/tags/" + tag)
     directory = ROOT / "out/approve-release" / tag
     run("gh", "release", "download", tag, "--repo", PROJECT, "--dir", directory, "--clobber")
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
-    approved_path = ROOT / "config/approved-release.json"
+    channel = manifest["channel"]
+    electron = electron_channel(manifest["electron_version"])
+    approved_path = (
+        ROOT
+        / "config"
+        / (
+            "approved-release.json"
+            if (channel, electron) == ("canary", "prerelease")
+            else f"approved-{channel}-{electron}-release.json"
+        )
+    )
     approved = read_json(approved_path) if approved_path.exists() else None
     validate_approval(release, manifest, api("actions/runs/" + manifest["workflow_run"]), approved)
     tagged = api("commits/" + tag)
@@ -370,7 +423,7 @@ def approve(tag: str, *, check_only=False):
             "user.email=41898282+github-actions[bot]@users.noreply.github.com",
             "commit",
             "-m",
-            f"Approve tested Canary release {manifest['version']}",
+            f"Approve tested {channel.title()} release {manifest['version']}",
         )
         run(
             "git",

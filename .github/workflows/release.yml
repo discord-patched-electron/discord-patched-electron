@@ -5,6 +5,9 @@ on:
       CACHE_TOKEN:
         required: false
     inputs:
+      discord_channel:
+        type: string
+        default: canary
       clients_state:
         type: string
         required: true
@@ -16,8 +19,12 @@ on:
         default: true
   workflow_dispatch:
     inputs:
+      discord_channel:
+        description: Discord channel enabled in config/channels.json
+        type: string
+        default: canary
       clients_state:
-        description: Immutable ci-state commit (empty uses the latest discovered Canary)
+        description: Immutable ci-state commit (empty uses the latest discovered client)
         type: string
         default: ""
       reference_run:
@@ -28,27 +35,21 @@ on:
         description: Publish public test packages after all checks pass
         type: boolean
         default: true
-  workflow_run:
-    workflows: [Candidate Electron build]
-    types: [completed]
-    branches: [main]
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: linux-release-${{ inputs.clients_state }}-${{ inputs.reference_run || github.event.workflow_run.id || github.run_id }}
+  group: linux-release-${{ inputs.discord_channel }}-${{ inputs.clients_state }}-${{ inputs.reference_run || github.run_id }}
   cancel-in-progress: false
 jobs:
   inputs:
     if: >-
       github.repository == 'discord-patched-electron/discord-patched-electron' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name != 'workflow_run' ||
-       (github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_repository.full_name == github.repository))
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     outputs:
       runtime: ${{ steps.inputs.outputs.runtime }}
+      electron: ${{ steps.inputs.outputs.electron }}
       state: ${{ steps.inputs.outputs.state }}
       version: ${{ steps.inputs.outputs.version }}
       epoch: ${{ steps.inputs.outputs.epoch }}
@@ -58,7 +59,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      RUNTIME: ${{ github.event.workflow_run.id || inputs.reference_run || '' }}
+      RUNTIME: ${{ inputs.reference_run || '' }}
+      CHANNEL: ${{ inputs.discord_channel }}
       CLIENTS_STATE: ${{ inputs.clients_state || '' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -72,7 +74,7 @@ jobs:
     uses: ./.github/workflows/native-runtime.yml
     with:
       clients_state: ${{ needs.inputs.outputs.state }}
-      discord_channels: canary
+      discord_channels: ${{ inputs.discord_channel }}
   native:
     needs: inputs
     if: needs.inputs.outputs.needed == 'true'
@@ -80,7 +82,7 @@ jobs:
     with:
       reference_run: ${{ needs.inputs.outputs.runtime }}
       clients_state: ${{ needs.inputs.outputs.state }}
-      discord_channels: canary
+      discord_channels: ${{ inputs.discord_channel }}
   audio:
     needs: inputs
     if: needs.inputs.outputs.needed == 'true'
@@ -88,7 +90,7 @@ jobs:
     with:
       reference_run: ${{ needs.inputs.outputs.runtime }}
       clients_state: ${{ needs.inputs.outputs.state }}
-      discord_channels: canary
+      discord_channels: ${{ inputs.discord_channel }}
 
   package:
     needs: inputs
@@ -98,7 +100,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      CHANNEL: canary
+      CHANNEL: ${{ inputs.discord_channel }}
+      PACKAGE: discord-${{ inputs.discord_channel }}-${{ needs.inputs.outputs.electron }}-patched-electron-bin
       CLIENTS_STATE: ${{ needs.inputs.outputs.state }}
       RUNTIME: ${{ needs.inputs.outputs.runtime }}
       VERSION: ${{ needs.inputs.outputs.version }}
@@ -166,7 +169,7 @@ jobs:
       - name: Install the Debian package and check its shared libraries
         run: |
           sudo apt-get install -y ./out/packages/*.deb
-          root="/opt/discord-$CHANNEL-prerelease-patched-electron-bin"
+          root="/opt/$PACKAGE"
           if ldd "$root/runtime/electron" | grep -q 'not found'; then exit 1; fi
           xvfb-run -a python scripts/check_desktop_launch.py "$root" --output out/deb-launch --relaunch --read-only-app
       - name: Install the RPM on Fedora and check it as an ordinary user
@@ -174,17 +177,18 @@ jobs:
           docker run --rm \
             -v "$PWD/out/packages:/packages:ro" \
             -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
-            -e CHANNEL \
+            -e PACKAGE \
             fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
-            bash -ec 'dnf install -y --setopt=install_weak_deps=False /packages/*.rpm; python3 /check.py "/opt/discord-$CHANNEL-prerelease-patched-electron-bin"' \
+            bash -ec 'dnf install -y --setopt=install_weak_deps=False /packages/*.rpm; python3 /check.py "/opt/$PACKAGE"' \
             > out/rpm-install.log 2>&1
       - name: Install the Arch package and check it as an ordinary user
         run: |
           docker run --rm \
             -v "$PWD/out/packages:/packages:ro" \
             -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
+            -e PACKAGE \
             archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 \
-            bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /packages/*.pkg.tar.zst; python /check.py /opt/discord-canary-prerelease-patched-electron-bin' \
+            bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /packages/*.pkg.tar.zst; python /check.py "/opt/$PACKAGE"' \
             > out/arch-install.log 2>&1
       - name: Build and install the AUR recipe from the verified portable archive
         run: |
@@ -192,23 +196,24 @@ jobs:
             -v "$PWD/out/aur-recipe:/recipe:ro" \
             -v "$PWD/out/packages:/packages:ro" \
             -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
+            -e PACKAGE \
             archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 \
             bash -ec '
               pacman -Syu --noconfirm --needed base-devel python
               useradd -m builder
               cp -a /recipe /build
               version=$(sed -n "s/^pkgver=//p" /build/PKGBUILD)
-              cp /packages/*-linux-x86_64.tar.gz "/build/discord-canary-prerelease-patched-electron-bin-$version.tar.gz"
+              cp /packages/*-linux-x86_64.tar.gz "/build/$PACKAGE-$version.tar.gz"
               chown -R builder:builder /build
               cd /build
               runuser -u builder -- makepkg --nodeps --noconfirm
               pacman -U --noconfirm ./*.pkg.tar.zst
-              python /check.py /opt/discord-canary-prerelease-patched-electron-bin
+              python /check.py "/opt/$PACKAGE"
             ' > out/aur-install.log 2>&1
       - name: Keep release packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: linux-packages-canary
+          name: linux-packages-${{ inputs.discord_channel }}
           compression-level: 0
           retention-days: 30
           path: |
@@ -222,7 +227,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: release-checks-canary
+          name: release-checks-${{ inputs.discord_channel }}
           path: |
             out/launch/**/launch-report.json
             out/mod-launch/**/launch-report.json
@@ -238,7 +243,7 @@ jobs:
             out/clients.lock.json
           retention-days: 30
   publish:
-    if: (inputs.publish || github.event_name == 'workflow_run') && needs.inputs.outputs.needed == 'true'
+    if: inputs.publish && needs.inputs.outputs.needed == 'true'
     needs: [inputs, bundled, native, audio, package]
     runs-on: ubuntu-24.04
     permissions:
@@ -257,7 +262,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: linux-packages-canary
+          name: linux-packages-${{ inputs.discord_channel }}
           path: packages
       - name: Publish complete test packages
         env:

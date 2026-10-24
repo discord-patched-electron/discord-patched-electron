@@ -8,7 +8,7 @@ import subprocess
 
 from assemble import assemble
 from build_reference import build_config
-from common import ROOT, read_json, run, write_json
+from common import ROOT, electron_channel, read_json, require_enabled_electron, run, write_json
 from runtime_fingerprints import runtime_key
 
 
@@ -31,15 +31,17 @@ def advance(state_commit, key):
         )
     )
     spec = state["electron_work"][key]["target"]
+    channel = electron_channel(spec["version"])
+    require_enabled_electron(channel)
     lock_path = ROOT / "config/sources.lock.json"
     lock = read_json(lock_path)
-    lock["targets"]["prerelease"] = spec
-    if runtime_key(spec, lock, build_config("prerelease")) != key:
+    lock["targets"][channel] = spec
+    if runtime_key(spec, lock, build_config(channel)) != key:
         raise ValueError("Source/native inputs changed since reservation; rediscover")
     # The compiler owns a different retained checkout. Never reset its objects.
     write_json(lock_path, lock)
     if not assemble(
-        "prerelease",
+        channel,
         ROOT / "out/update-source.git",
         ROOT / "out/update-source",
         ROOT / "out/source-update.json",
@@ -58,7 +60,7 @@ def advance(state_commit, key):
             "user.email=41898282+github-actions[bot]@users.noreply.github.com",
             "commit",
             "-m",
-            f"Advance Electron prerelease to {spec['version']}",
+            f"Advance Electron {channel} to {spec['version']}",
         )
         run(
             "git",
@@ -81,7 +83,7 @@ def advance(state_commit, key):
         "--ref",
         "main",
         "-f",
-        "target=prerelease",
+        "target=" + channel,
         "-f",
         "runtime_key=" + key,
     )

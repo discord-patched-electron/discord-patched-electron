@@ -11,7 +11,15 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT, read_json, write_json
-from releases import FORMATS, PROJECT, prepare, release_tag, validate_approval, verify_assets
+from releases import (
+    FORMATS,
+    PROJECT,
+    install_notes,
+    prepare,
+    release_tag,
+    validate_approval,
+    verify_assets,
+)
 from schedule_updates import client_result
 
 
@@ -21,6 +29,7 @@ class ReleaseApproval(unittest.TestCase):
             "version": "20261024.120000",
             "client_version": "1.0.2365",
             "channel": "canary",
+            "electron_version": "46.0.0-alpha.1",
             "source_commit": "a" * 40,
             "source_dirty": False,
             "release_key": "b" * 64,
@@ -81,8 +90,12 @@ class ReleaseApproval(unittest.TestCase):
                         },
                     },
                 )
-            with self.assertRaisesRegex(ValueError, "clean Canary"):
+            with self.assertRaisesRegex(ValueError, "clean builds"):
                 verify_assets(directory, {**manifest, "source_dirty": True})
+            with self.assertRaisesRegex(ValueError, "Disabled Discord"):
+                verify_assets(directory, {**manifest, "channel": "ptb"})
+            with self.assertRaisesRegex(ValueError, "Disabled Electron"):
+                verify_assets(directory, {**manifest, "electron_version": "45.0.0"})
             (directory / "fixture.pkg.tar.zst").write_bytes(b"replacement")
             with self.assertRaisesRegex(ValueError, "checksum"):
                 verify_assets(directory, manifest)
@@ -99,6 +112,7 @@ class ReleaseApproval(unittest.TestCase):
             with (
                 patch("releases.ROOT", directory),
                 patch("releases.fetch_clients", side_effect=snapshot),
+                patch("releases.fetch_runtime", return_value={"source": {"target": "prerelease"}}),
                 patch(
                     "releases.api",
                     return_value={"draft": False, "created_at": "2026-10-24T12:00:00Z"},
@@ -116,6 +130,22 @@ class ReleaseApproval(unittest.TestCase):
                 prepare()
             self.assertIn("needed=false", (directory / "outputs").read_text())
             self.assertEqual(api.call_count, 1)
+
+    def test_release_table_links_to_exact_assets_including_older_versioned_names(self):
+        for prefix in ("app-x86_64", "app-20261024.120000-x86_64"):
+            manifest = {**self.manifest, "assets": {prefix + ext: "c" * 64 for ext in FORMATS}}
+            body = install_notes(manifest)
+            self.assertIn("| Distribution | Package |", body)
+            for ext in FORMATS:
+                self.assertIn(f"/{self.release['tag_name']}/{prefix}{ext})", body)
+            self.assertIn("/SHA256SUMS)", body)
+            self.assertNotIn(";", body)
+
+    def test_disabled_release_channel_stops_before_network_requests(self):
+        with patch.dict(os.environ, {"CHANNEL": "ptb"}), patch("releases.api") as api:
+            with self.assertRaisesRegex(ValueError, "Disabled Discord"):
+                prepare()
+            api.assert_not_called()
 
     def test_existing_candidate_is_success_but_failed_publish_is_not(self):
         jobs = [

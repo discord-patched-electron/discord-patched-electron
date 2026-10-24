@@ -7,7 +7,7 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
-from common import ROOT, read_json, write_json
+from common import ROOT, electron_channel, read_json, write_json
 from fingerprints import integration_key
 from update_policy import plan
 
@@ -98,7 +98,11 @@ if __name__ == "__main__":
     run_id = os.environ["GITHUB_RUN_ID"]
     results = {}
     active = {
-        integration_key(policy["last_good_runtime"]["runtime_key"], client, "prerelease")
+        integration_key(
+            policy["last_good_runtime"]["runtime_key"],
+            client,
+            electron_channel(policy["last_good_runtime"]["version"]),
+        )
         for client in state["clients"].values()
     }
     clients = [

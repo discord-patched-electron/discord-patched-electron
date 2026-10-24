@@ -15,8 +15,17 @@ from pathlib import Path
 
 from build_camera_support import build as camera_build
 from camera_scope import write_scope
+from channels import enabled_discord_channels
 from client_inputs import load_clients, validate_channel
-from common import ROOT, download, package_name, read_json, sha256, write_json
+from common import (
+    ROOT,
+    download,
+    package_name,
+    read_json,
+    require_enabled_electron,
+    sha256,
+    write_json,
+)
 from desktop_identity import desktop_id
 from fetch_reference import extract, validate_capacity
 from patch_app_audio import patch as audio_patch
@@ -48,6 +57,8 @@ def build(
         validate_capacity(capacity, candidate)
     if portable and (not capacity or not candidate):
         raise ValueError("Portable releases require a verified compiled candidate runtime")
+    electron = capacity["source"]["target"] if capacity and candidate else "prerelease"
+    require_enabled_electron(electron)
     output.mkdir(parents=True)
     cache.mkdir(parents=True, exist_ok=True)
 
@@ -79,7 +90,7 @@ def build(
     prepare(
         core,
         channel,
-        "prerelease",
+        electron,
         str(ROOT / "node_modules/.bin/asar"),
         install_root=output,
         portable=portable,
@@ -120,7 +131,7 @@ def build(
     write_scope(output / "modules/discord_voice/discord_voice.node", output)
     camera = camera_build(output / "camera-support")
     shutil.copy2(output / "camera-support/libdpe-camera-probe.so", output)
-    name = package_name(channel, "prerelease")
+    name = package_name(channel, electron)
     launcher = (
         (ROOT / "integration/launcher/discord-launcher.sh")
         .read_text()
@@ -201,7 +212,7 @@ def build(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--discord", choices=["canary"], default="canary")
+    parser.add_argument("--discord", choices=enabled_discord_channels(), default="canary")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument(
         "--artifact", type=Path, help="Verified fetch_reference.py output directory"

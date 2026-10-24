@@ -8,7 +8,7 @@ starting a larger change so we can agree on its scope.
 Install Git, [Bun](https://bun.sh/docs/installation),
 [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 24 on Linux.
 Native tests also need a C/C++ compiler. uv manages Python and the development
-tools; Bun manages JavaScript dependencies. Node is used by Electron's ASAR tools
+tools. Bun manages JavaScript dependencies. Node is used by Electron's ASAR tools
 and the JavaScript test suite.
 
 ```sh
@@ -30,14 +30,14 @@ bun run lint
 bun run test
 ```
 
-`format` fixes style; `lint` checks it and reports code and workflow problems.
+`format` fixes style. `lint` checks it and reports code and workflow problems.
 Ruff handles Python, and Oxlint/Oxfmt handle JavaScript and repository text.
 The same commands also check shell scripts, native code and GitHub workflows.
 Everything is installed by the setup commands above.
 
 Use `bun run test:python` or `bun run test:js` to run one suite while iterating.
 These tests need no Discord account or Electron build. Arch-specific assertions
-are skipped when `vercmp` is unavailable; CI also checks generated Arch packages.
+are skipped when `vercmp` is unavailable. CI also checks generated Arch packages.
 For documentation-only changes, run formatting and linting and check the links
 and instructions you changed.
 
@@ -52,7 +52,7 @@ and instructions you changed.
 | `patches/`     | Discord's Electron changes and compatibility patches   |
 | `packaging/`   | Package templates and upstream reference files         |
 | `.github/`     | CI workflows                                           |
-| `docs/`        | User guides; implementation notes in `docs/agent/`     |
+| `docs/`        | User guides and implementation notes in `docs/agent/`  |
 
 Generated files belong in `out/`. Don't commit downloaded clients, compiler
 workspaces or test profiles. Don't edit `packaging/upstream/` or reformat
@@ -69,13 +69,13 @@ or `bun.lock` with the change. Keep tool versions pinned so local checks and CI 
 
 CI runs package, native-module and isolated audio checks. For local integration
 tests, follow [runtime validation](docs/agent/runtime-validation.md). Container
-tests need Docker. Most app changes can reuse a verified Electron runtime; see
+tests need Docker. Most app changes can reuse a verified Electron runtime. See
 [release packaging](docs/agent/releases.md) for local builds and CI releases.
 
 Use fresh profiles for launch checks. Don't run unattended account logins,
 messages or calls. Never save or upload physical webcam images or video, and
 keep account data and private conversations out of logs. Synthetic tests don't
-prove that a live call works; record any behavior you couldn't verify.
+prove that a live call works. Record any behavior you couldn't verify.
 
 ## Send a pull request
 

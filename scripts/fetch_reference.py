@@ -79,7 +79,7 @@ def extract(archive: Path, destination: Path, expected: str):
         raise ValueError("Reference archive lacks an Electron executable")
 
 
-def fetch(run_id: str, output: Path):
+def fetch(run_id: str, output: Path, *, capacity_only=False):
     if not re.fullmatch(r"[1-9][0-9]*", run_id):
         raise ValueError("Expected a numeric GitHub Actions run ID")
     repository = os.environ.get("GH_REPO", "")
@@ -147,6 +147,8 @@ def fetch(run_id: str, output: Path):
     if cached and digest(capacity) != good["capacity_sha256"]:
         raise ValueError("Retained compiler report differs from the verified pin")
     validate_capacity(capacity, candidate)
+    if capacity_only:
+        return capacity
     artifact = "candidate-runtime" if candidate else "reference-runtime"
     if cached:
         run(

@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from channels import enabled_discord_channels
 from common import ROOT, enabled_electron_channels, package_name, read_json, write_json
 from desktop_identity import desktop_id
 
@@ -112,7 +113,7 @@ def prepare(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("core", type=Path)
-    parser.add_argument("--discord", required=True, choices=["canary"])
+    parser.add_argument("--discord", required=True, choices=enabled_discord_channels())
     parser.add_argument("--electron", required=True, choices=enabled_electron_channels())
     parser.add_argument("--asar", default=str(ROOT / "node_modules/.bin/asar"))
     args = parser.parse_args()

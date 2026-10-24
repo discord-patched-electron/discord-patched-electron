@@ -58,10 +58,12 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - name: Reconstruct the imported fork and prerelease port
+      - name: Reconstruct the imported fork and enabled Electron ports
         shell: bash
         run: |
-          for target in patch-base prerelease; do
+          selected=$(python3 scripts/channels.py --electron)
+          mapfile -t targets <<< "$selected"
+          for target in patch-base "${targets[@]}"; do
             python3 scripts/assemble.py "$target" \
               --destination ".work/$target" --report "out/source-$target.json"
           done

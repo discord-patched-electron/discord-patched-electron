@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from channels import enabled_discord_channels
 from client_inputs import load_clients, validate_channel
 from common import ROOT, digest, download, read_json, sha256, write_json
 from patch_app_audio import patch
@@ -313,7 +314,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--clients", type=Path, default=ROOT / "config/clients.lock.json")
-    parser.add_argument("--discord", choices=["canary"], default="canary")
+    parser.add_argument("--discord", choices=enabled_discord_channels(), default="canary")
     parser.add_argument("--runtime", type=Path)
     parser.add_argument("--provenance", type=Path)
     parser.add_argument("--download-only", action="store_true")
