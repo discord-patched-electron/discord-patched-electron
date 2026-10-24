@@ -14,7 +14,15 @@ from common import ROOT, electron_channel, package_name, read_json, run, sha256
 from desktop_identity import desktop_id
 from package_release import metadata
 from release_signing import verify as verify_signatures
-from releases import URL, api, approval_path, approve, release_tag, validate_approval, verify_assets
+from releases import (
+    URL,
+    api,
+    approval_path,
+    approve,
+    manifest_tag,
+    validate_approval,
+    verify_assets,
+)
 
 
 def require_stable(release: dict):
@@ -40,7 +48,7 @@ def manifest_name(manifest: dict) -> str:
 
 
 def recipe(manifest: dict, tag: str, revision: int = 1) -> str:
-    if tag != release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"]):
+    if tag != manifest_tag(manifest):
         raise ValueError("Release identity mismatch")
     config = metadata(
         Path("/unused"),
@@ -219,7 +227,7 @@ def main():
         stage(
             args.output,
             manifest,
-            release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"]),
+            manifest_tag(manifest),
         )
         return
     if not args.tag:

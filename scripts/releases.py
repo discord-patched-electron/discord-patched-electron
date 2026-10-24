@@ -7,7 +7,7 @@ import json
 import os
 import re
 import subprocess
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from channels import require_enabled_discord
@@ -53,14 +53,42 @@ def api(endpoint, *, method="GET", data=None, missing=False, repository=PROJECT)
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
-def release_tag(client_version, key, channel="canary"):
+def release_tag(client_version, key, channel="canary", version=None):
     if (
         channel not in DISCORD_CHANNELS
         or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", client_version)
         or not re.fullmatch(r"[a-f0-9]{64}", key)
     ):
         raise ValueError("Invalid release identity")
+    if version is not None:
+        if not re.fullmatch(r"[0-9]{8}\.[0-9]{6}", version):
+            raise ValueError("Invalid release version")
+        date, time = map(int, version.split("."))
+        return f"v{date}.{time}.0-{channel}.{key[:16]}"
     return f"{channel}-{client_version}-{key[:16]}"
+
+
+def manifest_tag(manifest):
+    return release_tag(
+        manifest["client_version"],
+        manifest["release_key"],
+        manifest["channel"],
+        manifest["version"] if manifest.get("tag_schema") == 2 else None,
+    )
+
+
+def existing_candidate(client_version, key, channel):
+    legacy = api("releases/tags/" + release_tag(client_version, key, channel), missing=True)
+    if legacy:
+        return legacy
+    pattern = rf"v[0-9]+\.[0-9]+\.0-{channel}\.{key[:16]}"
+    page = 1
+    while releases := api(f"releases?per_page=100&page={page}"):
+        for release in releases:
+            if re.fullmatch(pattern, release["tag_name"]):
+                return release
+        page += 1
+    return None
 
 
 def prepare():
@@ -79,18 +107,26 @@ def prepare():
     electron = capacity["source"]["target"]
     require_enabled_electron(electron)
     key = integration_key(runtime, client, electron)
-    tag = release_tag(client["version"], key, channel)
-    existing = api("releases/tags/" + tag, missing=True)
+    existing = existing_candidate(client["version"], key, channel)
     # Run creation time survives retries. A partial draft also retains its version.
     timestamp = (existing or api("actions/runs/" + os.environ["GITHUB_RUN_ID"]))["created_at"]
     now = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    if existing and existing["tag_name"].startswith("v"):
+        date, time, _ = existing["tag_name"][1:].split(".", 2)
+        now = datetime.strptime(f"{int(date):08d}.{int(time):06d}", "%Y%m%d.%H%M%S").replace(
+            tzinfo=UTC
+        )
+    version = now.strftime("%Y%m%d.%H%M%S")
+    tag = (
+        existing["tag_name"] if existing else release_tag(client["version"], key, channel, version)
+    )
     values = {
         "state": state,
         "runtime": runtime,
         "electron": electron,
         "key": key,
         "tag": tag,
-        "version": now.strftime("%Y%m%d.%H%M%S"),
+        "version": version,
         "epoch": str(int(now.timestamp())),
         "needed": "false" if existing and not existing["draft"] else "true",
     }
@@ -141,7 +177,7 @@ def verify_assets(directory: Path, manifest: dict):
 
 
 def install_notes(manifest: dict) -> str:
-    tag = release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"])
+    tag = manifest_tag(manifest)
     downloads = f"{URL}/releases/download/{tag}"
     rows = []
     name = package_name(manifest["channel"], electron_channel(manifest["electron_version"]))
@@ -266,7 +302,7 @@ def publish(directory: Path):
     manifest = read_json(directory / "release.json")
     verify_assets(directory, manifest)
     verify_signatures(directory)
-    tag = release_tag(manifest["client_version"], manifest["release_key"], manifest["channel"])
+    tag = manifest_tag(manifest)
     existing = api("releases/tags/" + tag, missing=True)
     if existing and not existing["draft"]:
         return
@@ -338,9 +374,7 @@ def publish(directory: Path):
 
 
 def validate_approval(release: dict, manifest: dict, workflow: dict, approved: dict | None):
-    if release["draft"] or release["tag_name"] != release_tag(
-        manifest["client_version"], manifest["release_key"], manifest["channel"]
-    ):
+    if release["draft"] or release["tag_name"] != manifest_tag(manifest):
         raise ValueError("Select a published test release")
     if (
         workflow["conclusion"] != "success"
@@ -379,7 +413,10 @@ def approval_path(manifest: dict) -> Path:
 
 
 def approve(tag: str, *, check_only=False):
-    if not re.fullmatch(r"(?:canary|ptb|stable)-[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{16}", tag):
+    if not re.fullmatch(
+        r"(?:(?:canary|ptb|stable)-[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{16}|v[0-9]+\.[0-9]+\.0-(?:canary|ptb|stable)\.[a-f0-9]{16})",
+        tag,
+    ):
         raise ValueError("Use a complete app release tag")
     release = api("releases/tags/" + tag)
     directory = ROOT / "out/approve-release" / tag

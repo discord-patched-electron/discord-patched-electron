@@ -14,7 +14,9 @@ from common import ROOT, read_json, write_json
 from releases import (
     FORMATS,
     PROJECT,
+    existing_candidate,
     install_notes,
+    manifest_tag,
     notes,
     prepare,
     release_tag,
@@ -26,6 +28,27 @@ from schedule_updates import client_result
 
 
 class ReleaseApproval(unittest.TestCase):
+    def test_date_tags_sort_by_version_and_keep_legacy_manifests_valid(self):
+        self.assertEqual(manifest_tag(self.manifest), self.release["tag_name"])
+        manifest = {**self.manifest, "tag_schema": 2, "version": "20261025.010203"}
+        tag = manifest_tag(manifest)
+        self.assertEqual(tag, "v20261025.10203.0-canary." + "b" * 16)
+        validate_approval({**self.release, "tag_name": tag}, manifest, self.workflow, None)
+        body = install_notes({**manifest, "assets": {"app" + ext: "c" * 64 for ext in FORMATS}})
+        self.assertIn("/download/" + tag + "/", body)
+        with self.assertRaises(ValueError):
+            release_tag("1.0.2365", "b" * 64, version="invalid")
+
+    def test_date_tag_deduplication_searches_later_pages_and_drafts(self):
+        candidate = {"tag_name": "v20261025.10203.0-canary." + "b" * 16, "draft": True}
+        with patch(
+            "releases.api", side_effect=[None, [{"tag_name": "unrelated"}], [candidate]]
+        ) as api:
+            self.assertEqual(existing_candidate("1.0.2365", "b" * 64, "canary"), candidate)
+            self.assertEqual(api.call_args.args[0], "releases?per_page=100&page=2")
+        with patch("releases.api", side_effect=[None, []]):
+            self.assertIsNone(existing_candidate("1.0.2365", "b" * 64, "canary"))
+
     def test_tag_reservation_is_idempotent_and_never_moves_existing_tags(self):
         with patch("releases.api", return_value=None) as api:
             reserve_tag("candidate", "a" * 40)
@@ -129,7 +152,11 @@ class ReleaseApproval(unittest.TestCase):
                 patch("releases.fetch_runtime", return_value={"source": {"target": "prerelease"}}),
                 patch(
                     "releases.api",
-                    return_value={"draft": False, "created_at": "2026-10-24T12:00:00Z"},
+                    return_value={
+                        "draft": False,
+                        "created_at": "2026-10-24T12:00:00Z",
+                        "tag_name": "v20261024.130203.0-canary." + "b" * 16,
+                    },
                 ) as api,
                 patch.dict(
                     os.environ,
@@ -143,6 +170,7 @@ class ReleaseApproval(unittest.TestCase):
             ):
                 prepare()
             self.assertIn("needed=false", (directory / "outputs").read_text())
+            self.assertIn("version=20261024.130203", (directory / "outputs").read_text())
             self.assertEqual(api.call_count, 1)
 
     def test_release_table_links_to_exact_assets_including_older_versioned_names(self):

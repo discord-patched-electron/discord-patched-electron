@@ -158,3 +158,19 @@ AUR metadata-only changes increment `pkgrel` when the archive URL and checksum
 are unchanged. Repeating the same publication is a no-op. Archive changes require
 a new `pkgver`. Desktop identity is recorded in new manifests so recipes can also
 handle older archives with the previous desktop filename.
+
+## Release tag ordering
+
+New manifests use `tag_schema: 2`. Tags start with the numeric build date and time,
+for example `v20261024.202623.0-canary.0127ebd36508aff4`. Numeric components sort
+before the content fingerprint, including multiple builds of the same client on
+one day. Hours with leading zeroes are normalized for semantic version syntax.
+Discovery searches all release pages for the existing fingerprint before creating
+another candidate. Draft retries retain the date and time encoded in their tag.
+Older manifests and their download URLs remain valid.
+
+On 24 October, the user requested one remaining release and authorized its
+approval. The two superseded app releases were deleted. Their Git tags remain for
+changelog links. The retained signed release `canary-1.0.2365-0127ebd36508aff4`
+was already approved and published to AUR. This does not change the manual
+approval policy for future builds or delete runtime cache releases.
