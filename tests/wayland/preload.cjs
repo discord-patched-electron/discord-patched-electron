@@ -10,7 +10,9 @@ globalThis.window.DiscordNative = {
   settings: { getSync: (k, v) => (k === "offloadAdmControls" ? false : v) },
   features: { declareSupported() {} },
   processUtils: {
-    getMainArgvSync: () => ["fixture", "--use-fake-audio-capture"],
+    // The container has only our private virtual audio server, no host devices.
+    // Real enumeration is required to catch internal-sink notification leaks.
+    getMainArgvSync: () => ["fixture"],
   },
   fileManager: {
     getModuleDataPathSync: () => output,
@@ -24,9 +26,16 @@ const discordPlayback = require("node:child_process").spawn(
   ["--playback", "--target=test-sink", path.join(output, "discord.wav")],
   { stdio: "ignore" },
 );
+const rawVoice = require(path.join(output, "voice/discord_voice.node"));
+const rawOutputDevices = rawVoice.getOutputDevices.bind(rawVoice);
 const voice = require(path.join(output, "voice"));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const events = [];
+const privateDevice = d => /^dpe-audio-[a-f0-9]{32}-(mix|native)(\.monitor)?$/.test(d.guid || d.name || '');
+let internalDeviceControl = false, hiddenDeviceLeaks = 0;
+voice.setDeviceChangeCallback((inputs, outputs) => {
+  hiddenDeviceLeaks += [...inputs, ...outputs].filter(privateDevice).length;
+});
 let phase = null,
   connection,
   pickerResult;
@@ -105,6 +114,13 @@ async function capture(name, change, settle = 2000) {
   phase = null;
   await change();
   await wait(settle);
+  if (name === 'app-a') {
+    const raw = await new Promise(resolve => rawOutputDevices(resolve));
+    const filtered = await new Promise(resolve => voice.getOutputDevices(resolve));
+    fs.writeFileSync(path.join(output, 'device-control.json'), JSON.stringify({raw, filtered}));
+    internalDeviceControl = raw.some(privateDevice);
+    hiddenDeviceLeaks += filtered.filter(privateDevice).length;
+  }
   phase = name;
   await wait(1600);
   phase = null;
@@ -126,7 +142,7 @@ async function capture(name, change, settle = 2000) {
   );
   await capture("audio-cancelled", async () => {
     await choose({ pid: inputs.a.pid, kind: "window", no_audio: true });
-    if (!["manual", "interactive"].includes(process.env.DPE_FIXTURE_SELECTION))
+    if (!["manual", "interactive", "stream"].includes(process.env.DPE_FIXTURE_SELECTION))
       connection.setTransportOptions({ soundsharePid: 0 });
   });
   await capture("cancelled", async () => {
@@ -153,10 +169,13 @@ async function capture(name, change, settle = 2000) {
     frames.some((v) => v.x11Frames > 0)
   )
     throw new Error("Expected actual Wayland/PipeWire video frames");
+  if (!internalDeviceControl || hiddenDeviceLeaks) throw new Error('Internal audio devices leaked or positive control missing');
   ipcRenderer.send("audio-result", {
     passed: true,
     events,
     wayland_video_verified: true,
+    internal_device_control: internalDeviceControl,
+    hidden_device_leaks: hiddenDeviceLeaks,
     compositor: "niri",
     pcmFormats,
     portal: "controlled test portal backed by real niri screencasts",

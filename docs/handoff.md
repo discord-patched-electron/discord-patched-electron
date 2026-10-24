@@ -13,19 +13,58 @@ x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 The shortcut points to:
 
 ```text
-/mnt/storage/discord-patched-electron-ci/local-tests/prerelease-canary-40053107555/launch.sh
+/mnt/storage/discord-patched-electron-ci/local-tests/canary-fixes-20261024-r2/launch.sh
 ```
 
 Keep that installation directory in place: its launcher contains an absolute
 path. It uses a separate profile at
 `~/.config/discord-canary-prerelease-patched-electron-bin-local`, leaving the
-stock Discord profile separate. Flags can be placed one per line in
-`~/.config/discord-canary-prerelease-patched-electron-bin-flags.conf`.
+stock Discord profile separate. Close the old instance before launching the new
+one. Flags can be placed one per line in
+`~/.config/discord-canary-patched-electron.conf`; the older package-specific
+`-flags.conf` is still read. See [launcher, codecs and shortcuts](linux-launcher.md).
 
 Wayland selection is automatic. Application audio and the camera startup helper
 are enabled by default. `DPE_APP_AUDIO=0` and `DPE_CAMERA_FAST_PROBE=0` disable the
 respective adapters. niri supports automatic shared-window audio matching; other
 compositors use the audio-app picker. See [Wayland audio](wayland-audio.md).
+
+## Follow-up fixes, 24 October
+
+This local app reuses the verified compiler artifact; no C++ rebuild or
+Blacksmith job was started. It includes:
+
+- Electron 46 safeStorage compatibility, verified through real synchronous IPC
+  and decryption after relaunch. Actual Canary first launch and relaunch both
+  reach the login form on a fresh fixture profile with no uncaught exception.
+- Internal audio sinks hidden from Discord's enumeration/hotplug API, verified
+  with both PipeWire-Pulse and real PulseAudio plus PipeWire.
+- Asynchronous native Linux camera initialization: engine queue stall reduced
+  from 1,130 ms to 25.3 ms on the physical camera. This removes the measured
+  stall; a sustained microphone/live-call transmission test remains unperformed.
+- Individual playback-stream selection for Zen and other browsers. An app row
+  includes all its audio; select a **Stream:** row to isolate a playing stream.
+  Mixed audio inside one browser stream cannot be separated automatically.
+- Hyprland/Sway window labels and optional KDE/GNOME metadata, with dependency
+  notes in the picker. Only the verified niri capture relationship enables
+  automatic matching; these additional metadata providers do not.
+- Matching desktop/portal identities and a private native shortcut test covering
+  press and release. The desktop portal's own support/permission is still required.
+- Overridable launcher defaults for native Wayland and hardware decoding.
+  Hardware WebGL and H.264 VA-API decoding pass. Forced Chromium hardware encoding
+  crashes the tested AMD path, so it remains disabled by default; software
+  H.264/VP8/VP9/AV1 encoding passes. Discord's separate native codec negotiation
+  was not exercised in a live call.
+
+All three recipes pass an Arch packaging test with locked real client modules
+and a dummy runtime. Runtime evidence uses the actual compiled Electron.
+See [follow-up evidence](evidence/desktop-fixes-local.json).
+
+The local desktop entry is installed at
+`~/.local/share/applications/io.github.discord_patched_electron.DiscordCanary.desktop`.
+Remove it when switching to the future AUR installation so it does not shadow
+the system desktop entry. The old absolute installation remains unchanged;
+use the shortcut above to get these fixes.
 
 ## Verified results
 
@@ -95,5 +134,5 @@ release discovery continues to record changed inputs without compiling them.
 
 Local monitor state is in
 `/mnt/storage/discord-patched-electron-ci/overnight-monitor.json`.
-All required tests have finished and the scheduled build monitor is disabled.
-The user authorized hibernation after successful completion.
+The original unattended build finished and the scheduled build monitor remains
+disabled. The follow-up interactive fixes do not trigger hibernation.

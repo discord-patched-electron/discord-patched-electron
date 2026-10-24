@@ -6,6 +6,10 @@ app.setPath("userData", path.join(output, "profile"));
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 app.commandLine.appendSwitch("disable-background-networking");
 const players = {};
+const gpuExits = [];
+app.on('child-process-gone', (_event, details) => {
+  if (details.type === 'GPU' && !['clean-exit','killed'].includes(details.reason)) gpuExits.push(details.reason);
+});
 let finished = false;
 let stage = "startup";
 function finish(report) {
@@ -34,7 +38,8 @@ app.whenReady().then(async () => {
   stage = "gpu-info";
   const gpu = await app.getGPUInfo("complete");
   stage = "complete";
-  finish({passed: rendering.webglPassed && rendering.videoFrames >= 5, rendering,
+  finish({passed: rendering.webglPassed && rendering.videoFrames >= 5 && !gpuExits.length &&
+      rendering.encoders.some(e=>e.chunks>=12) && !rendering.encoders.some(e=>e.error), rendering, gpuExits,
     gpuFeatures:app.getGPUFeatureStatus(), gpu, ozoneSwitch:app.commandLine.getSwitchValue("ozone-platform"),
     hardwareAccelerationEnabled:app.isHardwareAccelerationEnabled(),
     note:"Synthetic video and WebGL on the local GPU; no real Discord call."});

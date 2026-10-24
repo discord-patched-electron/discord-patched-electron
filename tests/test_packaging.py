@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT, read_json
+from desktop_identity import desktop_id
 from generate_package import generate
 import stage_package
 
@@ -48,6 +49,9 @@ class Recipes(unittest.TestCase):
                     launcher = (directory / "discord-launcher.sh").read_text()
                     self.assertIn("root=/usr/lib/" + result["package"], launcher)
                     self.assertIn("DISCORD_USER_DATA_DIR", launcher)
+                    self.assertIn(desktop_id(discord), launcher)
+                    self.assertNotIn('@DESKTOP_ID@', launcher)
+                    self.assertIn(desktop_id(discord) + '.desktop', (directory / 'PKGBUILD').read_text())
                     subprocess.run(["bash", "-n", str(directory / "PKGBUILD")], check=True)
                     metadata = subprocess.check_output(["bash", "-c",
                         'source "$1"; printf "%s\\n" "$pkgname" "$pkgver"; '

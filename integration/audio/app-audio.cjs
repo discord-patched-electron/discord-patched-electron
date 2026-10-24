@@ -241,6 +241,7 @@ function wrap(instance, options = {}) {
 }
 
 function installVoice(voice) {
+  require('./dpe-voice-devices.cjs').install(voice);
   if (process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland')
     require('./dpe-wayland-audio.cjs').installVoice(voice);
 }

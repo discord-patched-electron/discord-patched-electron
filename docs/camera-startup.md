@@ -54,7 +54,8 @@ executable and its voice module:
 ```
 
 The script copies the runtime/modules into a fresh test directory, builds the small
-helper, and compares startup twice. Use an idle camera. It creates no voice connection
+helper, and compares startup twice. Use an idle camera. It creates only a localhost
+test voice connection with fake audio, never a Discord call or real microphone,
 and saves only timings, dimensions and diagnostic logs. CI uses a fake driver to
 check caller scoping, supported-format passthrough, missing/failed enumeration,
 changed capabilities, multi-plane passthrough and explicit disablement.
@@ -70,6 +71,24 @@ passed the physical test: **8.37 seconds upstream versus 2.33 seconds patched**.
 The capability probe fell from 5.42 to 0.66 seconds. The report verifies the
 compiler artifact's version and keeps metadata only; see
 [compiled-prerelease evidence](evidence/prerelease-runtime-local.json).
+
+## Voice interruption while the camera initializes
+
+The pinned wrapper enabled `asyncVideoInputDeviceInit` only on Windows, although
+the Linux native module also implements the asynchronous control path. Synchronous
+initialization blocks the voice engine's command queue while opening/probing the
+camera. The package now enables that existing path on Linux too.
+`DPE_CAMERA_ASYNC_INIT=0` restores synchronous behavior for comparison; this is
+independent of `DPE_CAMERA_FAST_PROBE` and needs no Electron recompilation.
+
+With fast probing enabled in both runs, the largest native engine heartbeat gap
+fell from **1,130 ms to 25.3 ms**, and first-frame time from **3,455 ms to 1,739 ms**
+on the physical webcam. Use `check_camera_startup.py --compare-async` to repeat.
+This directly verifies removal of the engine-thread stall. The fake-audio
+loopback sent only its ten startup silence packets, so it did **not** establish
+sustained voice transmission during capture; a real-call continuity check remains
+unperformed. No camera images/video were displayed or saved.
+See [measurement metadata](evidence/desktop-fixes-local.json).
 
 ## Build and packaging
 

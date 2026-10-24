@@ -8,13 +8,20 @@ ANCHOR = 'function bindConnectionInstance(instance) {\n'
 INSERT = "    instance = require('./dpe-app-audio.cjs').wrap(instance);\n"
 EXPORT = 'module.exports = VoiceEngine;'
 INSTALL = "require('./dpe-app-audio.cjs').installVoice(VoiceEngine);\n"
-SIDECARS = {'wayland-audio.cjs': 'dpe-wayland-audio.cjs', 'pipewire_audio.py': 'dpe-pipewire-audio.py'}
+SIDECARS = {'wayland-audio.cjs': 'dpe-wayland-audio.cjs', 'pipewire_audio.py': 'dpe-pipewire-audio.py',
+            'voice-devices.cjs': 'dpe-voice-devices.cjs', 'window_inventory.py': 'window_inventory.py'}
+CAMERA_BEFORE = "const asyncVideoInputDeviceInit = process.platform === 'win32';"
+CAMERA_AFTER = "const asyncVideoInputDeviceInit = process.platform === 'win32' || (process.platform === 'linux' && process.env.DPE_CAMERA_ASYNC_INIT !== '0');"
 
 
 def patch(directory: Path, adapter: Path) -> dict:
     wrapper = directory / 'index.js'
     before = sha256(wrapper)
     source = wrapper.read_text()
+    if source.count(CAMERA_BEFORE) == 1:
+        source = source.replace(CAMERA_BEFORE, CAMERA_AFTER)
+    elif source.count(CAMERA_AFTER) != 1:
+        raise ValueError('Unknown asynchronous camera initialization setting')
     if source.count(ANCHOR) != 1 or source.count(EXPORT) != 1:
         raise ValueError('Unknown voice connection wrapper; application audio adapter not installed')
     if INSERT not in source:

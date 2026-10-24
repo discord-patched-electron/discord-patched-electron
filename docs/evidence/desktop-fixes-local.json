@@ -1,0 +1,1419 @@
+{
+  "date": "2026-10-24",
+  "app": "/mnt/storage/discord-patched-electron-ci/local-tests/canary-fixes-20261024-r2",
+  "launcher": "/home/he3als/scratch-ai-repo/discord-patched-electron/out/canary-prerelease-test/launch.sh",
+  "unchanged_native_binaries": {
+    "runtime/electron": true,
+    "modules/discord_voice/discord_voice.node": true,
+    "modules/discord_krisp/discord_krisp.node": true
+  },
+  "local_manifest": {
+    "camera_support": {
+      "compiler": "cc (GCC) 16.2.1 20260810",
+      "flags": [
+        "-std=c11",
+        "-O2",
+        "-march=x86-64-v3",
+        "-mtune=generic",
+        "-fPIC",
+        "-fvisibility=hidden",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-shared",
+        "-Wl,-z,relro,-z,now",
+        "-Wl,--build-id=sha1"
+      ],
+      "minimum_cpu": "x86-64-v3",
+      "schema": 1,
+      "sha256": "a872dd73587c86379ed050371737f875bdb02deead161bd729e634affbbf5ce0",
+      "source_key": "9e1098fac8296a63a0a6dd15180dbd3bb53086df8c6edfc6b64384c8043a91f6",
+      "url": "https://github.com/discord-patched-electron/discord-patched-electron/releases/download/camera-a872dd73587c86379ed050371737f875bdb02deead161bd729e634affbbf5ce0/libdpe-camera-probe.so"
+    },
+    "capacity": {
+      "archive_bytes": 121484714,
+      "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+      "build_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+      "compiled_version": "46.0.0-alpha.1",
+      "compiler_cache_enabled": true,
+      "config": {
+        "cpu_baseline": "x86-64-v3",
+        "cpu_flags": [
+          "-march=x86-64-v3",
+          "-mtune=generic"
+        ],
+        "depot_tools_commit": "08328c3e239aa5e869da9ac98de765c6541395bf",
+        "gn_args": [
+          "import(\"//electron/build/args/release.gn\")",
+          "target_cpu=\"x64\"",
+          "is_debug=false",
+          "symbol_level=0",
+          "blink_symbol_level=0",
+          "v8_symbol_level=0",
+          "use_remoteexec=false",
+          "use_thin_lto=false",
+          "custom_toolchain=\"//dpe_build:clang_x64_v3\""
+        ],
+        "maximum_minutes": 1320,
+        "minimum_disk_gb": 100,
+        "minimum_memory_gb": 8,
+        "parallel_jobs": 2,
+        "runner": "discord-electron-compiler",
+        "schema": 1
+      },
+      "elapsed_seconds": 1776,
+      "final_free_disk_gb": 649.934135296,
+      "identity": "83555d7644725992ae9ce46af4ec0367d955aacab7d0fe9ff65a67ba0cab7862",
+      "implementation": {
+        "config/compiler-cache.json": "c974d1819c4ab70595adb7800258526189f5d9086ea1ef4df6375d32215a52be",
+        "scripts/assemble.py": "514587e1663e2ad307b36d3765f61789db1cd24c3733b5bbf48e0fc72f5d3d04",
+        "scripts/build_reference.py": "fa882bb2fad20a6760e3ca48d7bccf13c6dc7a035f6929e56b6510138b90eed7",
+        "scripts/common.py": "18f2a9bc96231ac76cf54995f997a3aac78ad3cfa50cbd4ef0dbff776d6fb508",
+        "scripts/compiler_cache.py": "5fa0a9dd9a79138a3bfcdc0370e17248e6129689c3e4c5ce7de645f1322e1835",
+        "scripts/runtime_fingerprints.py": "72da5ed120759283edd4013b95132c66ed2a77fd434d3bc17b412ed9d964b333"
+      },
+      "initial_free_disk_gb": 649.954308096,
+      "memory_limit_bytes": 27917287424,
+      "parallel_jobs": 20,
+      "publishable": false,
+      "resources": {
+        "automatic_jobs": 12,
+        "concurrent_links": 1,
+        "cpu_capacity": 20.0,
+        "memory_limit_bytes": 27917287424,
+        "parallel_jobs": 20,
+        "requested_jobs": "20",
+        "sync_jobs": 8
+      },
+      "reused_completed_artifact": false,
+      "runner_name": "he3als-pc-container",
+      "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f",
+      "runtime_validated": false,
+      "source": {
+        "compiled": true,
+        "dependencies_patched": true,
+        "fork_commit": "aade2a4ea35e538d1be93207233c4269459a4561",
+        "patch_log": "Applied patch to '.gitignore' cleanly.\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nApplied patch to 'docs/api/base-window.md' cleanly.\nFalling back to direct application...\nApplied patch to 'docs/api/process.md' cleanly.\nApplied patch to 'docs/api/web-contents.md' cleanly.\nApplied patch to 'docs/api/web-frame-main.md' cleanly.\nFalling back to direct application...\nApplied patch to 'filenames.auto.gni' cleanly.\nApplied patch to 'filenames.gni' cleanly.\nApplied patch to 'lib/common/web-view-methods.ts' cleanly.\nApplied patch to 'lib/renderer/api/module-list.ts' cleanly.\nApplied patch to 'patches/chromium/.patches' cleanly.\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nApplied patch to 'patches/ffmpeg/.patches' cleanly.\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nApplied patch to 'patches/node/.patches' cleanly.\nFalling back to direct application...\nFalling back to direct application...\nApplied patch to 'shell/app/electron_main_delegate.h' cleanly.\nApplied patch to 'shell/browser/api/electron_api_app.h' cleanly.\nFalling back to direct application...\nFalling back to direct application...\nApplied patch to 'shell/browser/api/electron_api_web_frame_main.h' cleanly.\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nFalling back to direct application...\nApplied patch to 'shell/browser/native_window.h' cleanly.\nApplied patch to 'shell/browser/native_window_mac.h' cleanly.\nApplied patch to 'shell/browser/native_window_mac.mm' cleanly.\nApplied patch to 'shell/browser/native_window_views.cc' cleanly.\nApplied patch to 'shell/browser/osr/osr_render_widget_host_view.h' cleanly.\nApplied patch to 'shell/browser/osr/osr_web_contents_view.cc' cleanly.\nApplied patch to 'shell/browser/osr/osr_web_contents_view.h' cleanly.\nApplied patch to 'shell/browser/ui/views/root_view.cc' cleanly.\nApplied patch to 'shell/browser/ui/views/root_view.h' cleanly.\nApplied patch to 'shell/browser/web_contents_preferences.cc' cleanly.\nApplied patch to 'shell/common/BUILD.gn' cleanly.\nApplied patch to 'shell/common/api/electron_bindings.cc' cleanly.\nApplied patch to 'shell/common/gin_helper/wrappable.cc' cleanly.\nApplied patch to 'shell/common/gin_helper/wrappable_base.h' cleanly.\nApplied patch to 'shell/common/node_bindings.cc' cleanly.\nFalling back to direct application...\nApplied patch to 'shell/renderer/electron_render_frame_observer.cc' cleanly.\nApplied patch to 'shell/renderer/electron_render_frame_observer.h' cleanly.\nApplied patch to 'shell/renderer/renderer_client_base.cc' cleanly.\nApplied patch to 'shell/renderer/service_worker_data.cc' cleanly.\nApplied patch to 'shell/renderer/service_worker_data.h' cleanly.\nApplied patch to 'spec/api-browser-window.spec.ts' cleanly.\nApplied patch to 'spec/api-process.spec.ts' cleanly.\nApplied patch to 'spec/api-web-frame-main.spec.ts' cleanly.\nApplied patch to 'tsconfig.json' cleanly.\nApplied patch to 'typings/internal-electron.d.ts' cleanly.\nApplied patch to 'BUILD.gn' cleanly.\nApplied patch to 'shell/app/electron_main_delegate.cc' cleanly.\nApplied patch to 'shell/browser/api/electron_api_app.cc' cleanly.\nApplied patch to 'shell/browser/api/electron_api_base_window.cc' cleanly.\nApplied patch to 'shell/browser/api/electron_api_base_window.h' cleanly.\nApplied patch to 'shell/browser/api/electron_api_browser_window.cc' cleanly.\nApplied patch to 'shell/browser/api/electron_api_web_contents.cc' cleanly.\nApplied patch to 'shell/browser/api/electron_api_web_contents.h' cleanly.\nApplied patch to 'shell/browser/api/electron_api_web_frame_main.cc' cleanly.\nApplied patch to 'shell/browser/osr/osr_render_widget_host_view.cc' cleanly.\nApplied patch to 'shell/common/api/api.mojom' cleanly.\nApplied patch to 'shell/renderer/electron_api_service_impl.cc' cleanly.\nApplied patch to 'shell/renderer/electron_api_service_impl.h' cleanly.\nApplied patch to 'patches/chromium/.patches' cleanly.\nApplied patch to 'patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch' cleanly.\nApplied patch to 'patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch' cleanly.\nApplied patch to 'patches/chromium/crash_include_code_integrity_scan_in_crash_handler_and_put_results.patch' cleanly.\nApplied patch to 'patches/chromium/direct_video_sinks.patch' cleanly.\nApplied patch to 'patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch' cleanly.\nApplied patch to 'patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch' cleanly.\nApplied patch to 'patches/chromium/fix_fix_unknown_case_with_a_double-call_to_onrefreshcomplete.patch' cleanly.\nApplied patch to 'patches/chromium/fix_validate_locale_exists_before_trying_to_use_it.patch' cleanly.\nApplied patch to 'patches/chromium/ignore_mouse_buttons_other_than_left_right_middle.patch' cleanly.\nApplied patch to 'patches/chromium/revert_videocapture_enable_mediafoundationcamerausagemonitoring_by.patch' cleanly.\nApplied patch to 'patches/ffmpeg/.patches' cleanly.\nApplied patch to 'patches/ffmpeg/add_dynamic_loading_for_openh264_on_linux.patch' cleanly.\nApplied patch to 'patches/ffmpeg/add_media_foundation_h264_decode.patch' cleanly.\nApplied patch to 'patches/ffmpeg/fix_openh264_opaque_for_bframes.patch' cleanly.\nFalling back to direct application...\nApplied patch to 'shell/browser/api/electron_api_frame_capture.cc' cleanly.\nApplied patch to 'shell/browser/api/electron_api_frame_capture.h' cleanly.\nApplied patch to 'shell/browser/api/electron_api_web_frame_main.cc' cleanly.\nApplied patch to 'shell/common/gin_helper/wrappable_pointer_tags.h' cleanly.\nApplied patch to 'shell/browser/osr/osr_render_widget_host_view.cc' cleanly.\n",
+        "patch_sha256": "de5c508fc9aac2d3fabe47ccb328e8d3a0a4beea124add663510acbebdeb014e",
+        "port": {
+          "anchor_commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
+          "candidate_tree": "b19b8ded4047b8b3f30e1a2bd039dd6059c80995",
+          "dependency_notes": {
+            "chromium/add_missing_lock_annotation.patch": "Omitted from dependency series: upstream Environment::Create already has EXCLUSIVE_LOCKS_REQUIRED(GetLock()).",
+            "chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch": "Preserve frame-scoped audio authorization and resolve every pending RestrictionTarget resolver with the Discord capture token.",
+            "chromium/fix_validate_locale_exists_before_trying_to_use_it.patch": "Use upstream CheckAndResolveLocale fallback and retain Discord empty-localization guard.",
+            "ffmpeg/fix_openh264_opaque_for_bframes.patch": "Keep upstream decoder NULL cleanup, flush handler and failed-reinitialization guard; add Discord packet metadata caching without duplicating the upstream flush callback.",
+            "ffmpeg/roll_ffmpeg.patch": "Replaced in the dependency series with roll_ffmpeg_linux_x64.patch generated from the current patched FFmpeg sources. Non-Linux GN lists are preserved; only Linux x64 codec configuration is qualified."
+          },
+          "followup_patches": [
+            {
+              "patch": "patches/ports/46/dependency-context.patch",
+              "patch_sha256": "f926fb6ce48a5c45bf78a04111897871fc095035be5e17bb578a3ededba9d50f"
+            },
+            {
+              "patch": "patches/ports/46/frame-capture-gc.patch",
+              "patch_sha256": "490ea9a2b5c59b28cdaad4e98f8ea986c4310aa950e8f7d6467cb7a4d56e0a37"
+            },
+            {
+              "patch": "patches/ports/46/osr-child-views.patch",
+              "patch_sha256": "a247a00ee140e83ce32b07989c90dc2f67f5787ca8e04732743a9ace61e569a6"
+            }
+          ],
+          "patch": "patches/ports/46/compatibility.patch",
+          "patch_sha256": "af5730624e303b93f16f6180643b4fa2619f501c0475c8e73857f3af0d65fe4a",
+          "replaced_paths": [
+            "BUILD.gn",
+            "build/zip.py",
+            "lib/browser/api/web-contents.ts",
+            "lib/sandboxed_renderer/api/module-list.ts",
+            "patches/chromium/cherry-pick-69403d85b78b.patch",
+            "shell/app/electron_crash_reporter_client.cc",
+            "shell/app/electron_crash_reporter_client.h",
+            "shell/app/electron_main_delegate.cc",
+            "shell/browser/api/electron_api_app.cc",
+            "shell/browser/api/electron_api_base_window.cc",
+            "shell/browser/api/electron_api_base_window.h",
+            "shell/browser/api/electron_api_browser_window.cc",
+            "shell/browser/api/electron_api_browser_window.h",
+            "shell/browser/api/electron_api_web_contents.cc",
+            "shell/browser/api/electron_api_web_contents.h",
+            "shell/browser/api/electron_api_web_frame_main.cc",
+            "shell/browser/osr/osr_render_widget_host_view.cc",
+            "shell/common/api/api.mojom",
+            "shell/common/gin_converters/std_converter.h",
+            "shell/renderer/electron_api_service_impl.cc",
+            "shell/renderer/electron_api_service_impl.h"
+          ],
+          "status": "source-only",
+          "upstream_equivalents": {
+            "build/zip.py": "Preserve upstream WER packaging and static-ANGLE stub exclusions for the Linux build.",
+            "lib/browser/api/web-contents.ts": "The deviceScaleFactor property moves into the native WebContents template, matching the new upstream accessor layout.",
+            "lib/sandboxed_renderer/api/module-list.ts": "Upstream removed this module list; the shared renderer module list already carries the Discord binding.",
+            "patches/chromium/cherry-pick-69403d85b78b.patch": "The removed upstream patch only received a mail-subject formatting edit in the Discord delta; no executable change is omitted.",
+            "shell/app/electron_crash_reporter_client.cc": "Upstream has its own newer WER registration/path implementation; retain it. WER is not used by Linux.",
+            "shell/app/electron_crash_reporter_client.h": "Keep the matching upstream WER declarations; the older Discord declaration is superseded.",
+            "shell/browser/api/electron_api_browser_window.h": "Keep upstream cppgc Persistent/WeakPersistent members and tracing, replacing the older v8 Global/base WeakPtr ownership model.",
+            "shell/common/gin_converters/std_converter.h": "Upstream propagates MaybeLocal conversion failure; retain that behavior instead of forcing ToLocalChecked globally."
+          }
+        },
+        "runtime_validated": false,
+        "source_assembled": true,
+        "target": "prerelease",
+        "tree": "b19b8ded4047b8b3f30e1a2bd039dd6059c80995",
+        "upstream_commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717"
+      }
+    },
+    "channel": "canary",
+    "client_version": "1.0.2357",
+    "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "launch_report": "/mnt/storage/discord-patched-electron-ci/local-tests/launch-fixes-20261024/relaunch/launch-report.json",
+    "launch_verified": true,
+    "publishable": false,
+    "runtime_kind": "compiled",
+    "schema": 1
+  },
+  "launch": {
+    "app": "/mnt/storage/discord-patched-electron-ci/local-tests/canary-fixes-20261024-r2",
+    "exited_before_check": null,
+    "native_wayland_connection": true,
+    "page": {
+      "loginForm": true,
+      "passwordField": true,
+      "ready": "complete",
+      "title": ""
+    },
+    "passed": true,
+    "profile": "/mnt/storage/discord-patched-electron-ci/local-tests/launch-fixes-20261024/profile",
+    "real_discord_call_verified": false,
+    "screenshots_saved": false,
+    "targets": [
+      {
+        "title": "canary.discord.com/app?_=1792833650255",
+        "type": "page",
+        "url": "https://canary.discord.com/login"
+      },
+      {
+        "title": "",
+        "type": "worker",
+        "url": ""
+      }
+    ],
+    "uncaught_exception": false
+  },
+  "relaunch": {
+    "app": "/mnt/storage/discord-patched-electron-ci/local-tests/canary-fixes-20261024-r2",
+    "exited_before_check": null,
+    "native_wayland_connection": true,
+    "page": {
+      "loginForm": true,
+      "passwordField": true,
+      "ready": "complete",
+      "title": ""
+    },
+    "passed": true,
+    "profile": "/mnt/storage/discord-patched-electron-ci/local-tests/launch-fixes-20261024/profile",
+    "real_discord_call_verified": false,
+    "screenshots_saved": false,
+    "targets": [
+      {
+        "title": "canary.discord.com/app?_=1792833653478",
+        "type": "page",
+        "url": "https://canary.discord.com/login"
+      },
+      {
+        "title": "",
+        "type": "worker",
+        "url": ""
+      }
+    ],
+    "uncaught_exception": false
+  },
+  "storage": {
+    "passed": true,
+    "runs": [
+      {
+        "available": true,
+        "invalidRejected": true,
+        "nullHandled": true,
+        "passed": true,
+        "reopened": false,
+        "roundtrip": true,
+        "versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "amaro": "1.1.11",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "158.0.8114.0",
+          "cldr": "48.0",
+          "electron": "46.0.0-alpha.1",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "154",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026e",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.8.24-electron.f82fa2307ebc179d",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        }
+      },
+      {
+        "available": true,
+        "invalidRejected": true,
+        "nullHandled": true,
+        "passed": true,
+        "reopened": true,
+        "roundtrip": true,
+        "versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "amaro": "1.1.11",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "158.0.8114.0",
+          "cldr": "48.0",
+          "electron": "46.0.0-alpha.1",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "154",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026e",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.8.24-electron.f82fa2307ebc179d",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        }
+      }
+    ],
+    "synthetic_only": true
+  },
+  "shortcuts": {
+    "passed": true,
+    "trigger": "CTRL+ALT+F12",
+    "events": [
+      [
+        true
+      ],
+      [
+        false
+      ]
+    ],
+    "versions": {
+      "node": "24.22.1",
+      "acorn": "8.18.0",
+      "ada": "4.0.0",
+      "amaro": "1.1.11",
+      "ares": "1.34.9",
+      "brotli": "1.2.0",
+      "cldr": "48.0",
+      "icu": "78.2",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "154",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.70.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "openssl": "0.0.0",
+      "simdjson": "4.6.11",
+      "simdutf": "7.7.0",
+      "sqlite": "3.53.4",
+      "tz": "2026e",
+      "undici": "7.30.1",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "15.8.24-electron.f82fa2307ebc179d",
+      "zlib": "1.3.2.1-motley",
+      "zstd": "1.6.0",
+      "electron": "46.0.0-alpha.1",
+      "chrome": "158.0.8114.0"
+    }
+  },
+  "shortcut_portal": {
+    "app_id": "io.github.discord_patched_electron.DiscordCanary",
+    "shortcuts": [
+      [
+        "discord-dpe-fixture",
+        {
+          "description": "Synthetic fixture shortcut",
+          "preferred_trigger": "CTRL+ALT+F12"
+        }
+      ]
+    ]
+  },
+  "camera": {
+    "images_saved": false,
+    "microphone_used": false,
+    "live_call_verified": false,
+    "sustained_audio_delivery_verified": false,
+    "runs": [
+      {
+        "async_video_input_device_init": false,
+        "first_frame_ms": 3455.300000011921,
+        "capability_probe_ms": 1070.0,
+        "engine_heartbeat_count": 134,
+        "engine_max_gap_ms": 1130.300000011921,
+        "width": 1280,
+        "height": 720,
+        "loopback_audio_packets": 10
+      },
+      {
+        "async_video_input_device_init": true,
+        "first_frame_ms": 1738.7999999821186,
+        "capability_probe_ms": 656.0,
+        "engine_heartbeat_count": 109,
+        "engine_max_gap_ms": 25.30000001192093,
+        "width": 1280,
+        "height": 720,
+        "loopback_audio_packets": 10
+      }
+    ]
+  },
+  "audio": [
+    {
+      "directory": "/mnt/storage/discord-patched-electron-ci/local-tests/audio-fixes-pipewire-20261024c",
+      "passed": true,
+      "selection": "auto",
+      "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+      "internal_device_control": true,
+      "hidden_device_leaks": 0,
+      "adapter_identity": {
+        "adapter_sha256": "c87a8a4f7b58e5a86ebbd20a15888e4457589b5be5b3b144a7f4de4f779e8372",
+        "default_sessions": [
+          "wayland"
+        ],
+        "disable_environment": "DPE_APP_AUDIO=0",
+        "enabled_by_default": true,
+        "helper_sha256": {
+          "dpe-pipewire-audio.py": "0e3df0f4f44c9699860a701bf7372e221bcb146ab5011db4114a1b52d8091ced",
+          "dpe-voice-devices.cjs": "1dfe1fd59a3e045a3688234e017fb0f7d2a1b68de1cfcbd392d1ce19425e956c",
+          "dpe-wayland-audio.cjs": "464cff6af3df52256207d2e409760a2c61b6bca6cd2620c8c9ba48e4134e55ec",
+          "window_inventory.py": "044cf9bf2b3f242637f1e0c55caa874bd9ae01ed044598cc4494f0aced67377e"
+        },
+        "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+        "output_sha256": "849c47170bceb5f85c3dafcec580dc1fbd130eee098eca6dc1793bc022f2153b",
+        "publishable": false,
+        "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+        "x11_enable_environment": "DPE_APP_AUDIO=1"
+      },
+      "native_video_verified": true,
+      "cases": {
+        "app-a": {
+          "amplitudes": {
+            "1399": 0.047982173720075315,
+            "440": 4999.365605042181,
+            "660": 4999.39835626249,
+            "997": 0.025196379597427748
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.07351634977186321,
+            "440": 4999.388984663189,
+            "660": 4999.454384931052,
+            "997": 0.035492846967319636
+          },
+          "passed": true,
+          "samples": 57600
+        },
+        "app-b": {
+          "amplitudes": {
+            "1399": 0.02239762880483122,
+            "440": 0.026902065520067485,
+            "660": 0.019685949792111426,
+            "997": 4999.358930935459
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.060123385059988245,
+            "440": 0.05828469899700225,
+            "660": 0.05249511520111444,
+            "997": 4999.395510588568
+          },
+          "passed": true,
+          "samples": 57600
+        },
+        "app-exited": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "audio-cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cleared": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "disabled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "re-enabled": {
+          "amplitudes": {
+            "1399": 0.04986044733930695,
+            "440": 4999.355180238803,
+            "660": 4999.412663564646,
+            "997": 0.030862743825847763
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.07134969523358833,
+            "440": 4999.3951762982615,
+            "660": 4999.449639441192,
+            "997": 0.03706196332769506
+          },
+          "passed": true,
+          "samples": 57600
+        },
+        "system": {
+          "amplitudes": {
+            "1399": 0.05588675191634461,
+            "440": 4999.362648129965,
+            "660": 4999.401868614809,
+            "997": 4999.361464578045
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.10655337588038129,
+            "440": 4999.4341357000885,
+            "660": 4999.479836098262,
+            "997": 4999.43903508258
+          },
+          "passed": true,
+          "samples": 57600
+        }
+      },
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "auto"
+      }
+    },
+    {
+      "directory": "/mnt/storage/discord-patched-electron-ci/local-tests/audio-fixes-pulse-20261024d",
+      "passed": true,
+      "selection": "auto",
+      "pulse_server": "pulseaudio",
+      "internal_device_control": true,
+      "hidden_device_leaks": 0,
+      "adapter_identity": {
+        "adapter_sha256": "c87a8a4f7b58e5a86ebbd20a15888e4457589b5be5b3b144a7f4de4f779e8372",
+        "default_sessions": [
+          "wayland"
+        ],
+        "disable_environment": "DPE_APP_AUDIO=0",
+        "enabled_by_default": true,
+        "helper_sha256": {
+          "dpe-pipewire-audio.py": "891523c1056d0d6add28c1eb3e0cb93fef9458cc71a428279950893002822bfe",
+          "dpe-voice-devices.cjs": "1dfe1fd59a3e045a3688234e017fb0f7d2a1b68de1cfcbd392d1ce19425e956c",
+          "dpe-wayland-audio.cjs": "464cff6af3df52256207d2e409760a2c61b6bca6cd2620c8c9ba48e4134e55ec",
+          "window_inventory.py": "044cf9bf2b3f242637f1e0c55caa874bd9ae01ed044598cc4494f0aced67377e"
+        },
+        "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+        "output_sha256": "849c47170bceb5f85c3dafcec580dc1fbd130eee098eca6dc1793bc022f2153b",
+        "publishable": false,
+        "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+        "x11_enable_environment": "DPE_APP_AUDIO=1"
+      },
+      "native_video_verified": true,
+      "cases": {
+        "app-a": {
+          "amplitudes": {
+            "1399": 0.0534652908637486,
+            "440": 4999.370415975214,
+            "660": 4999.418874931339,
+            "997": 0.03990676898395066
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.06876933190043723,
+            "440": 4999.384127776284,
+            "660": 4999.4333522729075,
+            "997": 0.05584626855901495
+          },
+          "passed": true,
+          "samples": 36960
+        },
+        "app-b": {
+          "amplitudes": {
+            "1399": 0.025093026285766738,
+            "440": 0.030137640863309598,
+            "660": 0.022986963827414584,
+            "997": 4999.362470930827
+          },
+          "clean_frame_fraction": 0.987012987012987,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.054612411703098204,
+            "440": 0.05707131155859317,
+            "660": 0.05349426733294002,
+            "997": 4999.391224179959
+          },
+          "passed": true,
+          "samples": 36960
+        },
+        "app-exited": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "audio-cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cleared": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "disabled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "re-enabled": {
+          "amplitudes": {
+            "1399": 0.049295676941736685,
+            "440": 4999.347750541121,
+            "660": 4999.407599398728,
+            "997": 0.03895271191939646
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.07096408036300833,
+            "440": 4999.398321592407,
+            "660": 4999.43579870126,
+            "997": 0.05204109958708932
+          },
+          "passed": true,
+          "samples": 36960
+        },
+        "system": {
+          "amplitudes": {
+            "1399": 0.057302636420546206,
+            "440": 4999.362498539047,
+            "660": 4999.412065450431,
+            "997": 4999.362412042111
+          },
+          "clean_frame_fraction": 0.961038961038961,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.1020523237459178,
+            "440": 4999.427698524311,
+            "660": 4999.4620652792255,
+            "997": 4999.429032418974
+          },
+          "passed": true,
+          "samples": 36960
+        }
+      },
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "pulseaudio",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "auto"
+      }
+    },
+    {
+      "directory": "/mnt/storage/discord-patched-electron-ci/local-tests/audio-fixes-stream-20261024e",
+      "passed": true,
+      "selection": "stream",
+      "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+      "internal_device_control": true,
+      "hidden_device_leaks": 0,
+      "adapter_identity": {
+        "adapter_sha256": "c87a8a4f7b58e5a86ebbd20a15888e4457589b5be5b3b144a7f4de4f779e8372",
+        "default_sessions": [
+          "wayland"
+        ],
+        "disable_environment": "DPE_APP_AUDIO=0",
+        "enabled_by_default": true,
+        "helper_sha256": {
+          "dpe-pipewire-audio.py": "ce00466c8ea1684cb9dd5b3397b655ee5e349e2f445ba593a5952ded8036b4ce",
+          "dpe-voice-devices.cjs": "1dfe1fd59a3e045a3688234e017fb0f7d2a1b68de1cfcbd392d1ce19425e956c",
+          "dpe-wayland-audio.cjs": "464cff6af3df52256207d2e409760a2c61b6bca6cd2620c8c9ba48e4134e55ec",
+          "window_inventory.py": "276f4a11b32bf63903bc5bfdfec58b14e035741348c08595461d5e913b002b5b"
+        },
+        "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+        "output_sha256": "849c47170bceb5f85c3dafcec580dc1fbd130eee098eca6dc1793bc022f2153b",
+        "publishable": false,
+        "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+        "x11_enable_environment": "DPE_APP_AUDIO=1"
+      },
+      "native_video_verified": true,
+      "cases": {
+        "app-a": {
+          "amplitudes": {
+            "1399": 0.05329140471445969,
+            "440": 4999.361939060471,
+            "660": 0.03476895343359063,
+            "997": 0.0273188820656791
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.06610880610205006,
+            "440": 4999.373923060624,
+            "660": 0.04772083863947928,
+            "997": 0.04110314063826419
+          },
+          "passed": true,
+          "samples": 57600
+        },
+        "app-b": {
+          "amplitudes": {
+            "1399": 0.022563036645483658,
+            "440": 0.023296787911243025,
+            "660": 0.022975714442772598,
+            "997": 4999.353945204137
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.05468358543758599,
+            "440": 0.055097113566835214,
+            "660": 0.058410456009441426,
+            "997": 4999.395988312374
+          },
+          "passed": true,
+          "samples": 57600
+        },
+        "app-exited": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "audio-cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cancelled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "cleared": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "disabled": {
+          "amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "clean_frame_fraction": 0.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.0,
+            "440": 0.0,
+            "660": 0.0,
+            "997": 0.0
+          },
+          "passed": true,
+          "samples": 0
+        },
+        "re-enabled": {
+          "amplitudes": {
+            "1399": 0.05461721018139806,
+            "440": 4999.3583030546615,
+            "660": 0.03845239963198153,
+            "997": 0.02745526392335889
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.06197570891935026,
+            "440": 4999.374221559371,
+            "660": 0.04792792490128854,
+            "997": 0.04006067571348442
+          },
+          "passed": true,
+          "samples": 57600
+        },
+        "system": {
+          "amplitudes": {
+            "1399": 0.05109456103541464,
+            "440": 4999.357259206436,
+            "660": 4999.413624663683,
+            "997": 4999.350884411831
+          },
+          "clean_frame_fraction": 1.0,
+          "maximum_clean_frame_amplitudes": {
+            "1399": 0.12255867728529506,
+            "440": 4999.440139281138,
+            "660": 4999.467702620265,
+            "997": 4999.418349927958
+          },
+          "passed": true,
+          "samples": 57600
+        }
+      },
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "stream"
+      }
+    }
+  ],
+  "graphics": {
+    "additional_flags": [
+      "--ozone-platform=wayland",
+      "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL"
+    ],
+    "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "gpu": {
+      "auxAttributes": {
+        "amdSwitchable": false,
+        "canSupportThreadedTextureMailbox": false,
+        "glImplementationParts": "(gl=none,angle=none)",
+        "glResetNotificationStrategy": 0,
+        "hardwareSupportsVulkan": false,
+        "inProcessGpu": true,
+        "initializationTime": 0,
+        "isAsan": false,
+        "isClangCoverage": false,
+        "jpegDecodeAcceleratorSupported": false,
+        "optimus": false,
+        "passthroughCmdDecoder": false,
+        "sandboxed": false,
+        "skiaBackendType": "None",
+        "subpixelFontRendering": true,
+        "targetCpuBits": 64,
+        "visibilityCallbackCallCount": 0
+      },
+      "gpuDevice": [
+        {
+          "active": true,
+          "deviceId": 29772,
+          "gpuPreference": 0,
+          "vendorId": 4098
+        }
+      ]
+    },
+    "gpuExits": [],
+    "gpuFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "disabled_software",
+      "vulkan": "disabled_off",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webgpu_on_vk_via_gl_interop": "disabled_off",
+      "webnn": "disabled_off"
+    },
+    "hardwareAccelerationEnabled": true,
+    "native_wayland_connection": true,
+    "note": "Synthetic video and WebGL on the local GPU; no real Discord call.",
+    "ozoneSwitch": "wayland",
+    "passed": true,
+    "players": {
+      "5BE06D478EAC310B7425D3A70F633E1B": {
+        "kFrameTitle": "Discord Electron graphics probe",
+        "kFrameUrl": "file:///mnt/storage/discord-patched-electron-ci/local-tests/graphics-defaults-20261024/runtime/resources/app.asar/index.html",
+        "kIsPlatformVideoEncoder": "false",
+        "kVideoEncoderName": "OpenH264VideoEncoder"
+      },
+      "701ACB3332291E93455448E11B23B312": {
+        "kBitrate": "3034320",
+        "kFrameTitle": "Discord Electron graphics probe",
+        "kFrameUrl": "file:///mnt/storage/discord-patched-electron-ci/local-tests/graphics-defaults-20261024/runtime/resources/app.asar/index.html",
+        "kIsPlatformVideoDecoder": "true",
+        "kIsRangeHeaderSupported": "false",
+        "kIsSingleOrigin": "true",
+        "kIsStreaming": "false",
+        "kIsVideoDecryptingDemuxerStream": "false",
+        "kMaxDuration": "2.0",
+        "kRendererName": "RendererImpl",
+        "kResolution": "1280x720",
+        "kStartTime": "0.0",
+        "kTotalBytes": "0xb9334",
+        "kVideoDecoderName": "VaapiVideoDecoder",
+        "kVideoTracks": "[{\"alpha mode\":\"is_opaque\",\"codec\":\"h264\",\"coded size\":\"1280x720\",\"color space\":{\"matrix\":\"BT709\",\"primaries\":\"BT709\",\"range\":\"LIMITED\",\"transfer\":\"BT709\"},\"encryption scheme\":\"Unencrypted\",\"has extra data\":true,\"hdr metadata\":{},\"natural size\":\"1280x720\",\"orientation\":\"0\u00b0\",\"profile\":\"h264 high\",\"visible rect\":\"0,0 1280x720\"}]"
+      },
+      "78F20C190D50BC62CA68A3D0BA810A10": {
+        "kFrameTitle": "Discord Electron graphics probe",
+        "kFrameUrl": "file:///mnt/storage/discord-patched-electron-ci/local-tests/graphics-defaults-20261024/runtime/resources/app.asar/index.html",
+        "kIsPlatformVideoEncoder": "false",
+        "kVideoEncoderName": "VpxVideoEncoder"
+      },
+      "C1B32C33E43B06E2B53243236128AA3F": {
+        "kFrameTitle": "Discord Electron graphics probe",
+        "kFrameUrl": "file:///mnt/storage/discord-patched-electron-ci/local-tests/graphics-defaults-20261024/runtime/resources/app.asar/index.html",
+        "kIsPlatformVideoEncoder": "false",
+        "kVideoEncoderName": "VpxVideoEncoder"
+      }
+    },
+    "process_exit": 0,
+    "rendering": {
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "pixel": [
+        25,
+        128,
+        229,
+        255
+      ],
+      "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "videoFrames": 5,
+      "videoHeight": 720,
+      "videoWidth": 1280,
+      "webglPassed": true
+    },
+    "stage": "complete",
+    "versions": {
+      "acorn": "8.18.0",
+      "ada": "4.0.0",
+      "amaro": "1.1.11",
+      "ares": "1.34.9",
+      "brotli": "1.2.0",
+      "chrome": "158.0.8114.0",
+      "cldr": "48.0",
+      "electron": "46.0.0-alpha.1",
+      "icu": "78.2",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "154",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.70.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "node": "24.22.1",
+      "openssl": "0.0.0",
+      "simdjson": "4.6.11",
+      "simdutf": "7.7.0",
+      "sqlite": "3.53.4",
+      "tz": "2026e",
+      "undici": "7.30.1",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "15.8.24-electron.f82fa2307ebc179d",
+      "zlib": "1.3.2.1-motley",
+      "zstd": "1.6.0"
+    }
+  },
+  "native_codec_initial_capabilities": {
+    "vaapi": true,
+    "capabilities": "[{\"codec\":\"AV1\",\"decode\":true,\"encode\":false},{\"codec\":\"H264\",\"decode\":true,\"encode\":false},{\"codec\":\"H265\",\"decode\":true,\"encode\":false},{\"codec\":\"VP8\",\"decode\":true,\"encode\":true}]\n",
+    "survey": "null\n"
+  },
+  "package_reports": [
+    {
+      "app_audio_patch": {
+        "adapter_sha256": "c87a8a4f7b58e5a86ebbd20a15888e4457589b5be5b3b144a7f4de4f779e8372",
+        "default_sessions": [
+          "wayland"
+        ],
+        "disable_environment": "DPE_APP_AUDIO=0",
+        "enabled_by_default": true,
+        "helper_sha256": {
+          "dpe-pipewire-audio.py": "8c6460760abc06321be4a06ca2516084beda4221351fdc69bc216263f5bd598f",
+          "dpe-voice-devices.cjs": "1dfe1fd59a3e045a3688234e017fb0f7d2a1b68de1cfcbd392d1ce19425e956c",
+          "dpe-wayland-audio.cjs": "464cff6af3df52256207d2e409760a2c61b6bca6cd2620c8c9ba48e4134e55ec",
+          "window_inventory.py": "276f4a11b32bf63903bc5bfdfec58b14e035741348c08595461d5e913b002b5b"
+        },
+        "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+        "output_sha256": "849c47170bceb5f85c3dafcec580dc1fbd130eee098eca6dc1793bc022f2153b",
+        "publishable": false,
+        "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+        "x11_enable_environment": "DPE_APP_AUDIO=1"
+      },
+      "camera_library_dependencies_checked": true,
+      "camera_scope": {
+        "end": 9845201,
+        "start": 9844032,
+        "symbol": "_ZN6webrtc18videocapturemodule14DeviceInfoV4l216FillCapabilitiesEi",
+        "voice_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+      },
+      "camera_support_sha256": "ab231d4d131bb06601ba207fbfc1e8a8e1fb1e81b93343c1b9ad2e6f69752a56",
+      "client_version": "1.0.2357",
+      "electron_channel": "prerelease",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+        "offset": 4407835,
+        "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "native_library_dependencies_checked": [
+        "discord_cloudsync/discord_cloudsync.node",
+        "discord_dispatch/discord_dispatch.node",
+        "discord_erlpack/discord_erlpack.node",
+        "discord_game_utils/discord_game_utils.node",
+        "discord_krisp/discord_krisp.node",
+        "discord_modules/discord_modules.node",
+        "discord_ndi/discord_ndi.node",
+        "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+        "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+        "discord_sysimg/discord_sysimg.node",
+        "discord_utils/discord_utils.node",
+        "discord_voice/discord_voice.node",
+        "discord_zstd/discord_zstd.node"
+      ],
+      "native_library_exceptions": {
+        "discord_dispatch/discord_dispatch.node": {
+          "missing": [
+            "libcrypto.so.1.1",
+            "libssl.so.1.1"
+          ],
+          "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+          "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+        }
+      },
+      "package": "discord-canary-prerelease-patched-electron-bin",
+      "package_bytes": 378839040,
+      "package_sha256": "de1816c8a4087e2ada5d140a569aad9ffcf2da6cac4646ece72be2e80b9a6793",
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    },
+    {
+      "app_audio_patch": {
+        "adapter_sha256": "c87a8a4f7b58e5a86ebbd20a15888e4457589b5be5b3b144a7f4de4f779e8372",
+        "default_sessions": [
+          "wayland"
+        ],
+        "disable_environment": "DPE_APP_AUDIO=0",
+        "enabled_by_default": true,
+        "helper_sha256": {
+          "dpe-pipewire-audio.py": "8c6460760abc06321be4a06ca2516084beda4221351fdc69bc216263f5bd598f",
+          "dpe-voice-devices.cjs": "1dfe1fd59a3e045a3688234e017fb0f7d2a1b68de1cfcbd392d1ce19425e956c",
+          "dpe-wayland-audio.cjs": "464cff6af3df52256207d2e409760a2c61b6bca6cd2620c8c9ba48e4134e55ec",
+          "window_inventory.py": "276f4a11b32bf63903bc5bfdfec58b14e035741348c08595461d5e913b002b5b"
+        },
+        "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+        "output_sha256": "849c47170bceb5f85c3dafcec580dc1fbd130eee098eca6dc1793bc022f2153b",
+        "publishable": false,
+        "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+        "x11_enable_environment": "DPE_APP_AUDIO=1"
+      },
+      "camera_library_dependencies_checked": true,
+      "camera_scope": {
+        "end": 9845201,
+        "start": 9844032,
+        "symbol": "_ZN6webrtc18videocapturemodule14DeviceInfoV4l216FillCapabilitiesEi",
+        "voice_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5"
+      },
+      "camera_support_sha256": "ab231d4d131bb06601ba207fbfc1e8a8e1fb1e81b93343c1b9ad2e6f69752a56",
+      "client_version": "1.0.224",
+      "electron_channel": "prerelease",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "5377117827e35cd25bc9c1073f62673acbefd0583a96f702ed971d76d655d086",
+        "offset": 4407835,
+        "output_sha256": "73dd0f4389f9f0c0c860428371bf81f8b128aa1f8e43dab98660b436d835a56d",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "native_library_dependencies_checked": [
+        "discord_cloudsync/discord_cloudsync.node",
+        "discord_dispatch/discord_dispatch.node",
+        "discord_erlpack/discord_erlpack.node",
+        "discord_game_utils/discord_game_utils.node",
+        "discord_krisp/discord_krisp.node",
+        "discord_modules/discord_modules.node",
+        "discord_ndi/discord_ndi.node",
+        "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+        "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+        "discord_sysimg/discord_sysimg.node",
+        "discord_utils/discord_utils.node",
+        "discord_voice/discord_voice.node",
+        "discord_zstd/discord_zstd.node"
+      ],
+      "native_library_exceptions": {
+        "discord_dispatch/discord_dispatch.node": {
+          "missing": [
+            "libcrypto.so.1.1",
+            "libssl.so.1.1"
+          ],
+          "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+          "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+        }
+      },
+      "package": "discord-ptb-prerelease-patched-electron-bin",
+      "package_bytes": 378798080,
+      "package_sha256": "21ae354cd9313ef15975ca92c4a529c311dc2dad0f41305ead5182c4d1496052",
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    },
+    {
+      "app_audio_patch": {
+        "adapter_sha256": "c87a8a4f7b58e5a86ebbd20a15888e4457589b5be5b3b144a7f4de4f779e8372",
+        "default_sessions": [
+          "wayland"
+        ],
+        "disable_environment": "DPE_APP_AUDIO=0",
+        "enabled_by_default": true,
+        "helper_sha256": {
+          "dpe-pipewire-audio.py": "8c6460760abc06321be4a06ca2516084beda4221351fdc69bc216263f5bd598f",
+          "dpe-voice-devices.cjs": "1dfe1fd59a3e045a3688234e017fb0f7d2a1b68de1cfcbd392d1ce19425e956c",
+          "dpe-wayland-audio.cjs": "464cff6af3df52256207d2e409760a2c61b6bca6cd2620c8c9ba48e4134e55ec",
+          "window_inventory.py": "276f4a11b32bf63903bc5bfdfec58b14e035741348c08595461d5e913b002b5b"
+        },
+        "input_sha256": "c06fc0d68fbeb6b139e10ae98810918cb91512325e221922fe0de9b85a9cb8c1",
+        "output_sha256": "2ba62867d267dbeae330c2deb29bf01555f86ab23c0b104a6bbb11e686866a0a",
+        "publishable": false,
+        "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+        "x11_enable_environment": "DPE_APP_AUDIO=1"
+      },
+      "camera_library_dependencies_checked": true,
+      "camera_scope": {
+        "end": 9908113,
+        "start": 9906944,
+        "symbol": "_ZN6webrtc18videocapturemodule14DeviceInfoV4l216FillCapabilitiesEi",
+        "voice_sha256": "1a3fa65e21242ca84a27b6b654ba342c7ebf6c964fa3c1e1ee41682b9717fa24"
+      },
+      "camera_support_sha256": "ab231d4d131bb06601ba207fbfc1e8a8e1fb1e81b93343c1b9ad2e6f69752a56",
+      "client_version": "1.0.166",
+      "electron_channel": "prerelease",
+      "krisp_patch": {
+        "already_patched": false,
+        "input_sha256": "dc535bb4c798fa16a5b2eab870cf8e186a5a9e48590c049bd8ad25915fedabb3",
+        "offset": 4407835,
+        "output_sha256": "e589f3db4b3ea8140e7961233b0ff35eeb1b1b94be3caa441ebee79d830e557b",
+        "patcher_sha256": "8e3cd0e57d202bce28b1c35a02a8a9316de1d5ee29e4a46532792044ca655ae6",
+        "runtime_validated": false,
+        "size": 6
+      },
+      "native_library_dependencies_checked": [
+        "discord_cloudsync/discord_cloudsync.node",
+        "discord_dispatch/discord_dispatch.node",
+        "discord_erlpack/discord_erlpack.node",
+        "discord_game_utils/discord_game_utils.node",
+        "discord_krisp/discord_krisp.node",
+        "discord_modules/discord_modules.node",
+        "discord_ndi/discord_ndi.node",
+        "discord_spellcheck/node_modules/cld/build/Release/cld.node",
+        "discord_spellcheck/node_modules/cld/build/Release/obj.target/cld.node",
+        "discord_sysimg/discord_sysimg.node",
+        "discord_utils/discord_utils.node",
+        "discord_utils/node_modules/windows-notification-state/build/Release/notificationstate.node",
+        "discord_utils/node_modules/windows-notification-state/build/Release/obj.target/notificationstate.node",
+        "discord_voice/discord_voice.node",
+        "discord_zstd/discord_zstd.node"
+      ],
+      "native_library_exceptions": {
+        "discord_dispatch/discord_dispatch.node": {
+          "missing": [
+            "libcrypto.so.1.1",
+            "libssl.so.1.1"
+          ],
+          "sha256": "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+          "source": "https://github.com/NixOS/nixpkgs/pull/517309"
+        }
+      },
+      "package": "discord-stable-prerelease-patched-electron-bin",
+      "package_bytes": 380774400,
+      "package_sha256": "33cdd7b9fcbdf40074bce4a28a7f44ecebe31e6d0e7ebf970c3524698ff515e4",
+      "publishable": false,
+      "runtime_is_test_fixture": true,
+      "runtime_validated": false
+    }
+  ],
+  "real_discord_call_verified": false,
+  "actual_gnome_kde_session_verified": false,
+  "notes": [
+    "Native runtime, voice and Krisp bytes match the previously validated build.",
+    "Audio tests preceded the additional zen executable-name alias; all test adapter hashes are retained.",
+    "Camera loopback produced only startup silence packets; engine heartbeat proves the queue stall fix, not sustained live-call audio.",
+    "No physical camera image/video or desktop screenshot was saved or uploaded."
+  ],
+  "unit_checks": {
+    "python_passed": 80,
+    "javascript_passed": 16,
+    "launcher_syntax_passed": true
+  }
+}

@@ -86,6 +86,9 @@ jobs:
           profile discord-capture-fixture "$GITHUB_WORKSPACE/out/frame-capture/runtime/electron" flags=(unconfined) {
             userns,
           }
+          profile discord-storage-fixture "$GITHUB_WORKSPACE/out/safe-storage/runtime/electron" flags=(unconfined) {
+            userns,
+          }
           EOF
           sudo apparmor_parser -r /etc/apparmor.d/discord-native-fixture
       - name: Download and verify a completed custom build
@@ -124,6 +127,12 @@ jobs:
           out/reference-download/runtime/electron
           --provenance out/reference-download/artifact-provenance.json
           --output out/frame-capture
+      - name: Check safeStorage IPC and relaunch with synthetic credentials
+        if: env.REFERENCE_RUN != ''
+        run: >-
+          xvfb-run -a python scripts/check_safe_storage.py
+          --runtime out/reference-download/runtime/electron
+          --output out/safe-storage
       - name: Retain native fixture diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -142,5 +151,7 @@ jobs:
             out/native-runtime/*/probe/profile/voice/discord-webrtc_*
             out/frame-capture/frame-capture.json
             out/frame-capture/console.log
+            out/safe-storage/storage-report.json
+            out/safe-storage/console-*.log
           retention-days: 7
           if-no-files-found: warn

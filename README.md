@@ -16,6 +16,11 @@ and custom-runtime qualification.
 A separately compiled [camera probe fix](docs/camera-startup.md) reduces native
 webcam startup time without rebuilding Electron. [Runner controls](docs/ci-setup.md#changing-local-limits-while-the-build-runs) explain live CPU/RAM limits.
 
+[Launcher configuration](docs/linux-launcher.md) covers the channel-level `.conf`
+file, tested codec defaults, Wayland shortcut identity and Electron 46 storage
+compatibility. The audio picker can select one playing browser stream rather
+than every window's audio.
+
 Published binaries will require **x86-64-v3** (AVX2, including Haswell/first Ryzen;
 no AVX-512 requirement). See [CPU targeting and build reuse](docs/build-caching.md)
 for incremental Ninja builds, compiler caching and completed-artifact reuse.

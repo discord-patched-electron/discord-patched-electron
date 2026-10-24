@@ -2,7 +2,7 @@
 
 The module adapter keeps Discord's native screen capture and feeds its native
 PID-based audio input through private PipeWire/PulseAudio routes. It changes the installed
-`discord_voice` JavaScript wrapper and adds three sidecar files; it does not
+`discord_voice` JavaScript wrapper and adds small sidecar files; it does not
 replace the remote Discord UI or alter the proprietary voice binary. The helper
 uses Python's standard library and installed audio tools; no additional native
 addon or Electron rebuild is required for an audio-routing change. PipeWire
@@ -49,6 +49,30 @@ Compositor-independent automatic window/PID discovery is not promised. The
 explicit picker lists audio-owning processes; separate siblings can appear as
 separate entries. Flatpak/PID namespace remapping is not yet qualified.
 
+The picker now also offers **Stream:** rows, labeled with the playing stream's
+`media.name`. Application rows explicitly say **all audio**. Browser windows
+often share one audio process: on this Zen installation, two streams had the
+same PID and distinct media titles, with no window identifier. Window/PID
+matching therefore cannot isolate those tabs. Recognized browsers prompt for
+audio even on niri: select the appropriate **Stream:** row to exclude other
+streams. Play the wanted media before opening the picker. If the browser mixes
+several tabs into one stream, those tabs cannot be separated by this adapter.
+There is no reliable automatic tab-to-window relationship in those properties.
+
+An explicit PipeWire stream choice follows its unique object serial and goes
+silent if that stream ends. It never falls back to all streams of the PID. A
+replacement stream needs a new selection. `DPE_AUDIO_SELECTION=manual` requests
+the picker for other automatically detected applications too.
+
+Window names in the picker are enriched using Hyprland `hyprctl`, Sway IPC,
+optional KDE `kdotool`, or GNOME's optional Window Calls extension. KDE/GNOME
+dependency notes appear in the dialog. These tools expose window metadata but
+do not establish the exact portal-capture-to-window relationship; the notes
+therefore say that audio selection remains manual. No extension is installed,
+unsafe Shell Eval enabled, window focused or title used as automatic authority.
+See [kdotool's read-only scripting API](https://github.com/jinliu/kdotool#kwinscript)
+and [Window Calls](https://github.com/ickyicky/window-calls).
+
 ## Audio route and cleanup
 
 1. Selected PipeWire playback nodes are tapped into a private, non-lingering
@@ -68,6 +92,12 @@ separate entries. Flatpak/PID namespace remapping is not yet qualified.
    ending and destruction. Generations reject late helper replies. Stdin closure
    releases routes; parent-death signals and a narrowly scoped Pulse module lease
    also clean up after an uncatchable helper crash.
+
+The UUID-tagged `dpe-audio-…-mix/native` sinks and monitors are filtered from
+Discord's public device enumeration and device-change callback. This prevents
+the internal routes from producing a **New audio devices detected** prompt.
+Real device notifications, native device indices and the audio server's default
+devices remain intact.
 
 The native libpulse capture path otherwise requests a two-second default buffer
 on PulseAudio. The adapter supplies `PULSE_LATENCY_MSEC=40` only if
@@ -143,3 +173,11 @@ source changes, cancellation and cleanup. Both PipeWire-Pulse and real PulseAudi
 plus PipeWire pass, including manual app selection. See
 [the retained results](evidence/prerelease-runtime-local.json). These synthetic
 fixtures do not establish a real Discord call or GNOME/KDE desktop behavior.
+
+The 24 October fixes additionally pass local native tests with PipeWire-Pulse
+and real PulseAudio, including a positive control showing the internal sink in
+raw enumeration and no leaks through the filtered API. Individual-stream
+capture passed with unwanted parent/child and other-app tones excluded. Unit
+coverage also places two streams on the same PID and checks disappearance.
+CI now includes a separate Canary stream-selection case. See
+[local fix evidence](evidence/desktop-fixes-local.json).

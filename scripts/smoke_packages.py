@@ -19,6 +19,7 @@ import zipfile
 
 from client_inputs import load_clients, validate_channel
 from common import enabled_electron_channels, ROOT, digest, download, read_json, sha256, write_json
+from desktop_identity import desktop_id
 from generate_package import generate
 from build_camera_support import build as build_camera
 
@@ -54,7 +55,7 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
             if module != "core" and root + "/modules/" + module not in members:
                 raise ValueError(f"Missing module: {module}")
         allowed_prefixes = (root + "/", f"usr/share/licenses/{name}/")
-        allowed_files = {f"usr/bin/{name}", f"usr/share/applications/{name}.desktop",
+        allowed_files = {f"usr/bin/{name}", f"usr/share/applications/{desktop_id(inputs['client']['channel'])}.desktop",
                          f"usr/share/icons/hicolor/256x256/apps/{name}.png"}
         for entry in members.values():
             if (not entry.isdir() and not entry.name.startswith(".")
@@ -75,6 +76,10 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
             actual = hashlib.file_digest(tar.extractfile(root + "/modules/discord_voice/" + helper), "sha256").hexdigest()
             if actual != expected:
                 raise ValueError("Packaged application audio helper differs from its preparation report")
+        storage = json.load(tar.extractfile(root + '/desktop-patch.json'))
+        actual = hashlib.file_digest(tar.extractfile(root + '/modules/discord_desktop_core/core.asar'), 'sha256').hexdigest()
+        if actual != storage['after_sha256'] or storage['plaintext_fallback']:
+            raise ValueError('Packaged desktop storage adapter differs from preparation')
         for filename in ("package-inputs.json", "runtime/LICENSE", "runtime/LICENSES.chromium.html"):
             if root + "/" + filename not in members:
                 raise ValueError(f"Missing runtime provenance/license: {filename}")

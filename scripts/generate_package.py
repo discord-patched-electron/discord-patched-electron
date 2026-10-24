@@ -14,16 +14,22 @@ from urllib.parse import urlparse
 from common import enabled_electron_channels, require_enabled_electron, ROOT, arch_version, electron_channel, package_name, read_json, sha256, write_json
 from fingerprints import integration_key
 from lock_clients import normalize
+from desktop_identity import desktop_id
 
 SUPPORT = {
     "common.py": "scripts/common.py",
+    "desktop_identity.py": "scripts/desktop_identity.py",
     "prepare_app.py": "scripts/prepare_app.py",
     "patch_krisp.py": "scripts/patch_krisp.py",
     "patch_app_audio.py": "scripts/patch_app_audio.py",
+    "patch_desktop_core.py": "scripts/patch_desktop_core.py",
+    "safe-storage.cjs": "integration/desktop/safe-storage.cjs",
     "camera_scope.py": "scripts/camera_scope.py",
     "app-audio.cjs": "integration/audio/app-audio.cjs",
     "wayland-audio.cjs": "integration/audio/wayland-audio.cjs",
+    "voice-devices.cjs": "integration/audio/voice-devices.cjs",
     "pipewire_audio.py": "integration/audio/pipewire_audio.py",
+    "window_inventory.py": "integration/audio/window_inventory.py",
     "stage_package.py": "scripts/stage_package.py",
     "krisp-patcher.py": "packaging/upstream/krisp-patcher.py",
     "provenance.json": "packaging/upstream/provenance.json",
@@ -81,7 +87,7 @@ def generate(runtime: dict, client: dict, channel: str, revision: int, output: P
     output.mkdir(parents=True, exist_ok=True)
     for filename, source in SUPPORT.items():
         write_file(output / filename, (ROOT / source).read_bytes())
-    launcher = (ROOT / "integration/launcher/discord-launcher.sh").read_text().replace("@PKGNAME@", name)
+    launcher = (ROOT / "integration/launcher/discord-launcher.sh").read_text().replace("@PKGNAME@", name).replace('@DESKTOP_ID@', desktop_id(client['channel']))
     write_file(output / "discord-launcher.sh", launcher.encode())
     desktop = (f"[Desktop Entry]\nName=Discord {client['channel'].upper()} (Electron {channel})\n"
                f"Exec=/usr/bin/{name} %U\nIcon={name}\nType=Application\nTerminal=false\n"
@@ -103,7 +109,7 @@ def generate(runtime: dict, client: dict, channel: str, revision: int, output: P
     # Keep the upstream recipe's live text licenses; binary inputs never use SKIP.
     sources += [("LICENSE.html::https://discord.com/terms", "SKIP"),
                 ("OSS-LICENSES.html::https://discord.com/licenses", "SKIP")]
-    replacements = {"PACKAGE": name, "VERSION": arch_version(runtime["version"]),
+    replacements = {"PACKAGE": name, "DESKTOP_ID": desktop_id(client['channel']), "VERSION": arch_version(runtime["version"]),
         "REVISION": str(revision), "DISCORD": client["channel"], "ELECTRON": channel,
         "SOURCES": "\n".join("  " + shlex.quote(source) for source, _ in sources),
         "CHECKSUMS": "\n".join("  " + shlex.quote(checksum) for _, checksum in sources),

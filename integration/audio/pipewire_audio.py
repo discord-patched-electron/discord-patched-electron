@@ -273,7 +273,7 @@ class Route:
                             "sink_name=" + self.prefix + "-native",
                             "rate=48000",
                             "channels=2",
-                            "sink_properties=device.description=DPE-Private-Audio",
+                            "sink_properties=device.description=" + self.prefix + "-native",
                         ]
                     )
                 )
@@ -318,7 +318,7 @@ class Route:
             self.close()
             raise
 
-    def sync(self, objects, pulse, target, excluded):
+    def sync(self, objects, pulse, target, excluded, selected_stream=None):
         if not all(
             c.poll() is None
             for c in self.children
@@ -360,6 +360,8 @@ class Route:
             if not serial.isdecimal():
                 continue
             native_pulse_serials.add(serial)
+            if selected_stream is not None and selected_stream != ("pw", serial):
+                continue
             desired[("pw", serial)] = [
                 [
                     "/usr/bin/pw-loopback",
@@ -389,6 +391,8 @@ class Route:
             index = integer(stream.get("index"))
             sink = integer(stream.get("sink"))
             if min(index, sink) < 0:
+                continue
+            if selected_stream is not None and selected_stream != ("pa", str(index)):
                 continue
             if sinks is None:
                 sinks = json.loads(
@@ -505,28 +509,32 @@ class Controller:
         self.hint = integer(message.get("hint"))
         self.emit()
 
-    def choose(self, objects, pulse, key):
+    def choose(self, objects, pulse, key, application=None):
         if key != self.choose_key:
             if self.chooser:
                 Route.stop(self.chooser)
             self.choice = None
             self.choose_key = key
             choices = {}
+            stream_choices = {}
             clients = {
                 x["id"]: props(x)
                 for x in objects
                 if x["type"] == "PipeWire:Interface:Client"
             }
             entries = [
-                {**clients.get(integer(props(x).get("client.id")), {}), **props(x)}
+                {**clients.get(integer(props(x).get("client.id")), {}), **props(x),
+                 "dpe.stream": ("pw", str(props(x).get("object.serial", "")))}
                 for x in objects
                 if x["type"] == "PipeWire:Interface:Node"
                 and props(x).get("media.class") == "Stream/Output/Audio"
             ]
-            for entry in entries + [s.get("properties", {}) for s in pulse]:
+            entries += [{**s.get("properties", {}), "dpe.stream": ("pa", str(s["index"]))}
+                        for s in pulse if "object.serial" not in s.get("properties", {})]
+            for entry in entries:
                 pid = integer(entry.get("application.process.id"))
                 identity = process_identity(pid)
-                if identity and not descendant(pid, self.excluded):
+                if identity and not descendant(pid, self.excluded) and (application is None or descendant(pid, application)):
                     label = str(
                         entry.get(
                             "application.name",
@@ -535,16 +543,30 @@ class Controller:
                     )[:120]
                     label = "".join(c for c in label if c.isprintable())
                     choices[pid] = (identity, label)
+                    stream = entry["dpe.stream"]
+                    if stream[1].isdecimal():
+                        title = str(entry.get("media.name", "Audio stream"))
+                        title = "".join(c for c in title if c.isprintable())[:160]
+                        stream_choices["-".join(stream)] = (identity, stream, label + ": " + title)
             self.choices = choices
+            self.stream_choices = stream_choices
+            from window_inventory import windows, desktop_note
+            inventory = windows()
             rows = ["system", "Entire system (except Discord)"]
-            for pid, (_, label) in sorted(choices.items()):
-                rows.extend([str(pid), label])
+            for pid, (identity, label) in sorted(choices.items()):
+                owners = [w for w in inventory if (root := process_identity(w['pid'])) and descendant(pid, root)]
+                titles = sorted({w['title'] for w in owners if w['title']})
+                detail = (" — " + titles[0]) if len(titles) == 1 else (f" — {len(titles)} windows" if titles else "")
+                rows.extend([str(pid), label + " (all audio)" + detail])
+            for value, (_, _, label) in sorted(stream_choices.items()):
+                rows.extend([value, "Stream: " + label])
             self.chooser = sp.Popen(
                 [
                     "/usr/bin/zenity",
                     "--list",
                     "--title=Screen-share audio",
-                    "--text=Choose the application audio to share with this stream.",
+                    "--text=Choose audio for this share. Application rows include all windows; stream rows capture only that playing stream."
+                    + ("\n\n" + desktop_note() if desktop_note() else ""),
                     "--column=Process",
                     "--column=Application",
                     "--hide-column=1",
@@ -579,6 +601,11 @@ class Controller:
                             "key": ("manual", *key),
                             "backend": "selection",
                         }
+                elif value in self.stream_choices:
+                    identity, stream, _label = self.stream_choices[value]
+                    if process_identity(identity[0]) == identity:
+                        self.choice = {"kind": "application", "pid": identity[0], "stream": stream,
+                            "key": ("manual-stream", *key, *stream), "backend": "stream-selection"}
         return self.choice
 
     def tick(self):
@@ -612,6 +639,16 @@ class Controller:
             }
         if target is None and len(sources) == 1 and not niri_available:
             target = self.choose(objects, pulse, next(iter(sources)))
+        if target is not None and target.get("kind") == "application" and target.get("backend") not in ("selection", "stream-selection"):
+            # Browser windows/tabs commonly share one audio-service PID. A title
+            # match is not a reliable window/stream relationship. Ask explicitly.
+            try:
+                binary = Path(os.readlink(f"/proc/{target['pid']}/exe")).name.lower()
+            except OSError:
+                binary = ""
+            browser = binary == 'zen' or any(name in binary for name in ("firefox", "zen-bin", "chromium", "chrome", "brave", "vivaldi", "librewolf", "floorp"))
+            if browser or os.environ.get("DPE_AUDIO_SELECTION") == "manual":
+                target = self.choose(objects, pulse, next(iter(sources)), process_identity(target["pid"]))
         if target is None:
             if self.route:
                 self.reset()
@@ -648,7 +685,7 @@ class Controller:
             route = Route()
             route.start()
             self.route = route
-        self.route.sync(objects, pulse, self.target, self.excluded)
+        self.route.sync(objects, pulse, self.target, self.excluded, target.get("stream"))
         self.emit(self.route.capture_pid, "ready", target["backend"])
 
     def close(self):

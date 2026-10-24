@@ -31,6 +31,7 @@ def main():
     parser.add_argument("--device", required=True, help="Exact webcam name from V4L2")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--samples", type=int, default=2)
+    parser.add_argument("--compare-async", action="store_true", help="Compare sync/async initialization, with the fast probe enabled in both")
     parser.add_argument("--provenance", type=Path, help="Verified compiler artifact provenance for a custom runtime")
     args = parser.parse_args()
     if not 1 <= args.samples <= 5:
@@ -76,6 +77,14 @@ def main():
     )
     helper = build(output / "support")
     scope = write_scope(output / "voice/discord_voice.node", output)
+    # Generated tone, never microphone input. Probe loopback packet delivery;
+    # the report explicitly distinguishes startup silence from sustained audio.
+    import math
+    import struct
+    import wave
+    with wave.open(str(output / 'synthetic-audio.wav'), 'wb') as wav:
+        wav.setparams((1, 2, 48000, 0, 'NONE', 'not compressed'))
+        wav.writeframes(b''.join(struct.pack('<h', int(8000 * math.sin(2 * math.pi * 440 * i / 48000))) for i in range(48000 * 15)))
     results = []
     for sample in range(args.samples):
         for enabled in (False, True):
@@ -85,13 +94,17 @@ def main():
                 **os.environ,
                 "DPE_CAMERA_OUTPUT": str(run),
                 "DPE_CAMERA_DEVICE": args.device,
+                "DPE_CAMERA_FAKE_AUDIO": str(output / 'synthetic-audio.wav'),
                 "DPE_CAMERA_VOICE_MODULE": str(output / "voice/discord_voice.node"),
                 "DPE_CAMERA_PROBE_START": str(scope["start"]),
                 "DPE_CAMERA_PROBE_END": str(scope["end"]),
                 "DPE_CAMERA_FAST_PROBE": "1" if enabled else "0",
+                "DPE_CAMERA_ASYNC_INIT": "1" if args.compare_async and enabled else "0",
                 "LD_PRELOAD": str(output / "support/libdpe-camera-probe.so"),
             }
             env.pop("ELECTRON_RUN_AS_NODE", None)
+            if args.compare_async:
+                env["DPE_CAMERA_FAST_PROBE"] = "1"
             with (run / "console.log").open("w") as log:
                 subprocess.run(
                     [
@@ -109,6 +122,7 @@ def main():
             if provenance is not None and result["versions"]["electron"] != capacity["compiled_version"]:
                 raise ValueError("Loaded Electron version differs from the compiler report")
             result.update(patched=enabled, sample=sample + 1)
+            result["async_video_input_device_init"] = env["DPE_CAMERA_ASYNC_INIT"] == "1"
             # Retain measurements, not raw logs (which include device paths).
             log = (run / "discord-webrtc_0").read_text(errors="replace")
             times = re.findall(

@@ -18,7 +18,7 @@ import urllib.request
 from common import read_json, write_json
 
 
-def check(app: Path, output: Path):
+def check(app: Path, output: Path, profile: Path | None = None):
     app, output = app.resolve(), output.resolve()
     if output.exists():
         raise ValueError("Choose a fresh report directory")
@@ -26,10 +26,11 @@ def check(app: Path, output: Path):
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    environment = {**os.environ, "DISCORD_USER_DATA_DIR": str(output / "profile"),
+    profile = profile or output / 'profile'
+    environment = {**os.environ, "DISCORD_USER_DATA_DIR": str(profile),
         "WAYLAND_DEBUG":"client"}
     environment.pop("ELECTRON_RUN_AS_NODE", None)
-    report = {"passed":False, "profile":str(output / "profile"), "screenshots_saved":False,
+    report = {"passed":False, "profile":str(profile), "screenshots_saved":False,
         "real_discord_call_verified":False, "app":str(app), "targets":[]}
     channel = read_json(app / "local-build.json")["channel"]
     host = {"stable":"discord.com", "ptb":"ptb.discord.com", "canary":"canary.discord.com"}[channel]
@@ -95,7 +96,10 @@ ws.addEventListener("error", () => process.exit(0));
                 except subprocess.TimeoutExpired:
                     os.killpg(process.pid, signal.SIGKILL)
                     process.wait()
-    report["native_wayland_connection"] = "wl_display" in (output / "console.log").read_text(errors="replace")
+    console = (output / 'console.log').read_text(errors='replace')
+    report["native_wayland_connection"] = "wl_display" in console
+    report['uncaught_exception'] = 'Uncaught exception:' in console or 'UnhandledPromiseRejectionWarning' in console
+    report['passed'] = report['passed'] and not report['uncaught_exception']
     write_json(output / "launch-report.json", report)
     if report["passed"]:
         manifest = read_json(app / "local-build.json")
@@ -110,5 +114,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("app", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument('--relaunch', action='store_true', help='Repeat with the same newly created fixture profile')
     args = parser.parse_args()
-    raise SystemExit(0 if check(args.app, args.output)["passed"] else 1)
+    first = check(args.app, args.output)
+    passed = first['passed']
+    if passed and args.relaunch:
+        passed = check(args.app, args.output / 'relaunch', Path(first['profile']))['passed']
+    raise SystemExit(0 if passed else 1)

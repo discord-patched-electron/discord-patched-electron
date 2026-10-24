@@ -15,8 +15,10 @@ import subprocess
 from build_camera_support import build as camera_build
 from camera_scope import write_scope
 from common import ROOT, download, package_name, read_json, sha256, write_json
+from desktop_identity import desktop_id
 from fetch_reference import extract, validate_capacity
 from patch_app_audio import patch as audio_patch
+from patch_desktop_core import patch as desktop_patch
 from patch_krisp import patch as krisp_patch
 from prepare_app import prepare
 
@@ -69,11 +71,13 @@ def build(output: Path, channel: str, artifact: Path | None, cache: Path):
     write_json(output / "krisp-patch.json", krisp_patch(krisp / "discord_krisp.node"))
     (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
     write_json(output / "app-audio-patch.json", audio_patch(output / "modules/discord_voice", ROOT / "integration/audio/app-audio.cjs"))
+    write_json(output / "desktop-patch.json", desktop_patch(output / "modules/discord_desktop_core",
+        ROOT / "integration/desktop/safe-storage.cjs", str(ROOT / "node_modules/.bin/asar")))
     write_scope(output / "modules/discord_voice/discord_voice.node", output)
     camera = camera_build(output / "camera-support")
     shutil.copy2(output / "camera-support/libdpe-camera-probe.so", output)
     name = package_name(channel, "prerelease")
-    launcher = (ROOT / "integration/launcher/discord-launcher.sh").read_text().replace("@PKGNAME@", name)
+    launcher = (ROOT / "integration/launcher/discord-launcher.sh").read_text().replace("@PKGNAME@", name).replace('@DESKTOP_ID@', desktop_id(channel))
     launcher = launcher.replace("root=/usr/lib/" + name, "root=" + shlex.quote(str(output)))
     launcher = launcher.replace('"$config_root/$name"', '"$config_root/$name-local"')
     # A user-owned directory cannot supply a root-owned setuid helper. Chromium
@@ -82,6 +86,9 @@ def build(output: Path, channel: str, artifact: Path | None, cache: Path):
     entry = output / "launch.sh"
     entry.write_text(launcher)
     entry.chmod(0o755)
+    (output / (desktop_id(channel) + '.desktop')).write_text(
+        f'[Desktop Entry]\nType=Application\nName=Discord {channel.title()} (Patched Electron)\n'
+        f'Exec="{entry}" %U\nTerminal=false\nCategories=Network;InstantMessaging;\nStartupWMClass=discord\n')
     write_json(output / "local-build.json", {"schema":1, "channel":channel,
         "client_version":client["version"], "runtime_kind":"compiled" if capacity else "bundled-baseline",
         "capacity":capacity, "camera_support":camera, "executable_sha256":sha256(output / "runtime/electron"),

@@ -11,6 +11,7 @@ options=('!strip')
 depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse' 'python' 'pipewire' 'pipewire-audio' 'zenity')
 makedepends=('asar' 'brotli' 'unzip' 'python-capstone' 'python-pyelftools')
 optdepends=('xdg-utils: open links and files'
+            'kdotool: KDE Plasma window labels in the audio picker'
             'wireplumber: audio routing when no PipeWire session manager is running'
             'xorg-xprop: selected-window identity for experimental application audio')
 source=(
@@ -25,7 +26,7 @@ noextract=(
 
 prepare() {
   mkdir -p support/scripts support/packaging/upstream
-  cp common.py prepare_app.py patch_krisp.py patch_app_audio.py camera_scope.py stage_package.py support/scripts/
+  cp common.py desktop_identity.py prepare_app.py patch_krisp.py patch_app_audio.py patch_desktop_core.py camera_scope.py stage_package.py support/scripts/
   cp krisp-patcher.py provenance.json support/packaging/upstream/
   python support/scripts/stage_package.py --inputs package-inputs.json --asar /usr/bin/asar
 }
@@ -36,7 +37,7 @@ package() {
   cp -a stage/runtime stage/core/resources stage/modules "$root/"
   chmod 4755 "$root/runtime/chrome-sandbox"
   install -Dm755 discord-launcher.sh "$pkgdir/usr/bin/$pkgname"
-  install -Dm644 discord.desktop "$pkgdir/usr/share/applications/$pkgname.desktop"
+  install -Dm644 discord.desktop "$pkgdir/usr/share/applications/@DESKTOP_ID@.desktop"
   install -Dm644 stage/core/discord.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/$pkgname.png"
   install -Dm644 LICENSE.html "$pkgdir/usr/share/licenses/$pkgname/LICENSE.html"
   install -Dm644 OSS-LICENSES.html "$pkgdir/usr/share/licenses/$pkgname/OSS-LICENSES.html"
@@ -45,6 +46,7 @@ package() {
   install -Dm644 package-inputs.json "$root/package-inputs.json"
   install -Dm644 stage/krisp-patch.json "$root/krisp-patch.json"
   install -Dm644 stage/app-audio-patch.json "$root/app-audio-patch.json"
+  install -Dm644 stage/desktop-patch.json "$root/desktop-patch.json"
   install -Dm755 libdpe-camera-probe.so "$root/libdpe-camera-probe.so"
   install -Dm644 stage/camera-probe.json "$root/camera-probe.json"
   install -Dm644 stage/camera-probe.conf "$root/camera-probe.conf"

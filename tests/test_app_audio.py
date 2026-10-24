@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from common import ROOT, read_json
 from fingerprints import integration_key, runtime_key
 from build_reference import build_config
-from patch_app_audio import patch, ANCHOR
+from patch_app_audio import patch, ANCHOR, CAMERA_BEFORE
 
 
 class AppAudioPatch(unittest.TestCase):
@@ -16,7 +16,7 @@ class AppAudioPatch(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
             wrapper = directory / 'index.js'
-            wrapper.write_text(ANCHOR + '    return instance;\n}\nmodule.exports = VoiceEngine;\n')
+            wrapper.write_text(CAMERA_BEFORE + '\n' + ANCHOR + '    return instance;\n}\nmodule.exports = VoiceEngine;\n')
             adapter = ROOT / 'integration/audio/app-audio.cjs'
             report = patch(directory, adapter)
             content = wrapper.read_bytes()

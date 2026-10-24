@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 
 from common import enabled_electron_channels, ROOT, package_name, read_json, write_json
+from desktop_identity import desktop_id
 
 
 def replace(text: str, before: str, after: str, *, exact: int | None = 1) -> str:
@@ -55,7 +56,7 @@ def prepare(core: Path, discord: str, electron: str, asar: str, *, install_root:
         splash = extracted / "splashScreenPreload.js"
         splash.write_text(replace(splash.read_text(), "process.resourcesPath", json.dumps(str(install_root / "resources"))))
         metadata = read_json(extracted / "package.json")
-        metadata["desktopName"] = f"{package}.desktop"
+        metadata["desktopName"] = desktop_id(discord) + '.desktop'
         write_json(extracted / "package.json", metadata)
         result = Path(work) / "app.asar"
         subprocess.run([asar, "pack", str(extracted), str(result)], check=True)
