@@ -4,6 +4,26 @@ Updated 24 October 2026. **Discord Canary 1.0.2365 with the compiled Electron
 46.0.0-alpha.1 runtime opens successfully on native Wayland.** It requires an
 x86-64-v3 CPU (AVX2; no AVX-512 requirement).
 
+## User guides and shared mod instructions, 24 October
+
+The README now leads with features and patches. User guides omit runner details,
+queue timing and old implementation history. `docs/client-mods.md` covers both
+Vencord and Equicord; choose Custom Location with the official installer.
+Vencord 1.4.2 passed installation, native Wayland launch/relaunch and restoration
+of the original ASAR on uninstall. This used a fresh profile and no account.
+The current Vencord installer lacks Equilotl's stale-backup handling, so the
+shared guide tells users to uninstall the mod before updating Discord.
+
+`uv sync --locked` now includes actionlint. `bun run lint` runs it alongside the
+existing Ruff, Oxlint/Oxfmt, shell and native checks. Go setup was removed from
+Checks and release CI; nFPM uses its checksum-pinned official binary. See
+[validation evidence](../evidence/user-docs-and-tooling.json). Implementation
+`0a7602e` passes [Checks](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40094176275)
+and the [Canary release dry run](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40094176848).
+The prebuilt nFPM produces matching tarball/Debian/RPM payloads; Ubuntu launches,
+Fedora installation, native video/Krisp and audio checks pass. No public release
+was published and no Electron compile was started.
+
 ## Bun and official mod installation, 24 October
 
 Current tooling uses Bun 1.4.4 with `bun.lock`, plus uv. Node 24 remains required

@@ -1,0 +1,54 @@
+{
+  "ci": {
+    "canary_launch_reports_passed": 6,
+    "canary_package_checks": {
+      "assets": {
+        "discord-canary-prerelease-patched-electron-bin-20261024.123011-linux-x86_64.tar.gz": "d481ffe44e18dc0a50f0d84066229965ce77372654425a3722401d1cf43ea5e3",
+        "discord-canary-prerelease-patched-electron-bin-20261024.123011.deb": "8f7270c516e3ad647fabb93617c62f94b74dcb6dfc932e75a8c00cb226e178e0",
+        "discord-canary-prerelease-patched-electron-bin-20261024.123011.rpm": "c5a076554d2762e3f7adabfcb90406379e2df22bd46474dd9d37102dc9fc739f"
+      },
+      "channel": "canary",
+      "passed": true,
+      "payload_files": 1509,
+      "rpm_dependency_install_verified": false,
+      "same_app_payload_in_all_formats": true
+    },
+    "checks_run": 40094176275,
+    "checks_status": "success",
+    "checks_url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40094176275",
+    "fedora_gui_verified": false,
+    "publish": false,
+    "release_channels": [
+      "canary"
+    ],
+    "release_run": 40094176848,
+    "release_status": "success",
+    "release_url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40094176848",
+    "status": "success"
+  },
+  "date": "2026-10-24",
+  "implementation_commit": "0a7602ed5083ec24e0f13e0221e585187160e9bb",
+  "local_checks": {
+    "documentation_links": "passed",
+    "format_lint_and_workflow_lint": "passed",
+    "javascript_tests": 16,
+    "python_tests": 96
+  },
+  "schema": 1,
+  "tools": {
+    "actionlint": "1.7.12 through actionlint-py==1.7.12.25",
+    "go_installation_required": false,
+    "nfpm": "Official prebuilt 2.48.0, SHA-256 checked"
+  },
+  "vencord": {
+    "account_login_or_calls": false,
+    "installer_release": "v1.4.2",
+    "installer_sha256": "52642c8521a866ad241c10337144a4f513672c54b9c86a8169954785054c815d",
+    "legacy_check_flag": "--equicord checks the Vencord globals shared by both clients",
+    "native_wayland_launch_and_relaunch_passed": true,
+    "report_directory": "out/vencord-docs-check/launch",
+    "screenshots_or_camera_media_saved": false,
+    "uninstall_restored_bootstrap": true
+  },
+  "writing": "Features-first README; shared client-mod guide; infrastructure and migration history kept in agent docs."
+}
