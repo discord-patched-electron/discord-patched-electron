@@ -68,8 +68,9 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
         allowed_prefixes = (root + "/", f"usr/share/licenses/{name}/")
         allowed_files = {
             f"usr/bin/{name}",
+            f"usr/bin/{desktop_id(inputs['client']['channel'])}",
             f"usr/share/applications/{desktop_id(inputs['client']['channel'])}.desktop",
-            f"usr/share/icons/hicolor/256x256/apps/{name}.png",
+            f"usr/share/icons/hicolor/256x256/apps/{desktop_id(inputs['client']['channel'])}.png",
         }
         for entry in members.values():
             if (

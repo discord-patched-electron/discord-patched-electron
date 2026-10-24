@@ -295,6 +295,19 @@ def session(output, pulse, selection):
             env.pop("DISPLAY")
             env.pop("XAUTHORITY")
             before = json.loads(command(["pactl", "-f", "json", "info"]))
+            # Seed a real private-device positive control before Discord caches
+            # its initial native list. Hotplug refresh timing varies by backend.
+            # The capture helper still creates its own sinks during each phase.
+            control_sink = "dpe-audio-00000000000000000000000000000000-mix"
+            control_module = command(
+                [
+                    "pactl",
+                    "load-module",
+                    "module-null-sink",
+                    f"sink_name={control_sink}",
+                    f"sink_properties=device.description={control_sink}",
+                ]
+            ).strip()
             inputs = {}
             # A has two PulseAudio processes. B has a native PipeWire subprocess.
             for name, args in [
@@ -328,6 +341,7 @@ def session(output, pulse, selection):
             child.wait(timeout=610 if selection == "interactive" else 100)
             if child.returncode:
                 raise ValueError("Native Wayland fixture failed; inspect fixture.json/native.log")
+            command(["pactl", "unload-module", control_module])
             if selector_errors:
                 raise ValueError("Fixture audio selector failed: " + repr(selector_errors))
             # Exercise an uncatchable helper crash as well as normal teardown.
