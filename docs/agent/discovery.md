@@ -41,7 +41,7 @@ build's completion). No new eligible input means no compilation. Official Electr
 high/critical security advisories bypass the wait only when their comparator range
 includes our current version and explicitly identifies a fixed candidate on that
 major. Unknown ranges and cross-major backport assumptions are not guessed.
-I can use `urgent_versions` in `config/update-policy.json` to bypass the wait for
+`urgent_versions` in `config/update-policy.json` allows a manual override for
 embargoed fixes/Chromium advisories that lack machine-readable data.
 This is not a guarantee that every urgent Chromium fix will be labeled publicly.
 

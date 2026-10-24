@@ -3,9 +3,17 @@ const fs = require("node:fs"),
   path = require("node:path");
 const output = process.env.DPE_AUDIO_OUTPUT;
 const inputs = JSON.parse(fs.readFileSync(path.join(output, "inputs.json"), "utf8"));
+let offloadAdmControls;
 globalThis.window.DiscordNative = {
   isRenderer: true,
-  settings: { getSync: (k, v) => (k === "offloadAdmControls" ? false : v) },
+  // Use the shipped wrapper's defaults, including offloaded audio controls.
+  // Forcing synchronous controls can stall the engine while restarting capture.
+  settings: {
+    getSync(key, value) {
+      if (key === "offloadAdmControls") offloadAdmControls = value;
+      return value;
+    },
+  },
   features: { declareSupported() {} },
   processUtils: {
     // The container has only our private virtual audio server, no host devices.
@@ -172,6 +180,7 @@ async function capture(name, change, settle = 2000) {
   ipcRenderer.send("audio-result", {
     passed: true,
     events,
+    offload_adm_controls: offloadAdmControls,
     wayland_video_verified: true,
     internal_device_control: internalDeviceControl,
     hidden_device_leaks: hiddenDeviceLeaks,
@@ -185,5 +194,6 @@ async function capture(name, change, settle = 2000) {
     passed: false,
     error: error.stack,
     events,
+    offload_adm_controls: offloadAdmControls,
   }),
 );

@@ -107,6 +107,16 @@ portal selects real native Wayland GTK windows; Discord itself opens the portal
 and consumes actual PipeWire video frames. Xvfb supplies only niri's outer software
 rendering surface. Discord and the test applications have no X11 display.
 
+The fixture uses the shipped voice wrapper's audio-control defaults and records
+`offload_adm_controls` in its result. It previously forced that setting off, unlike
+the packaged app. In run `40100767363`, the native engine stalled in
+`StartRecording` and the queued device-enumeration callback timed out. A local
+repeat also stalled during a source switch. Removing the test-only override uses
+Discord's existing dedicated controls thread; the module and adapter patches are
+unchanged. Keep the real device-enumeration, private-device positive control and
+audio-isolation assertions enabled; retries or longer timeouts would conceal the
+configuration mismatch.
+
 Independent tones distinguish an application's parent and child process,
 another application's native PipeWire playback, and simulated received Discord
 audio. The PCM assertions cover application selection, switching, whole-monitor
