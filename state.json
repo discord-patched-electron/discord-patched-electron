@@ -261,7 +261,7 @@
       "reference_run": "40053107555",
       "requested_at": "2026-10-25T04:57:12.465247+00:00",
       "run": "40163674384",
-      "status": "queued"
+      "status": "success"
     },
     "1d06db84e541c15592c9380d50f7e0f228b300c8dcbf84f197ad4251c14cd40b": {
       "channel": "canary",
