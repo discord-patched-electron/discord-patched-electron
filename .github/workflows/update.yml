@@ -1,7 +1,7 @@
 name: Discover upstream releases
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "22 * * * *"
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,16 +28,12 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          python-version: "3.12"
-          activate-environment: true
-          enable-cache: true
       - name: Install archive inspector
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli
+        run: command -v brotli || (sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli)
       - name: Read the durable queue
         run: python scripts/state_branch.py checkout out/state
       - name: Discover releases and independent Discord module updates
+        id: discover
         run: python scripts/discover.py --state out/state/state.json
       - name: Reserve independent content-keyed work
         id: reserve
@@ -48,7 +44,7 @@ jobs:
         id: snapshot
         run: echo "commit=$(git -C out/state rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Retain discovery diagnostics
-        if: always()
+        if: failure() || steps.discover.outputs.errors == 'true' || steps.reserve.outputs.clients != '[]' || steps.reserve.outputs.electron != ''
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: discovery-${{ github.run_id }}-${{ github.run_attempt }}

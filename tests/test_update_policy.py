@@ -24,6 +24,7 @@ class UpdatePolicy(unittest.TestCase):
         }
         self.sources = read_json(ROOT / "config/sources.lock.json")
         self.state = {
+            "schema": 1,
             "clients": read_json(ROOT / "config/clients.lock.json")["clients"],
             "releases": {
                 "new": {
@@ -90,6 +91,22 @@ class UpdatePolicy(unittest.TestCase):
         result = schedule(self.state, self.policy, self.sources, "2026-10-28T05:00:00Z", "3", {})
         self.assertEqual([i["channel"] for i in result["clients"]], ["canary"])
         self.assertEqual(result["electron"]["action"], "no-new-work")
+
+    def test_exhausted_budget_defers_without_consuming_work_then_recovers(self):
+        self.state["blacksmith_reservations"] = {
+            str(i): {"at": "2026-10-24T00:00:00+00:00", "minutes": 960, "runtime_key": str(i)}
+            for i in range(2)
+        }
+        self.state["security_advisories"] = []
+        self.policy["urgent_versions"] = ["46.0.0-alpha.2"]
+        result = schedule(self.state, self.policy, self.sources, "2026-10-25T03:00:00Z", "3", {})
+        self.assertEqual(result["electron"]["action"], "budget-deferred")
+        self.assertEqual(len(result["clients"]), 1)
+        self.assertEqual(self.state["electron_work"], {})
+        self.assertNotIn("last_compiler_attempt_at", self.state)
+        result = schedule(self.state, self.policy, self.sources, "2026-11-24T03:00:00Z", "4", {})
+        self.assertEqual(result["electron"]["action"], "prepare-source")
+        self.assertEqual(len(self.state["electron_work"]), 1)
 
     def test_running_compiler_not_cancelled_or_duplicated(self):
         result = schedule(

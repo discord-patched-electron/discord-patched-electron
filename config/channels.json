@@ -15,6 +15,6 @@
     "prerelease"
   ],
   "package_pattern": "discord-{discord}-{electron}-patched-electron-bin",
-  "poll_cron": "7,22,37,52 * * * *",
+  "poll_cron": "22 * * * *",
   "schema": 1
 }

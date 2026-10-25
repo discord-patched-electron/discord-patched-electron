@@ -3,13 +3,12 @@
 The package owns the local Discord host ASAR, `discord_desktop_core/core.asar`
 and native module files. Their built-in host/module updater is disabled so it
 cannot replace the patches or mix module revisions. Discord's HTTPS web UI still
-updates independently. Install new Arch packages with `pacman -U`; AUR publication
-is disabled. A CI release does not modify a running installation.
+updates independently. Install test Arch packages with `pacman -U`. AUR updates
+are published after approval as stable. A CI release does not modify a running installation.
 
 ## Independent update paths
 
-`update.yml` polls at minutes 7, 22, 37 and 52 every hour (GitHub schedules can be
-late). It compares Canary's official distribution manifest, including every
+`update.yml` polls hourly at minute 22 (GitHub schedules can be late). It compares Canary's official distribution manifest, including every
 module revision and SHA-256.
 A module-only update counts even if the host version is unchanged. Stable and PTB
 are disabled. An Electron API outage leaves Discord discovery operational.
@@ -50,8 +49,8 @@ checkout. An incompatible patch fails visibly without touching the retained PC
 build or the last-good runtime. A successful application advances only the source
 lock by a fast-forward main push and explicitly dispatches `build.yml`, with an
 expected native-input key. The compiler checks that identity before starting.
-Only the self-hosted PC is used; no Blacksmith. A healthy compiler is never
-cancelled or duplicated. Reviewed major-specific ports remain necessary when
+Compilation uses Blacksmith with a durable allowance reservation before allocation.
+A healthy compiler is never cancelled or duplicated. Reviewed major-specific ports remain necessary when
 upstream APIs change: avoiding merges does not remove compatibility work.
 
 ## Durable state and artifacts
@@ -59,7 +58,8 @@ upstream APIs change: avoiding merges does not remove compatibility work.
 `ci-state` contains generated JSON only and is never merged into main. Content
 keys reserve client and Electron work before jobs start; completed/failed attempts
 remain in the ledger. Repeated polls do not restart failed identical work. Use
-Actions **Re-run all jobs** after resolving an infrastructure issue; a source
+Actions **Re-run all jobs** for client jobs after resolving an infrastructure issue.
+Compiler retries require a fresh dispatch and allowance reservation. A source
 or client fix generates a new integration key. State writers share one concurrency
 group and use normal fast-forward pushes, never forced JSON merges.
 
@@ -135,3 +135,39 @@ narrow dispatch-library exception required no change. See
 [local evidence](../evidence/client-updates-local.json). The CI snapshot checks subsequently passed;
 [CI evidence](../evidence/client-updates-ci.json) records both runs. The bootstrap
 locks now include those exact PTB/Canary snapshots.
+
+## Usage and limits
+
+Hourly discovery means 24 scheduled checks per day rather than 96. It uses the
+runner's Python and uploads diagnostics only for new work or failures. Manual
+**Discover upstream releases** remains available for urgent client updates.
+Temporary release-package artifacts expire after seven days instead of 30. Public
+release downloads and compiler recovery artifacts keep their existing retention.
+The four-day Electron cooldown remains separate from the 2,400-minute rolling
+Blacksmith reservation cap. An exhausted cap defers source preparation without
+consuming the candidate, so discovery can reconsider it after reservations expire.
+The compiler still performs its own authoritative reservation before allocation.
+
+Read current usage without allocating a runner:
+
+```sh
+uv run python scripts/ci_usage.py
+uv run python scripts/ci_usage.py --blacksmith
+```
+
+The first command uses your existing `gh` authentication. GitHub's organization
+[billing API](https://docs.github.com/en/rest/billing/usage) requires organization
+Administration read permission. Public repositories on standard GitHub-hosted
+runners have [free compute minutes](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+Storage and Blacksmith usage are separate. Failed API queries report unavailable,
+not zero usage. Billing reports are observations, not guaranteed real-time balances.
+
+The second command also needs the official
+[Blacksmith CLI](https://docs.blacksmith.sh/blacksmith-cli/overview) and authentication
+for `discord-patched-electron`. For CI or agents, create an organization token with
+`blacksmith org-token create --label ci-usage` in your own terminal and pass it through
+the CLI's documented stdin authentication flow. Never paste it into chat or commit it.
+[Usage reporting](https://docs.blacksmith.sh/blacksmith-cli/usage) returns organization
+usage and estimated costs as JSON. The rolling 30-day report is not a billing-cycle
+remaining balance. Do not use it to refund reservations automatically. The current
+report is on demand, so it adds no scheduled runner or billing-token secret to CI.

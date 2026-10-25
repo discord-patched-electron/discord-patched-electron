@@ -17,22 +17,36 @@ BUDGET = 2400  # Leave 600 of the 3,000 free minutes outside this workflow.
 WINDOW = timedelta(days=31)
 
 
-def reserve(state: dict, now: datetime, run_id: str, key: str):
+def budget_status(state: dict, now: datetime) -> dict:
     if state.get("schema") != 1:
         raise ValueError("Missing or unsupported durable state")
-    records = state.setdefault("blacksmith_reservations", {})
-    if run_id in records:
-        raise ValueError("This run already reserved a runner. Dispatch a new run to retry.")
     recent = [
-        record for record in records.values() if datetime.fromisoformat(record["at"]) + WINDOW > now
+        record
+        for record in state.get("blacksmith_reservations", {}).values()
+        if datetime.fromisoformat(record["at"]) + WINDOW > now
     ]
     if any(type(record["minutes"]) is not int or record["minutes"] <= 0 for record in recent):
         raise ValueError("Invalid budget reservation")
     used = sum(record["minutes"] for record in recent)
-    charge = JOB_MINUTES * RATE
-    if used + charge > BUDGET:
+    return {
+        "reserved_minutes": used,
+        "limit_minutes": BUDGET,
+        "next_build_minutes": JOB_MINUTES * RATE,
+        "can_build": used + JOB_MINUTES * RATE <= BUDGET,
+        "window_days": WINDOW.days,
+        "provider_balance_verified": False,
+    }
+
+
+def reserve(state: dict, now: datetime, run_id: str, key: str):
+    status = budget_status(state, now)
+    records = state.setdefault("blacksmith_reservations", {})
+    if run_id in records:
+        raise ValueError("This run already reserved a runner. Dispatch a new run to retry.")
+    charge = status["next_build_minutes"]
+    if not status["can_build"]:
         raise ValueError(
-            f"Blacksmith budget reserved: {used}/{BUDGET} minutes in 31 days. "
+            f"Blacksmith budget reserved: {status['reserved_minutes']}/{BUDGET} minutes in 31 days. "
             f"This build needs {charge}. No runner was allocated. "
             "Retry after older reservations expire. Client packaging can continue."
         )

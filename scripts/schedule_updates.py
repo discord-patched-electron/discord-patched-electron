@@ -7,6 +7,7 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+from blacksmith_budget import budget_status
 from common import ROOT, electron_channel, read_json, write_json
 from fingerprints import integration_key
 from update_policy import plan
@@ -62,6 +63,11 @@ def schedule(state, policy, sources, now, run_id, results, compiler_busy=False):
     for item in decision["clients"]:
         work[item["key"]] = {**item, "status": "queued", "run": run_id, "requested_at": now}
     native = decision["electron"]
+    allowance = budget_status(state, datetime.fromisoformat(now.replace("Z", "+00:00")))
+    decision["compiler_allowance"] = allowance
+    if native["action"] == "prepare-source" and not allowance["can_build"]:
+        native["action"] = "budget-deferred"
+        return decision
     if (
         native["action"] == "prepare-source"
         and not compiler_busy

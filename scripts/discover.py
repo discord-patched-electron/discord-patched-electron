@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import os
 import re
 import subprocess
 import time
@@ -382,6 +383,20 @@ def main():
         "issues": state["issues"],
         "client_errors": client_errors,
     }
+    errors = {
+        key: state[key]
+        for key in (
+            "client_errors",
+            "bundled_runtime_errors",
+            "electron_discovery_error",
+            "security_discovery_error",
+        )
+        if state.get(key)
+    }
+    summary["errors"] = errors
+    if output := os.environ.get("GITHUB_OUTPUT"):
+        with open(output, "a") as stream:
+            stream.write(f"errors={str(bool(errors)).lower()}\n")
     write_json(args.output / "discovery.json", summary)
     print(json.dumps(summary, sort_keys=True))
 

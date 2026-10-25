@@ -179,7 +179,7 @@ work. Keep optional Equicord in a user-owned loader so packaging updates do not
 erase it. Only the PC compiles Electron; historical hosted-provider experiments
 below are not authorization to start Blacksmith now.
 
-Run discovery every 15 minutes (7/22/37/52), plus `workflow_dispatch`. GitHub schedules can be delayed; record and catch up missed releases. A `release` event in our repository does not subscribe to releases in Electron's repository. An upstream webhook is optional, not required infrastructure.
+Run discovery hourly at minute 22, plus `workflow_dispatch`. GitHub schedules can be delayed; record and catch up missed releases. A `release` event in our repository does not subscribe to releases in Electron's repository. An upstream webhook is optional, not required infrastructure.
 
 Use paginated official GitHub release data and verify source tags:
 
