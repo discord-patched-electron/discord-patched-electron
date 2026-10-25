@@ -36,7 +36,8 @@ Download from [Releases](https://github.com/discord-patched-electron/discord-pat
 Each release lists the package for your distribution.
 
 Requires an **x86-64-v3 CPU** (AVX2, such as Intel Haswell or AMD Ryzen), a recent
-Linux distribution and PipeWire for screen-share audio. See the
+Linux distribution, network access to **Discord and GitHub** for downloads and
+update checks, and PipeWire for screen-share audio. See the
 [installation guide](docs/install.md) for setup and updates.
 
 CI builds, checks and publishes test releases. GitHub labels these **Pre-release**

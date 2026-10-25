@@ -6,6 +6,7 @@ Builds labelled **Pre-release** are public test packages I haven't approved as s
 require **x86-64-v3** (AVX2).
 
 First launch needs an internet connection to download Discord's client modules.
+Downloads and approved update checks require HTTPS access to **Discord and GitHub**.
 Packages include patched Electron and a pinned open-source bootstrap; they do not
 include Discord's proprietary ASARs or download Discord's stock Electron runtime.
 
@@ -78,6 +79,12 @@ The updater needs system Python **3.11 or newer**, Brotli, CA certificates,
 GnuPG (`gpg` and `gpgv`), Bash and coreutils. Capstone and pyelftools, including
 Capstone's native library, are bundled. Running the app does not require pip,
 uv, Bun, a separate Node.js installation or a compiler.
+
+Allow HTTPS access to `github.com`, `api.github.com`, `raw.githubusercontent.com`
+and GitHub's release asset download hosts. GitHub supplies release metadata,
+approval records, signatures and patched Electron downloads. If GitHub is blocked,
+new updates cannot be verified; the updater retains usable package-pinned or
+previously approved versions.
 
 - **Python or Brotli is missing:** install the named tool through your package
   manager, then choose **Retry now**. Python is packaged as `python` on Arch and
