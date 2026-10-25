@@ -97,8 +97,7 @@ else {
         }
       };
       view = createWindow((action) => {
-        if (action === "close") view.window.close();
-        else if (action === "retry" && failed) void attempt();
+        if (action === "retry" && failed) void attempt();
         else if (action === "pause" && failed) {
           clearTimeout(retry);
           failed.seconds = null;

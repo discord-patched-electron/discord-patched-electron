@@ -1,4 +1,4 @@
-const { BrowserWindow, ipcMain, net, protocol } = require("electron");
+const { BrowserWindow, clipboard, ipcMain, net, protocol } = require("electron");
 const path = require("node:path");
 const assetHandler = require("./splash-assets.cjs");
 const splashState = require("./splash-state.cjs");
@@ -56,8 +56,24 @@ module.exports = function createWindow(onAction) {
   const action = (event, value) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame)
       return;
-    if (["close", "retry", "pause"].includes(value)) onAction(value);
+    if (["retry", "pause"].includes(value)) onAction(value);
   };
+  window.webContents.ipc.handle("dpe-splash-copy-details", async (event) => {
+    if (
+      event.senderFrame !== window.webContents.mainFrame ||
+      state.status !== "fail" ||
+      typeof state.details !== "string" ||
+      !state.details
+    )
+      return false;
+    try {
+      // Copy only the current diagnostic, never arbitrary renderer-supplied text.
+      await clipboard.writeText(state.details);
+      return true;
+    } catch {
+      return false;
+    }
+  });
   ipcMain.on("dpe-splash-action", action);
   window.once("closed", () => ipcMain.removeListener("dpe-splash-action", action));
   let themeReady;

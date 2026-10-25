@@ -87,7 +87,7 @@ async function fixture(config = {}) {
   );
   await new Promise(setImmediate);
   window.webContents.emit("dom-ready");
-  return { action, states, pending, timers, exits };
+  return { action, states, pending, timers, exits, window };
 }
 
 test("startup exposes errors, can pause automatic retries, and retries on demand", async () => {
@@ -117,7 +117,7 @@ test("permanent startup failures wait for user action and quit waits for cancell
   assert.equal(f.timers.size, 0);
   assert.match(f.states.at(-1).message, /Install it/);
   f.action("retry");
-  f.action("close");
+  f.window.close();
   assert.equal(f.pending[1].cancelled, true);
   assert.equal(f.exits.length, 0);
   f.pending[1].reject(new Error("Update cancelled."));
@@ -157,7 +157,7 @@ test("failure guidance distinguishes space, permissions, offline setup and verif
 test("quitting as preparation completes never hands a successful launch to the shell", async () => {
   const f = await fixture();
   f.pending[0].resolve({});
-  f.action("close");
+  f.window.close();
   await new Promise(setImmediate);
   assert.deepEqual(f.exits, [1]);
   assert.equal(f.timers.size, 0);

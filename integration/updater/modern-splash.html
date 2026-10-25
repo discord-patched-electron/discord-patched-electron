@@ -46,7 +46,7 @@
       align-items: center;
       min-height: 100%;
       height: auto;
-      padding: 30px 16px 16px;
+      padding: 24px 16px;
       overscroll-behavior: contain;
     }
     main {
@@ -68,6 +68,7 @@
       display: block;
       font-size: 16px;
       font-weight: 500;
+      line-height: 24px;
       overflow-wrap: anywhere;
     }
     #placeholder {
@@ -91,8 +92,6 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
     button,
-    summary,
-    pre,
     .recovery {
       -webkit-app-region: no-drag;
     }
@@ -115,39 +114,15 @@
       background: #5865f2;
       color: #fff;
     }
-    button.link {
-      background: transparent;
-      font-size: 12px;
-    }
-    button:focus-visible,
-    summary:focus-visible,
-    pre:focus-visible {
+    button:focus-visible {
       outline: 2px solid var(--header-primary);
       outline-offset: 2px;
     }
-    #quit {
-      position: absolute;
-      right: 4px;
-      top: 4px;
-      width: 28px;
-      min-height: 28px;
-      padding: 4px;
-      display: grid;
-      place-items: center;
-      background: transparent;
-    }
-    #quit svg {
-      pointer-events: none;
-    }
-    #motion {
-      margin-top: 8px;
-    }
-    .failed video,
-    .failed #motion {
+    .failed video {
       display: none;
     }
     .failed .text {
-      margin-top: 4px;
+      margin-top: 0;
     }
     .recovery {
       font-size: 14px;
@@ -155,11 +130,10 @@
       overflow-wrap: anywhere;
     }
     #message {
-      margin: 12px 0;
+      margin: 8px 0 20px;
     }
     #retry-status {
-      margin: 8px 0;
-      font-size: 12px;
+      margin: 0 0 12px;
     }
     .actions {
       display: flex;
@@ -167,28 +141,33 @@
       justify-content: center;
       gap: 8px;
     }
-    details {
-      margin-top: 12px;
-      text-align: left;
-      font-size: 12px;
+    #copy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding-inline: 10px 12px;
+      max-width: 100%;
+      background: transparent;
+      font-weight: 400;
     }
-    summary {
-      cursor: pointer;
-      min-height: 24px;
+    .copy-icons {
+      display: grid;
+      flex: 0 0 16px;
+      width: 16px;
+      height: 16px;
     }
-    pre {
-      margin: 8px 0 0;
-      padding: 8px;
-      border-radius: 4px;
-      background: var(--background-secondary);
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      max-height: 100px;
-      overflow: auto;
-      overscroll-behavior: contain;
-      user-select: text;
-      cursor: text;
-      font: 12px/16px monospace;
+    .copy-icons svg {
+      grid-area: 1 / 1;
+      transition: opacity 300ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .check-icon,
+    .copied .copy-icon {
+      opacity: 0;
+    }
+    .copied .check-icon {
+      opacity: 1;
     }
     @media (hover: hover) {
       button:hover {
@@ -197,21 +176,31 @@
       button.primary:hover {
         background: #4752c4;
       }
-      button.link:hover,
-      summary:hover {
+      #copy:hover {
         text-decoration: underline;
-      }
-      #quit:hover {
-        background: #da373c;
-        color: #fff;
       }
     }
     @media (prefers-reduced-motion: no-preference) {
       button {
         transition: transform 150ms ease-out;
       }
-      button:active:not(:disabled) {
+      button:active:not(:disabled):not([aria-disabled="true"]) {
         transform: scale(0.96);
+      }
+      .copy-icons svg {
+        transition:
+          opacity 300ms cubic-bezier(0.2, 0, 0, 1),
+          scale 300ms cubic-bezier(0.2, 0, 0, 1),
+          filter 300ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      .check-icon,
+      .copied .copy-icon {
+        scale: 0.25;
+        filter: blur(4px);
+      }
+      .copied .check-icon {
+        scale: 1;
+        filter: blur(0);
       }
     }
     [hidden] {
@@ -219,15 +208,10 @@
     }
   </style>
   <body>
-    <button id="quit" type="button" aria-label="Quit Discord" title="Quit Discord">
-      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-        <path d="m4 4 8 8m0-8-8 8" fill="none" stroke="currentColor" stroke-width="2" />
-      </svg>
-    </button>
     <main>
       <video loop muted src="connecting-dark.webm" aria-hidden="true"></video>
       <div class="text">
-        <span id="status" role="status">Checking for updates…</span>
+        <span id="status" role="status" tabindex="-1">Checking for updates…</span>
         <div id="placeholder"></div>
         <div
           id="progress"
@@ -246,52 +230,96 @@
             <button id="retry" class="primary" type="button">Retry now</button>
             <button id="pause" type="button">Pause retries</button>
           </div>
-          <details>
-            <summary>Show details</summary>
-            <pre id="details" tabindex="0" aria-label="Update error details"></pre>
-          </details>
+          <button id="copy" type="button">
+            <span class="copy-icons" aria-hidden="true">
+              <svg
+                class="copy-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <rect x="5.25" y="5.25" width="8" height="8" rx="1.5" />
+                <path
+                  d="M10.75 3.25v-.5a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <svg
+                class="check-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path d="m3 8 3.25 3.25L13 4.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span id="copy-label" role="status">Copy details</span>
+          </button>
         </section>
-        <button id="motion" class="link" type="button">Pause animation</button>
       </div>
     </main>
     <script>
       const status = document.getElementById("status");
       const progress = document.getElementById("progress");
       const video = document.querySelector("video");
-      const motion = document.getElementById("motion");
       const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
       const recovery = document.querySelector(".recovery");
       const retry = document.getElementById("retry");
       const pause = document.getElementById("pause");
-      let paused = reducedMotion.matches;
+      const copy = document.getElementById("copy");
+      const copyLabel = document.getElementById("copy-label");
+      let details;
+      let copyVersion = 0;
+      let copying = false;
+      let copyReset;
       let countdown;
       function applyMotion() {
-        if (paused || document.body.classList.contains("failed")) video.pause();
+        if (reducedMotion.matches || document.body.classList.contains("failed")) video.pause();
         else void video.play().catch(() => {});
-        motion.textContent = paused ? "Play animation" : "Pause animation";
       }
-      reducedMotion.addEventListener("change", () => {
-        paused = reducedMotion.matches;
-        applyMotion();
-      });
-      motion.onclick = () => {
-        paused = !paused;
-        applyMotion();
-      };
-      document.getElementById("quit").onclick = () => Splash.quit();
+      reducedMotion.addEventListener("change", applyMotion);
       retry.onclick = () => Splash.retry();
       pause.onclick = () => Splash.pause();
-      document.querySelector("details").addEventListener("toggle", (event) => {
-        event.target.querySelector("summary").textContent = event.target.open
-          ? "Hide details"
-          : "Show details";
-        if (event.target.open) Splash.pause();
-      });
+      function resetCopy() {
+        copyVersion++;
+        clearTimeout(copyReset);
+        copying = false;
+        copy.removeAttribute("aria-disabled");
+        copy.classList.remove("copied");
+        copyLabel.textContent = "Copy details";
+      }
+      copy.onclick = async () => {
+        if (copying || !details) return;
+        clearTimeout(copyReset);
+        copying = true;
+        copy.setAttribute("aria-disabled", "true");
+        const version = copyVersion;
+        let copied = false;
+        try {
+          copied = await Splash.copyDetails();
+        } catch {
+          // Keep recovery usable if the clipboard or its IPC request fails.
+        }
+        if (version !== copyVersion) return;
+        copying = false;
+        copy.removeAttribute("aria-disabled");
+        copy.classList.toggle("copied", copied);
+        copyLabel.textContent = copied ? "Copied" : "Copy failed. Try again";
+        if (copied) copyReset = setTimeout(resetCopy, 2000);
+      };
       applyMotion();
       Splash.onState((state) => {
         clearInterval(countdown);
         const failed = state.status === "fail";
         const wasFailed = document.body.classList.contains("failed");
+        if (!failed || !wasFailed || details !== state.details) resetCopy();
+        details = failed ? state.details : null;
         document.body.classList.toggle("failed", failed);
         recovery.hidden = !failed;
         const updating = state.status === "downloading" || state.status === "installing";
@@ -322,7 +350,7 @@
         } else if (state.status === "fail") {
           status.textContent = "Discord could not update";
           document.getElementById("message").textContent = state.message;
-          document.getElementById("details").textContent = state.details;
+          copy.hidden = !details;
           let seconds = state.seconds;
           pause.hidden = seconds === null;
           if (pause.hidden && document.activeElement === pause) retry.focus();
@@ -337,13 +365,12 @@
             }, 1000);
           if (!wasFailed) retry.focus();
         } else {
-          if (wasFailed) document.getElementById("quit").focus();
-          document.querySelector("details").open = false;
           status.textContent =
             state.status === "starting"
               ? "Starting Discord…"
               : `${state.label || "Checking for updates"}…`;
         }
+        if (wasFailed && !failed) status.focus();
       });
     </script>
   </body>

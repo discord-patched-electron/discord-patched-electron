@@ -81,8 +81,9 @@ Downloads and compatibility checks finish before activation. A failed download
 keeps the current installation.
 The startup screen follows Discord's layout with one progress bar. If startup
 fails, it shows recovery steps and **Retry now**. Connection failures retry after
-10 seconds; **Pause retries** or **Show details** stops the countdown. Use the
-close button to quit and cancel preparation. Capstone and pyelftools are included in the package.
+10 seconds; **Pause retries** stops the countdown. **Copy details** copies the
+error for troubleshooting. Your desktop's close-window shortcut quits and cancels
+preparation. Capstone and pyelftools are included in the package.
 OpenAsar's settings and CSS editor are included. Splash Theming is enabled by default and uses Discord or custom
 theme colors cached from your client; Quickstart uses a prepared installation and checks updates in the background.
 

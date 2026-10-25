@@ -515,3 +515,47 @@ space-recovery guidance. Only this pass's disposable fixtures were moved to
 **Approve for the inspected updater UI.** Remaining limits include live-call
 coverage, physical power-loss recovery, older cache formats' prior validation,
 cache/backup retention without automatic cleanup and future Discord compatibility.
+
+## PR #1 requested splash refinements
+
+This follow-up supersedes the visible controls described in the preceding review.
+At the user's request, the splash has no close icon or animation button. Closing
+the window through the desktop still cancels preparation, and the system's
+reduced-motion preference still prevents animation playback.
+
+Recovery keeps the explanation together, separates it from the retry controls,
+and centers a regular-weight, 14px **Copy details** action below the buttons.
+The 16px copy icon becomes a checkmark with **Copied** for two seconds after
+success. A failed clipboard request offers another attempt. Copying does not
+change the retry countdown; **Pause retries** remains the explicit control.
+
+The sandboxed preload exposes a parameterless copy request. The handler belongs
+to the splash's web contents, rejects child-frame requests, and writes only the
+current error held by the main process. It awaits both synchronous and asynchronous
+clipboard implementations. Duplicate clicks and late responses cannot overwrite
+feedback for a newer error or update attempt.
+
+The requested **better-ui** pass preserves Discord's typography, blurple button,
+4px radii, pinned spinner, theme colors and 300×300 window.
+
+| Severity | Location                                     | Before                                                   | After                                                                                                       | Why                                                                                       |
+| -------- | -------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| LOW      | `integration/updater/modern-splash.html:144` | Small, left-aligned disclosure expanded the error screen | Centered 14px copy action with a 16px currentColor icon and 1.5px stroke                                    | Optical alignment and icon weight match the regular label                                 |
+| LOW      | `integration/updater/modern-splash.html:161` | No copy confirmation                                     | Copy/check cross-fade over 300ms with the skill's easing, scale and blur; reduced motion uses opacity alone | Completion has both a static label and an icon, with motion respecting system preferences |
+
+Verification reused the retained Electron 46.0.0-alpha.1 runtime on native Wayland
+with fresh profiles. `out/pr1-updater-states-v2/` contains 24 refreshed captures,
+including clipboard success/failure, paused retries, light/custom themes and
+reduced motion. All captures fit without overflow at normal zoom. Its
+`interaction-report.json` records keyboard copying, confirmation reset, duplicate
+clicks, stale responses, new errors, centering and 200% zoom. Clipboard writes
+were stubbed in the main process while exercising the real renderer and IPC;
+the user's system clipboard was untouched. `motion-report.json` records the
+icon transition at 10% speed using Chromium's native animation controls.
+
+`bun run test` passed 184 Python and 51 JavaScript tests, including scoped copy
+requests, asynchronous clipboard completion/failure and cancellation through
+native window closure. `bun run lint` passed. Not verified: a separate screen
+reader session and a write to the user's system clipboard.
+
+**Approve for the inspected updater UI.**
