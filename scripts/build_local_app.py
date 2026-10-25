@@ -85,7 +85,9 @@ def build(
 
     core = output / "core"
     if portable:
-        stage_updater(output, channel, client["version"], str(ROOT / "node_modules/.bin/asar"))
+        stage_updater(
+            output, channel, client["version"], str(ROOT / "node_modules/.bin/asar"), client=client
+        )
     else:
         with ThreadPoolExecutor(max_workers=4) as pool:
             list(pool.map(fetch, client["sources"].items()))

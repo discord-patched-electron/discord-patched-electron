@@ -40,6 +40,8 @@ def check(directory: Path):
         paths = bundle.getnames()
         root = paths[0]
         check_client_free_archive(bundle, root)
+        if json.load(bundle.extractfile(root + "/client-update.json")) != manifest["client"]:
+            raise ValueError("Release manifest differs from packaged Discord module pins")
         checksums = bundle.extractfile(root + "/SHA256SUMS").read().decode()
         expected = dict(line.split("  ", 1)[::-1] for line in checksums.splitlines())
         for path, checksum in expected.items():

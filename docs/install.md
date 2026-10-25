@@ -97,12 +97,16 @@ On GitHub, select **Watch → Custom → Releases** to get notifications of new 
 Choose email or inbox delivery in your [notification settings](https://github.com/settings/notifications).
 Release notes list the Discord and Electron versions, changes and test results.
 
-Discord modules and patched Electron update automatically on launch and are
-checked every 15 minutes while running. Use Discord's update button to restart
-when either update is ready. Modules come from Discord; Electron comes from the
-project's approved GitHub release and is verified using its signed checksums.
+Discord's desktop ASAR, native modules and patched Electron update only after
+manual release approval. Checks run on launch and every 15 minutes while running.
+Use Discord's update button to restart when an approved update is ready.
+Module downloads come from Discord at the exact versions and checksums in the
+signed release; they never follow Discord's live latest manifest. This also covers
+module changes that keep the same Discord version number.
 Downloads and compatibility checks finish before activation. A failed download
-keeps the current installation.
+keeps the current approved installation. Explicitly installing a test package
+uses its pinned candidate modules. Discord's hosted web interface remains served
+by Discord and is outside this desktop release approval.
 The startup screen follows Discord's layout with one progress bar. If startup
 fails, it shows recovery steps and **Retry now**. Connection failures retry after
 10 seconds; **Pause retries** stops the countdown. **Copy details** copies the
@@ -127,13 +131,16 @@ The stock updater can replace a shared installation; this package's launcher
 restores the fork from verified sources on its next launch.
 `DISCORD_USER_DATA_DIR` changes the parent folder (Canary adds `discordcanary/`);
 `DPE_PROFILE_DIR` selects an exact profile path. `DPE_CLIENT_OFFLINE=1` skips both update checks.
-`DPE_RUNTIME_UPDATES=0` skips only GitHub checks while retaining an already updated
+`DPE_RUNTIME_UPDATES=0` skips only Electron update checks while retaining an already updated
 runtime; `DPE_RUNTIME_BUNDLED=1` uses the runtime installed with the package.
+Offline mode and Quickstart also require package-pinned or approved modules.
+If an older updater cached an unapproved client, launch online once to repair it.
 
 Older builds used `~/.config/discord-canary-prerelease-patched-electron-bin`.
 That folder is left untouched. To keep using it, set `DPE_PROFILE_DIR`
 to its full path when launching.
 
-Discord client updates are checked independently of Electron. Routine Electron
-updates are spaced at least four days apart, with an exception for identified
-high or critical security fixes. Unchanged inputs don't produce another build.
+Discord module releases can reuse the existing Electron build. Routine Electron
+builds are spaced at least four days apart, with an exception for identified
+high or critical security fixes. Both require manual approval before automatic
+delivery. Unchanged inputs don't produce another build.

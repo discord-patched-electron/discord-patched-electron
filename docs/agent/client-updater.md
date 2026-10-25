@@ -7,9 +7,11 @@ module distributions. Inspection of the October 25, 2026 manifest and native
 updater found no resource-only host download option.
 
 This branch therefore uses pinned OpenAsar startup code with a project-owned
-module updater. It consumes the new `updates.discord.com/distributions/app/manifests/latest`
-API, validates module URLs and SHA-256 hashes, and never fetches `full.url` or host
-deltas. OpenAsar's upstream native updater, legacy downloads and self-update are
+module updater. Packages carry exact module URLs, revisions and SHA-256 hashes
+in `client-update.json`. Automatic updates use the `client` field of a signed,
+manually approved project release. The updater never queries Discord's live
+latest manifest or fetches `full.url` or host deltas.
+OpenAsar's upstream native updater, legacy downloads and self-update are
 replaced. Saved settings, renderer customization and performance presets are
 preserved; explicit launcher flags take precedence. The splash adapts Discord's
 startup screen; OpenAsar's pinned settings and editor are served locally.
@@ -19,7 +21,8 @@ metadata, preserving the layout used by official mod installers.
 
 ## Ownership and updates
 
-- The package provides the initial patched Electron, bootstrap source and Linux integrations.
+- The package provides the initial patched Electron, bootstrap source, Linux integrations
+  and exact client pins. Explicitly installed test packages can bootstrap their candidate.
 - `<profile>/dpe-updater` owns downloaded modules, complete generations
   and the atomic `current.json` pointer. No install hook downloads or launches Discord.
 - A lock serializes updates. Archives are checksum-verified before extraction;
@@ -37,12 +40,54 @@ metadata, preserving the layout used by official mod installers.
 - The replacement updater implements the desktop module's event contract, checks
   every 15 minutes and restarts through the package launcher. Native-updater
   migration is disabled to prevent a later switch to stock Electron.
+- Both Electron and client candidates must match the manual approval record in
+  `main/config/approved-release.json`: tag, package version, signed manifest hash
+  and a named approver. A signature or GitHub's Latest label alone is insufficient.
+  Same-host module revisions also require approval.
+- Client approval evidence is retained under `dpe-updater/approvals/<manifest-hash>/`
+  and its signature and pins are rechecked on cached launches. Offline mode and
+  Quickstart cannot use a legacy generation unless its exact pins match the
+  installed package or a retained approved release. An unapproved cached client
+  requires online repair; its files remain on disk for running processes.
+- Missing approval, mismatched records, failed downloads or legacy release metadata
+  without client pins retain the package baseline or an already approved client.
+  They never fall back to Discord's live manifest. Hosted web resources are outside
+  this desktop module gate.
+
+## PR #1 manual approval fix
+
+The original updater followed Discord's live module manifest even while Electron
+waited for release approval. The approval gate above replaces that behavior for
+startup, background checks, offline mode and Quickstart. Package launch checks
+now validate the exact candidate rather than whatever Discord published most
+recently. Changes to launch qualification invalidate the integration fingerprint
+without invalidating the compiler cache.
+
+Validation on October 25, 2026:
+
+- `out/pr1-approval-tests.log`: 195 Python and 51 JavaScript tests passed. Real
+  disposable GPG signatures cover prereleases, mismatched approval records,
+  same-version ASAR/native updates, cached proof tampering, legacy manifests,
+  unapproved-cache repair and exact candidate testing. Packaging rejects
+  untested module pins and changes made after launch validation.
+- `out/pr1-approval-lint.log`: required lint and formatting checks passed.
+- `out/pr1-approval-launch/`: fresh-profile Canary 1.0.2367 login and relaunch
+  passed on Arch Linux / niri / native Wayland, reusing Electron 46.0.0-alpha.1.
+  Both reports verified all 14 package-pinned modules. No compiler was started,
+  account signed in, call placed or camera captured.
+- `out/pr1-approval-live-check.log`: the real approved GitHub release verified,
+  but its legacy manifest lacked client pins. The updater retained the tested
+  package baseline without consulting Discord's live latest endpoint.
+- `out/pr1-approval-packages/package-checks.json`: tarball, Debian, RPM and Arch
+  packages passed with identical client-free payloads. Release metadata matches
+  the packaged module pins. These are unsigned local validation artifacts;
+  no release was published or approved.
 
 ## Patched Electron updates
 
 `integration/updater/runtime.py` checks the project's GitHub `releases/latest`
-endpoint. Only public, non-prerelease app releases qualify; under the release
-workflow this is the manually approved release. The Electron track itself can
+endpoint. Only public, non-prerelease app releases with a matching manual approval
+record qualify. The Electron track itself can
 still be alpha/beta. It checks channel, track, version ordering and minimum glibc.
 
 The trust chain is the packaged public key → `SHA256SUMS.sig` → `SHA256SUMS` →
@@ -77,9 +122,12 @@ updates; the automatic GitHub path updates Electron itself.
 The portable, nFPM and generated Arch paths all stage the same client-free layout.
 Packaging rejects extra ASARs, native Discord modules, distro archives and old
 bundled client directories. Published AUR recipes use the verified portable tree.
-Pinned client locks remain inputs for isolated native regression tests; normal
-launches resolve the current module manifest. Release launch reports record the
-actual tested version and generation.
+Pinned client locks supply both isolated native regression tests and package
+module metadata. Release launch checks set `DPE_CLIENT_PINNED=1` and
+`DPE_RUNTIME_BUNDLED=1` to test that exact candidate. Reports compare the prepared
+module URLs, revisions and hashes with `client-update.json`. Packaging requires
+this check and refuses a manifest changed after validation. The same manifest
+is included in signed `release.json`, binding approval to the tested modules.
 
 ## OpenAsar startup screen
 
@@ -180,16 +228,17 @@ exclusion, source validation, module reuse, failed-update rollback, offline star
 archive boundaries and package payload rejection. Brotli is needed for archive
 tests. Real desktop and package checks remain necessary after bootstrap changes.
 
-Automatic updates can introduce an incompatible upstream desktop module between
-runtime releases. The compatibility patches deliberately reject unknown layouts.
+Approved module releases can reuse an existing Electron runtime. The compatibility
+patches deliberately reject unknown layouts.
 Old runtime generations and cached modules currently require manual cleanup after
 closing Discord; automatic garbage collection is not implemented.
 
 ## Architecture and quality review
 
-The October 25 review covered all 41 files changed by the initial module-only
-bootstrap and GitHub runtime updater commits. It kept the two update sources
-independent and addressed these findings:
+The initial October 25 review covered all 41 files changed by the module-only
+bootstrap and GitHub runtime updater commits. At that point the two update sources
+were independent; the subsequent approval fix described above supersedes that
+behavior. The review addressed these findings:
 
 - Shared HTTPS downloads, checksums and atomic metadata writes now live in
   `integration/updater/support.py`; Electron no longer imports the Discord client

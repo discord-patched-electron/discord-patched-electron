@@ -10,9 +10,10 @@ import sys
 import tarfile
 import tempfile
 import unittest
+import urllib.request
 from email.message import Message
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -50,6 +51,26 @@ def manifest(version=123):
 
 
 class ModuleUpdates(unittest.TestCase):
+    def setUp(self):
+        # These tests exercise installation after policy validation. Real signed
+        # approvals and their cache are exercised in test_runtime_updater.py.
+        self.release = Mock(return_value=client.normalize(manifest(), "canary"))
+        self.approved = []
+
+        def sources(_root, _channel, *, offline, previous):
+            if not offline:
+                try:
+                    state = {**self.release(), "approval": "package", "approved_version": ""}
+                    self.approved.append(copy.deepcopy(state))
+                except (OSError, http.client.HTTPException):
+                    if not self.approved:
+                        raise
+            return self.approved
+
+        resolver = patch.object(client, "approved_sources", side_effect=sources)
+        resolver.start()
+        self.addCleanup(resolver.stop)
+
     def test_manifest_has_no_host_download_and_validates_sources(self):
         source = manifest()
         normalized = client.normalize(source, "canary")
@@ -87,9 +108,7 @@ class ModuleUpdates(unittest.TestCase):
             patch.object(client, "compatibility_key", return_value="b" * 64),
         ):
             root = Path(temporary)
-            with patch.object(
-                client, "latest", return_value=client.normalize(manifest(), "canary")
-            ):
+            with patch.object(self, "release", return_value=client.normalize(manifest(), "canary")):
                 first = client.ensure_client(root, "canary")
                 self.assertEqual(client.ensure_client(root, "canary"), first)
             self.assertEqual(len(downloaded), len(client.REQUIRED))
@@ -97,25 +116,25 @@ class ModuleUpdates(unittest.TestCase):
             updated = manifest(124)
             updated["modules"]["discord_voice"]["full"]["package_sha256"] = "c" * 64
             with (
-                patch.object(client, "latest", return_value=client.normalize(updated, "canary")),
+                patch.object(self, "release", return_value=client.normalize(updated, "canary")),
                 patch.object(client, "fetch", side_effect=OSError("offline")),
             ):
                 self.assertEqual(client.ensure_client(root, "canary"), first)
             self.assertEqual((root / "current.json").read_bytes(), pointer)
-            with patch.object(client, "latest", return_value=client.normalize(updated, "canary")):
+            with patch.object(self, "release", return_value=client.normalize(updated, "canary")):
                 second = client.ensure_client(root, "canary")
             self.assertNotEqual(second, first)
             self.assertEqual(len(downloaded), len(client.REQUIRED) + 1)
             self.assertEqual(client.current_host(root, "canary"), second)
             with patch.object(
-                client, "latest", side_effect=AssertionError("offline must not use network")
+                self, "release", side_effect=AssertionError("offline must not use network")
             ):
                 self.assertEqual(client.ensure_client(root, "canary", offline=True), second)
 
     def test_first_install_failure_does_not_publish_pointer(self):
         with (
             tempfile.TemporaryDirectory() as temporary,
-            patch.object(client, "latest", side_effect=OSError("offline")),
+            patch.object(self, "release", side_effect=OSError("offline")),
         ):
             root = Path(temporary)
             with self.assertRaises(OSError):
@@ -137,7 +156,7 @@ class ModuleUpdates(unittest.TestCase):
             patch.object(client, "extract_module", side_effect=extract),
             patch.object(client.subprocess, "run"),
             patch.object(client, "compatibility_key", return_value="b" * 64),
-            patch.object(client, "latest", return_value=state) as latest,
+            patch.object(self, "release", return_value=state) as latest,
         ):
             root = Path(temporary)
             previous = client.ensure_client(root, "canary")
@@ -169,7 +188,7 @@ class ModuleUpdates(unittest.TestCase):
             patch.object(client, "extract_module", side_effect=extract),
             patch.object(client.subprocess, "run"),
             patch.object(client, "compatibility_key", return_value="b" * 64),
-            patch.object(client, "latest", return_value=client.normalize(manifest(), "canary")),
+            patch.object(self, "release", return_value=client.normalize(manifest(), "canary")),
         ):
             root = Path(temporary)
             host = client.ensure_client(root, "canary")
@@ -203,7 +222,7 @@ class ModuleUpdates(unittest.TestCase):
             patch.object(client.subprocess, "run"),
             patch.object(client, "compatibility_key", return_value="b" * 64),
             patch.object(
-                client, "latest", return_value=client.normalize(manifest(), "canary")
+                self, "release", return_value=client.normalize(manifest(), "canary")
             ) as latest,
         ):
             root = Path(temporary)
@@ -255,9 +274,7 @@ class ModuleUpdates(unittest.TestCase):
             patch.object(client.subprocess, "run") as run,
         ):
             root = Path(temporary)
-            with patch.object(
-                client, "latest", return_value=client.normalize(manifest(), "canary")
-            ):
+            with patch.object(self, "release", return_value=client.normalize(manifest(), "canary")):
                 previous = client.ensure_client(root, "canary")
             commands = [call.args[0] for call in run.call_args_list]
             self.assertTrue(any(command[1].endswith("patches.cjs") for command in commands))
@@ -265,7 +282,7 @@ class ModuleUpdates(unittest.TestCase):
             updated = client.normalize(manifest(124), "canary")
             updated["modules"]["discord_desktop_core"]["sha256"] = "d" * 64
             run.side_effect = subprocess.CalledProcessError(1, "desktop-preflight")
-            with patch.object(client, "latest", return_value=updated):
+            with patch.object(self, "release", return_value=updated):
                 self.assertEqual(client.ensure_client(root, "canary"), previous)
             self.assertEqual(client.current_host(root, "canary"), previous)
             failed = client.module_path(
@@ -285,7 +302,7 @@ class ModuleUpdates(unittest.TestCase):
 
         with (
             tempfile.TemporaryDirectory() as temporary,
-            patch.object(client.urllib.request, "build_opener", return_value=Opener()),
+            patch.object(urllib.request, "build_opener", return_value=Opener()),
         ):
             archive = Path(temporary) / "module.br"
             with self.assertRaisesRegex(ValueError, "checksum"):
@@ -303,7 +320,7 @@ class ModuleUpdates(unittest.TestCase):
 
         with (
             tempfile.TemporaryDirectory() as temporary,
-            patch.object(client.urllib.request, "build_opener", return_value=Opener()),
+            patch.object(urllib.request, "build_opener", return_value=Opener()),
         ):
             with self.assertRaisesRegex(ValueError, "incomplete"):
                 client.download("https://example.invalid/metadata", Path(temporary) / "download")
@@ -384,13 +401,27 @@ class DistributionBoundary(unittest.TestCase):
                     source.addfile(member, io.BytesIO(value))
             lock = {"commit": commit, "sha256": sha256(archive)}
             app = root / "app"
+            locked_client = {
+                "channel": "canary",
+                "version": "1.0.123",
+                "required_modules": sorted(client.REQUIRED),
+                "sources": {
+                    name: {"url": entry["full"]["url"], "sha256": "a" * 64, "module_version": 1}
+                    for name, entry in manifest()["modules"].items()
+                },
+            }
             with (
                 patch("stage_updater.read_json", return_value=lock),
                 patch("stage_updater.stage_python"),
                 patch("stage_updater.stage_editor"),
             ):
-                stage(app, "canary", "1.0.123", asar, archive)
+                stage(app, "canary", "1.0.123", asar, archive, client=locked_client)
             validate_distribution(app)
+            pinned = client.normalize(
+                json.loads((app / "client-update.json").read_text()), "canary"
+            )
+            self.assertEqual(pinned, client.normalize(manifest(), "canary"))
+            self.assertNotIn("NEVER-DOWNLOAD-HOST", (app / "client-update.json").read_text())
             unpacked = root / "unpacked"
             subprocess.run(
                 [asar, "extract", str(app / "resources/app.asar"), str(unpacked)], check=True
@@ -408,11 +439,14 @@ class DistributionBoundary(unittest.TestCase):
                 "openasar-source.json",
                 "client-distribution.json",
                 "scripts/patch_pulse_audio.py",
+                "client-update.json",
             ):
                 self.assertEqual((app / name).stat().st_mode & 0o444, 0o444)
             with patch("stage_updater.read_json", return_value={**lock, "sha256": "b" * 64}):
                 with self.assertRaisesRegex(ValueError, "checksum"):
-                    stage(root / "invalid", "canary", "1.0.123", asar, archive)
+                    stage(
+                        root / "invalid", "canary", "1.0.123", asar, archive, client=locked_client
+                    )
 
     def test_rejects_bundled_asars_modules_and_tampered_loader(self):
         with tempfile.TemporaryDirectory() as temporary:

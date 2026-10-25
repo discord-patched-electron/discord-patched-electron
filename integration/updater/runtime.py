@@ -121,10 +121,19 @@ def verify_signature(directory: Path, key: Path):
         raise ValueError("Release manifest checksum mismatch")
 
 
-def latest(directory: Path, policy: dict, key: Path) -> dict:
-    download(
-        f"https://api.github.com/repos/{REPOSITORY}/releases/latest", directory / "github.json"
-    )
+def approved_release(directory: Path, policy: dict, key: Path, *, fetch=False) -> dict:
+    """Verify a signed release and the exact record written by manual approval.
+
+    Retained copies can authorize offline use, but a signed prerelease alone or
+    a release whose approval record names other bytes cannot authorize updates.
+    """
+    channel, track = policy["channel"], policy["electron_channel"]
+    if channel not in ("canary", "ptb", "stable") or track not in ("prerelease", "stable"):
+        raise ValueError("Invalid update channel")
+    if fetch:
+        download(
+            f"https://api.github.com/repos/{REPOSITORY}/releases/latest", directory / "github.json"
+        )
     release = read_object(directory / "github.json")
     tag = release["tag_name"]
     if (
@@ -138,7 +147,8 @@ def latest(directory: Path, policy: dict, key: Path) -> dict:
         url = f"https://github.com/{REPOSITORY}/releases/download/{tag}/{name}"
         if assets.get(name) != url:
             raise ValueError("Missing or unexpected signed release asset")
-        download(url, directory / name)
+        if fetch:
+            download(url, directory / name)
     verify_signature(directory, key)
     manifest = read_object(directory / "release.json")
     runtime = object_value(manifest["runtime"], "Release runtime")
@@ -155,12 +165,39 @@ def latest(directory: Path, policy: dict, key: Path) -> dict:
     ):
         raise ValueError("Release does not match this patched Electron installation")
     release_version(manifest["version"])
+    approval_name = (
+        "approved-release.json"
+        if (channel, track) == ("canary", "prerelease")
+        else f"approved-{channel}-{track}-release.json"
+    )
+    if fetch:
+        download(
+            f"https://raw.githubusercontent.com/{REPOSITORY}/main/config/{approval_name}",
+            directory / "approval.json",
+        )
+    approval = read_object(directory / "approval.json")
+    if (
+        approval.get("schema") != 1
+        or approval.get("tag") != tag
+        or approval.get("version") != manifest["version"]
+        or approval.get("manifest_sha256") != checksum(directory / "release.json")
+        or not isinstance(approval.get("approved_by"), str)
+        or not approval["approved_by"].strip()
+    ):
+        raise ValueError("Release has no matching manual approval")
     minimum = manifest["minimum_glibc"]
     if not re.fullmatch(r"\d+\.\d+", minimum):
         raise ValueError("Invalid minimum glibc version")
     local = os.confstr("CS_GNU_LIBC_VERSION").split()[-1]
     if tuple(map(int, local.split("."))) < tuple(map(int, minimum.split("."))):
         raise ValueError("New runtime requires a newer system glibc")
+    return manifest
+
+
+def latest(directory: Path, policy: dict, key: Path) -> dict:
+    manifest = approved_release(directory, policy, key, fetch=True)
+    runtime = manifest["runtime"]
+    tag = read_object(directory / "github.json")["tag_name"]
     return {
         "schema": 1,
         "channel": policy["channel"],

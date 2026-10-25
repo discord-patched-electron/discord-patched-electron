@@ -36,6 +36,7 @@ def stage(inputs: dict, directory: Path, asar: str):
         client["version"],
         asar,
         directory / "openasar.tar.gz",
+        client=client,
         python_archives=directory,
         cdn_archive=directory / "openasar-cdn.tar.gz",
     )

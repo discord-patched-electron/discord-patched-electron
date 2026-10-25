@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "integration/updater"))
 import runtime
 import support
+from test_client_updater import client, manifest
 
 
 def write_json(path, value):
@@ -76,6 +78,7 @@ class RuntimeUpdates(unittest.TestCase):
             "release_version": "20261024.120000",
         }
         write_json(self.app / "runtime-update.json", self.policy)
+        write_json(self.app / "client-update.json", manifest())
         self.profile = self.root / "profile"
         self.cache = runtime.cache_root(self.profile, self.app)
         self.release = self.root / "release"
@@ -89,6 +92,8 @@ class RuntimeUpdates(unittest.TestCase):
                 bundle.writestr(name, data)
             bundle.writestr("resources/default_app.asar", b"upstream Electron demo")
         self.manifest = {
+            "client": manifest(124),
+            "client_version": "1.0.124",
             "source_dirty": False,
             "signing_required": True,
             "channel": "canary",
@@ -128,6 +133,13 @@ class RuntimeUpdates(unittest.TestCase):
 
     def sign(self):
         write_json(self.release / "release.json", self.manifest)
+        self.approval = {
+            "schema": 1,
+            "tag": self.tag,
+            "version": self.manifest["version"],
+            "manifest_sha256": runtime.checksum(self.release / "release.json"),
+            "approved_by": "test-maintainer",
+        }
         (self.release / "SHA256SUMS").write_text(
             runtime.checksum(self.release / "release.json") + "  release.json\n"
         )
@@ -167,6 +179,11 @@ class RuntimeUpdates(unittest.TestCase):
         self.downloads.append(url)
         if url == f"https://api.github.com/repos/{runtime.REPOSITORY}/releases/latest":
             write_json(target, self.github)
+        elif (
+            url
+            == f"https://raw.githubusercontent.com/{runtime.REPOSITORY}/main/config/approved-release.json"
+        ):
+            write_json(target, self.approval)
         elif (
             url
             == f"https://github.com/{runtime.CACHE_REPOSITORY}/releases/download/runtime-cache-{'c' * 64}/runtime-dist.zip"
@@ -266,6 +283,134 @@ class RuntimeUpdates(unittest.TestCase):
             )
             self.github[field] = False
             self.clear_cooldown()
+
+    def test_release_requires_the_exact_manual_approval_record(self):
+        original = copy.deepcopy(self.approval)
+        for change in (
+            {"schema": 2},
+            {"tag": "another-release"},
+            {"version": "20261024.120000"},
+            {"manifest_sha256": "0" * 64},
+            {"approved_by": ""},
+        ):
+            with self.subTest(change=change):
+                self.approval = {**original, **change}
+                self.assertEqual(
+                    runtime.ensure_runtime(self.app, self.profile), self.app / "runtime/electron"
+                )
+                self.assertFalse((self.cache / "current.json").exists())
+                self.assertFalse(any(url.endswith("runtime-dist.zip") for url in self.downloads))
+                self.clear_cooldown()
+        self.approval = original
+        self.assertNotEqual(
+            runtime.ensure_runtime(self.app, self.profile), self.app / "runtime/electron"
+        )
+
+    @contextmanager
+    def modules(self):
+        """Exercise real approval verification, with synthetic module payloads."""
+        downloaded = []
+
+        def install(cache, name, source, compatibility, _executable):
+            downloaded.append(source["url"])
+            target = client.module_path(cache, name, source, compatibility)
+            target.mkdir(parents=True)
+            (target / "index.js").write_text(source["sha256"])
+            write_json(
+                target / ".complete",
+                {"sha256": source["sha256"], "files": client.module_files(target)},
+            )
+            return target
+
+        with (
+            patch.object(client, "PACKAGE_ROOT", self.app),
+            patch.object(client, "compatibility_key", return_value="f" * 64),
+            patch.object(client, "install_module", side_effect=install),
+            patch.dict(os.environ, {"DPE_CLIENT_PINNED": "0"}),
+        ):
+            yield self.profile / "dpe-updater", downloaded
+
+    def test_client_and_asar_wait_for_approval_even_when_electron_does_not_change(self):
+        # A desktop ASAR/native-module-only update, with the same host and runtime.
+        self.manifest["client"] = manifest()
+        self.manifest["client_version"] = "1.0.123"
+        for name in ("discord_desktop_core", "discord_voice"):
+            source = self.manifest["client"]["modules"][name]["full"]
+            source.update(module_version=2, package_sha256="c" * 64)
+            source["url"] = source["url"].replace("/1/full.distro", "/2/full.distro")
+        self.manifest["electron_version"] = self.policy["electron_version"]
+        self.manifest["runtime"].update(
+            version=self.policy["electron_version"],
+            runtime_key=self.policy["runtime_key"],
+            archive_sha256=self.policy["archive_sha256"],
+            cache_release="runtime-cache-" + self.policy["runtime_key"],
+        )
+        self.sign()
+        with self.modules() as (root, downloaded):
+            self.github["prerelease"] = True
+            first = client.ensure_client(root, "canary")
+            self.assertEqual(len(downloaded), len(client.REQUIRED))
+            for approval in ({**self.approval, "manifest_sha256": "0" * 64}, self.approval):
+                # A signed stable release with no matching approval remains blocked.
+                self.github["prerelease"] = False
+                self.approval = approval
+                (root / "approvals/last-check.json").unlink()
+                selected = client.ensure_client(root, "canary")
+                if approval["manifest_sha256"] == "0" * 64:
+                    self.assertEqual(selected, first)
+                    self.assertEqual(len(downloaded), len(client.REQUIRED))
+                else:
+                    self.assertNotEqual(selected, first)
+            self.assertEqual(sum("/2/full.distro" in url for url in downloaded), 2)
+            self.assertFalse(any("updates.discord.com" in url for url in self.downloads))
+            with patch.object(runtime, "download", side_effect=AssertionError("offline network")):
+                self.assertEqual(client.ensure_client(root, "canary", offline=True), selected)
+
+    def test_unapproved_legacy_cache_cannot_launch_offline_or_survive_online_repair(self):
+        with self.modules() as (root, _downloaded):
+            unapproved = {
+                **client.normalize(manifest(125), "canary"),
+                "approval": "package",
+                "approved_version": "",
+            }
+            with patch.object(client, "approved_sources", return_value=[unapproved]):
+                previous = client.ensure_client(root, "canary")
+            with self.assertRaisesRegex(ValueError, "unapproved"):
+                client.ensure_client(root, "canary", offline=True)
+            approved = client.ensure_client(root, "canary")
+            self.assertNotEqual(previous, approved)
+            self.assertEqual(
+                json.loads((approved / "client.json").read_text())["version"], "1.0.124"
+            )
+            self.assertTrue(previous.is_dir())
+
+    def test_cached_approval_is_reverified_and_legacy_releases_do_not_authorize_latest(self):
+        with self.modules() as (root, _downloaded):
+            approved = client.ensure_client(root, "canary")
+            state = json.loads((approved / "client.json").read_text())
+            cached = root / "approvals" / state["approval"] / "release.json"
+            cached.write_bytes(cached.read_bytes() + b"tampered")
+            with self.assertRaisesRegex(ValueError, "unapproved"):
+                client.ensure_client(root, "canary", offline=True)
+            del self.manifest["client"]
+            self.sign()
+            (root / "approvals/last-check.json").unlink()
+            restored = client.ensure_client(root, "canary")
+            self.assertEqual(
+                json.loads((restored / "client.json").read_text())["version"], "1.0.123"
+            )
+            self.assertFalse(any("updates.discord.com" in url for url in self.downloads))
+
+    def test_package_testing_stays_on_its_exact_pins_without_release_lookups(self):
+        with (
+            self.modules() as (root, _downloaded),
+            patch.dict(os.environ, {"DPE_CLIENT_PINNED": "1"}),
+        ):
+            selected = client.ensure_client(root, "canary")
+            self.assertEqual(
+                json.loads((selected / "client.json").read_text())["version"], "1.0.123"
+            )
+            self.assertEqual(self.downloads, [])
 
     def test_disabling_checks_and_using_bundled_runtime_are_independent(self):
         executable = runtime.ensure_runtime(self.app, self.profile)

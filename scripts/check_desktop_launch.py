@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from common import read_json, write_json
+from common import read_json, sha256, write_json
 
 
 def check(
@@ -40,6 +40,8 @@ def check(
         "DPE_PROFILE_DIR": str(profile),
         "EQUICORD_USER_DATA_DIR": str(profile / "equicord"),
         "WAYLAND_DEBUG": "client",
+        "DPE_CLIENT_PINNED": "1",
+        "DPE_RUNTIME_BUNDLED": "1",
     }
     environment.pop("ELECTRON_RUN_AS_NODE", None)
     # A staged portable app must work from an ordinary terminal, without uv's
@@ -193,14 +195,30 @@ ws.addEventListener("error", () => process.exit(0));
         report["client_version"] = state["version"]
         report["client_generation"] = generation
         report["client_distribution"] = "module-only"
+        pinned = read_json(app / "client-update.json")
+        report["client_manifest_sha256"] = sha256(app / "client-update.json")
+        expected = {
+            name: {
+                "url": item["full"]["url"],
+                "sha256": item["full"]["package_sha256"],
+                "version": item["full"]["module_version"],
+            }
+            for name, item in pinned["modules"].items()
+        }
+        report["client_pins_verified"] = (
+            state["version"] == ".".join(map(str, pinned["full"]["host_version"]))
+            and state["modules"] == expected
+        )
+        report["passed"] = report["passed"] and report["client_pins_verified"]
     write_json(output / "launch-report.json", report)
     if report["passed"] and not read_only_app:
         manifest = read_json(app / "local-build.json")
         manifest["launch_verified"] = True
         manifest["launch_report"] = str(output / "launch-report.json")
         if "client_version" in report:
-            manifest["client_version"] = report["client_version"]
             manifest["client_generation"] = report["client_generation"]
+            manifest["client_pins_verified"] = report["client_pins_verified"]
+            manifest["client_manifest_sha256"] = report["client_manifest_sha256"]
         write_json(app / "local-build.json", manifest)
     print(json.dumps(report, indent=2))
     return report

@@ -20,9 +20,32 @@ def stage(
     asar: str,
     source_archive: Path | None = None,
     *,
+    client: dict,
     python_archives: Path | None = None,
     cdn_archive: Path | None = None,
 ):
+    if client["channel"] != channel or client["version"] != version:
+        raise ValueError("Pinned Discord modules differ from package identity")
+    host = list(map(int, version.split(".")))
+    module_manifest = {
+        "channel": channel,
+        "full": {"host_version": host},
+        "required_modules": client["required_modules"],
+        "modules": {
+            name: {
+                "full": {
+                    "host_version": host,
+                    "module_version": source["module_version"],
+                    "package_sha256": source["sha256"],
+                    "url": source["url"],
+                }
+            }
+            for name, source in client["sources"].items()
+            if name != "core"
+        },
+    }
+    output.mkdir(parents=True, exist_ok=True)
+    write_json(output / "client-update.json", module_manifest)
     lock = read_json(ROOT / "config/openasar.lock.json")
     # Include the exact corresponding source and license for the AGPL bootstrap.
     with tempfile.TemporaryDirectory(prefix="openasar-") as temporary:
@@ -113,6 +136,7 @@ def stage(
         "resources/build_info.json",
         "openasar-source.json",
         "client-distribution.json",
+        "client-update.json",
     ):
         (output / filename).chmod(0o644)
 

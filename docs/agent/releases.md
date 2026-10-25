@@ -135,9 +135,18 @@ updates don't need an Electron rebuild or lose retained Ninja objects.
 
 ## Package updates
 
-Electron also updates directly from the approved release's signed runtime-cache
-reference. The package ships its baseline identity in `runtime-update.json` and
-the pinned public key. See [runtime activation](client-updater.md#patched-electron-updates).
+Automatic updates require a signed release and a matching manual approval record.
+The signed manifest includes exact Discord module URLs, revisions and checksums
+under `client`, alongside Electron's runtime-cache reference. Module-only updates
+reuse the compiler output but still wait for manual approval.
+
+Packages ship their baseline module pins in `client-update.json`, runtime identity
+in `runtime-update.json` and the pinned public key. Launch qualification verifies
+those exact pins, with automatic updates disabled for the test. Packaging rejects
+changed or untested module pins. The approval action binds its existing
+`manifest_sha256` record to both client and runtime metadata. Older release
+manifests without client pins cannot authorize automatic client updates.
+See [runtime activation](client-updater.md#patched-electron-updates).
 Package updates remain responsible for the bootstrap, integrations and system
 dependencies. Automatic runtime updates preserve the installed mod loader.
 

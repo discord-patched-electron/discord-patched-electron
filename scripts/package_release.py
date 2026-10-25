@@ -223,6 +223,10 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
         raise ValueError("Run check_desktop_launch.py on the relocated app before packaging")
     if (app / "resources/_app.asar").exists():
         raise ValueError("Uninstall client mods before packaging the app")
+    if build.get("client_pins_verified") is not True:
+        raise ValueError("Validate the package's pinned Discord modules before release")
+    if sha256(app / "client-update.json") != build.get("client_manifest_sha256"):
+        raise ValueError("Pinned Discord module manifest changed after launch validation")
     validate_distribution(app)
     validate_capacity(build["capacity"], True)
     if sha256(app / "runtime/electron") != build["executable_sha256"]:
@@ -303,6 +307,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             "channel": build["channel"],
             "desktop_id": desktop_id(build["channel"]),
             "client_version": build["client_version"],
+            "client": read_json(app / "client-update.json"),
             "client_distribution": "module-only",
             "bundled_discord_client": False,
             "electron_version": build["capacity"]["compiled_version"],

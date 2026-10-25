@@ -1,4 +1,4 @@
-"""Fetch only Discord modules from its Linux distribution API, never the host runtime."""
+"""Fetch package-pinned or manually approved Discord modules, never the host runtime."""
 
 from __future__ import annotations
 
@@ -16,11 +16,11 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import urllib.request
+import time
 from pathlib import Path, PurePosixPath
 
+import runtime
 from support import (
-    HTTPSRedirect,
     checksum,
     download,
     object_value,
@@ -89,6 +89,8 @@ def fetch(url: str, target: Path, expected: str, limit: int = 512 * 1024 * 1024)
 
 def normalize(manifest: dict, channel: str) -> dict:
     manifest = object_value(manifest, "Discord manifest")
+    if manifest.get("channel", channel) != channel:
+        raise ValueError("Discord manifest belongs to another channel")
     host = object_value(manifest["full"], "Discord host")["host_version"]
     if (
         not isinstance(host, list)
@@ -119,15 +121,112 @@ def normalize(manifest: dict, channel: str) -> dict:
     return {"channel": channel, "version": version, "modules": modules}
 
 
-def latest(channel: str) -> dict:
-    url = f"https://updates.discord.com/distributions/app/manifests/latest?channel={channel}&platform=linux&arch=x64"
-    opener = urllib.request.build_opener(HTTPSRedirect())
-    opener.addheaders = [("User-Agent", "Discord-Updater/1")]
-    with opener.open(url, timeout=10) as response:
-        data = response.read(2 * 1024 * 1024 + 1)
-    if len(data) > 2 * 1024 * 1024:
-        raise ValueError("Discord manifest exceeds size limit")
-    return normalize(json.loads(data), channel)
+def pins(state: dict) -> dict:
+    return {name: state[name] for name in ("channel", "version", "modules")}
+
+
+def downgrade(candidate: dict, previous: dict) -> bool:
+    if candidate["version"] != previous["version"]:
+        return tuple(map(int, candidate["version"].split("."))) < tuple(
+            map(int, previous["version"].split("."))
+        )
+    return any(
+        source["version"] < previous["modules"][name]["version"]
+        for name, source in candidate["modules"].items()
+        if name in previous["modules"]
+    )
+
+
+def approved_sources(root: Path, channel: str, *, offline: bool, previous: Path | None) -> list:
+    """Authorize exact package pins and retain signed, manually approved releases.
+
+    A manually installed test package can bootstrap only its pinned candidate.
+    Legacy caches do not confer approval; offline and Quickstart use this gate too.
+    """
+    baseline = normalize(read_object(PACKAGE_ROOT / "client-update.json"), channel)
+    policy = read_object(PACKAGE_ROOT / "runtime-update.json")
+    if policy["channel"] != channel:
+        raise ValueError("Update policy belongs to another Discord channel")
+    baseline.update(approval="package", approved_version=policy.get("release_version") or "")
+    sources = [baseline]
+    if os.environ.get("DPE_CLIENT_PINNED") == "1":
+        return sources
+    key = PACKAGE_ROOT / "integration/updater/release-signing-key.asc"
+    approvals = root / "approvals"
+
+    def source(directory):
+        manifest = runtime.approved_release(directory, policy, key)
+        if "client" not in manifest:
+            raise ValueError("Release has no approved Discord module pins")
+        state = normalize(manifest["client"], channel)
+        if state["version"] != manifest["client_version"]:
+            raise ValueError("Approved Discord module pins differ from the release version")
+        digest = checksum(directory / "release.json")
+        state.update(approval=digest, approved_version=manifest["version"])
+        return state
+
+    def cached(digest):
+        if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
+            raise ValueError("Invalid cached release approval")
+        state = source(approvals / digest)
+        if state["approval"] != digest:
+            raise ValueError("Cached approval differs from its signed manifest")
+        sources.append(state)
+
+    # Keep the current approved client available if the next approved update
+    # fails. A boolean marker or an old downloaded generation is not authority.
+    if previous:
+        proof = read_object(previous / "client.json").get("approval")
+        if proof and proof != "package":
+            try:
+                cached(proof)
+            except FAILURES as error:
+                print(f"Current client approval unavailable: {error}", file=sys.stderr)
+    pointer = approvals / "current.json"
+    try:
+        if pointer.exists():
+            cached(json.loads(pointer.read_text()))
+    except FAILURES as error:
+        print(f"Cached client approval unavailable: {error}", file=sys.stderr)
+    if offline:
+        return sources
+    try:
+        approvals.mkdir(parents=True, exist_ok=True)
+        checked = approvals / "last-check.json"
+        if runtime.recently_checked(checked):
+            return sources
+        write_json(checked, time.time())
+        with tempfile.TemporaryDirectory(prefix="approval-", dir=approvals) as temporary:
+            directory = Path(temporary)
+            runtime.approved_release(directory, policy, key, fetch=True)
+            incoming = source(directory)
+            destination = approvals / incoming["approval"]
+            # Preserve the signed evidence so cached launches can verify it too.
+            staged = directory / "verified"
+            staged.mkdir()
+            for name in (
+                "github.json",
+                "approval.json",
+                "release.json",
+                "SHA256SUMS",
+                "SHA256SUMS.sig",
+            ):
+                shutil.copy2(directory / name, staged / name)
+            if destination.exists():
+                try:
+                    cached(incoming["approval"])
+                except FAILURES:
+                    replace_damaged(staged, destination)
+            else:
+                staged.rename(destination)
+            write_json(pointer, incoming["approval"])
+            sources.append(incoming)
+    except FAILURES as error:
+        print(
+            f"Approved client update unavailable; retaining pinned modules: {error}",
+            file=sys.stderr,
+        )
+    return sources
 
 
 class ArchiveStream:
@@ -344,28 +443,35 @@ def ensure_client(
                 file=sys.stderr,
             )
             previous = None
+        sources = approved_sources(root, channel, offline=offline, previous=previous)
+        if previous and not any(
+            pins(read_object(previous / "client.json")) == pins(source) for source in sources
+        ):
+            print("Cached Discord client has no matching package pins or approval", file=sys.stderr)
+            previous = None
         if offline:
             if previous is None:
-                raise ValueError("First launch requires an internet connection")
+                raise ValueError(
+                    "First launch requires an internet connection; reconnect to repair an unapproved cached client"
+                )
             return previous
         try:
-            state = latest(channel)
+            state = sources[0]
+            for source in sources[1:]:
+                if (
+                    not downgrade(source, state)
+                    and source["approved_version"] >= state["approved_version"]
+                ):
+                    state = source
+            state = {**state}
             state["compatibility"] = compatibility_key()
             generation = identity(state)
             if previous and previous.name == generation:
                 return previous
             if previous:
                 old = read_object(previous / "client.json")
-                if tuple(map(int, state["version"].split("."))) < tuple(
-                    map(int, old["version"].split("."))
-                ):
-                    raise ValueError("Refusing a Discord host downgrade")
-                if state["version"] == old["version"] and any(
-                    source["version"] < old["modules"][name]["version"]
-                    for name, source in state["modules"].items()
-                    if name in old["modules"]
-                ):
-                    raise ValueError("Refusing a Discord module downgrade")
+                if downgrade(state, old):
+                    raise ValueError("Refusing an approved Discord client downgrade")
             cache = root / "cache"
             cache.mkdir(exist_ok=True)
             pending = [

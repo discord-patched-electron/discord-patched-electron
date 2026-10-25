@@ -71,6 +71,7 @@ def integration_key(
                     "scripts/generate_package.py",
                     "scripts/build_local_app.py",
                     "scripts/package_release.py",
+                    "scripts/check_desktop_launch.py",
                     "scripts/check_installed_package.py",
                     "scripts/check_release_packages.py",
                     "scripts/check_wayland_audio.py",

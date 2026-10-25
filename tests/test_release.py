@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from common import ROOT
+from common import ROOT, sha256
 from package_release import metadata, normalize_permissions, package, tarball
 from prepare_app import patch_bundle
 
@@ -146,3 +146,29 @@ class PortableReleases(unittest.TestCase):
                 metadata(Path("/tmp/app"), "20261024.120000", disabled, 0)
         with self.assertRaises(ValueError):
             metadata(Path("/tmp/app"), "../../unsafe", "canary", 0)
+
+    def test_release_requires_launch_verified_unchanged_module_pins(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary) / "app"
+            app.mkdir()
+            pins = app / "client-update.json"
+            pins.write_text('{"modules": {"fixture": "tested"}}')
+            build = {
+                "portable": True,
+                "runtime_kind": "compiled",
+                "launch_verified": True,
+                "client_manifest_sha256": sha256(pins),
+            }
+            output = Path(temporary) / "packages"
+            for changed, message in (
+                (False, "Validate the package's pinned Discord modules"),
+                (True, "manifest changed after launch validation"),
+            ):
+                with self.subTest(changed=changed):
+                    if changed:
+                        build["client_pins_verified"] = True
+                        pins.write_text('{"modules": {"fixture": "untested"}}')
+                    (app / "local-build.json").write_text(json.dumps(build))
+                    with self.assertRaisesRegex(ValueError, message):
+                        package(app, output, "20261024.120000", 1234567890, "nfpm")
+                    self.assertFalse(output.exists())
