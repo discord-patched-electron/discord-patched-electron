@@ -37,6 +37,7 @@ SUPPORT = [
     "scripts/desktop_identity.py",
     "scripts/patch_krisp.py",
     "scripts/patch_app_audio.py",
+    "scripts/patch_pulse_audio.py",
     "scripts/camera_scope.py",
     "scripts/client_native.py",
     "scripts/stage_package.py",

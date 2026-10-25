@@ -52,6 +52,7 @@ def integration_key(
                     "scripts/patch_krisp.py",
                     "scripts/desktop_identity.py",
                     "scripts/patch_app_audio.py",
+                    "scripts/patch_pulse_audio.py",
                     "integration/audio/app-audio.cjs",
                     "scripts/patch_desktop_core.py",
                     "integration/desktop/safe-storage.cjs",

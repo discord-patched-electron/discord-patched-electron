@@ -86,6 +86,7 @@ def stage(
         "camera_scope.py",
         "patch_krisp.py",
         "patch_app_audio.py",
+        "patch_pulse_audio.py",
         "common.py",
     ):
         shutil.copy2(ROOT / "scripts" / name, scripts)

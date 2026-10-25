@@ -146,6 +146,7 @@ test("failure guidance distinguishes space, permissions, offline setup and verif
     ["Permission denied: profile", /writable/],
     ["First launch requires an internet connection", /DPE_CLIENT_OFFLINE/],
     ["Unsupported Discord client layout", /latest package/],
+    ["Unsupported PulseAudio mixer layout: unknown Attach instructions", /latest package/],
   ]) {
     const state = failure(new Error(details));
     assert.match(state.message, message);

@@ -60,6 +60,7 @@ def compatibility_key() -> str:
         "scripts/client_native.py",
         "scripts/common.py",
         "scripts/patch_app_audio.py",
+        "scripts/patch_pulse_audio.py",
         "scripts/patch_krisp.py",
         "scripts/camera_scope.py",
         "packaging/upstream/krisp-patcher.py",

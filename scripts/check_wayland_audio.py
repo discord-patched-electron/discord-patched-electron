@@ -486,6 +486,7 @@ def check(
             ],
             check=True,
         )
+    adapter_patch = patch(output / "voice", ROOT / "integration/audio/app-audio.cjs")
     write_json(
         output / "identity.json",
         {
@@ -496,7 +497,7 @@ def check(
             "runtime_kind": "custom" if runtime else "bundled",
             "runtime_sha256": sha256(output / "runtime" / executable),
             "voice_sha256": sha256(output / "voice/discord_voice.node"),
-            "adapter_patch": patch(output / "voice", ROOT / "integration/audio/app-audio.cjs"),
+            "adapter_patch": adapter_patch,
         },
     )
     sp.run(

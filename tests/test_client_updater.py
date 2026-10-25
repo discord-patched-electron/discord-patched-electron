@@ -407,6 +407,7 @@ class DistributionBoundary(unittest.TestCase):
                 "resources/build_info.json",
                 "openasar-source.json",
                 "client-distribution.json",
+                "scripts/patch_pulse_audio.py",
             ):
                 self.assertEqual((app / name).stat().st_mode & 0o444, 0o444)
             with patch("stage_updater.read_json", return_value={**lock, "sha256": "b" * 64}):

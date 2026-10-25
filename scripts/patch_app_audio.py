@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 from common import sha256
+from patch_pulse_audio import patch as patch_pulse_audio
 
 ANCHOR = "function bindConnectionInstance(instance) {\n"
 INSERT = "    instance = require('./dpe-app-audio.cjs').wrap(instance);\n"
@@ -42,6 +43,7 @@ def patch(directory: Path, adapter: Path) -> dict:
     for name in SIDECARS:
         if not adapter.with_name(name).is_file():
             raise ValueError("Missing application audio helper: " + name)
+    native = patch_pulse_audio(directory / "discord_voice.node")
     wrapper.write_text(source)
     shutil.copy2(adapter, directory / "dpe-app-audio.cjs")
     for name, destination in SIDECARS.items():
@@ -50,6 +52,7 @@ def patch(directory: Path, adapter: Path) -> dict:
         "input_sha256": before,
         "output_sha256": sha256(wrapper),
         "adapter_sha256": sha256(adapter),
+        "native_buffer_patch": native,
         "enabled_by_default": True,
         "default_sessions": ["wayland"],
         "disable_environment": "DPE_APP_AUDIO=0",

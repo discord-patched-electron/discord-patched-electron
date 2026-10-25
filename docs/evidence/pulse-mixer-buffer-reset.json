@@ -1,0 +1,375 @@
+{
+  "schema": 1,
+  "date": "2026-10-25",
+  "ci_failure": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40230030029/job/121279567488",
+  "fix": "Clear the native PulseAudio mixer ring under its existing lock before attaching a new source.",
+  "baseline": [
+    {
+      "directory": "out/pr1-audio-repro-1",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.05873415562954861,
+          "440": 4999.356455290398,
+          "660": 4999.41487654544,
+          "997": 0.0256767329222604
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.060494340677538574,
+          "440": 4999.3904343135155,
+          "660": 4999.437207812158,
+          "997": 0.05697674812779472
+        },
+        "passed": true,
+        "samples": 37440
+      }
+    },
+    {
+      "directory": "out/pr1-audio-repro-2",
+      "all_cases_passed": false,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.04034254010775486,
+          "440": 4999.369127194175,
+          "660": 4999.413599736502,
+          "997": 0.03423697770989727
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.07093423862385706,
+          "440": 4999.380550241682,
+          "660": 9664.879647004327,
+          "997": 4999.386652605858
+        },
+        "passed": false,
+        "samples": 36960
+      }
+    },
+    {
+      "directory": "out/pr1-audio-repro-3",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.04832327881139318,
+          "440": 4999.351015594838,
+          "660": 4999.411874247975,
+          "997": 0.039371447617887516
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.06997319275694877,
+          "440": 4999.393566870888,
+          "660": 4999.432502215725,
+          "997": 0.05262690103549216
+        },
+        "passed": true,
+        "samples": 36960
+      }
+    }
+  ],
+  "experimental_reset_trials": [
+    {
+      "directory": "out/pr1-audio-buffer-trial-1",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.049634526246518616,
+          "440": 4999.350131181021,
+          "660": 4999.407599398728,
+          "997": 0.03895271191939646
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.06818699437077996,
+          "440": 4999.398123475642,
+          "660": 4999.439770916373,
+          "997": 0.05028169002307307
+        },
+        "passed": true,
+        "samples": 36960
+      }
+    },
+    {
+      "directory": "out/pr1-audio-buffer-trial-2",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.05873415562954861,
+          "440": 4999.356455290398,
+          "660": 4999.41487654544,
+          "997": 0.0256767329222604
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.060494340677538574,
+          "440": 4999.3904343135155,
+          "660": 4999.437207812158,
+          "997": 0.05697674812779472
+        },
+        "passed": true,
+        "samples": 36960
+      }
+    },
+    {
+      "directory": "out/pr1-audio-buffer-trial-3",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.049634526246518616,
+          "440": 4999.350131181021,
+          "660": 4999.407599398728,
+          "997": 0.03895271191939646
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.06818699437077996,
+          "440": 4999.398123475642,
+          "660": 4999.439770916373,
+          "997": 0.05028169002307307
+        },
+        "passed": true,
+        "samples": 37440
+      }
+    },
+    {
+      "directory": "out/pr1-audio-buffer-trial-4",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.04932224307362638,
+          "440": 4999.3692385284785,
+          "660": 4999.401644260086,
+          "997": 0.020632350036421557
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.08426798243210601,
+          "440": 4999.381300097872,
+          "660": 4999.426407715888,
+          "997": 0.03401149191565215
+        },
+        "passed": true,
+        "samples": 37440
+      }
+    },
+    {
+      "directory": "out/pr1-audio-buffer-trial-5",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.05873415562954861,
+          "440": 4999.356455290398,
+          "660": 4999.41487654544,
+          "997": 0.0256767329222604
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.060494340677538574,
+          "440": 4999.3904343135155,
+          "660": 4999.437207812158,
+          "997": 0.05697674812779472
+        },
+        "passed": true,
+        "samples": 37440
+      }
+    }
+  ],
+  "final_patch": {
+    "wayland-pulseaudio": {
+      "directory": "out/pr1-audio-fixed-wayland-pulseaudio",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.049634526246518616,
+          "440": 4999.350131181021,
+          "660": 4999.407599398728,
+          "997": 0.03895271191939646
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.06818699437077996,
+          "440": 4999.398123475642,
+          "660": 4999.439770916373,
+          "997": 0.05028169002307307
+        },
+        "passed": true,
+        "samples": 37440
+      },
+      "identity": {
+        "client_version": "1.0.2357",
+        "voice_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+        "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "runtime_kind": "bundled"
+      },
+      "native_patch": {
+        "already_patched": false,
+        "buffer_bytes": 192000,
+        "input_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5",
+        "offset": 4597792,
+        "output_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+        "patch": "clear-pulse-mixer-before-attach-v1"
+      },
+      "cases_passed": {
+        "app-a": true,
+        "app-b": true,
+        "app-exited": true,
+        "audio-cancelled": true,
+        "cancelled": true,
+        "cleared": true,
+        "disabled": true,
+        "re-enabled": true,
+        "system": true
+      }
+    },
+    "wayland-pipewire": {
+      "directory": "out/pr1-audio-fixed-wayland-pipewire",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.05079999313782379,
+          "440": 4999.367739031791,
+          "660": 4999.410649774021,
+          "997": 0.034477811146604725
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.060091987087676914,
+          "440": 4999.3778438190775,
+          "660": 4999.437093968741,
+          "997": 0.04637318190469741
+        },
+        "passed": true,
+        "samples": 58080
+      },
+      "identity": {
+        "client_version": "1.0.2357",
+        "voice_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+        "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "runtime_kind": "bundled"
+      },
+      "native_patch": {
+        "already_patched": false,
+        "buffer_bytes": 192000,
+        "input_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5",
+        "offset": 4597792,
+        "output_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+        "patch": "clear-pulse-mixer-before-attach-v1"
+      },
+      "cases_passed": {
+        "app-a": true,
+        "app-b": true,
+        "app-exited": true,
+        "audio-cancelled": true,
+        "cancelled": true,
+        "cleared": true,
+        "disabled": true,
+        "re-enabled": true,
+        "system": true
+      }
+    },
+    "x11": {
+      "directory": "out/pr1-audio-fixed-x11",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "clean_frame_fraction": 1.0,
+        "passed": true,
+        "peak_amplitude": 5000.0,
+        "samples": 15840,
+        "synthetic_microphone_rms": 2753.259789304062,
+        "tone_440_amplitude": 4999.357774259582,
+        "tone_880_amplitude": 0.023610560104142846
+      },
+      "identity": {
+        "client_version": "1.0.2357",
+        "voice_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+        "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "runtime_kind": "bundled"
+      },
+      "native_patch": {
+        "already_patched": false,
+        "buffer_bytes": 192000,
+        "input_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5",
+        "offset": 4597792,
+        "output_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+        "patch": "clear-pulse-mixer-before-attach-v1"
+      },
+      "cases_passed": {
+        "app-a": true,
+        "app-b": true,
+        "app-exited": true,
+        "cleared": true,
+        "disabled": true,
+        "re-enabled": true,
+        "system": true,
+        "unknown": true
+      }
+    },
+    "manual": {
+      "directory": "out/pr1-audio-fixed-manual",
+      "all_cases_passed": true,
+      "re_enabled": {
+        "amplitudes": {
+          "1399": 0.05314438981348804,
+          "440": 4999.360804573356,
+          "660": 4999.423708277159,
+          "997": 0.034670923462842985
+        },
+        "clean_frame_fraction": 1.0,
+        "maximum_clean_frame_amplitudes": {
+          "1399": 0.07112551152913146,
+          "440": 4999.391340505398,
+          "660": 4999.4388076024725,
+          "997": 0.05797348594557319
+        },
+        "passed": true,
+        "samples": 58080
+      },
+      "identity": {
+        "client_version": "1.0.2357",
+        "voice_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+        "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "runtime_kind": "bundled"
+      },
+      "native_patch": {
+        "already_patched": false,
+        "buffer_bytes": 192000,
+        "input_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5",
+        "offset": 4597792,
+        "output_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+        "patch": "clear-pulse-mixer-before-attach-v1"
+      },
+      "cases_passed": {
+        "app-a": true,
+        "app-b": true,
+        "app-exited": true,
+        "audio-cancelled": true,
+        "cancelled": true,
+        "cleared": true,
+        "disabled": true,
+        "re-enabled": true,
+        "system": true
+      }
+    }
+  },
+  "latest_module_preparation": {
+    "already_patched": false,
+    "buffer_bytes": 192000,
+    "input_sha256": "dd2845167cceb3cb60861ca4703fdb9312f3be8639e04152a76100978a8ea8dc",
+    "offset": 4609024,
+    "output_sha256": "842e1fffe854b4ba5c5a1a5766aae0a47987d405ba576dc4f75a43e5d920396e",
+    "patch": "clear-pulse-mixer-before-attach-v1"
+  },
+  "latest_camera_identity_matches": true,
+  "unit_validation": {
+    "python_tests": 189,
+    "javascript_tests": 51,
+    "lint_passed": true,
+    "native_execution_before_and_after": true,
+    "unknown_layouts_and_wrong_lock_targets_rejected": true,
+    "atomic_idempotent_edit_verified": true
+  },
+  "thresholds_or_settle_delays_changed": false,
+  "electron_recompiled": false,
+  "real_discord_call_verified": false
+}

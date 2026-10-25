@@ -261,6 +261,7 @@ def check(
             ["cp", "-a", "--reflink=auto", str(runtime.resolve()) + "/.", str(output / "runtime")],
             check=True,
         )
+    adapter_patch = patch(output / "voice", ROOT / "integration/audio/app-audio.cjs")
     identity = {
         "runtime_kind": "custom" if runtime else "bundled",
         "channel": channel,
@@ -269,7 +270,7 @@ def check(
         "executable": executable,
         "voice_sha256": sha256(output / "voice/discord_voice.node"),
         "runtime_sha256": sha256(output / "runtime" / executable),
-        "adapter_patch": patch(output / "voice", ROOT / "integration/audio/app-audio.cjs"),
+        "adapter_patch": adapter_patch,
     }
     write_json(output / "identity.json", identity)
     subprocess.run(
