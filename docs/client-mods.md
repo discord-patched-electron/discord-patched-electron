@@ -10,6 +10,9 @@ The installation uses Discord's usual path:
 Equicord there and preserves it across Discord, Electron and package updates.
 No reinstall or root access is needed.
 
+Both mods keep their own updater. Client updates keep using your installed mod
+files, including newer versions downloaded by the mod, and preserve its settings.
+
 If you override `XDG_CONFIG_HOME` or `DPE_PROFILE_DIR`, choose **Custom Location**
 and select that profile directory. Some installers only search `~/.config`.
 

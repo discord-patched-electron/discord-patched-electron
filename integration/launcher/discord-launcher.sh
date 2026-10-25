@@ -127,6 +127,7 @@ fi
 # Official mod loaders live in the profile's app-version/resources directory.
 # The updater preserves the loader and refreshes its underlying bootstrap.
 export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DPE_PROFILE_DIR/equicord"}
+# We publish the host's loader; each mod's own payload updater stays enabled.
 export DISABLE_UPDATER_AUTO_PATCHING=1
 # Ubuntu's installed profile grants the user-namespace sandbox to this app.
 # Enter that same profile when its verified runtime lives in the user cache.

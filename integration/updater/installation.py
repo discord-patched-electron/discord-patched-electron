@@ -312,6 +312,9 @@ def publish_locked(app: Path, profile: Path, host: Path, executable: Path) -> Pa
         if mod:
             resources = staged / "resources"
             # Refresh the underlying bootstrap while retaining the user's loader.
+            # Keep its target external: Vencord updates dist files in place and
+            # Equicord replaces its ASAR. Copying either payload would freeze or
+            # roll back the mod's own updates when this client is republished.
             (resources / "app.asar").replace(resources / "_app.asar")
             (resources / "app.asar").write_bytes(mod.loader)
             progress("check", f"Preserving {mod.name}")

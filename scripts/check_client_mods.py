@@ -42,10 +42,12 @@ def verify(app: Path, output: Path, installers: dict[str, Path]):
     updated_loader = archive.read_bytes()
     report = {}
 
-    def launch(directory, label, *, mod=False):
+    def launch(directory, label, *, mod=False, self_updated=False):
         result = check(directory, output / label, profile, equicord=mod, read_only_app=True)
         if not result["passed"]:
             raise ValueError(f"Client-mod launch failed: {label}")
+        if self_updated and result["page"].get("modSelfUpdate") != "dpe-self-update-v2":
+            raise ValueError(f"Updated mod renderer was not loaded: {label}")
         return profile / ("app-" + result["client_version"]) / "resources"
 
     for name, installer in installers.items():
@@ -58,17 +60,38 @@ def verify(app: Path, output: Path, installers: dict[str, Path]):
             if installed is None or installed.name != name:
                 raise ValueError(f"Official {name} installation was not detected")
             launch(app, label + "-installed", mod=True)
-            resources = launch(upgraded, label + "-updated", mod=True)
+            # Exercise the real downloaded mod's updater, using deterministic
+            # release responses that change its executable payload on disk.
+            self_update = output / (label + "-self-update")
+            subprocess.run(
+                [
+                    "node",
+                    str(ROOT / "tests/client-mods/self-update.cjs"),
+                    name,
+                    installed.target,
+                    str(self_update),
+                ],
+                check=True,
+                timeout=30,
+            )
+            updated_mod = read_json(self_update / "report.json")
+            launch(app, label + "-self-updated", mod=True, self_updated=True)
+            resources = launch(upgraded, label + "-updated", mod=True, self_updated=True)
             if (resources / "app.asar").read_bytes() != installed.loader:
                 raise ValueError(f"{name} loader changed during update")
             if (resources / "_app.asar").read_bytes() != updated_loader:
                 raise ValueError(f"{name} uninstall backup was not refreshed")
-            launch(upgraded, label + "-relaunched", mod=True)
+            launch(upgraded, label + "-relaunched", mod=True, self_updated=True)
+            for filename, expected in updated_mod["after"].items():
+                if sha256(Path(filename)) != expected:
+                    raise ValueError(f"{name} self-update was overwritten: {filename}")
             report[name] = {
                 "detected": installed.name,
                 "loader_sha256": sha256(resources / "app.asar"),
                 "updated_bootstrap_sha256": sha256(resources / "_app.asar"),
                 "preserved_without_reinstall": True,
+                "self_update_preserved": True,
+                "mod_files": updated_mod["after"],
             }
         finally:
             if (resources / "_app.asar").exists():

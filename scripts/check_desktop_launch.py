@@ -96,7 +96,7 @@ def check(
 const ws = new WebSocket(process.argv[1]);
 const timer = setTimeout(() => {ws.close(); process.exit(2)}, 5000);
 ws.addEventListener("open", () => ws.send(JSON.stringify({id:1, method:"Runtime.evaluate", params:{
- expression:'JSON.stringify({ready:document.readyState,title:document.title,loginForm:!!document.querySelector("input[name=email]"),passwordField:!!document.querySelector("input[type=password]"),equicordNative:typeof VencordNative!=="undefined",equicordRenderer:typeof Vencord!=="undefined"&&!!Vencord.Plugins,discordNative:typeof DiscordNative!=="undefined"})', returnByValue:true}})));
+ expression:'JSON.stringify({ready:document.readyState,title:document.title,loginForm:!!document.querySelector("input[name=email]"),passwordField:!!document.querySelector("input[type=password]"),equicordNative:typeof VencordNative!=="undefined",equicordRenderer:typeof Vencord!=="undefined"&&!!Vencord.Plugins,discordNative:typeof DiscordNative!=="undefined",modSelfUpdate:globalThis.__DPE_MOD_SELF_UPDATE__})', returnByValue:true}})));
 ws.addEventListener("message", event => { const value=JSON.parse(event.data); if(value.id!==1)return;
  clearTimeout(timer); console.log(value.result?.result?.value || "{}"); ws.close(); });
 ws.addEventListener("error", () => process.exit(3));

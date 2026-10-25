@@ -31,9 +31,9 @@ def loader(mod="Vencord", *, target=None, code=None):
         return archive.read_bytes()
 
 
-def install(resources, mod="Vencord"):
+def install(resources, mod="Vencord", *, target=None):
     (resources / "app.asar").rename(resources / "_app.asar")
-    data = loader(mod)
+    data = loader(mod, target=target)
     (resources / "app.asar").write_bytes(data)
     return data
 

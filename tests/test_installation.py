@@ -14,6 +14,7 @@ from mod_fixture import install, uninstall
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "integration/updater"))
 import installation
+from client_mods import detect
 from support import read_object, write_json
 
 
@@ -348,6 +349,103 @@ class NativeInstallation(unittest.TestCase):
         self.publish()
         self.assertEqual((resources / "app.asar").read_bytes(), expected)
         self.assertEqual((resources / "_app.asar").read_text(), "updated bootstrap")
+
+    def test_self_updated_payload_survives_every_client_update_and_relocation(self):
+        for name in ("Vencord", "Equicord"):
+            with self.subTest(mod=name):
+                self.profile = self.root / name
+                self.state.update(version="1.0.9", modules={"discord_voice": {"version": 7}})
+                write_json(self.host / "client.json", self.state)
+                resources = self.publish() / "resources"
+                mod_home = self.profile / "custom mod files"
+                mod_home.mkdir()
+                filenames = (
+                    ["patcher.js", "preload.js", "renderer.js", "renderer.css", "renderer.js.map"]
+                    if name == "Vencord"
+                    else ["desktop.asar"]
+                )
+                target = mod_home / filenames[0]
+                files = [mod_home / filename for filename in filenames]
+                for file in files:
+                    file.write_bytes(b"installed mod v1")
+                loader = install(resources, name, target=str(target))
+                settings = mod_home / "settings.json"
+                settings.write_text('{"autoUpdate":true,"customSetting":"keep"}')
+                # Prepare an update first, then let the mod independently update.
+                # Publication must use the external files, never a cached snapshot.
+                self.exe.write_text(f"new runtime for {name}")
+                installation.prepare_view(self.app, self.profile, self.host, self.exe, self.state)
+                expected = {file: (file.name + " self-update v2").encode() for file in files}
+                for file, data in expected.items():
+                    file.write_bytes(data)  # Both official HTTP updaters write in place.
+
+                def verify(
+                    name=name, target=target, loader=loader, expected=expected, settings=settings
+                ):
+                    current = self.publish() / "resources"
+                    mod = detect(current)
+                    self.assertEqual(
+                        (mod.name, mod.target, mod.loader), (name, str(target), loader)
+                    )
+                    for file, data in expected.items():
+                        self.assertEqual(file.read_bytes(), data)
+                    self.assertEqual(
+                        settings.read_text(), '{"autoUpdate":true,"customSetting":"keep"}'
+                    )
+
+                verify()
+                self.state["modules"]["discord_voice"]["version"] = 8
+                write_json(self.host / "client.json", self.state)
+                verify()
+                (self.app / "resources/app.asar").write_text("new package bootstrap")
+                verify()
+                self.state["version"] = "1.0.10"
+                write_json(self.host / "client.json", self.state)
+                verify()
+                relocated = self.root / (name + " relocated package")
+                shutil.copytree(self.app, relocated)
+                self.app, self.exe = relocated, relocated / "runtime/electron"
+                verify()
+                # A source build may replace its payload atomically. The stable
+                # loader path must continue to pick up those future updates too.
+                for file in files:
+                    temporary = file.with_name(file.name + ".new")
+                    expected[file] = (file.name + " rebuilt v3").encode()
+                    temporary.write_bytes(expected[file])
+                    temporary.replace(file)
+                verify()
+                uninstall(self.publish() / "resources")
+                self.publish()
+                for file, data in expected.items():
+                    self.assertEqual(file.read_bytes(), data)
+
+    def test_failed_client_activation_never_rolls_back_a_mod_self_update(self):
+        for name in ("Vencord", "Equicord"):
+            with self.subTest(mod=name):
+                self.profile = self.root / name
+                self.state["version"] = "1.0.9"
+                write_json(self.host / "client.json", self.state)
+                resources = self.publish() / "resources"
+                target = self.profile / ("patcher.js" if name == "Vencord" else "equicord.asar")
+                target.write_bytes(b"mod v1")
+                install(resources, name, target=str(target))
+                self.state["version"] = "1.0.10"
+                write_json(self.host / "client.json", self.state)
+
+                def self_update_then_fail(*_args, target=target):
+                    target.write_bytes(b"self-updated mod v2")
+                    raise OSError("client activation failed")
+
+                with (
+                    patch.object(installation, "replace_link", side_effect=self_update_then_fail),
+                    self.assertRaises(OSError),
+                ):
+                    self.publish()
+                self.assertEqual(detect(resources).target, str(target))
+                self.assertEqual(target.read_bytes(), b"self-updated mod v2")
+                resources = self.publish() / "resources"
+                self.assertEqual(detect(resources).target, str(target))
+                self.assertEqual(target.read_bytes(), b"self-updated mod v2")
 
     def test_abrupt_activation_interruption_recovers_on_next_launch(self):
         self.stock()

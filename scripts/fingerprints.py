@@ -74,6 +74,7 @@ def integration_key(
                     "scripts/package_release.py",
                     "scripts/check_desktop_launch.py",
                     "scripts/check_client_mods.py",
+                    "tests/client-mods/self-update.cjs",
                     "scripts/check_installed_package.py",
                     "scripts/check_release_packages.py",
                     "scripts/check_wayland_audio.py",

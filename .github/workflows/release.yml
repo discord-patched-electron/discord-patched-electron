@@ -242,7 +242,8 @@ jobs:
             out/launch/**/console.log
             out/mod-launch/**/launch-report.json
             out/mod-launch/**/console.log
-            out/mod-launch/mod-sha256.txt
+            out/mod-launch/mod-report.json
+            out/mod-launch/*-self-update/report.json
             out/deb-launch/**/launch-report.json
             out/deb-launch/**/console.log
             out/rpm-install.log
