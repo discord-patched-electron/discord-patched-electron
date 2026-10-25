@@ -1,7 +1,7 @@
 {
   "approved_by": "he3als",
-  "manifest_sha256": "b6c58839b332b9cae9170d937ee71dff3c98f071076d1a45544d4e9d22c25889",
+  "manifest_sha256": "fa7e24a02843aac35eb744a7fb14475c5fd3f1b39e373a94b22601c6ef4abbc1",
   "schema": 1,
-  "tag": "canary-1.0.2365-0127ebd36508aff4",
-  "version": "20261024.202623"
+  "tag": "v20261025.223908.0-canary.041bb4c70d3f760e",
+  "version": "20261025.223908"
 }
