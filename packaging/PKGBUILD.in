@@ -9,7 +9,7 @@ license=('MIT' 'BSD-3-Clause' 'AGPL-3.0-only')
 options=('!strip')
 provides=('@DESKTOP_ID@')
 conflicts=(@CONFLICTS@)
-depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse' 'python' 'brotli' 'ca-certificates' 'gnupg' 'pipewire' 'pipewire-audio' 'zenity')
+depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse' 'python>=3.11' 'brotli' 'ca-certificates' 'gnupg' 'pipewire' 'pipewire-audio' 'zenity')
 makedepends=('asar' 'unzip')
 optdepends=('xdg-utils: open links and files'
             'kdotool: KDE Plasma window labels in the audio picker'

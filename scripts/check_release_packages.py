@@ -106,7 +106,12 @@ def check(directory: Path):
             if not resources.is_symlink() or str(resources.readlink()) != "../resources":
                 raise ValueError(f"{packaged.name} lost the packaged-app resource link")
     arch_info = subprocess.check_output(["bsdtar", "-xOf", str(arch), ".PKGINFO"], text=True)
-    for field in (f"pkgname = {root}", "arch = x86_64", "depend = python", "depend = pipewire"):
+    for field in (
+        f"pkgname = {root}",
+        "arch = x86_64",
+        "depend = python>=3.11",
+        "depend = pipewire",
+    ):
         if field not in arch_info.splitlines():
             raise ValueError(f"Arch package lacks metadata: {field}")
     requires = subprocess.check_output(["rpm", "-qpR", str(rpm)], text=True)

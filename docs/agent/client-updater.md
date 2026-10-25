@@ -108,10 +108,20 @@ Capstone and pyelftools are staged from checksum-pinned wheels selected from
 `uv.lock`, including their upstream notices and Capstone's native library. Both
 foreground and background helpers set `PYTHONPATH` to the package's `python/`
 directory and disable user site packages and bytecode writes. Python itself and
-Brotli remain distro dependencies. Prerequisites are checked before downloads.
+Brotli remain distro dependencies. Python 3.11 or newer is required for
+[`hashlib.file_digest`](https://docs.python.org/3.11/library/hashlib.html#hashlib.file_digest);
+the release metadata, generated AUR recipe and retained source-staging recipe
+declare that minimum. Prerequisites are checked before downloads.
 The old portable-launch check inherited uv's environment and therefore missed
 the user's system-Python import failure; it now launches with the system PATH
 and without virtualenv/Python overrides.
+
+The October 25 dependency audit checked the Arch audio-tool providers and ran
+the updater imports, bundled Capstone/pyelftools, checksum helpers and native
+patch validation with Python 3.11.14. All 189 Python and 51 JavaScript tests and
+lint passed. The screenshot gallery's missing-Python, missing-Brotli and missing
+library states were injected examples. This audit did not repeat clean Debian
+or Fedora desktop installations.
 
 ## Validation
 

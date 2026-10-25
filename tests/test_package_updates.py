@@ -98,6 +98,7 @@ class PackageUpdates(unittest.TestCase):
         tag = release_tag(manifest["client_version"], manifest["release_key"])
         text = recipe(manifest, tag)
         self.assertIn("glibc>=2.38", text)
+        self.assertIn("python>=3.11", text)
         self.assertIn(f"/releases/download/{tag}/", text)
         self.assertIn("$pkgname-$pkgver.tar.gz::", text)
         self.assertIn("options=('!strip' '!debug')", text)

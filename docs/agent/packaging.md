@@ -31,8 +31,9 @@ a candidate to AUR simply because generation or makepkg succeeds.
 The recipe downloads the verified runtime, camera helper and checksum-pinned
 OpenAsar source. It stages the project-owned loader, integration code and notices;
 no Discord archive or native module is included. `asar` builds the small loader.
-The Python patching dependencies and Brotli are runtime dependencies because
-modules are downloaded and prepared in the user's profile on launch. See
+Python 3.11 or newer and Brotli are system runtime dependencies because modules
+are downloaded and prepared in the user's profile on launch. Capstone and
+pyelftools are bundled from pinned wheels, including Capstone's native library. See
 [the module updater](client-updater.md) for activation and rollback behavior.
 
 ## Packaging checks

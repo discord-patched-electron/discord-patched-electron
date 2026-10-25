@@ -131,7 +131,9 @@ class PortableReleases(unittest.TestCase):
             self.assertIn("pipewire-bin", config["overrides"]["deb"]["depends"])
             self.assertIn("pipewire-utils", config["overrides"]["rpm"]["depends"])
             self.assertIn("pipewire", config["overrides"]["archlinux"]["depends"])
-            self.assertIn("python", config["overrides"]["archlinux"]["depends"])
+            self.assertIn("python>=3.11", config["overrides"]["archlinux"]["depends"])
+            self.assertIn("python3 (>= 3.11)", config["overrides"]["deb"]["depends"])
+            self.assertIn("python3 >= 3.11", config["overrides"]["rpm"]["depends"])
             self.assertIn("gnupg", config["overrides"]["archlinux"]["depends"])
             self.assertIn("gnupg2", config["overrides"]["rpm"]["depends"])
             self.assertTrue(

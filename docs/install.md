@@ -59,13 +59,37 @@ may need different dependencies.
 
 Extract the `.tar.gz`, open its folder and run `./launch.sh`. Keep all the files
 together. The folder can be moved. Install GTK 3, NSS, ALSA, libpulse, GBM, libdrm,
-CUPS, Xss, Xtst, libatomic, Python 3, Brotli, CA
+CUPS, Xss, Xtst, libatomic, Python 3.11 or newer, Brotli, CA
 certificates, GnuPG (`gpg` and `gpgv`), Bash and coreutils through your package manager.
 Screen-share audio also needs PipeWire tools, PulseAudio tools, a session manager
 such as WirePlumber, and Zenity.
 
 If the tarball fails with a sandbox error, use the native package for your
 distribution where available.
+
+## Dependencies and startup errors
+
+The native packages declare their system dependencies. Installing with the
+`pacman -U`, `apt install` or `dnf install` commands above resolves them through
+your distribution's repositories. The AUR package uses the same Arch dependency
+list. A portable `.tar.gz` cannot install dependencies; use the list above.
+
+The updater needs system Python **3.11 or newer**, Brotli, CA certificates,
+GnuPG (`gpg` and `gpgv`), Bash and coreutils. Capstone and pyelftools, including
+Capstone's native library, are bundled. Running the app does not require pip,
+uv, Bun, a separate Node.js installation or a compiler.
+
+- **Python or Brotli is missing:** install the named tool through your package
+  manager, then choose **Retry now**. Python is packaged as `python` on Arch and
+  `python3` on Debian/Ubuntu and Fedora; Brotli is `brotli` on all three.
+- **Bundled update libraries are missing:** reinstall the complete native package
+  or extract the entire tarball again. Keep its `python/` folder beside
+  `launch.sh`; installing Python modules globally is unnecessary.
+
+For Wayland screen sharing, your desktop also needs a working
+`xdg-desktop-portal` backend. [Screen-share audio](wayland-audio.md) needs a running
+PipeWire session manager such as WirePlumber. Packages include or declare the
+audio tools, but do not configure your desktop's services.
 
 ## Updates
 
@@ -83,7 +107,7 @@ The startup screen follows Discord's layout with one progress bar. If startup
 fails, it shows recovery steps and **Retry now**. Connection failures retry after
 10 seconds; **Pause retries** stops the countdown. **Copy details** copies the
 error for troubleshooting. Your desktop's close-window shortcut quits and cancels
-preparation. Capstone and pyelftools are included in the package.
+preparation.
 OpenAsar's settings and CSS editor are included. Splash Theming is enabled by default and uses Discord or custom
 theme colors cached from your client; Quickstart uses a prepared installation and checks updates in the background.
 
