@@ -33,6 +33,7 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'package.json') }}
       - run: uv sync --locked
       - run: bun install --frozen-lockfile --ignore-scripts
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli
       - run: bun run lint
       - run: bun run test
       - name: Check real compiler cache hits and CPU/header invalidation

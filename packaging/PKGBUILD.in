@@ -1,17 +1,16 @@
-# Derived from discord_arch_electron; attribution is in THIRD_PARTY.md.
-# Generated from pinned inputs. C++ compilation happens in CI, not makepkg.
+# Generated from pinned runtime and open-source bootstrap inputs.
 pkgname=@PACKAGE@
 pkgver=@VERSION@
 pkgrel=@REVISION@
 pkgdesc='Discord @DISCORD@ with patched Electron @ELECTRON@ (requires x86-64-v3 CPU)'
 arch=('x86_64')
 url='https://github.com/discord-patched-electron/discord-patched-electron'
-license=('LicenseRef-custom' 'MIT' 'BSD-3-Clause')
+license=('MIT' 'BSD-3-Clause' 'AGPL-3.0-only')
 options=('!strip')
 provides=('@DESKTOP_ID@')
 conflicts=(@CONFLICTS@)
-depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse' 'python' 'pipewire' 'pipewire-audio' 'zenity')
-makedepends=('asar' 'brotli' 'unzip' 'python-capstone' 'python-pyelftools')
+depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse' 'python' 'python-capstone' 'python-pyelftools' 'brotli' 'ca-certificates' 'pipewire' 'pipewire-audio' 'zenity')
+makedepends=('asar' 'unzip')
 optdepends=('xdg-utils: open links and files'
             'kdotool: KDE Plasma window labels in the audio picker'
             'wireplumber: audio routing when no PipeWire session manager is running'
@@ -27,32 +26,24 @@ noextract=(
 )
 
 prepare() {
-  mkdir -p support/scripts support/packaging/upstream
-  cp channels.py common.py desktop_identity.py prepare_app.py patch_krisp.py patch_app_audio.py patch_desktop_core.py camera_scope.py stage_package.py support/scripts/
-  cp krisp-patcher.py provenance.json support/packaging/upstream/
+  tar -xf support.tar
   python support/scripts/stage_package.py --inputs package-inputs.json --asar /usr/bin/asar
 }
 
 package() {
   local root="$pkgdir/usr/lib/$pkgname"
   install -d "$root"
-  cp -a stage/runtime stage/core/resources stage/modules "$root/"
-  rm -rf "$root/runtime/resources"
-  ln -s ../resources "$root/runtime/resources"
+  cp -a stage/. "$root/"
   chmod 4755 "$root/runtime/chrome-sandbox"
-  install -Dm755 discord-launcher.sh "$pkgdir/usr/bin/$pkgname"
+  install -Dm755 discord-launcher.sh "$root/launch.sh"
+  install -d "$pkgdir/usr/bin"
+  ln -s "/usr/lib/$pkgname/launch.sh" "$pkgdir/usr/bin/$pkgname"
   ln -s "$pkgname" "$pkgdir/usr/bin/@DESKTOP_ID@"
   install -Dm644 discord.desktop "$pkgdir/usr/share/applications/@DESKTOP_ID@.desktop"
-  install -Dm644 stage/core/discord.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/@DESKTOP_ID@.png"
-  install -Dm644 LICENSE.html "$pkgdir/usr/share/licenses/$pkgname/LICENSE.html"
-  install -Dm644 OSS-LICENSES.html "$pkgdir/usr/share/licenses/$pkgname/OSS-LICENSES.html"
-  install -Dm644 THIRD_PARTY.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY.md"
-  install -Dm644 PROJECT-LICENSE "$pkgdir/usr/share/licenses/$pkgname/PROJECT-LICENSE"
+  install -Dm644 stage/discord.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/@DESKTOP_ID@.png"
+  install -Dm644 support/THIRD_PARTY.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY.md"
+  install -Dm644 support/LICENSE "$pkgdir/usr/share/licenses/$pkgname/PROJECT-LICENSE"
+  install -Dm644 stage/bootstrap/LICENSE "$pkgdir/usr/share/licenses/$pkgname/OPENASAR-LICENSE"
   install -Dm644 package-inputs.json "$root/package-inputs.json"
-  install -Dm644 stage/krisp-patch.json "$root/krisp-patch.json"
-  install -Dm644 stage/app-audio-patch.json "$root/app-audio-patch.json"
-  install -Dm644 stage/desktop-patch.json "$root/desktop-patch.json"
   install -Dm755 libdpe-camera-probe.so "$root/libdpe-camera-probe.so"
-  install -Dm644 stage/camera-probe.json "$root/camera-probe.json"
-  install -Dm644 stage/camera-probe.conf "$root/camera-probe.conf"
 }

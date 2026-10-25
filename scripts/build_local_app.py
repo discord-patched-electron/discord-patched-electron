@@ -32,6 +32,7 @@ from patch_app_audio import patch as audio_patch
 from patch_desktop_core import patch as desktop_patch
 from patch_krisp import patch as krisp_patch
 from prepare_app import prepare
+from stage_updater import stage as stage_updater
 
 
 def build(
@@ -81,22 +82,18 @@ def build(
             check=True,
         )
 
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        list(pool.map(fetch, client["sources"].items()))
     core = output / "core"
-    info = read_json(core / "resources/build_info.json")
-    if info["version"] != client["version"]:
-        raise ValueError("Client host version differs from its lock")
-    prepare(
-        core,
-        channel,
-        electron,
-        str(ROOT / "node_modules/.bin/asar"),
-        install_root=output,
-        portable=portable,
-    )
-    shutil.move(core / "resources", output / "resources")
-    shutil.copy2(core / "discord.png", output)
+    if portable:
+        stage_updater(output, channel, client["version"], str(ROOT / "node_modules/.bin/asar"))
+    else:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            list(pool.map(fetch, client["sources"].items()))
+        info = read_json(core / "resources/build_info.json")
+        if info["version"] != client["version"]:
+            raise ValueError("Client host version differs from its lock")
+        prepare(core, channel, electron, str(ROOT / "node_modules/.bin/asar"), install_root=output)
+        shutil.move(core / "resources", output / "resources")
+        shutil.copy2(core / "discord.png", output)
     if capacity:
         archive = artifact / "binary" / ("runtime-dist.zip" if candidate else "reference-dist.zip")
         extract(archive, output / "runtime", capacity["archive_sha256"])
@@ -106,29 +103,31 @@ def build(
         shutil.copytree(core, output / "runtime")
         executable = {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[channel]
         (output / "runtime" / executable).rename(output / "runtime/electron")
-    shutil.rmtree(core)
+    if core.exists():
+        shutil.rmtree(core)
     # Use Electron's normal packaged-app entry point. A directory symlink keeps
     # the official mod installer's resources/app.asar and Electron's lookup in sync.
     runtime_resources = output / "runtime/resources"
     if runtime_resources.exists():
         shutil.rmtree(runtime_resources)
     runtime_resources.symlink_to("../resources", target_is_directory=True)
-    krisp = output / "modules/discord_krisp"
-    write_json(output / "krisp-patch.json", krisp_patch(krisp / "discord_krisp.node"))
-    (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
-    write_json(
-        output / "app-audio-patch.json",
-        audio_patch(output / "modules/discord_voice", ROOT / "integration/audio/app-audio.cjs"),
-    )
-    write_json(
-        output / "desktop-patch.json",
-        desktop_patch(
-            output / "modules/discord_desktop_core",
-            ROOT / "integration/desktop/safe-storage.cjs",
-            str(ROOT / "node_modules/.bin/asar"),
-        ),
-    )
-    write_scope(output / "modules/discord_voice/discord_voice.node", output)
+    if not portable:
+        krisp = output / "modules/discord_krisp"
+        write_json(output / "krisp-patch.json", krisp_patch(krisp / "discord_krisp.node"))
+        (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
+        write_json(
+            output / "app-audio-patch.json",
+            audio_patch(output / "modules/discord_voice", ROOT / "integration/audio/app-audio.cjs"),
+        )
+        write_json(
+            output / "desktop-patch.json",
+            desktop_patch(
+                output / "modules/discord_desktop_core",
+                ROOT / "integration/desktop/safe-storage.cjs",
+                str(ROOT / "node_modules/.bin/asar"),
+            ),
+        )
+        write_scope(output / "modules/discord_voice/discord_voice.node", output)
     camera = camera_build(output / "camera-support")
     shutil.copy2(output / "camera-support/libdpe-camera-probe.so", output)
     name = package_name(channel, electron)
@@ -166,13 +165,8 @@ def build(
     (output / "licenses").mkdir()
     for filename in ("LICENSE", "THIRD_PARTY.md"):
         shutil.copy2(ROOT / filename, output / "licenses")
-    if portable:
-        for filename, url in (
-            ("DISCORD-TERMS.html", "https://discord.com/terms"),
-            ("DISCORD-LICENSES.html", "https://discord.com/licenses"),
-        ):
-            download(url, output / "licenses" / filename)
-    write_json(output / "client-inputs.json", client)
+    if not portable:
+        write_json(output / "client-inputs.json", client)
     write_json(
         output / "local-build.json",
         {
@@ -191,13 +185,16 @@ def build(
             "launch_verified": False,
             "publishable": False,
             "portable": portable,
+            "client_distribution": "module-only" if portable else "local-test-only",
         },
     )
     if portable:
         (output / "README.txt").write_text(
             f"Discord {channel} with patched Electron\n\n"
             "Extract the whole folder, then run ./launch.sh. You can move the folder.\n"
-            "Requires x86-64-v3, Linux desktop libraries, Python 3, PipeWire and PulseAudio tools.\n"
+            "First launch downloads Discord directly; an internet connection is required.\n"
+            "Discord updates itself in your profile. This package supplies patched Electron.\n"
+            "Requires x86-64-v3, Linux desktop libraries, Python 3 with capstone and pyelftools, Brotli, PipeWire and PulseAudio tools.\n"
             f"Settings: ~/.config/discord-{channel}-patched-electron.conf\n"
             f"Profile: ~/.config/{profile_name(channel)}\n"
             "See https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/install.md\n"

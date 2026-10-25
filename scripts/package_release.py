@@ -29,6 +29,7 @@ from common import (
 from desktop_identity import arch_conflicts, desktop_id
 from elftools.elf.elffile import ELFFile
 from fetch_reference import validate_capacity
+from stage_updater import validate_distribution
 
 REPOSITORY = "https://github.com/discord-patched-electron/discord-patched-electron"
 
@@ -71,7 +72,7 @@ def metadata(
         "conflicts": [desktop_id(channel)],
         "maintainer": "discord-patched-electron contributors <he3als@users.noreply.github.com>",
         "homepage": REPOSITORY,
-        "license": "LicenseRef-Discord AND MIT AND BSD-3-Clause",
+        "license": "MIT AND BSD-3-Clause AND AGPL-3.0-only",
         "description": f"Discord {channel.title()} with patched Electron for better Linux support\n"
         "Requires an x86-64-v3 (AVX2) CPU. Includes native streaming, Krisp and Linux audio fixes.",
         "mtime": datetime.fromtimestamp(epoch, UTC).isoformat(),
@@ -108,6 +109,10 @@ def metadata(
                     "mesa",
                     "libpulse",
                     "python",
+                    "python-capstone",
+                    "python-pyelftools",
+                    "ca-certificates",
+                    "brotli",
                     "bash",
                     "coreutils",
                     "pipewire",
@@ -135,6 +140,10 @@ def metadata(
                     "libdrm2",
                     "libpulse0",
                     "python3",
+                    "python3-capstone",
+                    "python3-pyelftools",
+                    "ca-certificates",
+                    "brotli",
                     "bash",
                     "coreutils",
                     "pipewire-bin",
@@ -158,6 +167,10 @@ def metadata(
                     "libdrm",
                     "pulseaudio-libs",
                     "python3",
+                    "python3-capstone",
+                    "python3-pyelftools",
+                    "ca-certificates",
+                    "brotli",
                     "bash",
                     "coreutils",
                     "pipewire-utils",
@@ -211,6 +224,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
         raise ValueError("Run check_desktop_launch.py on the relocated app before packaging")
     if (app / "resources/_app.asar").exists():
         raise ValueError("Uninstall client mods before packaging the app")
+    validate_distribution(app)
     validate_capacity(build["capacity"], True)
     if sha256(app / "runtime/electron") != build["executable_sha256"]:
         raise ValueError("Runtime changed after assembly")
@@ -280,6 +294,8 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             "channel": build["channel"],
             "desktop_id": desktop_id(build["channel"]),
             "client_version": build["client_version"],
+            "client_distribution": "module-only",
+            "bundled_discord_client": False,
             "electron_version": build["capacity"]["compiled_version"],
             "runtime_key": build["capacity"]["runtime_key"],
             "runtime": {

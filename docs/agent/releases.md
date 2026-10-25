@@ -13,8 +13,11 @@ fork commits, detects changes to its own Electron. A successful **Candidate
 Electron build** starts **Qualify compiled runtime**, which runs package
 qualification for each enabled Discord channel with that runtime.
 
-Each candidate uses an immutable client snapshot. The workflow verifies the
-compiler artifact, assembles the client, moves the app directory, and checks plain
+Each candidate records an immutable client snapshot for native regression tests
+and release identity. The package itself contains no Discord client. First launch
+resolves the current module manifest; launch reports record the actual tested
+version and generation. See [the module updater](client-updater.md).
+The workflow verifies the compiler artifact, stages the bootstrap, moves the app directory, and checks plain
 launch and relaunch. It checks the official Vencord and Equicord installers across installation, an
 app upgrade, reinstallation, launch/relaunch and removal. Both must restore the
 current bootstrap before packaging.
@@ -115,8 +118,9 @@ public release qualification adds the remaining CI checks.
 All released packages install the portable tree under `/opt/<package>`. A tarball
 can run anywhere. Bootstraps find resources through `DPE_APP_ROOT`, set by the
 launcher. `runtime/resources` points to `../resources`, matching the official mod
-installers' expected app layout. The older generated AUR recipe uses `/usr/lib/`.
-it is retained for validation, not published as the pacman test artifact.
+installers' expected app layout. The older generated AUR recipe also uses the
+client-free layout under `/usr/lib/`; it is retained for validation, not published
+as the pacman test artifact.
 
 The namespace sandbox stays enabled. Debian packages include a scoped AppArmor
 user-namespace rule for Ubuntu. No package enables audio services or overwrites

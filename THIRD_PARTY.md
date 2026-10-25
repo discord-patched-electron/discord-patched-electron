@@ -13,8 +13,17 @@ upstream licenses. The Electron license is retained alongside the patch. The
 assembled distribution must retain all its upstream licenses and notices.
 
 Discord client and native module binaries are proprietary. They are fetched from
-Discord with locked checksums for local tests and packaging, not committed to
-this repository. This project's code does not grant rights to those binaries.
+Discord with verified checksums for local tests or into the user's profile at
+runtime. They are not committed to this repository or included in release
+packages. This project's code does not grant rights to those binaries.
+
+The replacement bootstrap uses [OpenAsar](https://github.com/GooseMod/OpenAsar),
+under AGPL-3.0. Its source commit and archive checksum are pinned in
+`config/openasar.lock.json`. Packages include its complete `src/` tree and license
+under `bootstrap/`, alongside this project's readable integration source. The
+adapter supplies module-only updates using Discord's distribution manifests;
+it disables OpenAsar's own updater and renderer customization. The packaged
+`resources/app.asar` is a small project-owned entry point, not Discord's ASAR.
 
 `tests/audio/speech.wav` is synthesized test speech generated with eSpeak NG
 1.52.0, then resampled with FFmpeg. Its phrase and generation metadata are recorded

@@ -18,6 +18,11 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 - [Application audio](docs/wayland-audio.md) for screen sharing.
 - Faster camera startup and hardware video decoding where supported.
 - Support for [Vencord and Equicord](docs/client-mods.md) through their official installers.
+- Automatic client updates from Discord, without downloading its bundled Electron.
+
+Packages contain patched Electron and an open-source bootstrap. Discord's client
+modules download directly from Discord on first launch and stay in your profile.
+Discord's proprietary ASARs and native modules are not included in release packages.
 
 Electron's beta builds bring Chromium's ongoing Wayland and Linux
 improvements sooner. Only Discord Canary is supported because it has better

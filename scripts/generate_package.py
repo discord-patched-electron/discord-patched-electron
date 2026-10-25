@@ -7,8 +7,10 @@ publication or runtime-validation decision. Generated recipes remain candidates.
 from __future__ import annotations
 
 import argparse
+import io
 import re
 import shlex
+import tarfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -28,27 +30,29 @@ from desktop_identity import arch_conflicts, desktop_id, display_name, profile_n
 from fingerprints import integration_key
 from lock_clients import normalize
 
-SUPPORT = {
-    "channels.py": "scripts/channels.py",
-    "common.py": "scripts/common.py",
-    "desktop_identity.py": "scripts/desktop_identity.py",
-    "prepare_app.py": "scripts/prepare_app.py",
-    "patch_krisp.py": "scripts/patch_krisp.py",
-    "patch_app_audio.py": "scripts/patch_app_audio.py",
-    "patch_desktop_core.py": "scripts/patch_desktop_core.py",
-    "safe-storage.cjs": "integration/desktop/safe-storage.cjs",
-    "camera_scope.py": "scripts/camera_scope.py",
-    "app-audio.cjs": "integration/audio/app-audio.cjs",
-    "wayland-audio.cjs": "integration/audio/wayland-audio.cjs",
-    "voice-devices.cjs": "integration/audio/voice-devices.cjs",
-    "pipewire_audio.py": "integration/audio/pipewire_audio.py",
-    "window_inventory.py": "integration/audio/window_inventory.py",
-    "stage_package.py": "scripts/stage_package.py",
-    "krisp-patcher.py": "packaging/upstream/krisp-patcher.py",
-    "provenance.json": "packaging/upstream/provenance.json",
-    "THIRD_PARTY.md": "THIRD_PARTY.md",
-    "PROJECT-LICENSE": "LICENSE",
-}
+SUPPORT = [
+    "scripts/channels.py",
+    "scripts/common.py",
+    "scripts/desktop_identity.py",
+    "scripts/patch_krisp.py",
+    "scripts/patch_app_audio.py",
+    "scripts/camera_scope.py",
+    "scripts/client_native.py",
+    "scripts/stage_package.py",
+    "scripts/stage_updater.py",
+    "packaging/upstream/krisp-patcher.py",
+    "packaging/upstream/provenance.json",
+    "config/openasar.lock.json",
+    "discord-patched-electron.png",
+    "THIRD_PARTY.md",
+    "LICENSE",
+]
+SUPPORT += [
+    str(path.relative_to(ROOT))
+    for name in ("audio", "desktop", "updater")
+    for path in sorted((ROOT / "integration" / name).rglob("*"))
+    if path.is_file() and "__pycache__" not in path.parts
+]
 
 
 def validate_client(client: dict):
@@ -126,8 +130,15 @@ def generate(
     ):
         raise ValueError("Camera helper must identify a checksum-pinned CI binary")
     output.mkdir(parents=True, exist_ok=True)
-    for filename, source in SUPPORT.items():
-        write_file(output / filename, (ROOT / source).read_bytes())
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w") as archive:
+        for source in SUPPORT:
+            data = (ROOT / source).read_bytes()
+            member = tarfile.TarInfo("support/" + source)
+            member.size = len(data)
+            member.mode = 0o644
+            archive.addfile(member, io.BytesIO(data))
+    write_file(output / "support.tar", buffer.getvalue())
     launcher = (
         (ROOT / "integration/launcher/discord-launcher.sh")
         .read_text()
@@ -156,20 +167,19 @@ def generate(
     write_json(output / "package-inputs.json", inputs)
     sources = [("runtime.zip::" + runtime["url"], runtime["sha256"])]
     sources += [("libdpe-camera-probe.so::" + camera["url"], checksum)]
-    sources += [
-        (name + ".tar.br::" + source["url"], source["sha256"])
-        for name, source in sorted(client["sources"].items())
-    ]
+    bootstrap = read_json(ROOT / "config/openasar.lock.json")
+    sources += [("openasar.tar.gz::" + bootstrap["url"], bootstrap["sha256"])]
     archives = [source.split("::")[0] for source, _ in sources]
     sources += [
         (filename, sha256(output / filename))
-        for filename in [*SUPPORT, "discord-launcher.sh", "discord.desktop", "package-inputs.json"]
+        for filename in [
+            "support.tar",
+            "discord-launcher.sh",
+            "discord.desktop",
+            "package-inputs.json",
+        ]
     ]
-    # Keep the upstream recipe's live text licenses; binary inputs never use SKIP.
-    sources += [
-        ("LICENSE.html::https://discord.com/terms", "SKIP"),
-        ("OSS-LICENSES.html::https://discord.com/licenses", "SKIP"),
-    ]
+    archives.append("support.tar")
     replacements = {
         "PACKAGE": name,
         "DESKTOP_ID": desktop_id(client["channel"]),

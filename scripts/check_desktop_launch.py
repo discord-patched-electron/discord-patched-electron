@@ -175,11 +175,21 @@ ws.addEventListener("error", () => process.exit(0));
         or "App threw an error during load" in console
     )
     report["passed"] = report["passed"] and not report["uncaught_exception"]
+    current = profile / "dpe-updater/current.json"
+    if current.exists():
+        generation = read_json(current)
+        state = read_json(profile / "dpe-updater/generations" / generation / "client.json")
+        report["client_version"] = state["version"]
+        report["client_generation"] = generation
+        report["client_distribution"] = "module-only"
     write_json(output / "launch-report.json", report)
     if report["passed"] and not read_only_app:
         manifest = read_json(app / "local-build.json")
         manifest["launch_verified"] = True
         manifest["launch_report"] = str(output / "launch-report.json")
+        if "client_version" in report:
+            manifest["client_version"] = report["client_version"]
+            manifest["client_generation"] = report["client_generation"]
         write_json(app / "local-build.json", manifest)
     print(json.dumps(report, indent=2))
     return report

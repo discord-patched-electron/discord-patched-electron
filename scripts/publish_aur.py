@@ -86,6 +86,11 @@ def recipe(manifest: dict, tag: str, revision: int = 1) -> str:
     def array(items):
         return "(" + " ".join(shlex.quote(item) for item in items) + ")"
 
+    licenses = (
+        config["license"].split(" AND ")
+        if manifest.get("client_distribution") == "module-only"
+        else ["LicenseRef-Discord", "MIT", "BSD-3-Clause"]
+    )
     return f"""# Maintainer: he3als <he3als@users.noreply.github.com>
 pkgname={config["name"]}
 pkgver={manifest["version"]}
@@ -93,7 +98,7 @@ pkgrel={revision}
 pkgdesc='Discord {manifest["channel"].title()} with patched Electron and Linux fixes (AVX2 required)'
 arch=('x86_64')
 url='{URL}'
-license=('LicenseRef-Discord' 'MIT' 'BSD-3-Clause')
+license={array(licenses)}
 depends={array(dependencies["depends"])}
 optdepends={array(dependencies["recommends"])}
 options=('!strip' '!debug')

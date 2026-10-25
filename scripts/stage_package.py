@@ -6,12 +6,9 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from camera_scope import write_scope
-from common import read_json, sha256, write_json
-from patch_app_audio import patch as patch_audio
-from patch_desktop_core import patch as patch_desktop
-from patch_krisp import patch
-from prepare_app import prepare
+from common import read_json, sha256
+from stage_updater import stage as stage_updater
+from stage_updater import validate_distribution
 
 
 def stage(inputs: dict, directory: Path, asar: str):
@@ -23,9 +20,6 @@ def stage(inputs: dict, directory: Path, asar: str):
     client = inputs["client"]
     archives = {"runtime.zip": runtime["sha256"]}
     archives["libdpe-camera-probe.so"] = inputs["camera_support"]["sha256"]
-    archives.update(
-        {name + ".tar.br": source["sha256"] for name, source in client["sources"].items()}
-    )
     for name, expected in archives.items():
         if sha256(directory / name) != expected:
             raise ValueError(f"Source checksum mismatch: {name}")
@@ -35,40 +29,16 @@ def stage(inputs: dict, directory: Path, asar: str):
         ["unzip", "-q", str(directory / "runtime.zip"), "-d", str(destination / "runtime")],
         check=True,
     )
-    for name in client["sources"]:
-        target = destination / "core" if name == "core" else destination / "modules" / name
-        target.mkdir(parents=True)
-        subprocess.run(
-            [
-                "tar",
-                "-xf",
-                str(directory / (name + ".tar.br")),
-                "--use-compress-program=brotli",
-                "--strip-components=1",
-                "-C",
-                str(target),
-                "files/",
-            ],
-            check=True,
-        )
-    core = destination / "core"
-    info = read_json(core / "resources/build_info.json")
-    if info.get("version") != client["version"]:
-        raise ValueError("Core host version differs from locked client")
-    prepare(core, client["channel"], inputs["electron_channel"], asar)
-    krisp = destination / "modules/discord_krisp"
-    report = patch(krisp / "discord_krisp.node")
-    (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
-    write_json(destination / "krisp-patch.json", report)
-    audio = patch_audio(destination / "modules/discord_voice", directory / "app-audio.cjs")
-    write_json(destination / "app-audio-patch.json", audio)
-    write_json(
-        destination / "desktop-patch.json",
-        patch_desktop(
-            destination / "modules/discord_desktop_core", directory / "safe-storage.cjs", asar
-        ),
+    stage_updater(
+        destination, client["channel"], client["version"], asar, directory / "openasar.tar.gz"
     )
-    write_scope(destination / "modules/discord_voice/discord_voice.node", destination)
+    resources = destination / "runtime/resources"
+    if resources.exists():
+        import shutil
+
+        shutil.rmtree(resources)
+    resources.symlink_to("../resources")
+    validate_distribution(destination)
     for name in (
         "electron",
         "chrome-sandbox",
@@ -79,8 +49,6 @@ def stage(inputs: dict, directory: Path, asar: str):
     ):
         if not (destination / "runtime" / name).is_file():
             raise ValueError(f"Incomplete Electron distribution: {name}")
-    if not (core / "discord.png").is_file():
-        raise ValueError("Discord distribution has no desktop icon")
 
 
 def main():

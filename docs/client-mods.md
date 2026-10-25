@@ -30,7 +30,8 @@ account. Always launch Discord as your normal user.
 
 ## Update or remove
 
-Close Discord and update it normally, then run the official installer again.
+Automatic Discord module updates preserve the installed mod loader. After updating
+the runtime package, close Discord and run the official installer again.
 There is no need to uninstall the mod first. Your mod settings stay in place.
 For tarballs, extract the update into a fresh folder and install the mod there.
 

@@ -3,12 +3,32 @@
 import argparse
 import hashlib
 import io
+import json
 import subprocess
 import tarfile
 import tempfile
 from pathlib import Path
 
 from common import read_json, sha256, write_json
+from stage_updater import validate_distribution
+
+
+def check_client_free_archive(bundle, root):
+    policy = json.load(bundle.extractfile(root + "/client-distribution.json"))
+    if policy.get("mode") != "module-only" or policy.get("bundled_discord_client") is not False:
+        raise ValueError("Package is not a module-only distribution")
+    loader = bundle.extractfile(root + "/resources/app.asar").read()
+    if hashlib.sha256(loader).hexdigest() != policy.get("loader_sha256"):
+        raise ValueError("Package contains an unexpected bootstrap ASAR")
+    for entry in bundle.getmembers():
+        relative = entry.name.removeprefix(root + "/")
+        path = Path(relative)
+        if (
+            path.suffix in (".node", ".distro", ".br")
+            or (path.suffix == ".asar" and relative != "resources/app.asar")
+            or path.name in ("modules", "core", "updater_bootstrap", "installer.db")
+        ):
+            raise ValueError(f"Package contains Discord client data: {relative}")
 
 
 def check(directory: Path):
@@ -21,6 +41,7 @@ def check(directory: Path):
     with tarfile.open(archive) as bundle:
         paths = bundle.getnames()
         root = paths[0]
+        check_client_free_archive(bundle, root)
         checksums = bundle.extractfile(root + "/SHA256SUMS").read().decode()
         expected = dict(line.split("  ", 1)[::-1] for line in checksums.splitlines())
         for path, checksum in expected.items():
@@ -40,6 +61,12 @@ def check(directory: Path):
     # dpkg-deb is available in release CI; bsdtar supplies the local Arch path.
     data = subprocess.check_output(["bsdtar", "-xOf", str(deb), "data.tar.gz"])
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as package:
+        package_root = next(
+            name.removesuffix("/client-distribution.json")
+            for name in package.getnames()
+            if name.endswith("/client-distribution.json")
+        )
+        check_client_free_archive(package, package_root)
         for path, checksum in expected.items():
             member = next(
                 (name for name in package.getnames() if name.lstrip("./") == f"opt/{root}/{path}"),
@@ -70,6 +97,7 @@ def check(directory: Path):
     for packaged in (rpm, arch):
         with tempfile.TemporaryDirectory(prefix="release-package-") as temporary:
             subprocess.run(["bsdtar", "-xf", str(packaged), "-C", temporary], check=True)
+            validate_distribution(Path(temporary) / "opt" / root)
             for path, checksum in expected.items():
                 installed = Path(temporary) / "opt" / root / path
                 if installed.stat().st_mode & 0o444 != 0o444:
@@ -91,6 +119,7 @@ def check(directory: Path):
         "channel": manifest["channel"],
         "assets": manifest["assets"],
         "same_app_payload_in_all_formats": True,
+        "bundled_discord_client": False,
         "payload_files": len(expected),
         "rpm_dependency_install_verified": False,
     }

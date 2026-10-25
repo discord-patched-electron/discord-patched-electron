@@ -69,10 +69,27 @@ if ((${#disabled[@]})); then flags+=("--disable-features=$(
 )"); fi
 # Use the standard channel profile unless a test or user explicitly overrides it.
 export DISCORD_USER_DATA_DIR=${DISCORD_USER_DATA_DIR:-"$config_root/@PROFILE_NAME@"}
+if [[ -f "$root/client-distribution.json" ]]; then
+  export DPE_CLIENT_ROOT="$DISCORD_USER_DATA_DIR/dpe-updater"
+  channel=${name#discord-}
+  updater_flags=()
+  if [[ ${DPE_CLIENT_OFFLINE:-0} == 1 ]]; then updater_flags+=(--offline); fi
+  DPE_CLIENT_HOST=$(python3 "$root/integration/updater/client.py" "$DPE_CLIENT_ROOT" "${channel%%-*}" "${updater_flags[@]}")
+  export DPE_CLIENT_HOST
+  export DPE_LAUNCHER
+  DPE_LAUNCHER=$(readlink -f -- "${BASH_SOURCE[0]}")
+fi
 if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
-  read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$root/camera-probe.conf"
-  export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END
-  export DPE_CAMERA_VOICE_MODULE="$root/modules/discord_voice/discord_voice.node"
+  if [[ ! -f "$root/client-distribution.json" ]]; then
+    read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$root/camera-probe.conf"
+    export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END
+    export DPE_CAMERA_VOICE_MODULE="$root/modules/discord_voice/discord_voice.node"
+  else
+    read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$DPE_CLIENT_HOST/modules/discord_voice/camera-probe.conf"
+    export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END
+    DPE_CAMERA_VOICE_MODULE=$(readlink -f -- "$DPE_CLIENT_HOST/modules/discord_voice/discord_voice.node")
+    export DPE_CAMERA_VOICE_MODULE
+  fi
   export LD_PRELOAD="$root/libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
 fi
 # Equicord's official installer patches resources/app.asar in place.

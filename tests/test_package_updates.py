@@ -103,6 +103,10 @@ class PackageUpdates(unittest.TestCase):
         self.assertIn("options=('!strip' '!debug')", text)
         self.assertNotIn("releases/latest/", text)
         self.assertNotIn("SKIP", text)
+        self.assertIn("LicenseRef-Discord", text)
+        current = recipe({**manifest, "client_distribution": "module-only"}, tag)
+        self.assertIn("AGPL-3.0-only", current)
+        self.assertNotIn("LicenseRef-Discord", current)
         subprocess.run(["bash", "-n"], input=text, text=True, check=True)
         with self.assertRaisesRegex(ValueError, "identity"):
             recipe(manifest, "not-the-release")

@@ -1,9 +1,13 @@
 # Install
 
-Choose a complete Canary app on the [Releases page](https://github.com/discord-patched-electron/discord-patched-electron/releases).
+Choose a Canary runtime package on the [Releases page](https://github.com/discord-patched-electron/discord-patched-electron/releases).
 Builds labelled **Pre-release** are public test packages I haven't approved as stable yet.
 **Latest** identifies the newest package I've tested and approved. All packages
 require **x86-64-v3** (AVX2).
+
+First launch needs an internet connection to download Discord's client modules.
+Packages include patched Electron and a pinned open-source bootstrap; they do not
+include Discord's proprietary ASARs or download Discord's stock Electron runtime.
 
 Download one package and `SHA256SUMS` into a new folder, then verify it:
 
@@ -55,7 +59,8 @@ may need different dependencies.
 
 Extract the `.tar.gz`, open its folder and run `./launch.sh`. Keep all the files
 together. The folder can be moved. Install GTK 3, NSS, ALSA, libpulse, GBM, libdrm,
-CUPS, Xss, Xtst, libatomic, Python 3, Bash and coreutils through your package manager.
+CUPS, Xss, Xtst, libatomic, Python 3 with Capstone and pyelftools, Brotli, CA
+certificates, Bash and coreutils through your package manager.
 Screen-share audio also needs PipeWire tools, PulseAudio tools, a session manager
 such as WirePlumber, and Zenity.
 
@@ -68,13 +73,21 @@ On GitHub, select **Watch → Custom → Releases** to get notifications of new 
 Choose email or inbox delivery in your [notification settings](https://github.com/settings/notifications).
 Release notes list the Discord and Electron versions, changes and test results.
 
-Close Discord, then install the next package or replace the extracted folder.
+Discord modules update automatically on launch and are checked every 15 minutes
+while running. Use Discord's update button to restart when an update is ready.
+Downloads are verified against Discord's manifest. A failed update keeps the
+previous complete client. `DPE_CLIENT_OFFLINE=1` starts an already downloaded client
+without checking for updates.
+
+For patched Electron and integration updates, close Discord, then install the
+next package or replace the extracted folder.
 Reinstall Vencord or Equicord afterward using its [official installer](client-mods.md).
 You do not need to uninstall it first.
 
 Settings, login sessions and cache use the standard `~/.config/discordcanary`
 folder (or under `XDG_CONFIG_HOME` if set). Updates preserve them and your
 [launcher settings](linux-launcher.md). Close any running Canary instance first.
+Downloaded modules live in `dpe-updater/` inside that profile.
 
 Older builds used `~/.config/discord-canary-prerelease-patched-electron-bin`.
 That folder is left untouched. To keep using it, set `DISCORD_USER_DATA_DIR`

@@ -16,6 +16,14 @@ def integration_key(
             "inputs": hash_files(
                 [
                     "scripts/prepare_app.py",
+                    "scripts/stage_updater.py",
+                    "scripts/client_native.py",
+                    "integration/updater/client.py",
+                    "integration/updater/entry.cjs",
+                    "integration/updater/module-updater.cjs",
+                    "integration/updater/patches.cjs",
+                    "integration/updater/desktop-exec.cjs",
+                    "config/openasar.lock.json",
                     "scripts/patch_krisp.py",
                     "scripts/desktop_identity.py",
                     "scripts/patch_app_audio.py",
