@@ -13,8 +13,11 @@ fork commits, detects changes to its own Electron. A successful **Candidate
 Electron build** starts **Qualify compiled runtime**, which runs package
 qualification for each enabled Discord channel with that runtime.
 
-Each candidate uses an immutable client snapshot. The workflow verifies the
-compiler artifact, assembles the client, moves the app directory, and checks plain
+Each candidate records an immutable client snapshot for native regression tests
+and release identity. The package itself contains no Discord client. First launch
+resolves the current module manifest; launch reports record the actual tested
+version and generation. See [the module updater](client-updater.md).
+The workflow verifies the compiler artifact, stages the bootstrap, moves the app directory, and checks plain
 launch and relaunch. It checks the official Vencord and Equicord installers across installation, an
 app upgrade, reinstallation, launch/relaunch and removal. Both must restore the
 current bootstrap before packaging.
@@ -115,11 +118,13 @@ public release qualification adds the remaining CI checks.
 All released packages install the portable tree under `/opt/<package>`. A tarball
 can run anywhere. Bootstraps find resources through `DPE_APP_ROOT`, set by the
 launcher. `runtime/resources` points to `../resources`, matching the official mod
-installers' expected app layout. The older generated AUR recipe uses `/usr/lib/`.
-it is retained for validation, not published as the pacman test artifact.
+installers' expected app layout. The older generated AUR recipe also uses the
+client-free layout under `/usr/lib/`; it is retained for validation, not published
+as the pacman test artifact.
 
 The namespace sandbox stays enabled. Debian packages include a scoped AppArmor
-user-namespace rule for Ubuntu. No package enables audio services or overwrites
+user-namespace rule for Ubuntu; `aa-exec` also applies it to verified per-user
+runtime updates. No package enables audio services or overwrites
 user config. No runtime source flags change during packaging.
 
 A checksum-pinned release in [the cache repository](https://github.com/discord-patched-electron/cache)
@@ -129,6 +134,21 @@ capacity digest remains usable when unrelated packaging code changes, so client
 updates don't need an Electron rebuild or lose retained Ninja objects.
 
 ## Package updates
+
+Automatic updates require a signed release and a matching manual approval record.
+The signed manifest includes exact Discord module URLs, revisions and checksums
+under `client`, alongside Electron's runtime-cache reference. Module-only updates
+reuse the compiler output but still wait for manual approval.
+
+Packages ship their baseline module pins in `client-update.json`, runtime identity
+in `runtime-update.json` and the pinned public key. Launch qualification verifies
+those exact pins, with automatic updates disabled for the test. Packaging rejects
+changed or untested module pins. The approval action binds its existing
+`manifest_sha256` record to both client and runtime metadata. Older release
+manifests without client pins cannot authorize automatic client updates.
+See [runtime activation](client-updater.md#patched-electron-updates).
+Package updates remain responsible for the bootstrap, integrations and system
+dependencies. Automatic runtime updates preserve the installed mod loader.
 
 Release filenames are fixed. Versions remain in package metadata, release tags
 and manifests. AUR download aliases include the version to avoid stale local

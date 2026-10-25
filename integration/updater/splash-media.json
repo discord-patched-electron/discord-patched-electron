@@ -1,0 +1,29 @@
+{
+  "reference": "Discord Canary 1.0.2366",
+  "assets": {
+    "ggsans-400-normal.woff2": {
+      "url": "https://discord.com/assets/ac3f027697c11abd84295888e843f3d2.woff2",
+      "sha256": "49ea2d11bfc1a1d42beb815cf3546cf228f819325eb200585f6992e94e0e0238",
+      "size": 29668,
+      "type": "font/woff2"
+    },
+    "ggsans-500-medium.woff2": {
+      "url": "https://discord.com/assets/bf3d19297ef12291559b3edae977480c.woff2",
+      "sha256": "2018aec4e18a463f6d362cd32b69a822ac1470b6dd7cb8e9f0dc330ba87f4b59",
+      "size": 30600,
+      "type": "font/woff2"
+    },
+    "connecting-dark.webm": {
+      "url": "https://discord.com/assets/7ba7fcf2c4710bb7.webm",
+      "sha256": "313818d6b177a70fbe715a5142d6221ac1a1851eff5a9f6df505670ddcd73074",
+      "size": 160381,
+      "type": "video/webm"
+    },
+    "connecting-light.webm": {
+      "url": "https://discord.com/assets/46b40a1f870acc70.webm",
+      "sha256": "367d97f3a8375d0af13b0651c13bcfd5bb52c6a7ff36abf17e5edaecbb2bc1eb",
+      "size": 164410,
+      "type": "video/webm"
+    }
+  }
+}

@@ -37,6 +37,11 @@ def patch_bundle(
     resource = resource_path(package, install_root, portable)
     text = replace(
         text,
+        'userDataPath=path_1.default.join(userDataRoot,"discord"+("stable"===buildInfo.releaseChannel?"":buildInfo.releaseChannel))',
+        'userDataPath=process.env.DPE_PROFILE_DIR??path_1.default.join(userDataRoot,"discord"+("stable"===buildInfo.releaseChannel?"":buildInfo.releaseChannel))',
+    )
+    text = replace(
+        text,
         'resourcesPath=path_1.default.join(require.main.filename,"..",".."),',
         f"resourcesPath={resource},",
     )

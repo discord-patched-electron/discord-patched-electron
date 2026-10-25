@@ -121,7 +121,8 @@ class Recipes(unittest.TestCase):
                         or "runtime.zip::" in line
                         or "libdpe-camera-probe.so::" in line
                     ]
-                    self.assertEqual(len(binary_lines), len(client["sources"]) + 2)
+                    self.assertEqual(len(binary_lines), 2)
+                    self.assertNotIn("full.distro", metadata)
                     self.assertTrue(all(len(line.split()[0]) == 64 for line in binary_lines))
                     if shutil.which("makepkg"):
                         srcinfo = subprocess.check_output(

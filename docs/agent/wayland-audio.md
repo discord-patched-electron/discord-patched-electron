@@ -2,8 +2,8 @@
 
 The module adapter keeps Discord's native screen capture and feeds its native
 PID-based audio input through private PipeWire/PulseAudio routes. It changes the installed
-`discord_voice` JavaScript wrapper and adds small sidecar files; it does not
-replace the remote Discord UI or alter the proprietary voice binary. The helper
+`discord_voice` JavaScript wrapper, adds small sidecar files, and applies a
+validated native mixer-buffer reset to the private downloaded module. The helper
 uses Python's standard library and installed audio tools; no additional native
 addon or Electron rebuild is required for an audio-routing change. PipeWire
 must be available even when PulseAudio is the desktop's audio server. Its audio
@@ -84,6 +84,15 @@ and [Window Calls](https://github.com/ickyicky/window-calls).
    ending and destruction. Generations reject late helper replies. Stdin closure
    releases routes; parent-death signals and a narrowly scoped Pulse module lease
    also clean up after an uncatchable helper crash.
+
+The native PulseAudio mixer can retain unread samples after detachment.
+`scripts/patch_pulse_audio.py` clears that buffer under the existing mainloop
+lock before attaching a new source. This prevents a brief contribution from the
+previous source after sharing resumes. It validates the reviewed controller
+instructions, buffer layout and lock targets, then replaces the private module
+atomically. Unknown native layouts stop module preparation. The fix also applies
+when `DPE_APP_AUDIO=0`; that setting only disables the routing adapter.
+See the [reproduction and validation](audio-investigation.md#stale-native-mixer-samples-after-reattachment).
 
 The UUID-tagged `dpe-audio-…-mix/native` sinks and monitors are filtered from
 Discord's public device enumeration and device-change callback. This prevents

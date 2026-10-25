@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Discord Updater</title>
+  <style>
+    @font-face {
+      font-family: "gg sans";
+      font-weight: 400;
+      src: url(ggsans-400-normal.woff2) format("woff2");
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "gg sans";
+      font-weight: 500;
+      src: url(ggsans-500-medium.woff2) format("woff2");
+      font-display: swap;
+    }
+    :root {
+      --background-primary: #282b30;
+      --background-secondary: rgba(255, 255, 255, 0.1);
+      --header-primary: #fff;
+      --text-muted: #8a8e94;
+      --splash-progress: #737f8d;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      cursor: default;
+    }
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
+    body {
+      -webkit-app-region: drag;
+      background: var(--background-primary);
+      color: var(--header-primary);
+      font-family: "gg sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100%;
+      height: auto;
+      padding: 24px 16px;
+      overscroll-behavior: contain;
+    }
+    main {
+      text-align: center;
+      width: 100%;
+      min-width: 0;
+    }
+    video {
+      display: block;
+      width: 200px;
+      height: 200px;
+      max-width: 100%;
+      margin: -20px auto 0;
+    }
+    .text {
+      margin-top: -30px;
+    }
+    #status {
+      display: block;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 24px;
+      overflow-wrap: anywhere;
+    }
+    #placeholder {
+      height: 18px;
+    }
+    .track {
+      width: 180px;
+      height: 8px;
+      margin: 10px auto 0;
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--background-secondary);
+    }
+    .fill {
+      height: 100%;
+      width: 0;
+      border-radius: 4px;
+      background: var(--splash-progress);
+      box-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    button,
+    .recovery {
+      -webkit-app-region: no-drag;
+    }
+    button {
+      font:
+        500 14px/20px "gg sans",
+        "Helvetica Neue",
+        Helvetica,
+        Arial,
+        sans-serif;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      min-height: 32px;
+      padding: 4px 12px;
+      color: var(--header-primary);
+      background: var(--background-secondary);
+      cursor: pointer;
+    }
+    button.primary {
+      background: #5865f2;
+      color: #fff;
+    }
+    button:focus-visible {
+      outline: 2px solid var(--header-primary);
+      outline-offset: 2px;
+    }
+    .failed video {
+      display: none;
+    }
+    .failed .text {
+      margin-top: 0;
+    }
+    .recovery {
+      font-size: 14px;
+      line-height: 20px;
+      overflow-wrap: anywhere;
+    }
+    #message {
+      margin: 8px 0 20px;
+    }
+    #retry-status {
+      margin: 0 0 12px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+    #copy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding-inline: 10px 12px;
+      max-width: 100%;
+      background: transparent;
+      font-weight: 400;
+    }
+    .copy-icons {
+      display: grid;
+      flex: 0 0 16px;
+      width: 16px;
+      height: 16px;
+    }
+    .copy-icons svg {
+      grid-area: 1 / 1;
+      transition: opacity 300ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .check-icon,
+    .copied .copy-icon {
+      opacity: 0;
+    }
+    .copied .check-icon {
+      opacity: 1;
+    }
+    @media (hover: hover) {
+      button:hover {
+        background: color-mix(in srgb, var(--header-primary) 15%, transparent);
+      }
+      button.primary:hover {
+        background: #4752c4;
+      }
+      #copy:hover {
+        text-decoration: underline;
+      }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      button {
+        transition: transform 150ms ease-out;
+      }
+      button:active:not(:disabled):not([aria-disabled="true"]) {
+        transform: scale(0.96);
+      }
+      .copy-icons svg {
+        transition:
+          opacity 300ms cubic-bezier(0.2, 0, 0, 1),
+          scale 300ms cubic-bezier(0.2, 0, 0, 1),
+          filter 300ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      .check-icon,
+      .copied .copy-icon {
+        scale: 0.25;
+        filter: blur(4px);
+      }
+      .copied .check-icon {
+        scale: 1;
+        filter: blur(0);
+      }
+    }
+    [hidden] {
+      display: none !important;
+    }
+  </style>
+  <body>
+    <main>
+      <video loop muted src="connecting-dark.webm" aria-hidden="true"></video>
+      <div class="text">
+        <span id="status" role="status" tabindex="-1">Checking for updates…</span>
+        <div id="placeholder"></div>
+        <div
+          id="progress"
+          class="track"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          hidden
+        >
+          <div class="fill"></div>
+        </div>
+        <section class="recovery" aria-label="Update recovery" hidden>
+          <p id="message" role="alert"></p>
+          <p id="retry-status"></p>
+          <div class="actions">
+            <button id="retry" class="primary" type="button">Retry now</button>
+            <button id="pause" type="button">Pause retries</button>
+          </div>
+          <button id="copy" type="button">
+            <span class="copy-icons" aria-hidden="true">
+              <svg
+                class="copy-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <rect x="5.25" y="5.25" width="8" height="8" rx="1.5" />
+                <path
+                  d="M10.75 3.25v-.5a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <svg
+                class="check-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path d="m3 8 3.25 3.25L13 4.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span id="copy-label" role="status">Copy details</span>
+          </button>
+        </section>
+      </div>
+    </main>
+    <script>
+      const status = document.getElementById("status");
+      const progress = document.getElementById("progress");
+      const video = document.querySelector("video");
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+      const recovery = document.querySelector(".recovery");
+      const retry = document.getElementById("retry");
+      const pause = document.getElementById("pause");
+      const copy = document.getElementById("copy");
+      const copyLabel = document.getElementById("copy-label");
+      let details;
+      let copyVersion = 0;
+      let copying = false;
+      let copyReset;
+      let countdown;
+      function applyMotion() {
+        if (reducedMotion.matches || document.body.classList.contains("failed")) video.pause();
+        else void video.play().catch(() => {});
+      }
+      reducedMotion.addEventListener("change", applyMotion);
+      retry.onclick = () => Splash.retry();
+      pause.onclick = () => Splash.pause();
+      function resetCopy() {
+        copyVersion++;
+        clearTimeout(copyReset);
+        copying = false;
+        copy.removeAttribute("aria-disabled");
+        copy.classList.remove("copied");
+        copyLabel.textContent = "Copy details";
+      }
+      copy.onclick = async () => {
+        if (copying || !details) return;
+        clearTimeout(copyReset);
+        copying = true;
+        copy.setAttribute("aria-disabled", "true");
+        const version = copyVersion;
+        let copied = false;
+        try {
+          copied = await Splash.copyDetails();
+        } catch {
+          // Keep recovery usable if the clipboard or its IPC request fails.
+        }
+        if (version !== copyVersion) return;
+        copying = false;
+        copy.removeAttribute("aria-disabled");
+        copy.classList.toggle("copied", copied);
+        copyLabel.textContent = copied ? "Copied" : "Copy failed. Try again";
+        if (copied) copyReset = setTimeout(resetCopy, 2000);
+      };
+      applyMotion();
+      Splash.onState((state) => {
+        clearInterval(countdown);
+        const failed = state.status === "fail";
+        const wasFailed = document.body.classList.contains("failed");
+        if (!failed || !wasFailed || details !== state.details) resetCopy();
+        details = failed ? state.details : null;
+        document.body.classList.toggle("failed", failed);
+        recovery.hidden = !failed;
+        const updating = state.status === "downloading" || state.status === "installing";
+        progress.hidden = !updating;
+        document.getElementById("placeholder").hidden = updating || failed;
+        // Discord serves the same spinner in light and dark variants. Pick
+        // the variant after the cached theme has been applied to the window.
+        const channels = getComputedStyle(document.body)
+          .backgroundColor.match(/[\d.]+/g)
+          ?.map(Number);
+        const light =
+          channels && (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 1000 > 160;
+        const animation = light ? "connecting-light.webm" : "connecting-dark.webm";
+        if (video.getAttribute("src") !== animation) video.src = animation;
+        applyMotion();
+        if (updating) {
+          const verb = state.status === "downloading" ? "Downloading" : "Installing";
+          const label =
+            state.label === "Electron"
+              ? `${verb} Electron…`
+              : state.current
+                ? `${verb} update ${state.current} of ${state.total}…`
+                : `${verb} updates…`;
+          status.textContent = label;
+          progress.setAttribute("aria-label", label);
+          progress.setAttribute("aria-valuenow", state.progress);
+          progress.querySelector(".fill").style.width = `${state.progress}%`;
+        } else if (state.status === "fail") {
+          status.textContent = "Discord could not update";
+          document.getElementById("message").textContent = state.message;
+          copy.hidden = !details;
+          let seconds = state.seconds;
+          pause.hidden = seconds === null;
+          if (pause.hidden && document.activeElement === pause) retry.focus();
+          const render = () =>
+            (document.getElementById("retry-status").textContent =
+              seconds === null ? "Automatic retries paused." : `Retrying in ${seconds} sec…`);
+          render();
+          if (seconds !== null)
+            countdown = setInterval(() => {
+              seconds = Math.max(0, seconds - 1);
+              render();
+            }, 1000);
+          if (!wasFailed) retry.focus();
+        } else {
+          status.textContent =
+            state.status === "starting"
+              ? "Starting Discord…"
+              : `${state.label || "Checking for updates"}…`;
+        }
+        if (wasFailed && !failed) status.focus();
+      });
+    </script>
+  </body>
+</html>

@@ -73,8 +73,9 @@ validation false. Missing or changed symbols remain visible in the report.
 The opt-in adapter in `integration/audio/app-audio.cjs` corrects the existing
 native capture options. `scripts/patch_app_audio.py` inserts one call at the
 voice module's connection-wrapper boundary and refuses an unfamiliar layout.
-No compiled voice binary or remote client UI is modified. Packaging installs
-the adapter and records its hashes; it remains disabled unless
+This initial implementation left the compiled voice binary unchanged; the later
+buffer-reset correction is documented below. Packaging installed
+the adapter and recorded its hashes; it remained disabled unless
 `DPE_APP_AUDIO=1` is set for that package's launcher.
 
 The isolated experiment confirmed that PID **1** selects other applications'
@@ -164,3 +165,50 @@ callbacks; logger failures cannot interrupt them. The trace is emitted by the
 module's JavaScript context; if that context's console is not forwarded to the
 terminal, inspect only the matching prefix in its development console. An empty
 terminal log is not evidence that the client supplied no source information.
+
+## Stale native mixer samples after reattachment
+
+PR #1's [application-audio run 40230030029](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40230030029)
+failed the real PulseAudio Wayland `re-enabled` phase on 25 October 2026.
+The selected app's two tones were present, but one clean 10 ms frame also
+contained the previous system share's 997 Hz tone at full amplitude. The same
+failure reproduced in one of three local runs using the locked Canary module,
+bundled Electron 44.9.3 and the retained isolated audio container.
+
+Inspection found a 192,000-byte signed-16-bit mixer ring at controller offset
+`0x286`. `SamplesReady` adds samples into its slots; `Read` clears consumed slots.
+Detachment disconnects streams but leaves unread slots intact. Reattachment can
+therefore mix old samples into a new source. Resetting routing and waiting longer
+does not establish that those slots have been cleared.
+
+`scripts/patch_pulse_audio.py` inserts a buffer reset into `Attach`, after its
+existing PulseAudio mainloop lock and before the new PID/activation stores. It
+reuses the optional attachment log's instruction space for a trampoline, leaving
+the same-PID and zero-PID short circuits intact. One native attachment log is
+suppressed. No extra allocation, dependency, audio device or Electron build is
+needed. The original downloaded archive is retained unchanged.
+
+The patch requires x86_64 ELF symbols and exact normalized instructions for
+`Attach`, the constructor, `Read`, `SamplesReady` and `MonitorSinkInput`. Only
+relocated calls, external tail jumps and RIP-relative addresses are normalized;
+buffer offsets, sizes and control flow remain checked. Lock/unlock calls must
+resolve to the expected PulseAudio symbols. An unfamiliar layout or partial
+patch is rejected before writing; replacement is atomic and idempotent.
+Packaging and module-cache identities include the patcher. Fixture identities
+now hash the module after patching, with original and final hashes in the report.
+
+The locked module (`d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5`)
+and the current downloaded Canary module have the same reviewed layout after
+relocation normalization. Five consecutive isolated Wayland/PulseAudio trials
+passed with the reset. The analyzer, sample windows, settle delay and leakage
+thresholds were unchanged. A deterministic executable ELF fixture demonstrates
+retained samples before patching and clearing under lock afterward; it also
+checks repeated attachment, exact edit bounds, metadata preservation, unknown
+layouts, wrong lock targets, stripped modules and partial patches. Synthetic
+fixtures do not establish real-call behavior.
+
+The final integrated patch passed Wayland with both PulseAudio and PipeWire,
+the manual audio selector, and the X11 fixture. Preparing a private copy of the
+current downloaded module also preserved the camera probe's matching identity.
+All 189 Python and 51 JavaScript tests and lint passed. See the
+[retained validation summary](../evidence/pulse-mixer-buffer-reset.json).

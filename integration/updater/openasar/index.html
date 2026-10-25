@@ -1,0 +1,195 @@
+<video id="video" loop autoplay src="discord_loading.webm"></video>
+
+<div id="text">Starting...</div>
+
+<div id="barContainer"><div id="barFill"></div></div>
+
+<div id="manual">
+  <div id="manualSkip">Skip</div>
+  <div id="manualQuit">Quit</div>
+
+  <span id="manualVersion"></span>
+</div>
+
+<style>
+  :root {
+    --background-primary: #282b30;
+    --background-secondary: rgba(255, 255, 255, 0.1);
+    --brand-experiment: #5865F2;
+    --header-primary: #fff;
+    --text-muted: #72767d;
+    --font-primary: 'Whitney';
+  }
+
+  @font-face {
+    font-family: Whitney;
+    src: url(whitney_400.woff) format("woff");
+  }
+
+  html, body {
+    -webkit-app-region: drag;
+    overflow: hidden;
+
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+
+    background: var(--background-primary);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  * {
+    font-family: var(--font-primary), 'Whitney', sans-serif;
+
+    box-sizing: border-box;
+    user-select: none;
+    cursor: default;
+  }
+
+  video {
+    width: 200px;
+    height: 150px;
+    object-fit: cover;
+  }
+
+  #text {
+    text-align: center;
+
+    color: var(--header-primary);
+    font-weight: 400;
+    font-style: italic;
+    font-size: 16px;
+
+    text-transform: uppercase;
+
+    width: 100%;
+  }
+
+  #barContainer, #barFill {
+    width: 180px;
+    height: 8px;
+
+    border-radius: 4px;
+
+    visibility: hidden;
+  }
+
+  #barContainer {
+    background-color: var(--background-secondary);
+
+    position: relative;
+    margin-top: 12px;
+  }
+
+  #barFill {
+    background-color: var(--brand-experiment);
+    width: 0;
+  }
+
+  #manual {
+    display: none;
+    width: 90%;
+    justify-content: space-evenly;
+  }
+
+  #manual > div {
+    background: var(--brand-experiment);
+    color: var(--header-primary);
+
+    padding: 8px 20px;
+
+    border-radius: 4px;
+
+    cursor: pointer;
+    -webkit-app-region: none;
+  }
+
+  #manualVersion {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+
+    width: 100%;
+    text-align: center;
+
+    font-size: 12px;
+
+    color: var(--text-muted);
+
+    text-transform: uppercase;
+  }
+</style>
+
+<script>
+  Splash.onState(({ status, current, total, progress, seconds, details }) => {
+    let statusText = status.replaceAll('-', ' ');
+    let showProgress = false;
+
+    switch (status) {
+      case 'downloading': // X of Y states
+      case 'installing':
+        statusText = statusText + ` update ${current} of ${total}`; // Remove "s" and concat
+        showProgress = true;
+        break;
+
+      case 'fail': // Custom for update failure, include retry and reorder text
+        statusText = `Update Failed - Retrying in ${seconds}`;
+
+        const i = setInterval(() => {
+          if (!text.textContent.includes('Failed')) return clearInterval(i);
+
+          const spl = text.textContent.split(' ');
+          const sec = parseInt(spl.pop()) - 1;
+
+          if (sec <= 0) {
+            text.textContent = 'checking for updates';
+            return clearInterval(i);
+          }
+
+          text.textContent = spl.concat(sec).join(' ')
+        }, 1000);
+
+        break;
+
+      case 'manual':
+        const { name, pub_date } = JSON.parse(details);
+
+        const diff = Date.now() - Date.parse(pub_date);
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(hours / 24);
+
+        text.style.fontStyle = 'unset';
+        text.style.textTransform = 'unset';
+        statusText = 'Discord update available:';
+
+        manualVersion.innerHTML = `version ${name} | <span style="color: hsl(359,${((hours / 200) * 100).toFixed(2)}%,59.4%);">released ${days >= 1 ? (days + ' days ago') : (hours + ' hours ago')}</span>`;
+
+        manual.style.display = 'flex';
+
+        video.outerHTML = `<svg viewBox="0 0 24 24" height=92 style="margin-bottom: 40px;"><path fill="var(--text-muted)" fillRule="evenodd" clipRule="evenodd" d="M16.293 9.293L17.707 10.707L12 16.414L6.29297 10.707L7.70697 9.293L11 12.586V2H13V12.586L16.293 9.293ZM18 20V18H20V20C20 21.102 19.104 22 18 22H6C4.896 22 4 21.102 4 20V18H6V20H18Z" /></svg>`;
+
+        manualSkip.onclick = () => Splash.skip();
+        manualQuit.onclick = () => Splash.quit();
+
+        break;
+    }
+
+    text.textContent = statusText;
+
+
+    if (showProgress) {
+      barContainer.style.visibility = 'visible';
+      barFill.style.visibility = 'visible';
+
+      barFill.style.width = 100 * (progress / 100) + '%';
+    } else {
+      barContainer.style.visibility = '';
+      barFill.style.visibility = '';
+    }
+  });
+</script>

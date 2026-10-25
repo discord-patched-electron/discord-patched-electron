@@ -52,12 +52,11 @@ class ClientValidation(unittest.TestCase):
             self.assertEqual(result["client_digest"], digest(self.snapshot["clients"][channel]))
 
     @patch("client_inputs.enabled_discord_channels", return_value=("stable", "ptb", "canary"))
-    def test_package_download_failure_and_one_failed_recipe_do_not_cancel_others(self, _channels):
+    def test_module_free_packaging_and_one_failed_recipe_do_not_cancel_others(self, _channels):
         output = self.root / "packages"
 
         def download(url, target, expected=None):
-            if target.name == "ptb-core.tar.br":
-                raise ValueError("checksum mismatch")
+            self.assertNotIn("full.distro", url)
             target.write_bytes(b"fixture")
             return target
 
@@ -77,16 +76,20 @@ class ClientValidation(unittest.TestCase):
             report = smoke(output, self.lock, ["stable", "ptb", "canary"])
         self.assertFalse(report["all_selected_passed"])
         self.assertEqual(len(report["combinations"]), 3)
-        self.assertEqual(recipes.call_count, 2)
-        self.assertEqual([call.args[2] for call in recipes.call_args_list], ["stable", "canary"])
-        self.assertTrue(
-            any(call.args[1].name.startswith("stable-") for call in downloads.call_args_list)
+        self.assertEqual(recipes.call_count, 3)
+        self.assertEqual(
+            [call.args[2] for call in recipes.call_args_list], ["stable", "ptb", "canary"]
+        )
+        self.assertEqual(
+            [
+                call.args[1].name
+                for call in downloads.call_args_list
+                if not call.args[1].name.endswith(".whl")
+            ],
+            ["openasar.tar.gz", "openasar-cdn.tar.gz"],
         )
         for item in report["combinations"]:
-            if item["discord_channel"] == "ptb":
-                self.assertEqual(item["phase"], "client-download")
-            else:
-                self.assertEqual(item["passed"], item["discord_channel"] == "stable")
+            self.assertEqual(item["passed"], item["discord_channel"] != "canary")
             self.assertFalse(item["publishable"])
             self.assertFalse(item["runtime_validated"])
         self.assertFalse(list(output.glob("*/*.pkg.tar")))

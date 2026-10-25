@@ -22,6 +22,7 @@ pacman packages. I test them before approving them through a manual action.
 - [Build caching](build-caching.md)
 - [Source ports](source-ports.md)
 - [Arch packaging](packaging.md)
+- [Module-only client updates and bootstrap](client-updater.md)
 - [Build capacity investigation](build-capacity.md)
 
 ## Linux integration

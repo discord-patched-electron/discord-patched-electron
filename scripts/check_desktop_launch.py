@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from common import read_json, write_json
+from common import read_json, sha256, write_json
 
 
 def check(
@@ -34,14 +34,21 @@ def check(
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    profile = profile or output / "profile"
+    profile = (profile or output / "profile").resolve()
     environment = {
         **os.environ,
-        "DISCORD_USER_DATA_DIR": str(profile),
+        "DPE_PROFILE_DIR": str(profile),
         "EQUICORD_USER_DATA_DIR": str(profile / "equicord"),
         "WAYLAND_DEBUG": "client",
+        "DPE_CLIENT_PINNED": "1",
+        "DPE_RUNTIME_BUNDLED": "1",
     }
     environment.pop("ELECTRON_RUN_AS_NODE", None)
+    # A staged portable app must work from an ordinary terminal, without uv's
+    # virtualenv accidentally supplying its runtime Python dependencies.
+    environment["PATH"] = os.defpath
+    for name in ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME"):
+        environment.pop(name, None)
     report = {
         "passed": False,
         "profile": str(profile),
@@ -49,6 +56,7 @@ def check(
         "real_discord_call_verified": False,
         "app": str(app),
         "targets": [],
+        "updater_ui_seen": False,
     }
     channel = read_json(app / "local-build.json")["channel"]
     host = {"stable": "discord.com", "ptb": "ptb.discord.com", "canary": "canary.discord.com"}[
@@ -77,6 +85,8 @@ def check(
                     report["targets"] = [
                         {k: t.get(k) for k in ("type", "url", "title")} for t in targets
                     ]
+                    if any(t.get("url") == "dpe-splash://app/index.html" for t in targets):
+                        report["updater_ui_seen"] = True
                     for target in targets:
                         if target.get("type") != "page" or not target.get("url", "").startswith(
                             f"https://{host}/"
@@ -122,6 +132,9 @@ ws.addEventListener("error", () => process.exit(3));
                                     )
                                 )
                                 if report["passed"]:
+                                    report["runtime_executable"] = str(
+                                        Path(f"/proc/{process.pid}/exe").resolve(strict=True)
+                                    )
                                     break
                     if report["passed"]:
                         break
@@ -175,11 +188,37 @@ ws.addEventListener("error", () => process.exit(0));
         or "App threw an error during load" in console
     )
     report["passed"] = report["passed"] and not report["uncaught_exception"]
+    current = profile / "dpe-updater/current.json"
+    if current.exists():
+        generation = read_json(current)
+        state = read_json(profile / "dpe-updater/generations" / generation / "client.json")
+        report["client_version"] = state["version"]
+        report["client_generation"] = generation
+        report["client_distribution"] = "module-only"
+        pinned = read_json(app / "client-update.json")
+        report["client_manifest_sha256"] = sha256(app / "client-update.json")
+        expected = {
+            name: {
+                "url": item["full"]["url"],
+                "sha256": item["full"]["package_sha256"],
+                "version": item["full"]["module_version"],
+            }
+            for name, item in pinned["modules"].items()
+        }
+        report["client_pins_verified"] = (
+            state["version"] == ".".join(map(str, pinned["full"]["host_version"]))
+            and state["modules"] == expected
+        )
+        report["passed"] = report["passed"] and report["client_pins_verified"]
     write_json(output / "launch-report.json", report)
     if report["passed"] and not read_only_app:
         manifest = read_json(app / "local-build.json")
         manifest["launch_verified"] = True
         manifest["launch_report"] = str(output / "launch-report.json")
+        if "client_version" in report:
+            manifest["client_generation"] = report["client_generation"]
+            manifest["client_pins_verified"] = report["client_pins_verified"]
+            manifest["client_manifest_sha256"] = report["client_manifest_sha256"]
         write_json(app / "local-build.json", manifest)
     print(json.dumps(report, indent=2))
     return report

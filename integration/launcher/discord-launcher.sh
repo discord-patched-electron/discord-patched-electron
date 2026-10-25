@@ -67,16 +67,72 @@ if ((${#disabled[@]})); then flags+=("--disable-features=$(
   IFS=,
   echo "${disabled[*]}"
 )"); fi
-# Use the standard channel profile unless a test or user explicitly overrides it.
-export DISCORD_USER_DATA_DIR=${DISCORD_USER_DATA_DIR:-"$config_root/@PROFILE_NAME@"}
+# Discord treats DISCORD_USER_DATA_DIR as the parent of its channel directory.
+# DPE_PROFILE_DIR is an explicit full-profile override for portable/test launches.
+export DPE_PROFILE_DIR=${DPE_PROFILE_DIR:-"${DISCORD_USER_DATA_DIR:-$config_root}/@PROFILE_NAME@"}
+DPE_PROFILE_DIR=$(readlink -m -- "$DPE_PROFILE_DIR")
+export DPE_RUNTIME_EXECUTABLE="$root/runtime/electron"
+if [[ -f "$root/client-distribution.json" ]]; then
+  export PYTHONDONTWRITEBYTECODE=1
+  export PYTHONNOUSERSITE=1
+  export PYTHONPATH="$root/python"
+  unset PYTHONHOME ELECTRON_RUN_AS_NODE
+  export DPE_CLIENT_ROOT="$DPE_PROFILE_DIR/dpe-updater"
+  export DPE_LAUNCHER
+  DPE_LAUNCHER=$(readlink -f -- "${BASH_SOURCE[0]}")
+  # Show progress before starting Python or downloading anything. The UI commits
+  # complete updates, then this launcher starts the selected runtime with its
+  # camera preload and the user's existing mod loader.
+  launch_result=$(mktemp)
+  trap 'rm -f -- "$launch_result"' EXIT
+  if DPE_LAUNCH_RESULT="$launch_result" DPE_UPDATER_UI=1 "$root/runtime/electron" "${flags[@]}"; then
+    :
+  else
+    status=$?
+    # The existing instance already received the arguments. Do not activate an
+    # update underneath it or report a failed desktop launch.
+    if [[ $status == 2 ]]; then exit 0; fi
+    exit "$status"
+  fi
+  installed=$(python3 "$root/integration/updater/check.py" --launch-paths "$launch_result")
+  mapfile -t installed_paths <<<"$installed"
+  export DPE_RUNTIME_SOURCE=${installed_paths[0]}
+  export DPE_CLIENT_HOST=${installed_paths[1]}
+  export DPE_RUNTIME_EXECUTABLE=${installed_paths[2]}
+  DPE_VOICE_ROOT=${installed_paths[3]}
+  rm -f -- "$launch_result"
+  trap - EXIT
+fi
 if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
-  read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$root/camera-probe.conf"
-  export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END
-  export DPE_CAMERA_VOICE_MODULE="$root/modules/discord_voice/discord_voice.node"
-  export LD_PRELOAD="$root/libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+  if [[ ! -f "$root/client-distribution.json" ]]; then
+    read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$root/camera-probe.conf"
+    export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END
+    export DPE_CAMERA_VOICE_MODULE="$root/modules/discord_voice/discord_voice.node"
+  else
+    read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$DPE_VOICE_ROOT/camera-probe.conf"
+    export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END
+    DPE_CAMERA_VOICE_MODULE=$(readlink -f -- "$DPE_VOICE_ROOT/discord_voice.node")
+    export DPE_CAMERA_VOICE_MODULE
+  fi
+  if [[ -f "$root/client-distribution.json" ]]; then
+    # LD_LIBRARY_PATH accepts spaces; LD_PRELOAD splits them. Keep this search
+    # directory limited to our helper so child programs keep their system libs.
+    preload_dir=$(dirname -- "$(readlink -f -- "$DPE_RUNTIME_EXECUTABLE")")/preload
+    export LD_LIBRARY_PATH="$preload_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export LD_PRELOAD="libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+  else
+    export LD_PRELOAD="$root/libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+  fi
 fi
 # Equicord's official installer patches resources/app.asar in place.
 # Keep its settings in this channel's profile; package updates own the bootstrap.
-export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DISCORD_USER_DATA_DIR/equicord"}
+export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DPE_PROFILE_DIR/equicord"}
 export DISABLE_UPDATER_AUTO_PATCHING=1
-exec "$root/runtime/electron" "${flags[@]}"
+# Ubuntu's installed profile grants the user-namespace sandbox to this app.
+# Enter that same profile when its verified runtime lives in the user cache.
+if [[ "$DPE_RUNTIME_EXECUTABLE" != "$root/runtime/electron" && -f "/etc/apparmor.d/$name" ]] && command -v aa-exec >/dev/null 2>&1; then
+  if aa-exec -p "$name" -- true 2>/dev/null; then
+    exec aa-exec -p "$name" -- "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"
+  fi
+fi
+exec "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"

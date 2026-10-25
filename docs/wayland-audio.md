@@ -13,6 +13,12 @@ WirePlumber, PulseAudio client tools and Zenity. This also works with a real
 PulseAudio server, as long as PipeWire is available. The package doesn't change
 your audio services or default devices.
 
+Native packages declare the audio-tool dependencies: `pipewire`, `pipewire-audio`
+and `libpulse` on Arch; `pipewire-bin` and `pulseaudio-utils` on Debian/Ubuntu;
+`pipewire-utils` and `pulseaudio-utils` on Fedora. Zenity is `zenity` on all three.
+For a portable tarball, install these yourself. Your desktop must also have a
+working `xdg-desktop-portal` backend and a running PipeWire session manager.
+
 KDE's optional `kdotool` and GNOME's optional Window Calls extension improve
 window names in the picker. The dialog explains missing dependencies. They do
 not enable automatic capture matching. Audio selection remains manual there.

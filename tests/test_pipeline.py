@@ -160,10 +160,12 @@ class BootstrapPatches(unittest.TestCase):
     def test_package_owned_host_ignores_manual_update_gate_without_rewriting_version(self):
         source = (
             'resourcesPath=path_1.default.join(require.main.filename,"..",".."),'
+            'userDataPath=path_1.default.join(userDataRoot,"discord"+("stable"===buildInfo.releaseChannel?"":buildInfo.releaseChannel));'
             'process.resourcesPath;skipHostUpdate=settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable;'
             "Exec=${exePath};Name=${appName};Icon=${iconPath}"
         )
         patched = patch_bundle(source, "test-package", Path('/tmp/test "quoted" app'))
+        self.assertIn("userDataPath=process.env.DPE_PROFILE_DIR??", patched)
         self.assertIn(
             'skipHostUpdate=locallyInstalledModules||settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable',
             patched,

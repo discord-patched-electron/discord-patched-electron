@@ -29,6 +29,7 @@ from common import (
 from desktop_identity import arch_conflicts, desktop_id
 from elftools.elf.elffile import ELFFile
 from fetch_reference import validate_capacity
+from stage_updater import validate_distribution
 
 REPOSITORY = "https://github.com/discord-patched-electron/discord-patched-electron"
 
@@ -71,7 +72,7 @@ def metadata(
         "conflicts": [desktop_id(channel)],
         "maintainer": "discord-patched-electron contributors <he3als@users.noreply.github.com>",
         "homepage": REPOSITORY,
-        "license": "LicenseRef-Discord AND MIT AND BSD-3-Clause",
+        "license": "MIT AND BSD-3-Clause AND AGPL-3.0-only",
         "description": f"Discord {channel.title()} with patched Electron for better Linux support\n"
         "Requires an x86-64-v3 (AVX2) CPU. Includes native streaming, Krisp and Linux audio fixes.",
         "mtime": datetime.fromtimestamp(epoch, UTC).isoformat(),
@@ -107,7 +108,10 @@ def metadata(
                     "libdrm",
                     "mesa",
                     "libpulse",
-                    "python",
+                    "python>=3.11",
+                    "ca-certificates",
+                    "gnupg",
+                    "brotli",
                     "bash",
                     "coreutils",
                     "pipewire",
@@ -134,7 +138,12 @@ def metadata(
                     "libgbm1",
                     "libdrm2",
                     "libpulse0",
-                    "python3",
+                    "python3 (>= 3.11)",
+                    "ca-certificates",
+                    "gpg",
+                    "gpgv",
+                    "apparmor",
+                    "brotli",
                     "bash",
                     "coreutils",
                     "pipewire-bin",
@@ -157,7 +166,10 @@ def metadata(
                     "mesa-libgbm",
                     "libdrm",
                     "pulseaudio-libs",
-                    "python3",
+                    "python3 >= 3.11",
+                    "ca-certificates",
+                    "gnupg2",
+                    "brotli",
                     "bash",
                     "coreutils",
                     "pipewire-utils",
@@ -211,11 +223,26 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
         raise ValueError("Run check_desktop_launch.py on the relocated app before packaging")
     if (app / "resources/_app.asar").exists():
         raise ValueError("Uninstall client mods before packaging the app")
+    if build.get("client_pins_verified") is not True:
+        raise ValueError("Validate the package's pinned Discord modules before release")
+    if sha256(app / "client-update.json") != build.get("client_manifest_sha256"):
+        raise ValueError("Pinned Discord module manifest changed after launch validation")
+    validate_distribution(app)
     validate_capacity(build["capacity"], True)
     if sha256(app / "runtime/electron") != build["executable_sha256"]:
         raise ValueError("Runtime changed after assembly")
     if output.exists():
         raise ValueError("Choose a fresh package output directory")
+    policy = read_json(app / "runtime-update.json")
+    if (
+        policy["channel"] != build["channel"]
+        or policy["electron_version"] != build["capacity"]["compiled_version"]
+        or policy["runtime_key"] != build["capacity"]["runtime_key"]
+        or policy["archive_sha256"] != build["capacity"]["archive_sha256"]
+    ):
+        raise ValueError("Runtime update policy differs from the packaged compiler artifact")
+    policy["release_version"] = version
+    write_json(app / "runtime-update.json", policy)
     normalize_permissions(app)
     config = metadata(app, version, build["channel"], epoch, build["capacity"]["source"]["target"])
     libc = required_glibc(app)
@@ -280,6 +307,9 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             "channel": build["channel"],
             "desktop_id": desktop_id(build["channel"]),
             "client_version": build["client_version"],
+            "client": read_json(app / "client-update.json"),
+            "client_distribution": "module-only",
+            "bundled_discord_client": False,
             "electron_version": build["capacity"]["compiled_version"],
             "runtime_key": build["capacity"]["runtime_key"],
             "runtime": {

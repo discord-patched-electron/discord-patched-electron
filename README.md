@@ -18,6 +18,13 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 - [Application audio](docs/wayland-audio.md) for screen sharing.
 - Faster camera startup and hardware video decoding where supported.
 - Support for [Vencord and Equicord](docs/client-mods.md) through their official installers.
+- Automatic Discord module and patched Electron updates after manual release approval.
+
+Packages contain patched Electron and an open-source bootstrap. Discord's client
+modules download directly from Discord on first launch and stay in your profile.
+Their exact versions and checksums are pinned by the package or a signed, approved release.
+Discord's proprietary ASARs and native modules are not included in release packages.
+Electron updates use the project's signed builds, without downloading Discord's bundled runtime.
 
 Electron's beta builds bring Chromium's ongoing Wayland and Linux
 improvements sooner. Only Discord Canary is supported because it has better
@@ -29,7 +36,8 @@ Download from [Releases](https://github.com/discord-patched-electron/discord-pat
 Each release lists the package for your distribution.
 
 Requires an **x86-64-v3 CPU** (AVX2, such as Intel Haswell or AMD Ryzen), a recent
-Linux distribution and PipeWire for screen-share audio. See the
+Linux distribution, network access to **Discord and GitHub** for downloads and
+update checks, and PipeWire for screen-share audio. See the
 [installation guide](docs/install.md) for setup and updates.
 
 CI builds, checks and publishes test releases. GitHub labels these **Pre-release**

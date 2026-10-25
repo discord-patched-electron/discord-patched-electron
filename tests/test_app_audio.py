@@ -12,7 +12,8 @@ from patch_app_audio import ANCHOR, CAMERA_BEFORE, patch
 
 
 class AppAudioPatch(unittest.TestCase):
-    def test_known_wrapper_is_idempotent_and_unknown_layout_fails_unchanged(self):
+    @mock_patch("patch_app_audio.patch_pulse_audio", return_value={"fixture": True})
+    def test_known_wrapper_is_idempotent_and_unknown_layout_fails_unchanged(self, native):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
             wrapper = directory / "index.js"
@@ -24,6 +25,8 @@ class AppAudioPatch(unittest.TestCase):
             )
             adapter = ROOT / "integration/audio/app-audio.cjs"
             report = patch(directory, adapter)
+            native.assert_called_once_with(directory / "discord_voice.node")
+            self.assertEqual(report["native_buffer_patch"], {"fixture": True})
             content = wrapper.read_bytes()
             self.assertTrue(report["enabled_by_default"])
             self.assertEqual(report["default_sessions"], ["wayland"])
