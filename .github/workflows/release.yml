@@ -159,6 +159,9 @@ jobs:
           profile discord-release-fixture "$GITHUB_WORKSPACE/out/relocated app/runtime/electron" flags=(unconfined) {
             userns,
           }
+          profile discord-release-client-fixture "$GITHUB_WORKSPACE/out/**/profile/app-*/electron" flags=(unconfined) {
+            userns,
+          }
           EOF_RULE
           sudo apparmor_parser -r /etc/apparmor.d/discord-release-fixture
       - name: Launch and relaunch the relocated app
@@ -236,9 +239,12 @@ jobs:
           name: release-checks-${{ inputs.discord_channel }}
           path: |
             out/launch/**/launch-report.json
+            out/launch/**/console.log
             out/mod-launch/**/launch-report.json
+            out/mod-launch/**/console.log
             out/mod-launch/mod-sha256.txt
             out/deb-launch/**/launch-report.json
+            out/deb-launch/**/console.log
             out/rpm-install.log
             out/arch-install.log
             out/aur-install.log

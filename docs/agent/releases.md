@@ -15,8 +15,8 @@ qualification for each enabled Discord channel with that runtime.
 
 Each candidate records an immutable client snapshot for native regression tests
 and release identity. The package itself contains no Discord client. First launch
-resolves the current module manifest; launch reports record the actual tested
-version and generation. See [the module updater](client-updater.md).
+downloads the exact package-pinned modules; launch reports verify those pins and
+record the tested generation. See [the module updater](client-updater.md).
 The workflow verifies the compiler artifact, stages the bootstrap, moves the app directory, and checks plain
 launch and relaunch. It checks the official Vencord and Equicord installers across installation, an
 app upgrade, reinstallation, launch/relaunch and removal. Both must restore the
@@ -126,6 +126,12 @@ The namespace sandbox stays enabled. Debian packages include a scoped AppArmor
 user-namespace rule for Ubuntu; `aa-exec` also applies it to verified per-user
 runtime updates. No package enables audio services or overwrites
 user config. No runtime source flags change during packaging.
+
+Release CI also grants user namespaces to executables under its private
+`out/**/profile/app-*/electron` test paths. The client-free launcher copies the
+verified runtime there before opening Discord; allowing only the bundled
+executable covers the splash but not the final client. Launch console logs are
+retained with the reports to diagnose sandbox and startup failures.
 
 A checksum-pinned release in [the cache repository](https://github.com/discord-patched-electron/cache)
 retains compiler output beyond Actions artifact expiry. `CACHE_TOKEN` needs Contents
