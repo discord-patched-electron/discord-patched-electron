@@ -1,6 +1,7 @@
 ### Discord patched Electron <img src="discord-patched-electron.png" align="right" width="200" alt="Discord and Tux sitting in a field with hearts between them">
 
-Discord Canary with the latest Electron for better Linux support.
+Discord's official Canary desktop client with the latest Electron for better Linux
+support. Uses the desktop client, rather than a web wrapper like Vesktop or Equibop.
 
 > [!WARNING]
 > Experimental. Testing is limited, and bugs are expected.
