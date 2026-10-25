@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -50,6 +51,20 @@ def write_json(path: Path, value):
             temporary.unlink(missing_ok=True)
 
 
+def replace_damaged(staged: Path, destination: Path):
+    """Retain damaged cache entries and publish only a fully prepared replacement."""
+    backup = None
+    if destination.exists() or destination.is_symlink():
+        backup = destination.with_name(destination.name + ".damaged-" + uuid.uuid4().hex)
+        destination.rename(backup)
+    try:
+        staged.rename(destination)
+    except OSError:
+        if backup is not None:
+            backup.rename(destination)
+        raise
+
+
 class HTTPSRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         if urlparse(newurl).scheme != "https":
@@ -64,7 +79,9 @@ def download(url: str, target: Path, *, limit: int = 4 * 1024 * 1024, label: str
     opener.addheaders = [("User-Agent", "discord-patched-electron-updater/1")]
     with opener.open(url, timeout=20) as response, target.open("wb") as output:
         total = 0
-        size = int(response.headers.get("Content-Length", "0")) if label else 0
+        size = int(response.headers.get("Content-Length", "0"))
+        if size < 0 or size > limit:
+            raise ValueError("Update download exceeds size limit")
         reported = 0
         while block := response.read(1024 * 1024):
             total += len(block)
@@ -74,5 +91,7 @@ def download(url: str, target: Path, *, limit: int = 4 * 1024 * 1024, label: str
             if label and time.monotonic() - reported >= 0.1:
                 progress("download", label, current=total, total=size)
                 reported = time.monotonic()
+        if size and total != size:
+            raise ValueError("Update download was incomplete; check your connection and try again")
         if label:
             progress("download", label, current=total, total=size or total)

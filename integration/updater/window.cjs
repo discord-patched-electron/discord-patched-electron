@@ -45,7 +45,7 @@ module.exports = function createWindow(onAction) {
     autoHideMenuBar: true,
     icon: path.join(process.env.DPE_APP_ROOT, "discord.png"),
     webPreferences: {
-      preload: path.join(process.env.DPE_APP_ROOT, "bootstrap/src/splash/preload.js"),
+      preload: path.join(__dirname, "splash-preload.cjs"),
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
@@ -53,13 +53,13 @@ module.exports = function createWindow(onAction) {
   });
   const translate = splashState();
   let state = { status: "checking-for-updates" };
-  const quit = (event) => {
+  const action = (event, value) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame)
       return;
-    onAction("close");
+    if (["close", "retry", "pause"].includes(value)) onAction(value);
   };
-  ipcMain.on("sq", quit);
-  window.once("closed", () => ipcMain.removeListener("sq", quit));
+  ipcMain.on("dpe-splash-action", action);
+  window.once("closed", () => ipcMain.removeListener("dpe-splash-action", action));
   let themeReady;
   window.webContents.once("dom-ready", () => {
     themeReady = preferences.theme(window);
@@ -81,7 +81,11 @@ module.exports = function createWindow(onAction) {
     window,
     update(value) {
       state = translate(value);
-      if (!window.isDestroyed()) window.webContents.send("state", state);
+      if (!window.isDestroyed()) {
+        window.webContents.send("state", state);
+        // Autostart must not leave a failed first launch retrying invisibly.
+        if (value.stage === "error") window.show();
+      }
     },
   };
 };

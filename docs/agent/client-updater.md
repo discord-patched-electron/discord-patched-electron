@@ -11,8 +11,9 @@ module updater. It consumes the new `updates.discord.com/distributions/app/manif
 API, validates module URLs and SHA-256 hashes, and never fetches `full.url` or host
 deltas. OpenAsar's upstream native updater, legacy downloads and self-update are
 replaced. Saved settings, renderer customization and performance presets are
-preserved; explicit launcher flags take precedence. The splash and settings use OpenAsar's original screens served locally,
-as described below. All executed bootstrap source and its AGPL license ship
+preserved; explicit launcher flags take precedence. The splash adapts Discord's
+startup screen; OpenAsar's pinned settings and editor are served locally.
+All executed bootstrap source and its AGPL license ship
 in the package. `resources/app.asar` contains only the project's entry point and
 metadata, preserving the layout used by official mod installers.
 
@@ -431,3 +432,82 @@ approved 46.0.0-alpha.1 GitHub runtime, successful verification, selection and
 native Wayland login. The temporary verification profile was removed afterward;
 the user's `profile/` remains uncached for its first runtime download. Existing
 app/runtime caches were untouched. The 220 tests and lint passed again.
+
+## PR #1 reliability and UX review
+
+This pass reviewed the PR's updater, launcher, native installation recovery,
+bootstrap adapters, packaging changes, user instructions and test coverage against
+the current code and locks. It preserves the upstream OpenAsar files and patches.
+
+Confirmed findings and fixes:
+
+- A `.complete` marker could hide a missing or damaged module file. Existing
+  damaged module/generation directories also prevented repair. New module records
+  include file checksums and symlink targets; validation checks the generation's
+  build metadata and required modules. A fully verified replacement retains the
+  damaged directory as `.damaged-<id>` instead of repeatedly failing at rename.
+- A damaged cached Electron generation permanently prevented downloading the
+  same release again. It can now be replaced after signature, checksum and probe
+  checks. New runtime records validate all runtime files. Older cache formats
+  retain their original validation for offline compatibility until refreshed.
+- Missing Brotli or patch libraries blocked launching a usable cached client.
+  Prerequisites now apply only when preparing new modules, so a failed update
+  can retain the previous complete client. Short HTTP bodies also fail explicitly
+  against their declared length, including metadata downloads without progress.
+- Background preparation used a separate, less complete process wrapper. Both
+  paths now use the bounded streaming runner, clear Python home overrides and
+  explicitly select preparation or activation. Quit cancels the helper group,
+  waits for shutdown and escalates to SIGKILL if needed. A real subprocess test
+  includes a descendant that ignores SIGTERM; startup tests cover cancellation
+  racing with successful completion.
+- The launcher reselected pointers and published the installation again after
+  closing the splash. It now consumes a private, validated result from that
+  preparation, preserving its runtime/client pairing and avoiding repeated
+  installation work. An invocation forwarded to an existing instance exits
+  successfully without starting another runtime.
+- A slow optional media/font download delayed starting the helper. Preparation
+  now starts at DOM readiness, independently of media loading.
+
+UI review used **better-writing**, **better-accessibility** and the explicitly
+requested **better-ui** skill. Changes follow the existing Discord splash:
+300×300 window, gg sans, pinned animation, one progress bar, Discord close control,
+blurple recovery button and existing cached light/dark/custom colors. Pinned
+OpenAsar screens and editor code remain unchanged.
+
+| Severity | Location                                                                     | Before                                                                            | After                                                                                                                  | Why                                                                                      |
+| -------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| HIGH     | `integration/updater/startup.cjs`, `failure.cjs`, `modern-splash.html`       | Only stderr explained failures; all failures retried repeatedly                   | Actionable guidance, selectable details, manual retry, paused retries for setup/permission/space/verification failures | Writing: errors explain recovery. WCAG 4.1.3: errors announce through a persistent alert |
+| HIGH     | `integration/updater/window.cjs`, `splash-preload.cjs`, `modern-splash.html` | Frameless splash had no visible Quit or Retry; minimized failures stayed hidden   | Named close button, keyboard-operated Retry/Pause, scoped local IPC, failures reveal the window                        | WCAG 2.1.1 and 4.1.2: recovery actions have a keyboard path and accessible names         |
+| HIGH     | `integration/updater/modern-splash.html`                                     | Animation ignored reduced motion; countdown interrupted reading                   | Reduced motion prevents autoplay, animation can be paused, opening details pauses retries                              | WCAG 2.2.2 and reduced-motion support                                                    |
+| MEDIUM   | `integration/updater/splash-state.cjs`, `modern-splash.html`                 | Checking labels discarded the current phase; fixed overflow clipped enlarged text | Phase-specific status, scrollable details, wrapping controls and retained focus                                        | Writing clarity; WCAG 1.4.4 and 2.4.7                                                    |
+
+Verification on Arch Linux / niri / native Wayland reused the retained verified
+Electron 46.0.0-alpha.1 artifact. No Electron compiler was started. The first
+fresh launch encountered real ENOSPC on the workspace filesystem and displayed
+space-recovery guidance. Only this pass's disposable fixtures were moved to
+`/tmp/dpe-pr1-review-20261025`; retained builds and compiler objects were untouched.
+
+- `out/pr1-tests.log`, `out/pr1-lint.log`: 184 Python and 48 JavaScript tests
+  passed; required lint checks and `git diff --check` passed.
+- `/tmp/dpe-pr1-review-20261025/launch/`: fresh module download, Canary 1.0.2367
+  login and relaunch. `handoff-launch/` repeats login offline through the final
+  launcher handoff using that same logged-out fixture profile.
+- `out/pr1-native-startup-report.json`: offline first-run errors appear even
+  with `--start-minimized`; Quit cancels startup without publishing a client.
+  A second invocation exits successfully and leaves the running installation
+  directory untouched.
+- `out/pr1-splash-report.json`, `out/pr1-splash-reduced-report.json`,
+  `out/pr1-splash-minimized-report.json`: real sandboxed Electron checks for
+  themes, pinned media/fonts, one bar, keyboard recovery, 200% zoom, animation
+  controls, reduced motion and revealing minimized errors. Synthetic splash-only
+  captures are `out/pr1-splash-*.png`; no desktop or camera was captured.
+- `/tmp/dpe-pr1-review-20261025/packages/packaging-report.json`: generated Arch
+  package smoke check passed with a dummy runtime and the client-free rules.
+- The collaborative preview twice timed out on snapshot, so UI verification used
+  the repository's native Electron workflow. No separate screen-reader session
+  or 10%-speed animation-panel inspection was performed. No account login,
+  messages, calls, physical camera tests or actual power-loss reboot were done.
+
+**Approve for the inspected updater UI.** Remaining limits include live-call
+coverage, physical power-loss recovery, older cache formats' prior validation,
+cache/backup retention without automatic cleanup and future Discord compatibility.

@@ -144,6 +144,25 @@ class RuntimeUpdates(unittest.TestCase):
             capture_output=True,
         )
 
+    def test_damaged_runtime_files_are_downloaded_and_repaired(self):
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        for name in ("electron", "resources.pak"):
+            with self.subTest(name=name):
+                (executable.parent / name).write_bytes(b"damaged")
+                self.assertEqual(
+                    runtime.ensure_runtime(self.app, self.profile, offline=True),
+                    self.app / "runtime/electron",
+                )
+                (self.cache / "last-check.json").unlink()
+                before = len(self.downloads)
+                self.assertEqual(runtime.ensure_runtime(self.app, self.profile), executable)
+                self.assertIn("runtime-dist.zip", self.downloads[-1])
+                self.assertGreater(len(self.downloads), before)
+                runtime.validate_generation(
+                    self.cache, self.app, self.policy, executable.parent.name
+                )
+        self.assertEqual(len(list((self.cache / "generations").glob("*.damaged-*"))), 2)
+
     def download(self, url, target, **_options):
         self.downloads.append(url)
         if url == f"https://api.github.com/repos/{runtime.REPOSITORY}/releases/latest":
@@ -372,14 +391,25 @@ class RuntimeBoundaries(unittest.TestCase):
         with (
             patch.object(check, "ensure_runtime", return_value=Path("/selected/electron")),
             patch.object(check, "ensure_client", return_value=Path("/client/new")) as modules,
-            patch.object(check, "publish") as publish,
+            patch.object(check, "publish", return_value=Path("/installed")) as publish,
+            patch.object(
+                check, "read_object", return_value={"modules": {"discord_voice": {"version": 7}}}
+            ),
             patch.dict(os.environ),
         ):
             result = check.check(Path("/app"), Path("/profile/dpe-updater"), "canary")
             publish.assert_called_once_with(
                 Path("/app"), Path("/profile"), Path("/client/new"), Path("/selected/electron")
             )
-            self.assertEqual(result, {"runtime": "/selected/electron", "host": "/client/new"})
+            self.assertEqual(
+                result,
+                {
+                    "runtime": "/selected/electron",
+                    "host": "/client/new",
+                    "installed_runtime": "/installed/electron",
+                    "voice": "/installed/modules/discord_voice-7/discord_voice",
+                },
+            )
             modules.assert_called_once_with(
                 Path("/profile/dpe-updater"),
                 "canary",

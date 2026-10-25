@@ -8,7 +8,9 @@ let view,
 module.exports = {
   events,
   initSplash() {
-    view = createWindow(() => app.quit());
+    view = createWindow((action) => {
+      if (action === "close") app.quit();
+    });
     view.update({ stage: "ready", label: "Starting Discord" });
     view.window.once("closed", () => {
       if (!ready) app.quit();

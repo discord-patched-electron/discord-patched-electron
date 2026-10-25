@@ -19,7 +19,10 @@ class Launcher(unittest.TestCase):
                 "if os.environ.get('DPE_UPDATER_UI') == '1':\n"
                 "    assert 'DPE_CLIENT_HOST' not in os.environ\n"
                 "    assert os.environ['PYTHONPATH'].endswith('/python')\n"
-                "    sys.exit(0)\n"
+                "    from pathlib import Path\n"
+                "    root = Path(os.environ['DPE_APP_ROOT'])\n"
+                "    Path(os.environ['DPE_LAUNCH_RESULT']).write_text(json.dumps({'runtime': str(root / 'cached runtime/electron'), 'installed_runtime': str(root / 'cached runtime/electron'), 'host': str(root / 'prepared'), 'voice': '/fixture/voice'}))\n"
+                "    sys.exit(int(os.environ.get('DPE_FIXTURE_UI_STATUS', '0')))\n"
                 'print(json.dumps({"flags":sys.argv[1:], "profile":os.environ["DPE_PROFILE_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"]}))\n'
             )
             runtime.chmod(0o755)
@@ -31,21 +34,8 @@ class Launcher(unittest.TestCase):
                 updater = root / "integration/updater"
                 updater.mkdir(parents=True)
                 (root / "client-distribution.json").write_text("{}")
-                (updater / "runtime.py").write_text(
-                    "import sys\nfrom pathlib import Path\n"
-                    "assert '--offline' in sys.argv\n"
-                    "print(Path(sys.argv[1]) / 'cached runtime/electron')\n"
-                )
-                (updater / "client.py").write_text(
-                    "import os,sys\n"
-                    "assert '--offline' in sys.argv\n"
-                    "assert os.environ['PYTHONDONTWRITEBYTECODE'] == '1'\n"
-                    "assert os.environ['DPE_RUNTIME_EXECUTABLE'].endswith('/cached runtime/electron')\n"
-                    "print(sys.argv[1] + '/generation')\n"
-                )
-                (updater / "installation.py").write_text(
-                    "import sys\nprint(sys.argv[4])\nprint('/fixture/voice')\n"
-                )
+                for source in (ROOT / "integration/updater").glob("*.py"):
+                    (updater / source.name).write_bytes(source.read_bytes())
             name = "discord-canary-prerelease-patched-electron-bin"
             (root / f"{name}-flags.conf").write_text(legacy)
             (root / "discord-canary-patched-electron.conf").write_text(config)
@@ -77,6 +67,8 @@ class Launcher(unittest.TestCase):
                     **(env or {}),
                 },
             )
+            if not result:
+                return None
             result = json.loads(result)
             return result if details else result["flags"]
 
@@ -114,7 +106,7 @@ class Launcher(unittest.TestCase):
             flags.index("--ozone-platform=x11"), flags.index("--ozone-platform=wayland")
         )
 
-    def test_cached_runtime_preserves_app_root_arguments_and_offline_module_preflight(self):
+    def test_prepared_launch_preserves_app_root_arguments_and_runtime_selection(self):
         result = self.launch(
             args=["--ozone-platform=x11", "--example=with spaces"],
             env={"DPE_CLIENT_OFFLINE": "1"},
@@ -125,6 +117,9 @@ class Launcher(unittest.TestCase):
         self.assertIn("--example=with spaces", result["flags"])
         self.assertIn("--ozone-platform=x11", result["flags"])
         self.assertTrue(result["profile"].endswith("/discordcanary"))
+
+    def test_second_instance_exits_successfully_without_starting_another_runtime(self):
+        self.assertIsNone(self.launch(env={"DPE_FIXTURE_UI_STATUS": "2"}, cached=True))
 
     def test_no_shell_evaluation_and_disable_default(self):
         flags = self.launch(

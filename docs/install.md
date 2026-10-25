@@ -79,8 +79,10 @@ when either update is ready. Modules come from Discord; Electron comes from the
 project's approved GitHub release and is verified using its signed checksums.
 Downloads and compatibility checks finish before activation. A failed download
 keeps the current installation.
-The startup screen follows Discord's layout with one progress bar. Failed first
-launches retry automatically. Capstone and pyelftools are included in the package.
+The startup screen follows Discord's layout with one progress bar. If startup
+fails, it shows recovery steps and **Retry now**. Connection failures retry after
+10 seconds; **Pause retries** or **Show details** stops the countdown. Use the
+close button to quit and cancel preparation. Capstone and pyelftools are included in the package.
 OpenAsar's settings and CSS editor are included. Splash Theming is enabled by default and uses Discord or custom
 theme colors cached from your client; Quickstart uses a prepared installation and checks updates in the background.
 

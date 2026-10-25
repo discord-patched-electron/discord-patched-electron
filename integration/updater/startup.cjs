@@ -4,6 +4,7 @@ const path = require("node:path");
 const createWindow = require("./window.cjs");
 const runUpdate = require("./runner.cjs");
 const preferences = require("./profile.cjs");
+const describeFailure = require("./failure.cjs");
 
 const root = process.env.DPE_APP_ROOT;
 const profile = process.env.DPE_PROFILE_DIR;
@@ -14,23 +15,38 @@ if (preferences.settings(profile).enableHardwareAcceleration === false)
 let view,
   task,
   retry,
+  failed,
+  closing = false,
   complete = false;
 const cancel = () => {
+  closing = true;
   clearTimeout(retry);
   task?.cancel();
 };
-app.on("before-quit", cancel);
+const shutdown = async () => {
+  cancel();
+  try {
+    await task?.promise;
+  } catch {
+    // Cancellation is expected. Wait for the helper group before exiting.
+  }
+  app.exit(complete ? 0 : 1);
+};
+app.on("before-quit", (event) => {
+  if (complete) return;
+  event.preventDefault();
+  void shutdown();
+});
 for (const signal of ["SIGINT", "SIGTERM"])
   process.once(signal, () => {
-    cancel();
-    app.exit(1);
+    void shutdown();
   });
 if (
   !app.requestSingleInstanceLock() &&
   !preferences.config(profile).multiInstance &&
   !process.argv.includes("--multi-instance")
 )
-  app.exit(1);
+  app.exit(2);
 else {
   app.on("second-instance", () => {
     view?.window.show();
@@ -47,7 +63,8 @@ else {
         fs.existsSync(path.join(process.env.DPE_CLIENT_ROOT, "current.json")),
       );
       const attempt = async () => {
-        if (task) return;
+        if (task || closing) return;
+        failed = null;
         clearTimeout(retry);
         view.update({ stage: "check", label: "Checking for updates" });
         task = runUpdate({
@@ -58,27 +75,42 @@ else {
           onProgress: (state) => view.update(state),
         });
         try {
-          await task.promise;
+          const prepared = await task.promise;
+          if (closing) return;
+          if (process.env.DPE_LAUNCH_RESULT)
+            fs.writeFileSync(process.env.DPE_LAUNCH_RESULT, JSON.stringify(prepared), {
+              mode: 0o600,
+            });
           complete = true;
           app.exit(0);
         } catch (error) {
           console.error(error.message);
-          if (!view.window.isDestroyed()) {
-            view.update({ stage: quickstart ? "check" : "error" });
-            retry = setTimeout(() => void attempt(), quickstart ? 0 : 10000);
+          if (!closing && !view.window.isDestroyed()) {
+            failed = describeFailure(error);
+            view.update(quickstart ? { stage: "check" } : { stage: "error", ...failed });
+            if (quickstart || failed.seconds !== null)
+              retry = setTimeout(() => void attempt(), quickstart ? 0 : failed.seconds * 1000);
             quickstart = false;
           }
         } finally {
           task = null;
         }
       };
-      view = createWindow(() => view.window.close());
+      view = createWindow((action) => {
+        if (action === "close") view.window.close();
+        else if (action === "retry" && failed) void attempt();
+        else if (action === "pause" && failed) {
+          clearTimeout(retry);
+          failed.seconds = null;
+          view.update({ stage: "error", ...failed });
+        }
+      });
       view.window.once("closed", () => {
-        cancel();
-        if (!complete) app.exit(1);
+        if (!complete) void shutdown();
       });
       // Do not hide the window behind network or dependency work on first launch.
-      view.window.webContents.once("did-finish-load", () => void attempt());
+      // Fonts and animation are optional; a slow CDN must not delay updates.
+      view.window.webContents.once("dom-ready", () => void attempt());
     })
     .catch((error) => {
       console.error(error);

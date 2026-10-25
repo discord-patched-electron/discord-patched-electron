@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
@@ -6,7 +7,10 @@ const { test } = require("node:test");
 
 function fixture(env = {}, installedHost) {
   const calls = [];
-  const app = { relaunch: () => calls.push("relaunch"), quit: () => calls.push("quit") };
+  const app = Object.assign(new EventEmitter(), {
+    relaunch: () => calls.push("relaunch"),
+    quit: () => calls.push("quit"),
+  });
   const module = { exports: {} };
   const pending = [];
   let tick;
@@ -15,14 +19,33 @@ function fixture(env = {}, installedHost) {
     {
       module,
       require: (name) =>
-        name === "node:child_process"
-          ? {
-              execFile: (...args) => pending.push(args),
+        name === "./runner.cjs"
+          ? (options) => {
+              let resolve, reject;
+              const promise = new Promise((yes, no) => {
+                resolve = yes;
+                reject = no;
+              });
+              pending.push({
+                options,
+                async done(value, error) {
+                  if (error) reject(error);
+                  else resolve(value);
+                },
+              });
+              return {
+                promise,
+                cancel: () => {
+                  calls.push("cancel");
+                  reject(new Error("cancelled"));
+                },
+              };
             }
           : require(name),
       process: { env, execPath: "/portable app/runtime/electron" },
       queueMicrotask,
       console: { error: () => {} },
+      clearInterval: () => {},
       setInterval(callback, duration) {
         assert.equal(duration, 15 * 60 * 1000);
         tick = callback;
@@ -41,7 +64,11 @@ function fixture(env = {}, installedHost) {
     "/profile",
     installedHost,
   );
-  return { updater, calls, pending, tick };
+  const checked = [],
+    downloaded = [];
+  updater.events.on(updater.UPDATE_CHECK_FINISHED, (event) => checked.push(event));
+  updater.events.on(updater.DOWNLOADING_MODULES_FINISHED, (event) => downloaded.push(event));
+  return { updater, app, calls, pending, tick, checked, downloaded };
 }
 
 test("module requests expose only installed modules and preserve version checks", async () => {
@@ -66,19 +93,15 @@ test("module requests expose only installed modules and preserve version checks"
   assert.equal(installed[1].succeeded, false);
 });
 
-test("native module paths remain anchored to the running install after an update", () => {
-  const { updater, pending } = fixture(
+test("native module paths stay anchored and the selected runtime does not trigger false updates", async () => {
+  const { updater, pending, checked } = fixture(
     { DPE_RUNTIME_SOURCE: "/signed-cache/electron" },
     "/profile/dpe-updater/installations/running",
   );
-  const checked = [];
-  updater.events.on(updater.UPDATE_CHECK_FINISHED, (event) => checked.push(event));
   updater.checkForUpdates();
-  pending.shift()[3](
-    null,
-    JSON.stringify({ host: "/profile/generations/old", runtime: "/signed-cache/electron" }),
-    "",
-  );
+  await pending
+    .shift()
+    .done({ host: "/profile/generations/old", runtime: "/signed-cache/electron" });
   assert.equal(checked[0].updateCount, 0);
   assert.equal(
     updater.getModulePath("discord_voice"),
@@ -86,78 +109,61 @@ test("native module paths remain anchored to the running install after an update
   );
 });
 
-test("checks serialize, advertise prepared generations, and restart through app.relaunch", () => {
-  const { updater, calls, pending, tick } = fixture({ LD_PRELOAD: "/helper.so" });
-  const checked = [],
-    downloaded = [];
-  updater.events.on(updater.UPDATE_CHECK_FINISHED, (event) => checked.push(event));
-  updater.events.on(updater.DOWNLOADING_MODULES_FINISHED, (event) => downloaded.push(event));
+test("checks serialize, prepare in the background, and advertise module or runtime updates", async () => {
+  const { updater, calls, pending, tick, checked, downloaded } = fixture();
   tick();
   updater.checkForUpdates();
   assert.equal(pending.length, 1);
-  const [command, args, options, done] = pending.shift();
-  assert.equal(command, "python3");
-  assert.deepEqual(Array.from(args), [
-    "/portable app/integration/updater/check.py",
-    "/portable app",
-    "/profile",
-    "canary",
-  ]);
-  assert.equal(options.env.LD_PRELOAD, "");
-  assert.equal(options.env.DPE_PREPARE_ONLY, "1");
-  done(
-    null,
-    JSON.stringify({ host: "/profile/generations/new", runtime: "/portable app/runtime/electron" }),
-    "",
+  const first = pending.shift();
+  assert.deepEqual(
+    { ...first.options },
+    {
+      root: "/portable app",
+      clientRoot: "/profile",
+      channel: "canary",
+      prepareOnly: true,
+    },
   );
+  await first.done({ host: "/profile/generations/new", runtime: "/portable app/runtime/electron" });
   assert.equal(checked[0].succeeded, true);
   assert.equal(checked[0].updateCount, 1);
   assert.equal(downloaded.length, 1);
-  // A running client must keep its original module paths until it restarts.
   assert.equal(
     updater.getModulePath("discord_voice"),
     "/profile/generations/old/modules/discord_voice",
   );
+  updater.checkForUpdates();
+  await pending.shift().done({ host: "/profile/generations/old", runtime: "/new/electron" });
+  assert.equal(checked[1].updateCount, 1);
   updater.quitAndInstallUpdates();
   assert.deepEqual(calls, ["relaunch", "quit"]);
   updater.checkForUpdates();
-  pending.shift()[3](new Error("offline"), "", "offline");
-  assert.equal(checked[1].succeeded, false);
-  assert.equal(checked[1].updateCount, 0);
-  assert.equal(downloaded.length, 1);
+  await pending.shift().done(null, new Error("offline"));
+  assert.equal(checked[2].succeeded, false);
+  assert.equal(checked[2].updateCount, 0);
+  assert.equal(downloaded.length, 2);
 });
 
-test("unchanged or explicitly offline clients do not advertise an update", () => {
+test("unchanged or explicitly offline clients do not advertise an update", async () => {
   const offline = fixture({ DPE_CLIENT_OFFLINE: "1" });
   offline.tick();
   assert.equal(offline.pending.length, 0);
-  const { updater, pending } = fixture();
-  updater.events.on(updater.UPDATE_CHECK_FINISHED, (event) => assert.equal(event.updateCount, 0));
+  const { updater, pending, checked } = fixture();
   updater.checkForUpdates();
-  pending.shift()[3](
-    null,
-    JSON.stringify({ host: "/profile/generations/old", runtime: "/portable app/runtime/electron" }),
-    "",
-  );
+  await pending
+    .shift()
+    .done({ host: "/profile/generations/old", runtime: "/portable app/runtime/electron" });
+  assert.equal(checked[0].updateCount, 0);
 });
 
-test("Electron-only updates use the same restart notification and reject invalid results", () => {
-  const { updater, pending } = fixture();
-  const checked = [];
-  updater.events.on(updater.UPDATE_CHECK_FINISHED, (event) => checked.push(event));
+test("quitting cancels active preparation, waits for cleanup, and stops future checks", async () => {
+  const { app, updater, calls, checked, tick, pending } = fixture();
   updater.checkForUpdates();
-  pending.shift()[3](
-    null,
-    JSON.stringify({
-      host: "/profile/generations/old",
-      runtime: "/profile/dpe-runtime/new/electron",
-    }),
-    "",
-  );
-  assert.equal(checked[0].succeeded, true);
-  assert.equal(checked[0].updateCount, 1);
-  updater.checkForUpdates();
-  pending.shift()[3](null, "not a prepared update", "");
-  assert.equal(checked[1].succeeded, false);
-  assert.equal(checked[1].updateCount, 0);
+  app.emit("before-quit", { preventDefault: () => calls.push("wait") });
+  assert.deepEqual(calls, ["wait", "cancel"]);
+  await new Promise(setImmediate);
+  assert.deepEqual(calls, ["wait", "cancel", "quit"]);
+  assert.equal(checked.length, 0);
+  tick();
+  assert.equal(pending.length, 1);
 });

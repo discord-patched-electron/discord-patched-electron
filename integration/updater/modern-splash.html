@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Discord Updater</title>
   <style>
     @font-face {
@@ -32,7 +33,7 @@
       margin: 0;
       width: 100%;
       height: 100%;
-      overflow: hidden;
+      overflow: auto;
     }
     body {
       -webkit-app-region: drag;
@@ -43,23 +44,31 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding-bottom: 10px;
+      min-height: 100%;
+      height: auto;
+      padding: 30px 16px 16px;
+      overscroll-behavior: contain;
     }
     main {
       text-align: center;
+      width: 100%;
+      min-width: 0;
     }
     video {
+      display: block;
       width: 200px;
       height: 200px;
+      max-width: 100%;
+      margin: -20px auto 0;
     }
     .text {
-      position: relative;
-      top: -30px;
+      margin-top: -30px;
     }
     #status {
       display: block;
       font-size: 16px;
       font-weight: 500;
+      overflow-wrap: anywhere;
     }
     #placeholder {
       height: 18px;
@@ -81,13 +90,142 @@
         0 2px 4px 0 rgba(0, 0, 0, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
+    button,
+    summary,
+    pre,
+    .recovery {
+      -webkit-app-region: no-drag;
+    }
+    button {
+      font:
+        500 14px/20px "gg sans",
+        "Helvetica Neue",
+        Helvetica,
+        Arial,
+        sans-serif;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      min-height: 32px;
+      padding: 4px 12px;
+      color: var(--header-primary);
+      background: var(--background-secondary);
+      cursor: pointer;
+    }
+    button.primary {
+      background: #5865f2;
+      color: #fff;
+    }
+    button.link {
+      background: transparent;
+      font-size: 12px;
+    }
+    button:focus-visible,
+    summary:focus-visible,
+    pre:focus-visible {
+      outline: 2px solid var(--header-primary);
+      outline-offset: 2px;
+    }
+    #quit {
+      position: absolute;
+      right: 4px;
+      top: 4px;
+      width: 28px;
+      min-height: 28px;
+      padding: 4px;
+      display: grid;
+      place-items: center;
+      background: transparent;
+    }
+    #quit svg {
+      pointer-events: none;
+    }
+    #motion {
+      margin-top: 8px;
+    }
+    .failed video,
+    .failed #motion {
+      display: none;
+    }
+    .failed .text {
+      margin-top: 4px;
+    }
+    .recovery {
+      font-size: 14px;
+      line-height: 20px;
+      overflow-wrap: anywhere;
+    }
+    #message {
+      margin: 12px 0;
+    }
+    #retry-status {
+      margin: 8px 0;
+      font-size: 12px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+    details {
+      margin-top: 12px;
+      text-align: left;
+      font-size: 12px;
+    }
+    summary {
+      cursor: pointer;
+      min-height: 24px;
+    }
+    pre {
+      margin: 8px 0 0;
+      padding: 8px;
+      border-radius: 4px;
+      background: var(--background-secondary);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      max-height: 100px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      user-select: text;
+      cursor: text;
+      font: 12px/16px monospace;
+    }
+    @media (hover: hover) {
+      button:hover {
+        background: color-mix(in srgb, var(--header-primary) 15%, transparent);
+      }
+      button.primary:hover {
+        background: #4752c4;
+      }
+      button.link:hover,
+      summary:hover {
+        text-decoration: underline;
+      }
+      #quit:hover {
+        background: #da373c;
+        color: #fff;
+      }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      button {
+        transition: transform 150ms ease-out;
+      }
+      button:active:not(:disabled) {
+        transform: scale(0.96);
+      }
+    }
     [hidden] {
       display: none !important;
     }
   </style>
   <body>
+    <button id="quit" type="button" aria-label="Quit Discord" title="Quit Discord">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="m4 4 8 8m0-8-8 8" fill="none" stroke="currentColor" stroke-width="2" />
+      </svg>
+    </button>
     <main>
-      <video loop autoplay muted src="connecting-dark.webm" aria-hidden="true"></video>
+      <video loop muted src="connecting-dark.webm" aria-hidden="true"></video>
       <div class="text">
         <span id="status" role="status">Checking for updates…</span>
         <div id="placeholder"></div>
@@ -101,17 +239,64 @@
         >
           <div class="fill"></div>
         </div>
+        <section class="recovery" aria-label="Update recovery" hidden>
+          <p id="message" role="alert"></p>
+          <p id="retry-status"></p>
+          <div class="actions">
+            <button id="retry" class="primary" type="button">Retry now</button>
+            <button id="pause" type="button">Pause retries</button>
+          </div>
+          <details>
+            <summary>Show details</summary>
+            <pre id="details" tabindex="0" aria-label="Update error details"></pre>
+          </details>
+        </section>
+        <button id="motion" class="link" type="button">Pause animation</button>
       </div>
     </main>
     <script>
       const status = document.getElementById("status");
       const progress = document.getElementById("progress");
+      const video = document.querySelector("video");
+      const motion = document.getElementById("motion");
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+      const recovery = document.querySelector(".recovery");
+      const retry = document.getElementById("retry");
+      const pause = document.getElementById("pause");
+      let paused = reducedMotion.matches;
       let countdown;
+      function applyMotion() {
+        if (paused || document.body.classList.contains("failed")) video.pause();
+        else void video.play().catch(() => {});
+        motion.textContent = paused ? "Play animation" : "Pause animation";
+      }
+      reducedMotion.addEventListener("change", () => {
+        paused = reducedMotion.matches;
+        applyMotion();
+      });
+      motion.onclick = () => {
+        paused = !paused;
+        applyMotion();
+      };
+      document.getElementById("quit").onclick = () => Splash.quit();
+      retry.onclick = () => Splash.retry();
+      pause.onclick = () => Splash.pause();
+      document.querySelector("details").addEventListener("toggle", (event) => {
+        event.target.querySelector("summary").textContent = event.target.open
+          ? "Hide details"
+          : "Show details";
+        if (event.target.open) Splash.pause();
+      });
+      applyMotion();
       Splash.onState((state) => {
         clearInterval(countdown);
+        const failed = state.status === "fail";
+        const wasFailed = document.body.classList.contains("failed");
+        document.body.classList.toggle("failed", failed);
+        recovery.hidden = !failed;
         const updating = state.status === "downloading" || state.status === "installing";
         progress.hidden = !updating;
-        document.getElementById("placeholder").hidden = updating;
+        document.getElementById("placeholder").hidden = updating || failed;
         // Discord serves the same spinner in light and dark variants. Pick
         // the variant after the cached theme has been applied to the window.
         const channels = getComputedStyle(document.body)
@@ -119,9 +304,9 @@
           ?.map(Number);
         const light =
           channels && (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 1000 > 160;
-        const video = document.querySelector("video");
         const animation = light ? "connecting-light.webm" : "connecting-dark.webm";
         if (video.getAttribute("src") !== animation) video.src = animation;
+        applyMotion();
         if (updating) {
           const verb = state.status === "downloading" ? "Downloading" : "Installing";
           const label =
@@ -135,15 +320,29 @@
           progress.setAttribute("aria-valuenow", state.progress);
           progress.querySelector(".fill").style.width = `${state.progress}%`;
         } else if (state.status === "fail") {
+          status.textContent = "Discord could not update";
+          document.getElementById("message").textContent = state.message;
+          document.getElementById("details").textContent = state.details;
           let seconds = state.seconds;
-          const render = () => (status.textContent = `Update failed — retrying in ${seconds} sec…`);
+          pause.hidden = seconds === null;
+          if (pause.hidden && document.activeElement === pause) retry.focus();
+          const render = () =>
+            (document.getElementById("retry-status").textContent =
+              seconds === null ? "Automatic retries paused." : `Retrying in ${seconds} sec…`);
           render();
-          countdown = setInterval(() => {
-            seconds = Math.max(0, seconds - 1);
-            render();
-          }, 1000);
+          if (seconds !== null)
+            countdown = setInterval(() => {
+              seconds = Math.max(0, seconds - 1);
+              render();
+            }, 1000);
+          if (!wasFailed) retry.focus();
         } else {
-          status.textContent = state.status === "starting" ? "Starting…" : "Checking for updates…";
+          if (wasFailed) document.getElementById("quit").focus();
+          document.querySelector("details").open = false;
+          status.textContent =
+            state.status === "starting"
+              ? "Starting Discord…"
+              : `${state.label || "Checking for updates"}…`;
         }
       });
     </script>

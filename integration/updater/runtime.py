@@ -18,7 +18,15 @@ import time
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from support import checksum, download, object_value, progress, read_object, write_json
+from support import (
+    checksum,
+    download,
+    object_value,
+    progress,
+    read_object,
+    replace_damaged,
+    write_json,
+)
 
 REPOSITORY = "discord-patched-electron/discord-patched-electron"
 CACHE_REPOSITORY = "discord-patched-electron/cache"
@@ -222,6 +230,16 @@ def probe(executable: Path, version: str):
         raise ValueError("Downloaded Electron version differs from the signed release")
 
 
+def runtime_files(directory: Path) -> dict:
+    return {
+        item.relative_to(directory).as_posix(): checksum(item)
+        for item in sorted(directory.rglob("*"))
+        if item.is_file()
+        and item.name != "runtime.json"
+        and item.relative_to(directory).parts[0] != "resources"
+    }
+
+
 def validate_generation(root: Path, app: Path, policy: dict, digest: str) -> tuple[Path, dict]:
     if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
         raise ValueError("Invalid runtime generation")
@@ -234,6 +252,7 @@ def validate_generation(root: Path, app: Path, policy: dict, digest: str) -> tup
         or not all((generation / name).is_file() for name in REQUIRED_FILES)
         or (generation / "resources").resolve() != (app / "resources").resolve()
         or checksum(generation / "electron") != info["executable_sha256"]
+        or ("files" in info and runtime_files(generation) != info["files"])
     ):
         raise ValueError("Incomplete or mismatched runtime generation")
     return generation / "electron", info
@@ -307,17 +326,21 @@ def _ensure_runtime(app: Path, profile: Path, *, offline: bool) -> Path:
                     # A crash after rename but before publishing current.json
                     # leaves a complete generation. Verify and reuse it without
                     # downloading or mutating files a process might be using.
-                    executable, info = validate_generation(
-                        root, app, policy, incoming["archive_sha256"]
-                    )
-                    if any(
-                        info.get(key) != incoming[key]
-                        for key in ("electron_version", "runtime_key", "archive_sha256")
-                    ):
-                        raise ValueError("Cached runtime differs from the signed release")
-                    probe(executable, incoming["electron_version"])
-                    write_json(root / "current.json", incoming["archive_sha256"])
-                    return executable
+                    try:
+                        executable, info = validate_generation(
+                            root, app, policy, incoming["archive_sha256"]
+                        )
+                        if any(
+                            info.get(key) != incoming[key]
+                            for key in ("electron_version", "runtime_key", "archive_sha256")
+                        ):
+                            raise ValueError("Cached runtime differs from the signed release")
+                        probe(executable, incoming["electron_version"])
+                    except FAILURES as error:
+                        print(f"Repairing damaged runtime cache: {error}", file=sys.stderr)
+                    else:
+                        write_json(root / "current.json", incoming["archive_sha256"])
+                        return executable
                 print(
                     f"Downloading patched Electron {incoming['electron_version']} from GitHub",
                     file=sys.stderr,
@@ -333,8 +356,9 @@ def _ensure_runtime(app: Path, profile: Path, *, offline: bool) -> Path:
                 (staged / "resources").symlink_to(app / "resources", target_is_directory=True)
                 probe(staged / "electron", incoming["electron_version"])
                 incoming["executable_sha256"] = checksum(staged / "electron")
+                incoming["files"] = runtime_files(staged)
                 write_json(staged / "runtime.json", incoming)
-                staged.rename(destination)
+                replace_damaged(staged, destination)
                 write_json(root / "current.json", incoming["archive_sha256"])
                 progress("installed", "Electron")
                 return destination / "electron"

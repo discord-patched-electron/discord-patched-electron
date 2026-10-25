@@ -1,6 +1,6 @@
 const { EventEmitter } = require("node:events");
-const { execFile } = require("node:child_process");
 const path = require("node:path");
+const runUpdate = require("./runner.cjs");
 
 module.exports = function createUpdater(app, state, host, root, clientRoot, installedHost) {
   const events = new EventEmitter();
@@ -11,7 +11,8 @@ module.exports = function createUpdater(app, state, host, root, clientRoot, inst
       { installedVersion: value.version },
     ]),
   );
-  let checking = false;
+  let task,
+    stopped = false;
   const api = {
     events,
     supportsEventObjects: true,
@@ -48,53 +49,40 @@ module.exports = function createUpdater(app, state, host, root, clientRoot, inst
       app.quit();
     },
     checkForUpdates() {
-      if (checking || process.env.DPE_CLIENT_OFFLINE === "1") return;
-      checking = true;
+      if (task || stopped || process.env.DPE_CLIENT_OFFLINE === "1") return;
       events.emit(api.CHECKING_FOR_UPDATES);
-      execFile(
-        "python3",
-        [path.join(root, "integration/updater/check.py"), root, clientRoot, state.channel],
-        {
-          timeout: 900000,
-          env: {
-            ...process.env,
-            LD_PRELOAD: "",
-            DPE_UPDATE_PROGRESS: "0",
-            DPE_PREPARE_ONLY: "1",
-            PYTHONPATH: path.join(root, "python"),
-            PYTHONNOUSERSITE: "1",
-            PYTHONDONTWRITEBYTECODE: "1",
-          },
-        },
-        (error, stdout, stderr) => {
-          checking = false;
-          if (stderr) console.error(stderr.trim());
-          let changed = false;
-          if (!error) {
-            try {
-              const prepared = JSON.parse(stdout);
-              if (typeof prepared.host !== "string" || typeof prepared.runtime !== "string")
-                throw new Error("Invalid prepared update result");
-              changed =
-                prepared.host !== host ||
-                prepared.runtime !== (process.env.DPE_RUNTIME_SOURCE || process.execPath);
-            } catch (invalid) {
-              error = invalid;
-              console.error(invalid.message);
-            }
-          }
-          const count = changed ? 1 : 0;
-          events.emit(api.UPDATE_CHECK_FINISHED, {
-            succeeded: !error,
-            updateCount: count,
-            manualRequired: false,
-          });
-          if (count) events.emit(api.DOWNLOADING_MODULES_FINISHED, { succeeded: 1, failed: 0 });
-        },
+      task = runUpdate({ root, clientRoot, channel: state.channel, prepareOnly: true });
+      const finish = (error, prepared) => {
+        task = null;
+        if (stopped) return;
+        if (error) console.error(error.message);
+        const changed =
+          !error &&
+          (prepared.host !== host ||
+            prepared.runtime !== (process.env.DPE_RUNTIME_SOURCE || process.execPath));
+        const count = changed ? 1 : 0;
+        events.emit(api.UPDATE_CHECK_FINISHED, {
+          succeeded: !error,
+          updateCount: count,
+          manualRequired: false,
+        });
+        if (count) events.emit(api.DOWNLOADING_MODULES_FINISHED, { succeeded: 1, failed: 0 });
+      };
+      task.promise.then(
+        (prepared) => finish(null, prepared),
+        (error) => finish(error),
       );
     },
   };
   const timer = setInterval(() => api.checkForUpdates(), 15 * 60 * 1000);
   timer.unref();
+  app.on("before-quit", (event) => {
+    stopped = true;
+    clearInterval(timer);
+    if (!task) return;
+    event.preventDefault();
+    task.cancel();
+    task.promise.catch(() => {}).then(() => app.quit());
+  });
   return api;
 };

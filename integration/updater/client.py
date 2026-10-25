@@ -7,6 +7,7 @@ import concurrent.futures
 import fcntl
 import hashlib
 import http.client
+import importlib
 import json
 import os
 import re
@@ -25,6 +26,7 @@ from support import (
     object_value,
     progress,
     read_object,
+    replace_damaged,
     write_json,
 )
 
@@ -39,6 +41,18 @@ FAILURES = (
     tarfile.TarError,
     http.client.HTTPException,
 )
+
+
+def prerequisites():
+    if not shutil.which("brotli"):
+        raise ValueError("Brotli is missing. Install it with your package manager, then try again.")
+    for name in ("capstone", "elftools"):
+        try:
+            importlib.import_module(name)
+        except (ImportError, OSError) as error:
+            raise ValueError(
+                "This installation is missing its bundled update libraries. Extract or reinstall the complete package, then launch again."
+            ) from error
 
 
 def compatibility_key() -> str:
@@ -196,11 +210,35 @@ def module_path(cache: Path, name: str, source: dict, compatibility: str) -> Pat
     return cache / (name + "-" + source["sha256"] + "-" + compatibility)
 
 
+def module_files(directory: Path) -> dict:
+    return {
+        item.relative_to(directory).as_posix(): (
+            {"link": str(item.readlink())} if item.is_symlink() else {"sha256": checksum(item)}
+        )
+        for item in sorted(directory.rglob("*"))
+        if item.name != ".complete" and (item.is_file() or item.is_symlink())
+    }
+
+
+def module_complete(directory: Path, source: dict) -> bool:
+    try:
+        marker = (directory / ".complete").read_text()
+        if not (directory / "index.js").is_file():
+            return False
+        # Retain offline access to complete clients prepared by earlier packages.
+        if marker == source["sha256"]:
+            return True
+        info = object_value(json.loads(marker), "Module integrity record")
+        return info["sha256"] == source["sha256"] and info["files"] == module_files(directory)
+    except FAILURES:
+        return False
+
+
 def install_module(
     cache: Path, name: str, source: dict, compatibility: str, executable: Path
 ) -> Path:
     destination = module_path(cache, name, source, compatibility)
-    if (destination / ".complete").is_file():
+    if module_complete(destination, source):
         return destination
     print("Downloading " + name, file=sys.stderr)
     with tempfile.TemporaryDirectory(prefix="module-", dir=cache) as temporary:
@@ -243,8 +281,10 @@ def install_module(
                 timeout=120,
                 stdout=sys.stderr,
             )
-        (extracted / ".complete").write_text(source["sha256"])
-        extracted.rename(destination)
+        write_json(
+            extracted / ".complete", {"sha256": source["sha256"], "files": module_files(extracted)}
+        )
+        replace_damaged(extracted, destination)
     return destination
 
 
@@ -255,11 +295,17 @@ def validate_host(root: Path, channel: str, selected: str) -> Path:
     state = read_object(host / "client.json")
     if state["channel"] != channel or identity(state) != selected:
         raise ValueError("Discord generation identity mismatch")
+    info = read_object(host / "resources/build_info.json")
+    if (
+        info.get("releaseChannel") != channel
+        or info.get("version") != state["version"]
+        or not REQUIRED.issubset(state["modules"])
+    ):
+        raise ValueError("Incomplete Discord generation metadata")
     for name, source in object_value(state["modules"], "Cached Discord modules").items():
         module = module_path(root / "cache", name, source, state["compatibility"])
         if (
-            (module / ".complete").read_text() != source["sha256"]
-            or not (module / "index.js").is_file()
+            not module_complete(module, source)
             or (host / "modules" / name).resolve() != module.resolve()
         ):
             raise ValueError(f"Incomplete Discord module: {name}")
@@ -324,10 +370,12 @@ def ensure_client(
             pending = [
                 (name, source)
                 for name, source in state["modules"].items()
-                if not (
-                    module_path(cache, name, source, state["compatibility"]) / ".complete"
-                ).is_file()
+                if not module_complete(
+                    module_path(cache, name, source, state["compatibility"]), source
+                )
             ]
+            if pending:
+                prerequisites()
             progress("batch", "Discord modules", total=len(pending))
 
             def install(item):
@@ -340,7 +388,9 @@ def ensure_client(
             generations = root / "generations"
             generations.mkdir(exist_ok=True)
             destination = generations / generation
-            if not destination.exists():
+            try:
+                validate_host(root, channel, generation)
+            except FAILURES:
                 with tempfile.TemporaryDirectory(
                     prefix="generation-", dir=generations
                 ) as temporary:
@@ -360,7 +410,7 @@ def ensure_client(
                         },
                     )
                     write_json(staged / "client.json", state)
-                    staged.rename(destination)
+                    replace_damaged(staged, destination)
             validate_host(root, channel, generation)
             write_json(root / "current.json", generation)
             return destination

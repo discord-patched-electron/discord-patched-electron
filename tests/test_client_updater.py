@@ -158,6 +158,67 @@ class ModuleUpdates(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 client.normalize(value, "canary")
 
+    def test_damaged_cached_files_markers_and_generation_metadata_can_be_repaired(self):
+        def extract(_archive, destination):
+            (destination / "index.js").write_text("entry point")
+            (destination / "payload.node").write_text("verified native payload")
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(client, "fetch") as fetch,
+            patch.object(client, "extract_module", side_effect=extract),
+            patch.object(client.subprocess, "run"),
+            patch.object(client, "compatibility_key", return_value="b" * 64),
+            patch.object(client, "latest", return_value=client.normalize(manifest(), "canary")),
+        ):
+            root = Path(temporary)
+            host = client.ensure_client(root, "canary")
+            module = (host / "modules/discord_voice").resolve()
+            for name in ("index.js", "payload.node", ".complete"):
+                with self.subTest(name=name):
+                    (module / name).write_text("corrupt")
+                    with self.assertRaisesRegex(ValueError, "incomplete"):
+                        client.ensure_client(root, "canary", offline=True)
+                    calls = fetch.call_count
+                    self.assertEqual(client.ensure_client(root, "canary"), host)
+                    self.assertEqual(fetch.call_count, calls + 1)
+                    self.assertEqual(
+                        (module / "payload.node").read_text(), "verified native payload"
+                    )
+            (host / "resources/build_info.json").unlink()
+            self.assertEqual(client.ensure_client(root, "canary"), host)
+            self.assertTrue((host / "resources/build_info.json").is_file())
+            self.assertTrue(list((root / "cache").glob("*.damaged-*")))
+            self.assertTrue(list((root / "generations").glob("*.damaged-*")))
+            self.assertEqual(client.current_host(root, "canary"), host)
+
+    def test_missing_update_dependencies_do_not_block_a_complete_cached_client(self):
+        def extract(_archive, destination):
+            (destination / "index.js").write_text("entry point")
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(client, "fetch"),
+            patch.object(client, "extract_module", side_effect=extract),
+            patch.object(client.subprocess, "run"),
+            patch.object(client, "compatibility_key", return_value="b" * 64),
+            patch.object(
+                client, "latest", return_value=client.normalize(manifest(), "canary")
+            ) as latest,
+        ):
+            root = Path(temporary)
+            host = client.ensure_client(root, "canary")
+            with patch.object(
+                client, "prerequisites", side_effect=ValueError("Brotli is missing")
+            ) as prerequisites:
+                self.assertEqual(client.ensure_client(root, "canary"), host)
+                prerequisites.assert_not_called()
+                updated = client.normalize(manifest(124), "canary")
+                updated["modules"]["discord_voice"]["sha256"] = "c" * 64
+                latest.return_value = updated
+                self.assertEqual(client.ensure_client(root, "canary"), host)
+                prerequisites.assert_called_once()
+
     def test_archives_reject_traversal_external_links_and_devices(self):
         for name, kind, link in (
             ("files/../../outside", tarfile.REGTYPE, ""),
@@ -231,6 +292,21 @@ class ModuleUpdates(unittest.TestCase):
                 client.fetch("https://canary.dl2.discordapp.net/test", archive, "a" * 64)
             with self.assertRaisesRegex(ValueError, "size limit"):
                 client.fetch("https://canary.dl2.discordapp.net/test", archive, "a" * 64, limit=2)
+
+    def test_short_download_is_rejected_even_without_a_progress_label(self):
+        class Opener:
+            def open(self, *_args, **_kwargs):
+                response = io.BytesIO(b"short")
+                response.headers = Message()
+                response.headers["Content-Length"] = "100"
+                return response
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(client.urllib.request, "build_opener", return_value=Opener()),
+        ):
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                client.download("https://example.invalid/metadata", Path(temporary) / "download")
 
     def test_internal_executable_symlinks_are_preserved(self):
         with tempfile.TemporaryDirectory() as temporary:

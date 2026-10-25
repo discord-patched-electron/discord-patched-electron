@@ -46,7 +46,12 @@ module.exports = function splashState() {
       };
     }
     if (event.stage === "ready") return { status: "starting" };
-    if (event.stage === "error") return { status: "fail", seconds: 10 };
-    return { status: "checking-for-updates" };
+    if (event.stage === "error")
+      return {
+        status: "fail",
+        seconds: 10,
+        ...Object.fromEntries(Object.entries(event).filter(([key]) => key !== "stage")),
+      };
+    return { status: "checking-for-updates", label: event.label };
   };
 };

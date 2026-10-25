@@ -29,6 +29,8 @@ function fixture() {
       assert.equal(options.env.PYTHONNOUSERSITE, "1");
       assert.equal(options.env.DPE_UPDATE_PROGRESS, "1");
       assert.equal(options.env.LD_PRELOAD, "");
+      assert.equal(options.env.PYTHONHOME, "");
+      assert.equal(options.env.DPE_PREPARE_ONLY, "0");
       return child;
     },
   );
@@ -41,9 +43,15 @@ test("startup streams fragmented progress and waits for a complete result", asyn
   assert.equal(states.length, 0);
   child.stdout.write('"label":"Patched Electron","current":40,"total":100}\n');
   assert.equal(states[0].label, "Patched Electron");
-  child.stdout.end('{"host":"/client/new","runtime":"/runtime/new"}\n');
+  const prepared = {
+    host: "/client/new",
+    runtime: "/runtime/new",
+    installed_runtime: "/profile/app/electron",
+    voice: "/profile/app/voice",
+  };
+  child.stdout.end(JSON.stringify(prepared) + "\n");
   child.emit("close", 0);
-  assert.deepEqual(await promise, { host: "/client/new", runtime: "/runtime/new" });
+  assert.deepEqual(await promise, prepared);
 });
 
 test("missing Python and incomplete results become retryable errors", async () => {
@@ -62,4 +70,45 @@ test("invalid output and cancellation stop preparation instead of launching Disc
   const cancelled = fixture();
   cancelled.cancel();
   await assert.rejects(cancelled.promise, /cancelled/);
+});
+
+test("cancellation terminates a helper group even when its children ignore SIGTERM", async () => {
+  const { spawn } = require("node:child_process");
+  const fs = require("node:fs");
+  let task;
+  const pids = [];
+  task = runUpdate(
+    {
+      root: "/fixture",
+      clientRoot: "/fixture/profile",
+      channel: "canary",
+      prepareOnly: true,
+      killDelayMs: 50,
+      timeoutMs: 5000,
+      onProgress(state) {
+        pids.push(state.pid);
+        task.cancel();
+      },
+    },
+    (_command, _args, options) => {
+      assert.equal(options.env.DPE_PREPARE_ONLY, "1");
+      const childCode = `process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);
+      console.log(JSON.stringify({type: 'progress', pid: process.pid}));`;
+      const parentCode = `process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);
+      require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(childCode)}], {stdio: 'inherit'});`;
+      const child = spawn(process.execPath, ["-e", parentCode], options);
+      pids.push(child.pid);
+      return child;
+    },
+  );
+  await assert.rejects(task.promise, /cancelled/);
+  assert.equal(pids.length, 2);
+  for (const pid of pids) {
+    try {
+      // An adopted child can briefly remain a zombie until init reaps it.
+      assert.match(fs.readFileSync(`/proc/${pid}/stat`, "utf8"), /\) Z /);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
 });

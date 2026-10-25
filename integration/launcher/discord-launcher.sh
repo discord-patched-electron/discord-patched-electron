@@ -78,21 +78,30 @@ if [[ -f "$root/client-distribution.json" ]]; then
   export PYTHONPATH="$root/python"
   unset PYTHONHOME ELECTRON_RUN_AS_NODE
   export DPE_CLIENT_ROOT="$DPE_PROFILE_DIR/dpe-updater"
-  channel=${name#discord-}
   export DPE_LAUNCHER
   DPE_LAUNCHER=$(readlink -f -- "${BASH_SOURCE[0]}")
   # Show progress before starting Python or downloading anything. The UI commits
   # complete updates, then this launcher starts the selected runtime with its
   # camera preload and the user's existing mod loader.
-  DPE_UPDATER_UI=1 "$root/runtime/electron" "${flags[@]}"
-  DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/runtime.py" "$root" "$DPE_PROFILE_DIR" --offline)
-  DPE_CLIENT_HOST=$(python3 "$root/integration/updater/client.py" "$DPE_CLIENT_ROOT" "${channel%%-*}" --offline)
-  export DPE_CLIENT_HOST
-  export DPE_RUNTIME_SOURCE="$DPE_RUNTIME_EXECUTABLE"
-  installed=$(python3 "$root/integration/updater/installation.py" "$root" "$DPE_PROFILE_DIR" "$DPE_CLIENT_HOST" "$DPE_RUNTIME_SOURCE")
+  launch_result=$(mktemp)
+  trap 'rm -f -- "$launch_result"' EXIT
+  if DPE_LAUNCH_RESULT="$launch_result" DPE_UPDATER_UI=1 "$root/runtime/electron" "${flags[@]}"; then
+    :
+  else
+    status=$?
+    # The existing instance already received the arguments. Do not activate an
+    # update underneath it or report a failed desktop launch.
+    if [[ $status == 2 ]]; then exit 0; fi
+    exit "$status"
+  fi
+  installed=$(python3 "$root/integration/updater/check.py" --launch-paths "$launch_result")
   mapfile -t installed_paths <<<"$installed"
-  export DPE_RUNTIME_EXECUTABLE=${installed_paths[0]}
-  DPE_VOICE_ROOT=${installed_paths[1]}
+  export DPE_RUNTIME_SOURCE=${installed_paths[0]}
+  export DPE_CLIENT_HOST=${installed_paths[1]}
+  export DPE_RUNTIME_EXECUTABLE=${installed_paths[2]}
+  DPE_VOICE_ROOT=${installed_paths[3]}
+  rm -f -- "$launch_result"
+  trap - EXIT
 fi
 if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
   if [[ ! -f "$root/client-distribution.json" ]]; then

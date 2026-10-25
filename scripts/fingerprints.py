@@ -41,6 +41,8 @@ def integration_key(
                     "integration/updater/window.cjs",
                     "integration/updater/splash-assets.cjs",
                     "integration/updater/splash-state.cjs",
+                    "integration/updater/splash-preload.cjs",
+                    "integration/updater/failure.cjs",
                     "integration/updater/modern-splash.html",
                     "integration/updater/splash-media.json",
                     "integration/updater/openasar/index.html",
