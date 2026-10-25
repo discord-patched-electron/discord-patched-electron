@@ -60,6 +60,10 @@ def stage(output: Path, channel: str, version: str, asar: str, source_archive: P
             output / "integration" / directory,
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
+    shutil.copy2(
+        ROOT / "packaging/release-signing-key.asc",
+        output / "integration/updater/release-signing-key.asc",
+    )
     for source, destination in SIDECARS.items():
         shutil.copy2(
             ROOT / "integration/audio" / source, output / "integration/audio" / destination
@@ -97,6 +101,29 @@ def stage(output: Path, channel: str, version: str, asar: str, source_archive: P
         "client-distribution.json",
     ):
         (output / filename).chmod(0o644)
+
+
+def configure_runtime(
+    output: Path,
+    channel: str,
+    electron_channel: str,
+    version: str,
+    runtime_key: str,
+    archive_sha256: str,
+):
+    write_json(
+        output / "runtime-update.json",
+        {
+            "schema": 1,
+            "channel": channel,
+            "electron_channel": electron_channel,
+            "electron_version": version,
+            "runtime_key": runtime_key,
+            "archive_sha256": archive_sha256,
+            "release_version": None,
+        },
+    )
+    (output / "runtime-update.json").chmod(0o644)
 
 
 def validate_distribution(app: Path):

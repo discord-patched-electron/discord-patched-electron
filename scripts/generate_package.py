@@ -42,6 +42,7 @@ SUPPORT = [
     "scripts/stage_updater.py",
     "packaging/upstream/krisp-patcher.py",
     "packaging/upstream/provenance.json",
+    "packaging/release-signing-key.asc",
     "config/openasar.lock.json",
     "discord-patched-electron.png",
     "THIRD_PARTY.md",

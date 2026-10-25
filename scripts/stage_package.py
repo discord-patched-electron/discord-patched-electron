@@ -7,8 +7,8 @@ import subprocess
 from pathlib import Path
 
 from common import read_json, sha256
+from stage_updater import configure_runtime, validate_distribution
 from stage_updater import stage as stage_updater
-from stage_updater import validate_distribution
 
 
 def stage(inputs: dict, directory: Path, asar: str):
@@ -38,6 +38,14 @@ def stage(inputs: dict, directory: Path, asar: str):
 
         shutil.rmtree(resources)
     resources.symlink_to("../resources")
+    configure_runtime(
+        destination,
+        client["channel"],
+        inputs["electron_channel"],
+        runtime["version"],
+        runtime["runtime_key"],
+        runtime["sha256"],
+    )
     validate_distribution(destination)
     for name in (
         "electron",

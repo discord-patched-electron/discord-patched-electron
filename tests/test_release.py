@@ -131,6 +131,11 @@ class PortableReleases(unittest.TestCase):
             self.assertIn("pipewire-utils", config["overrides"]["rpm"]["depends"])
             self.assertIn("pipewire", config["overrides"]["archlinux"]["depends"])
             self.assertIn("python", config["overrides"]["archlinux"]["depends"])
+            self.assertIn("gnupg", config["overrides"]["archlinux"]["depends"])
+            self.assertIn("gnupg2", config["overrides"]["rpm"]["depends"])
+            self.assertTrue(
+                {"gpg", "gpgv", "apparmor"}.issubset(config["overrides"]["deb"]["depends"])
+            )
             self.assertTrue(config["contents"][0]["dst"].startswith("/opt/"))
         self.assertEqual(len(names), 1)
         for disabled in ("stable", "ptb"):

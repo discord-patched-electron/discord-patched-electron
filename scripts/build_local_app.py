@@ -32,6 +32,7 @@ from patch_app_audio import patch as audio_patch
 from patch_desktop_core import patch as desktop_patch
 from patch_krisp import patch as krisp_patch
 from prepare_app import prepare
+from stage_updater import configure_runtime
 from stage_updater import stage as stage_updater
 
 
@@ -111,6 +112,15 @@ def build(
     if runtime_resources.exists():
         shutil.rmtree(runtime_resources)
     runtime_resources.symlink_to("../resources", target_is_directory=True)
+    if portable:
+        configure_runtime(
+            output,
+            channel,
+            electron,
+            capacity["compiled_version"],
+            capacity["runtime_key"],
+            capacity["archive_sha256"],
+        )
     if not portable:
         krisp = output / "modules/discord_krisp"
         write_json(output / "krisp-patch.json", krisp_patch(krisp / "discord_krisp.node"))
@@ -193,8 +203,8 @@ def build(
             f"Discord {channel} with patched Electron\n\n"
             "Extract the whole folder, then run ./launch.sh. You can move the folder.\n"
             "First launch downloads Discord directly; an internet connection is required.\n"
-            "Discord updates itself in your profile. This package supplies patched Electron.\n"
-            "Requires x86-64-v3, Linux desktop libraries, Python 3 with capstone and pyelftools, Brotli, PipeWire and PulseAudio tools.\n"
+            "Discord modules and signed patched Electron builds update automatically in your profile.\n"
+            "Requires x86-64-v3, Linux desktop libraries, Python 3 with capstone and pyelftools, Brotli, GnuPG (gpg and gpgv), PipeWire and PulseAudio tools.\n"
             f"Settings: ~/.config/discord-{channel}-patched-electron.conf\n"
             f"Profile: ~/.config/{profile_name(channel)}\n"
             "See https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/install.md\n"

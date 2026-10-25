@@ -60,7 +60,7 @@ may need different dependencies.
 Extract the `.tar.gz`, open its folder and run `./launch.sh`. Keep all the files
 together. The folder can be moved. Install GTK 3, NSS, ALSA, libpulse, GBM, libdrm,
 CUPS, Xss, Xtst, libatomic, Python 3 with Capstone and pyelftools, Brotli, CA
-certificates, Bash and coreutils through your package manager.
+certificates, GnuPG (`gpg` and `gpgv`), Bash and coreutils through your package manager.
 Screen-share audio also needs PipeWire tools, PulseAudio tools, a session manager
 such as WirePlumber, and Zenity.
 
@@ -73,21 +73,26 @@ On GitHub, select **Watch → Custom → Releases** to get notifications of new 
 Choose email or inbox delivery in your [notification settings](https://github.com/settings/notifications).
 Release notes list the Discord and Electron versions, changes and test results.
 
-Discord modules update automatically on launch and are checked every 15 minutes
-while running. Use Discord's update button to restart when an update is ready.
-Downloads are verified against Discord's manifest. A failed update keeps the
-previous complete client. `DPE_CLIENT_OFFLINE=1` starts an already downloaded client
-without checking for updates.
+Discord modules and patched Electron update automatically on launch and are
+checked every 15 minutes while running. Use Discord's update button to restart
+when either update is ready. Modules come from Discord; Electron comes from the
+project's approved GitHub release and is verified using its signed checksums.
+Downloads and compatibility checks finish before activation. A failed download
+keeps the current installation.
 
-For patched Electron and integration updates, close Discord, then install the
-next package or replace the extracted folder.
+Electron updates live in your profile and need no administrator access. Your
+installed mod loader stays in place. For bootstrap and Linux integration updates,
+close Discord, then install the next package or replace the extracted folder.
 Reinstall Vencord or Equicord afterward using its [official installer](client-mods.md).
 You do not need to uninstall it first.
 
 Settings, login sessions and cache use the standard `~/.config/discordcanary`
 folder (or under `XDG_CONFIG_HOME` if set). Updates preserve them and your
 [launcher settings](linux-launcher.md). Close any running Canary instance first.
-Downloaded modules live in `dpe-updater/` inside that profile.
+Downloaded modules live in `dpe-updater/` and Electron versions in `dpe-runtime/`
+inside that profile. `DPE_CLIENT_OFFLINE=1` skips both update checks.
+`DPE_RUNTIME_UPDATES=0` skips only GitHub checks while retaining an already updated
+runtime; `DPE_RUNTIME_BUNDLED=1` uses the runtime installed with the package.
 
 Older builds used `~/.config/discord-canary-prerelease-patched-electron-bin`.
 That folder is left untouched. To keep using it, set `DISCORD_USER_DATA_DIR`

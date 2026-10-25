@@ -69,11 +69,13 @@ if ((${#disabled[@]})); then flags+=("--disable-features=$(
 )"); fi
 # Use the standard channel profile unless a test or user explicitly overrides it.
 export DISCORD_USER_DATA_DIR=${DISCORD_USER_DATA_DIR:-"$config_root/@PROFILE_NAME@"}
+export DPE_RUNTIME_EXECUTABLE="$root/runtime/electron"
 if [[ -f "$root/client-distribution.json" ]]; then
   export DPE_CLIENT_ROOT="$DISCORD_USER_DATA_DIR/dpe-updater"
   channel=${name#discord-}
   updater_flags=()
   if [[ ${DPE_CLIENT_OFFLINE:-0} == 1 ]]; then updater_flags+=(--offline); fi
+  DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/runtime.py" "$root" "$DISCORD_USER_DATA_DIR" "${updater_flags[@]}")
   DPE_CLIENT_HOST=$(python3 "$root/integration/updater/client.py" "$DPE_CLIENT_ROOT" "${channel%%-*}" "${updater_flags[@]}")
   export DPE_CLIENT_HOST
   export DPE_LAUNCHER
@@ -96,4 +98,11 @@ fi
 # Keep its settings in this channel's profile; package updates own the bootstrap.
 export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DISCORD_USER_DATA_DIR/equicord"}
 export DISABLE_UPDATER_AUTO_PATCHING=1
-exec "$root/runtime/electron" "${flags[@]}"
+# Ubuntu's installed profile grants the user-namespace sandbox to this app.
+# Enter that same profile when its verified runtime lives in the user cache.
+if [[ "$DPE_RUNTIME_EXECUTABLE" != "$root/runtime/electron" && -f "/etc/apparmor.d/$name" ]] && command -v aa-exec >/dev/null 2>&1; then
+  if aa-exec -p "$name" -- true 2>/dev/null; then
+    exec aa-exec -p "$name" -- "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"
+  fi
+fi
+exec "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"

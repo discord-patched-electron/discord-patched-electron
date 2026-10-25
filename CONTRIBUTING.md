@@ -7,7 +7,8 @@ starting a larger change so we can agree on its scope.
 
 Install Git, [Bun](https://bun.sh/docs/installation),
 [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 24 on Linux.
-Native tests also need a C/C++ compiler; updater tests need `brotli`. uv manages Python and the development
+Native tests also need a C/C++ compiler; updater tests need `brotli` and GnuPG
+(`gpg` and `gpgv`). uv manages Python and the development
 tools. Bun manages JavaScript dependencies. Node is used by Electron's ASAR tools
 and the JavaScript test suite.
 
@@ -33,7 +34,7 @@ bun run test
 `format` fixes style. `lint` checks it and reports code and workflow problems.
 Ruff handles Python, and Oxlint/Oxfmt handle JavaScript and repository text.
 The same commands also check shell scripts, native code and GitHub workflows.
-The setup commands install the language tools; install the compiler and Brotli
+The setup commands install the language tools; install the compiler, Brotli and GnuPG
 with your system package manager.
 
 Use `bun run test:python` or `bun run test:js` to run one suite while iterating.

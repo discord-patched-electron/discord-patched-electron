@@ -203,7 +203,9 @@ def install_module(cache: Path, name: str, source: dict, compatibility: str) -> 
             # our in-memory transforms before making this generation current.
             subprocess.run(
                 [
-                    str(PACKAGE_ROOT / "runtime/electron"),
+                    os.environ.get(
+                        "DPE_RUNTIME_EXECUTABLE", str(PACKAGE_ROOT / "runtime/electron")
+                    ),
                     str(PACKAGE_ROOT / "integration/updater/patches.cjs"),
                     str(extracted),
                 ],

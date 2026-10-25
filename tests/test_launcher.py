@@ -9,16 +9,35 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Launcher(unittest.TestCase):
-    def launch(self, config="", legacy="", args=(), env=None, details=False):
+    def launch(self, config="", legacy="", args=(), env=None, details=False, cached=False):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "runtime").mkdir()
             runtime = root / "runtime/electron"
             runtime.write_text(
                 "#!/usr/bin/env python3\nimport json,sys,os\n"
-                'print(json.dumps({"flags":sys.argv[1:], "profile":os.environ["DISCORD_USER_DATA_DIR"], "desktop":os.environ["CHROME_DESKTOP"]}))\n'
+                'print(json.dumps({"flags":sys.argv[1:], "profile":os.environ["DISCORD_USER_DATA_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"]}))\n'
             )
             runtime.chmod(0o755)
+            if cached:
+                selected = root / "cached runtime/electron"
+                selected.parent.mkdir()
+                selected.write_bytes(runtime.read_bytes())
+                selected.chmod(0o755)
+                updater = root / "integration/updater"
+                updater.mkdir(parents=True)
+                (root / "client-distribution.json").write_text("{}")
+                (updater / "runtime.py").write_text(
+                    "import sys\nfrom pathlib import Path\n"
+                    "assert '--offline' in sys.argv\n"
+                    "print(Path(sys.argv[1]) / 'cached runtime/electron')\n"
+                )
+                (updater / "client.py").write_text(
+                    "import os,sys\n"
+                    "assert '--offline' in sys.argv\n"
+                    "assert os.environ['DPE_RUNTIME_EXECUTABLE'].endswith('/cached runtime/electron')\n"
+                    "print(sys.argv[1] + '/generation')\n"
+                )
             name = "discord-canary-prerelease-patched-electron-bin"
             (root / f"{name}-flags.conf").write_text(legacy)
             (root / "discord-canary-patched-electron.conf").write_text(config)
@@ -84,6 +103,18 @@ class Launcher(unittest.TestCase):
         self.assertGreater(
             flags.index("--ozone-platform=x11"), flags.index("--ozone-platform=wayland")
         )
+
+    def test_cached_runtime_preserves_app_root_arguments_and_offline_module_preflight(self):
+        result = self.launch(
+            args=["--ozone-platform=x11", "--example=with spaces"],
+            env={"DPE_CLIENT_OFFLINE": "1"},
+            details=True,
+            cached=True,
+        )
+        self.assertEqual(result["runtime"], result["app"] + "/cached runtime/electron")
+        self.assertIn("--example=with spaces", result["flags"])
+        self.assertIn("--ozone-platform=x11", result["flags"])
+        self.assertTrue(result["profile"].endswith("/discordcanary"))
 
     def test_no_shell_evaluation_and_disable_default(self):
         flags = self.launch(

@@ -122,6 +122,9 @@ ws.addEventListener("error", () => process.exit(3));
                                     )
                                 )
                                 if report["passed"]:
+                                    report["runtime_executable"] = str(
+                                        Path(f"/proc/{process.pid}/exe").resolve(strict=True)
+                                    )
                                     break
                     if report["passed"]:
                         break

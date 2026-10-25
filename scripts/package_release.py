@@ -112,6 +112,7 @@ def metadata(
                     "python-capstone",
                     "python-pyelftools",
                     "ca-certificates",
+                    "gnupg",
                     "brotli",
                     "bash",
                     "coreutils",
@@ -143,6 +144,9 @@ def metadata(
                     "python3-capstone",
                     "python3-pyelftools",
                     "ca-certificates",
+                    "gpg",
+                    "gpgv",
+                    "apparmor",
                     "brotli",
                     "bash",
                     "coreutils",
@@ -170,6 +174,7 @@ def metadata(
                     "python3-capstone",
                     "python3-pyelftools",
                     "ca-certificates",
+                    "gnupg2",
                     "brotli",
                     "bash",
                     "coreutils",
@@ -230,6 +235,16 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
         raise ValueError("Runtime changed after assembly")
     if output.exists():
         raise ValueError("Choose a fresh package output directory")
+    policy = read_json(app / "runtime-update.json")
+    if (
+        policy["channel"] != build["channel"]
+        or policy["electron_version"] != build["capacity"]["compiled_version"]
+        or policy["runtime_key"] != build["capacity"]["runtime_key"]
+        or policy["archive_sha256"] != build["capacity"]["archive_sha256"]
+    ):
+        raise ValueError("Runtime update policy differs from the packaged compiler artifact")
+    policy["release_version"] = version
+    write_json(app / "runtime-update.json", policy)
     normalize_permissions(app)
     config = metadata(app, version, build["channel"], epoch, build["capacity"]["source"]["target"])
     libc = required_glibc(app)

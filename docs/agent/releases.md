@@ -123,7 +123,8 @@ client-free layout under `/usr/lib/`; it is retained for validation, not publish
 as the pacman test artifact.
 
 The namespace sandbox stays enabled. Debian packages include a scoped AppArmor
-user-namespace rule for Ubuntu. No package enables audio services or overwrites
+user-namespace rule for Ubuntu; `aa-exec` also applies it to verified per-user
+runtime updates. No package enables audio services or overwrites
 user config. No runtime source flags change during packaging.
 
 A checksum-pinned release in [the cache repository](https://github.com/discord-patched-electron/cache)
@@ -133,6 +134,12 @@ capacity digest remains usable when unrelated packaging code changes, so client
 updates don't need an Electron rebuild or lose retained Ninja objects.
 
 ## Package updates
+
+Electron also updates directly from the approved release's signed runtime-cache
+reference. The package ships its baseline identity in `runtime-update.json` and
+the pinned public key. See [runtime activation](client-updater.md#patched-electron-updates).
+Package updates remain responsible for the bootstrap, integrations and system
+dependencies. Automatic runtime updates preserve the installed mod loader.
 
 Release filenames are fixed. Versions remain in package metadata, release tags
 and manifests. AUR download aliases include the version to avoid stale local

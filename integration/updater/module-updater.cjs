@@ -48,12 +48,24 @@ module.exports = function createUpdater(app, state, host, root, clientRoot) {
       events.emit(api.CHECKING_FOR_UPDATES);
       execFile(
         "python3",
-        [path.join(root, "integration/updater/client.py"), clientRoot, state.channel],
+        [path.join(root, "integration/updater/check.py"), root, clientRoot, state.channel],
         { timeout: 900000, env: { ...process.env, LD_PRELOAD: "" } },
         (error, stdout, stderr) => {
           checking = false;
           if (stderr) console.error(stderr.trim());
-          const count = !error && stdout.trim() !== host ? 1 : 0;
+          let changed = false;
+          if (!error) {
+            try {
+              const prepared = JSON.parse(stdout);
+              if (typeof prepared.host !== "string" || typeof prepared.runtime !== "string")
+                throw new Error("Invalid prepared update result");
+              changed = prepared.host !== host || prepared.runtime !== process.execPath;
+            } catch (invalid) {
+              error = invalid;
+              console.error(invalid.message);
+            }
+          }
+          const count = changed ? 1 : 0;
           events.emit(api.UPDATE_CHECK_FINISHED, {
             succeeded: !error,
             updateCount: count,

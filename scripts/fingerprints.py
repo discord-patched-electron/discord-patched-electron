@@ -19,6 +19,8 @@ def integration_key(
                     "scripts/stage_updater.py",
                     "scripts/client_native.py",
                     "integration/updater/client.py",
+                    "integration/updater/runtime.py",
+                    "integration/updater/check.py",
                     "integration/updater/entry.cjs",
                     "integration/updater/module-updater.cjs",
                     "integration/updater/patches.cjs",

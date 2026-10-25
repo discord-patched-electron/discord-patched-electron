@@ -20,7 +20,7 @@ function fixture(env = {}) {
               execFile: (...args) => pending.push(args),
             }
           : require(name),
-      process: { env },
+      process: { env, execPath: "/portable app/runtime/electron" },
       queueMicrotask,
       console: { error: () => {} },
       setInterval(callback, duration) {
@@ -75,12 +75,17 @@ test("checks serialize, advertise prepared generations, and restart through app.
   const [command, args, options, done] = pending.shift();
   assert.equal(command, "python3");
   assert.deepEqual(Array.from(args), [
-    "/portable app/integration/updater/client.py",
+    "/portable app/integration/updater/check.py",
+    "/portable app",
     "/profile",
     "canary",
   ]);
   assert.equal(options.env.LD_PRELOAD, "");
-  done(null, "/profile/generations/new\n", "");
+  done(
+    null,
+    JSON.stringify({ host: "/profile/generations/new", runtime: "/portable app/runtime/electron" }),
+    "",
+  );
   assert.equal(checked[0].succeeded, true);
   assert.equal(checked[0].updateCount, 1);
   assert.equal(downloaded.length, 1);
@@ -105,5 +110,30 @@ test("unchanged or explicitly offline clients do not advertise an update", () =>
   const { updater, pending } = fixture();
   updater.events.on(updater.UPDATE_CHECK_FINISHED, (event) => assert.equal(event.updateCount, 0));
   updater.checkForUpdates();
-  pending.shift()[3](null, "/profile/generations/old\n", "");
+  pending.shift()[3](
+    null,
+    JSON.stringify({ host: "/profile/generations/old", runtime: "/portable app/runtime/electron" }),
+    "",
+  );
+});
+
+test("Electron-only updates use the same restart notification and reject invalid results", () => {
+  const { updater, pending } = fixture();
+  const checked = [];
+  updater.events.on(updater.UPDATE_CHECK_FINISHED, (event) => checked.push(event));
+  updater.checkForUpdates();
+  pending.shift()[3](
+    null,
+    JSON.stringify({
+      host: "/profile/generations/old",
+      runtime: "/profile/dpe-runtime/new/electron",
+    }),
+    "",
+  );
+  assert.equal(checked[0].succeeded, true);
+  assert.equal(checked[0].updateCount, 1);
+  updater.checkForUpdates();
+  pending.shift()[3](null, "not a prepared update", "");
+  assert.equal(checked[1].succeeded, false);
+  assert.equal(checked[1].updateCount, 0);
 });
