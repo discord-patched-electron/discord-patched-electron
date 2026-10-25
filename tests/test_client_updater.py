@@ -360,6 +360,10 @@ class DistributionBoundary(unittest.TestCase):
                 "client.distro",
                 "discord_loading.webm",
                 "whitney_400.woff",
+                "ggsans-400-normal.woff2",
+                "ggsans-500-medium.woff2",
+                "connecting-dark.webm",
+                "connecting-light.webm",
             ):
                 path = app / name
                 path.write_bytes(b"unwanted client")

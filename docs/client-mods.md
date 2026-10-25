@@ -1,40 +1,16 @@
 # Vencord and Equicord
 
-You can use either [Vencord](https://vencord.dev/download/) or
-[Equicord](https://docs.equicord.org/installing/) with this app. Install one at a
-time using its official installer.
+Launch Discord once, then close it and run the official
+[Vencord](https://vencord.dev/download/) or
+[Equicord](https://docs.equicord.org/installing/) installer. Choose **Canary**
+from its detected installations. Install one mod at a time.
 
-## Install
+The installation uses Discord's usual path:
+`~/.config/discordcanary/app-<version>/resources`. Automatic updates preserve
+the mod loader and refresh the underlying bootstrap. No root access is needed.
 
-1. Close Discord completely.
-2. Run the installer and choose **Custom Location**.
-3. Select the app folder from the table below, install the mod and restart Discord.
+If you override `XDG_CONFIG_HOME` or `DPE_PROFILE_DIR`, choose **Custom Location**
+and select that profile directory. Some installers only search `~/.config`.
 
-| Installation        | App folder                                            |
-| ------------------- | ----------------------------------------------------- |
-| Arch, Debian or RPM | `/opt/discord-canary-prerelease-patched-electron-bin` |
-| Tarball             | The extracted folder containing `launch.sh`           |
-
-Select the app folder itself, not its `runtime/` or `resources/` subfolder.
-
-For the command-line installer, specify the same folder with `-location`:
-
-```sh
-chmod +x ./VencordInstallerCli-linux
-./VencordInstallerCli-linux -install -location /absolute/path/to/app
-```
-
-For Equicord, replace `VencordInstallerCli-linux` with `EquilotlCli-linux`.
-System packages may require running the installer with `sudo` from your normal
-account. Always launch Discord as your normal user.
-
-## Update or remove
-
-Automatic Discord module updates preserve the installed mod loader. After updating
-the runtime package, close Discord and run the official installer again.
-There is no need to uninstall the mod first. Your mod settings stay in place.
-For tarballs, extract the update into a fresh folder and install the mod there.
-
-To remove a mod or switch between them, use the current mod's **Uninstall** option.
-The CLI equivalent is `-uninstall -location /absolute/path/to/app`. Removing a mod
-leaves its settings in place.
+To remove a mod or switch between them, use its installer's **Uninstall** option.
+Your mod settings stay in place.

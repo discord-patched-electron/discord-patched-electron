@@ -1,9 +1,10 @@
-// Serve OpenAsar's unmodified screen locally. Its proprietary media stays in
-// the user's cache, fetched separately from the pinned upstream revision.
+// Local splash adapter and pinned OpenAsar settings. Proprietary media is
+// fetched separately into the user cache, never included in the package.
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { createHash } = require("node:crypto");
 const source = require("./openasar/source.json");
+const media = require("./splash-media.json");
 const checksum = (data) => createHash("sha256").update(data).digest("hex");
 const policy =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src dpe-splash:; font-src dpe-splash:";
@@ -25,7 +26,8 @@ module.exports = function assetHandler(
     }
     if (offline) throw new Error("OpenAsar splash media is not cached");
     const response = await fetch(
-      `https://raw.githubusercontent.com/OpenAsar/cdn/${source.commit}/splash/${name}`,
+      metadata.url ||
+        `https://raw.githubusercontent.com/OpenAsar/cdn/${source.commit}/splash/${name}`,
       { credentials: "omit", signal: AbortSignal.timeout(15000) },
     );
     if (!response.ok) throw new Error(`OpenAsar splash download failed: ${response.status}`);
@@ -81,9 +83,7 @@ module.exports = function assetHandler(
         });
       }
       if (name === "index.html") {
-        const html = await fs.readFile(path.join(__dirname, "openasar/index.html"));
-        if (checksum(html) !== source.html_sha256)
-          throw new Error("OpenAsar screen checksum mismatch");
+        const html = await fs.readFile(path.join(__dirname, "modern-splash.html"));
         return new Response(html, {
           headers: {
             "content-type": "text/html; charset=utf-8",
@@ -91,7 +91,9 @@ module.exports = function assetHandler(
           },
         });
       }
-      const metadata = Object.hasOwn(source.assets, name) && source.assets[name];
+      const metadata =
+        (Object.hasOwn(media.assets, name) && media.assets[name]) ||
+        (Object.hasOwn(source.assets, name) && source.assets[name]);
       if (!metadata) return new Response(null, { status: 404 });
       if (!pending.has(name))
         pending.set(

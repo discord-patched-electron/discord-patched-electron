@@ -336,3 +336,98 @@ Validation (fresh profiles, no account login or calls):
 The current runnable build is `out/openasar-compatible-app`. No compiler was
 restarted. Account-specific settings-sidebar rendering and real calls were not
 tested; existing live-call/AppArmor coverage limits still apply.
+
+## Modern splash and default installer discovery
+
+This follow-up supersedes the symlink publication and 300×350 splash described
+above. The public `app-<version>/` is now a real directory: both upstream mod
+installers enumerate directories without following symlinks. Its runtime and
+resources are independent copies/reflinks. `modules/` links to the prepared
+installation, and the running module API resolves that target once so a later
+activation cannot redirect a running process's module lookups.
+
+The native `installer.db` schema and profile paths remain shared with Discord.
+A background check only prepares updates; activation happens during startup.
+A durable activation journal records the old directories before any rename.
+The database's activation token distinguishes a committed update from an
+interrupted one. Recovery restores uncommitted replacements and retains the old
+files, database snapshot and interrupted trees under `dpe-updater/backups/`.
+Payloads and directory changes are flushed before committing the database.
+Existing profiles using the previous symlink layout migrate on their next launch.
+
+The public `resources/app.asar` is writable by the user's normal installer.
+When `_app.asar` is present, updates preserve the installed mod loader and refresh
+its underlying project bootstrap. Uninstalling the mod does not resurrect an old
+loader from the private cache. Package-side legacy mod wrappers remain supported.
+
+`modern-splash.html` is a local adapter using OpenAsar's existing sandboxed
+`Splash.onState` preload. The pinned upstream screen/settings sources are unchanged.
+The adapter follows the inspected Canary 1.0.2366 splash measurements: 300×300,
+200×200 animation, gg sans 500 at 16px, sentence-case status, 180×8 track with
+4px corners, native spacing and grey fill. At the user's request there is one
+bar. It combines completed download and install work, keeping parallel callbacks
+monotonic; text identifies Electron or the current module count. Python events
+now use the same task identity across all phases. Retry countdown remains 10s.
+
+Font URLs and light/dark spinner URLs are pinned by SHA-256 and size in
+`splash-media.json` and fetched directly from Discord's CDN into
+`discord_asset_cache/openasar/`. The current web client's dark spinner is
+byte-identical to the pinned OpenAsar spinner. No fonts, animation media,
+proprietary bootstrap or modules are shipped. No stock host download is used.
+The package validator rejects these media filenames, and the integration
+fingerprint includes the new screen and asset metadata.
+
+Theme sync is enabled by default, with explicit `openasar.themeSync: false`
+respected. Cached Discord/custom theme colors include the progress fill.
+`BACKGROUND_COLOR` provides a first-launch fallback before a theme cache exists;
+light backgrounds get dark text and Discord's light spinner. Settings and custom
+CSS continue through OpenAsar's existing settings/editor and renderer adapter.
+
+Validation on native Wayland, using the retained Electron 46.0.0-alpha.1 runtime
+and fresh test profiles, without account login, messages, calls or camera capture:
+
+- `out/modern-first-launch/`: first-run module download and Canary 1.0.2367 login,
+  system Python, bundled Capstone/pyelftools, public app-directory runtime.
+- Official Vencord Installer v1.4.2 (`fe6e041`) and Equilotl v2.3.0 (`1a3d962`)
+  both listed the fresh `~/.config/discordcanary` fixture automatically with no
+  location argument. Vencord install and uninstall succeeded; Equicord install
+  succeeded. `out/modern-vencord-launch/` and
+  `out/modern-equicord-update-launch/` verified the injected native and renderer
+  APIs at the login screen. The latter forced installation replacement.
+- `out/modern-verified-relaunch/`: offline relaunch retained Equicord after another
+  activation and reached login using the fork at `app-1.0.2367/electron`.
+- `out/modern-splash-report.json` and `out/modern-splash-offline-report.json`:
+  native Electron verified one bar, dimensions, loaded gg sans, loaded animation,
+  default/custom/light colors, explicit theme-sync opt-out, and offline reuse.
+- `out/modern-native-db-test/`: the actual native `updater_bootstrap` accepted
+  the database/real app directory and printed `app-1.0.2367`. The loopback manifest
+  fixture refused all downloads; only two manifest requests occurred.
+- `bun run test`: 178 Python and 42 JavaScript tests passed. `bun run lint` passed.
+  `out/modern-updater-packages/`: generated Arch package smoke test passed with
+  its dummy runtime and client-free payload validation.
+- Regression tests cover preparation without activation, legacy symlink migration,
+  mod preservation/uninstall, interrupted and committed activation recovery,
+  file repair, concurrent publishers, progress identity, and media exclusion.
+
+The installer binaries search their own fixed paths. Profiles explicitly moved
+with `XDG_CONFIG_HOME`, `DISCORD_USER_DATA_DIR` or `DPE_PROFILE_DIR` may require the
+installer's Custom Location option, just as moved stock installations do.
+Backups/prepared generations are retained; automatic retention cleanup is not
+introduced by this change. Live calls and an actual power-loss reboot were not
+performed; interruption recovery is exercised with failure injection.
+
+## Real GitHub download fixture
+
+`out/github-download-test/run.sh` launches a separate app/profile for manually
+exercising the Electron download screen. The copy simulates an older release
+using a zero baseline archive hash and `release_version: 20000101.000000`; its
+actual Electron version, production updater code and signature checks are unchanged.
+Original metadata is retained in the fixture. Verified prepared modules from a
+fresh logged-out test profile are reflinked into the new profile to isolate the
+runtime-download test. No account data or mod settings are copied.
+
+`out/github-download-test/verification-report/` records a real download of the
+approved 46.0.0-alpha.1 GitHub runtime, successful verification, selection and
+native Wayland login. The temporary verification profile was removed afterward;
+the user's `profile/` remains uncached for its first runtime download. Existing
+app/runtime caches were untouched. The 220 tests and lint passed again.

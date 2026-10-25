@@ -60,6 +60,7 @@ module.exports = function createUpdater(app, state, host, root, clientRoot, inst
             ...process.env,
             LD_PRELOAD: "",
             DPE_UPDATE_PROGRESS: "0",
+            DPE_PREPARE_ONLY: "1",
             PYTHONPATH: path.join(root, "python"),
             PYTHONNOUSERSITE: "1",
             PYTHONDONTWRITEBYTECODE: "1",

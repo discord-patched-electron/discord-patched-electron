@@ -142,3 +142,16 @@ test("OpenAsar presets respect explicit feature and scalar flags", () => {
   assert.equal(switches["ozone-platform"], "wayland");
   assert.ok(Object.hasOwn(switches, "force_low_power_gpu"));
 });
+
+test("a stock light profile gets readable defaults before the first theme sync", (t) => {
+  const profile = fixture(t);
+  fs.writeFileSync(
+    path.join(profile, "settings.json"),
+    JSON.stringify({ BACKGROUND_COLOR: "#ffffff" }),
+  );
+  const inserted = [];
+  preferences.theme({ webContents: { insertCSS: async (value) => inserted.push(value) } }, profile);
+  assert.equal(preferences.background(profile), "#ffffff");
+  assert.match(inserted[0], /--header-primary: #111111/);
+  assert.match(inserted[0], /--background-primary: #ffffff/);
+});

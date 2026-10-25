@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <title>Discord Updater</title>
+  <style>
+    @font-face {
+      font-family: "gg sans";
+      font-weight: 400;
+      src: url(ggsans-400-normal.woff2) format("woff2");
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "gg sans";
+      font-weight: 500;
+      src: url(ggsans-500-medium.woff2) format("woff2");
+      font-display: swap;
+    }
+    :root {
+      --background-primary: #282b30;
+      --background-secondary: rgba(255, 255, 255, 0.1);
+      --header-primary: #fff;
+      --text-muted: #8a8e94;
+      --splash-progress: #737f8d;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      cursor: default;
+    }
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      -webkit-app-region: drag;
+      background: var(--background-primary);
+      color: var(--header-primary);
+      font-family: "gg sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-bottom: 10px;
+    }
+    main {
+      text-align: center;
+    }
+    video {
+      width: 200px;
+      height: 200px;
+    }
+    .text {
+      position: relative;
+      top: -30px;
+    }
+    #status {
+      display: block;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    #placeholder {
+      height: 18px;
+    }
+    .track {
+      width: 180px;
+      height: 8px;
+      margin: 10px auto 0;
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--background-secondary);
+    }
+    .fill {
+      height: 100%;
+      width: 0;
+      border-radius: 4px;
+      background: var(--splash-progress);
+      box-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    [hidden] {
+      display: none !important;
+    }
+  </style>
+  <body>
+    <main>
+      <video loop autoplay muted src="connecting-dark.webm" aria-hidden="true"></video>
+      <div class="text">
+        <span id="status" role="status">Checking for updates…</span>
+        <div id="placeholder"></div>
+        <div
+          id="progress"
+          class="track"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          hidden
+        >
+          <div class="fill"></div>
+        </div>
+      </div>
+    </main>
+    <script>
+      const status = document.getElementById("status");
+      const progress = document.getElementById("progress");
+      let countdown;
+      Splash.onState((state) => {
+        clearInterval(countdown);
+        const updating = state.status === "downloading" || state.status === "installing";
+        progress.hidden = !updating;
+        document.getElementById("placeholder").hidden = updating;
+        // Discord serves the same spinner in light and dark variants. Pick
+        // the variant after the cached theme has been applied to the window.
+        const channels = getComputedStyle(document.body)
+          .backgroundColor.match(/[\d.]+/g)
+          ?.map(Number);
+        const light =
+          channels && (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 1000 > 160;
+        const video = document.querySelector("video");
+        const animation = light ? "connecting-light.webm" : "connecting-dark.webm";
+        if (video.getAttribute("src") !== animation) video.src = animation;
+        if (updating) {
+          const verb = state.status === "downloading" ? "Downloading" : "Installing";
+          const label =
+            state.label === "Electron"
+              ? `${verb} Electron…`
+              : state.current
+                ? `${verb} update ${state.current} of ${state.total}…`
+                : `${verb} updates…`;
+          status.textContent = label;
+          progress.setAttribute("aria-label", label);
+          progress.setAttribute("aria-valuenow", state.progress);
+          progress.querySelector(".fill").style.width = `${state.progress}%`;
+        } else if (state.status === "fail") {
+          let seconds = state.seconds;
+          const render = () => (status.textContent = `Update failed — retrying in ${seconds} sec…`);
+          render();
+          countdown = setInterval(() => {
+            seconds = Math.max(0, seconds - 1);
+            render();
+          }, 1000);
+        } else {
+          status.textContent = state.status === "starting" ? "Starting…" : "Checking for updates…";
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -79,16 +79,16 @@ when either update is ready. Modules come from Discord; Electron comes from the
 project's approved GitHub release and is verified using its signed checksums.
 Downloads and compatibility checks finish before activation. A failed download
 keeps the current installation.
-OpenAsar's startup screen shows download and installation progress. Failed first
+The startup screen follows Discord's layout with one progress bar. Failed first
 launches retry automatically. Capstone and pyelftools are included in the package.
-OpenAsar's settings and CSS editor are included. Splash Theming uses your client's
-cached colors; Quickstart uses a prepared installation and checks updates in the background.
+OpenAsar's settings and CSS editor are included. Splash Theming is enabled by default and uses Discord or custom
+theme colors cached from your client; Quickstart uses a prepared installation and checks updates in the background.
 
 Electron updates live in your profile and need no administrator access. Your
 installed mod loader stays in place. For bootstrap and Linux integration updates,
 close Discord, then install the next package or replace the extracted folder.
-Reinstall Vencord or Equicord afterward using its [official installer](client-mods.md).
-You do not need to uninstall it first.
+Mods installed through the [default installer location](client-mods.md) are preserved
+when the underlying bootstrap is replaced.
 
 Settings, login sessions and cache use the standard `~/.config/discordcanary`
 folder (or under `XDG_CONFIG_HOME` if set). Updates preserve them and your

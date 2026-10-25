@@ -36,11 +36,11 @@ module.exports = function createWindow(onAction) {
   const window = new BrowserWindow({
     title: "Discord",
     width: 300,
-    height: 350,
+    height: 300,
     frame: false,
     resizable: false,
     center: true,
-    backgroundColor: "#2f3136",
+    backgroundColor: preferences.background(),
     show: false,
     autoHideMenuBar: true,
     icon: path.join(process.env.DPE_APP_ROOT, "discord.png"),
@@ -60,8 +60,14 @@ module.exports = function createWindow(onAction) {
   };
   ipcMain.on("sq", quit);
   window.once("closed", () => ipcMain.removeListener("sq", quit));
-  window.webContents.once("did-finish-load", () => window.webContents.send("state", state));
-  window.webContents.once("dom-ready", () => preferences.theme(window));
+  let themeReady;
+  window.webContents.once("dom-ready", () => {
+    themeReady = preferences.theme(window);
+  });
+  window.webContents.once("did-finish-load", async () => {
+    await themeReady;
+    if (!window.isDestroyed()) window.webContents.send("state", state);
+  });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.once("ready-to-show", () => {

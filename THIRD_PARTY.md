@@ -16,6 +16,9 @@ Discord client and native module binaries are proprietary. They are fetched from
 Discord with verified checksums for local tests or into the user's profile at
 runtime. They are not committed to this repository or included in release
 packages. This project's code does not grant rights to those binaries.
+Compatibility patchers contain small Discord JavaScript excerpts as match
+patterns for modifying downloaded modules; the package is not entirely free of
+Discord source excerpts.
 
 The replacement bootstrap uses [OpenAsar](https://github.com/GooseMod/OpenAsar),
 under AGPL-3.0. Its source commit and archive checksum are pinned in
@@ -25,12 +28,13 @@ adapter supplies module-only updates using Discord's distribution manifests;
 it replaces OpenAsar's updater while retaining its settings and renderer customization. The packaged
 `resources/app.asar` is a small project-owned entry point, not Discord's ASAR.
 
-The splash and settings use the unmodified MIT-licensed `splash/index.html` and `config.html` from
-[OpenAsar/cdn](https://github.com/OpenAsar/cdn), with its license and pinned
-revision in `integration/updater/openasar/`. The animation and Whitney font are
-excluded from packages: they are fetched from that revision into the user's
-cache on launch and checked against pinned hashes. OpenAsar's original preload
-is used directly from the bundled bootstrap source.
+The unmodified MIT-licensed `splash/index.html` and `config.html` from
+[OpenAsar/cdn](https://github.com/OpenAsar/cdn) are retained with their license and
+pinned revision in `integration/updater/openasar/`. The active splash uses this
+project's `modern-splash.html` with OpenAsar's original preload from the bundled
+bootstrap source. Discord's animation and gg sans fonts are excluded from
+packages: they are fetched from Discord's CDN into the user's cache on launch
+and checked against the hashes and sizes in `integration/updater/splash-media.json`.
 The pinned CDN archive also supplies the settings screen's MIT-licensed Monaco
 editor. Its license and third-party notices ship under `bootstrap/cdn/monaco-editor/`.
 The original settings page loads Roboto through Google Fonts when available.

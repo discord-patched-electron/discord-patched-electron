@@ -67,9 +67,7 @@ def identity(value) -> str:
 
 def fetch(url: str, target: Path, expected: str, limit: int = 512 * 1024 * 1024):
     name = url.split("/")[-3]
-    download(
-        url, target, limit=limit, label=name.removeprefix("discord_").replace("_", " ").title()
-    )
+    download(url, target, limit=limit, label=name)
     if checksum(target) != expected:
         raise ValueError("Discord module checksum mismatch")
 
@@ -208,7 +206,7 @@ def install_module(
     with tempfile.TemporaryDirectory(prefix="module-", dir=cache) as temporary:
         archive = Path(temporary) / "module.br"
         fetch(source["url"], archive, source["sha256"])
-        progress("install", "Preparing " + name.removeprefix("discord_").replace("_", " "))
+        progress("install", name)
         extracted = Path(temporary) / "files"
         extracted.mkdir()
         extract_module(archive, extracted)

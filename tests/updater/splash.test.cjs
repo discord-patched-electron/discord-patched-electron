@@ -8,16 +8,14 @@ const assetHandler = require("../../integration/updater/splash-assets.cjs");
 const splashState = require("../../integration/updater/splash-state.cjs");
 const source = require("../../integration/updater/openasar/source.json");
 
-test("the screen matches upstream exactly and cannot serve arbitrary files", async () => {
+test("modern splash keeps the OpenAsar contract and cannot serve arbitrary files", async () => {
   const handler = assetHandler("/unused", () => assert.fail("HTML needs no network"));
   const response = await handler({ url: "dpe-splash://app/index.html" });
   assert.equal(response.status, 200);
-  assert.equal(
-    createHash("sha256")
-      .update(await response.text())
-      .digest("hex"),
-    source.html_sha256,
-  );
+  const html = await response.text();
+  assert.match(html, /ggsans-500-medium.woff2/);
+  assert.match(html, /Splash.onState/);
+  assert.equal((html.match(/role="progressbar"/g) || []).length, 1);
   assert.match(response.headers.get("content-security-policy"), /default-src 'none'/);
   for (const url of [
     "dpe-splash://elsewhere/index.html",
@@ -89,29 +87,33 @@ test("upstream settings and its local editor work without remote executable code
     assert.equal((await handler({ url: "dpe-splash://app/" + name })).status, 404);
 });
 
-test("parallel download and install progress use OpenAsar states and retry countdown", () => {
+test("one bar combines overlapping tasks, never regresses, and resets on retry", () => {
   const translate = splashState();
-  assert.deepEqual(translate({ stage: "check" }), { status: "checking-for-updates" });
-  assert.deepEqual(translate({ stage: "download", label: "Electron", current: 5, total: 10 }), {
-    status: "downloading",
-    current: 1,
-    total: 1,
-    progress: 50,
-  });
   translate({ stage: "batch", total: 2 });
-  translate({ stage: "download", label: "voice", current: 10, total: 10 });
-  assert.deepEqual(translate({ stage: "download", label: "core", current: 5, total: 10 }), {
-    status: "downloading",
-    current: 2,
-    total: 2,
-    progress: 75,
+  translate({ stage: "download", label: "discord_voice", current: 10, total: 10 });
+  let state = translate({
+    stage: "download",
+    label: "discord_desktop_core",
+    current: 5,
+    total: 10,
   });
-  assert.deepEqual(translate({ stage: "installed", label: "voice" }), {
-    status: "installing",
-    current: 2,
-    total: 2,
-    progress: 50,
-  });
+  assert.equal(state.progress, 37.5);
+  state = translate({ stage: "install", label: "discord_voice" });
+  assert.equal(state.progress, 37.5);
+  state = translate({ stage: "installed", label: "discord_voice" });
+  assert.equal(state.progress, 62.5);
+  assert.equal(state.current, 2);
+  assert.equal(state.status, "downloading");
+  state = translate({ stage: "download", label: "discord_voice", current: 1, total: 10 });
+  assert.equal(state.progress, 62.5);
+  state = translate({ stage: "installed", label: "discord_desktop_core" });
+  assert.equal(state.progress, 100);
+  assert.equal(state.status, "installing");
   assert.deepEqual(translate({ stage: "error" }), { status: "fail", seconds: 10 });
+  state = translate({ stage: "download", label: "Electron", current: -1, total: 0 });
+  assert.equal(state.progress, 0);
+  state = translate({ stage: "installed", label: "Electron" });
+  assert.equal(state.progress, 100);
+  assert.equal(state.label, "Electron");
   assert.deepEqual(translate({ stage: "ready" }), { status: "starting" });
 });

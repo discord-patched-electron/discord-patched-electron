@@ -38,7 +38,8 @@ def check(app: Path, client_root: Path, channel: str) -> dict:
     executable = ensure_runtime(app, client_root.parent, offline=offline)
     progress("check", "Checking Discord modules")
     host = ensure_client(client_root, channel, offline=offline, executable=executable)
-    publish(app, client_root.parent, host, executable)
+    if os.environ.get("DPE_PREPARE_ONLY") != "1":
+        publish(app, client_root.parent, host, executable)
     progress("ready", "Starting Discord")
     return {"runtime": str(executable), "host": str(host)}
 

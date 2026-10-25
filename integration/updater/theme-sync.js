@@ -8,6 +8,7 @@ const themesync = async () => {
     "--background-secondary": ["--background-secondary", "--background-base-lower"],
     "--brand-experiment": ["--brand-experiment", "--brand-500"],
     "--header-primary": ["--header-primary", "--text-default"],
+    "--splash-progress": ["--interactive-normal", "--interactive-icon-default", "--text-muted"],
     "--text-muted": ["--text-muted"],
   };
   const read = (names) => {

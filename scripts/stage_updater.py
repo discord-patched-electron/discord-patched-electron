@@ -148,7 +148,16 @@ def validate_payload_entry(relative: str, *, is_dir: bool, link: str | None = No
         if relative != "runtime/resources" or link != "../resources":
             raise ValueError(f"Unexpected release symlink: {relative}")
     elif (
-        path.name in ("discord_loading.webm", "whitney_400.woff")
+        path.name
+        in (
+            "discord_loading.webm",
+            "whitney_400.woff",
+            "ggsans-400-normal.woff2",
+            "ggsans-500-medium.woff2",
+            "connecting.webp",
+            "connecting-dark.webm",
+            "connecting-light.webm",
+        )
         or (
             path.suffix in (".asar", ".node", ".distro", ".br") and relative != "resources/app.asar"
         )

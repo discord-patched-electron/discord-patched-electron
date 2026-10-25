@@ -1,6 +1,6 @@
 """Publish a prepared fork into Discord's native app-version/installer.db layout.
 
-Payloads stay deduplicated behind an atomically replaced app-version symlink.
+Installers discover real app-version directories; prepared payloads remain private.
 Native updater metadata describes the actual installed (patched) bytes. Existing
 stock directories and launchers are moved to a recoverable backup, never deleted.
 """
@@ -8,6 +8,7 @@ stock directories and launchers are moved to a recoverable backup, never deleted
 import fcntl
 import hashlib
 import json
+import os
 import re
 import shlex
 import shutil
@@ -33,13 +34,21 @@ def manifest(directory: Path, *, exclude=()) -> dict:
     return {"manifest_version": 1, "files": files}
 
 
-def intact(directory: Path, state: dict) -> bool:
+def intact(directory: Path, state: dict, *, allow_mod=False) -> bool:
     try:
         expected = read_object(directory / "installer-record.json")
+        actual = manifest(directory, exclude=("modules", "installer-record.json"))
+        wanted = expected["distro_manifest"]
         if (
-            manifest(directory, exclude=("modules", "installer-record.json"))
-            != expected["distro_manifest"]
+            allow_mod
+            and "resources/_app.asar" not in wanted["files"]
+            and (directory / "resources/_app.asar").is_file()
         ):
+            # Default Vencord/Equicord installers wrap app.asar and retain its
+            # original as _app.asar. Only this deliberate mutation is exempt.
+            original = actual["files"].pop("resources/_app.asar")
+            actual["files"]["resources/app.asar"] = original
+        if actual != wanted:
             return False
         for module in expected["modules"]:
             version = module["module_version"]
@@ -172,60 +181,137 @@ def publish(app: Path, profile: Path, host: Path, executable: Path) -> Path:
         return publish_locked(app, profile, host, executable)
 
 
+def sync_directory(directory: Path):
+    descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def recover(profile: Path, connection):
+    """Roll back an interrupted activation unless SQLite committed its token.
+
+    Every previous directory is retained, including an interrupted new tree.
+    Re-running recovery after another interruption is safe.
+    """
+    journal = profile / "dpe-updater/activation.json"
+    if not journal.exists():
+        return
+    transaction = read_object(journal)
+    row = connection.execute(
+        "SELECT value FROM key_values WHERE key=?", (transaction["key"],)
+    ).fetchone()
+    committed = row and json.loads(row[0]).get("activation") == transaction["id"]
+    if not committed:
+        for change in reversed(transaction["changes"]):
+            name, saved = Path(change["path"]), Path(change["saved"])
+            if saved.exists() or saved.is_symlink():
+                if name.exists() or name.is_symlink():
+                    name.rename(saved.with_name(saved.name + "-interrupted-" + uuid.uuid4().hex))
+                saved.rename(name)
+            elif not change["existed"] and (name.exists() or name.is_symlink()):
+                name.rename(saved.with_name(saved.name + "-interrupted-" + uuid.uuid4().hex))
+            sync_directory(saved.parent)
+    sync_directory(profile)
+    journal.unlink()
+    sync_directory(journal.parent)
+
+
 def publish_locked(app: Path, profile: Path, host: Path, executable: Path) -> Path:
     state = read_object(host / "client.json")
-    view = prepare_view(app, profile, host, executable, state)
     public = profile / ("app-" + state["version"])
     entry = profile / EXECUTABLES[state["channel"]]
     key = "host/app/" + state["channel"] + "/linux/x64"
+    active_key = "dpe/active/" + state["channel"]
     database = profile / "installer.db"
-    backup = profile / "dpe-updater/backups" / uuid.uuid4().hex
     existed = database.exists()
     connection = sqlite3.connect(database, timeout=30, isolation_level=None)
-    changes = []
+    staged = None
     try:
         connection.execute(
             "CREATE TABLE IF NOT EXISTS key_values (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)"
         )
         connection.execute("BEGIN IMMEDIATE")
-        takeovers = []
-        for name in (public, entry):
-            if not name.exists() and not name.is_symlink():
-                continue
-            owned = name.is_symlink() and (
-                name == public
-                and name.resolve().is_relative_to(view.parent)
-                or name == entry
-                and name.readlink() == public / EXECUTABLES[state["channel"]]
-            )
-            if not owned:
-                takeovers.append(name)
-        if takeovers:
-            backup.mkdir(parents=True)
-            if existed:
-                # Read the committed pre-takeover database through a separate
-                # connection; backing up a connection with a write lock hangs.
-                with (
-                    sqlite3.connect(database) as source,
-                    sqlite3.connect(backup / "installer.db") as copy,
-                ):
-                    source.backup(copy)
+        recover(profile, connection)
+        view = prepare_view(app, profile, host, executable, state)
+        row = connection.execute(
+            "SELECT value FROM key_values WHERE key=?", (active_key,)
+        ).fetchone()
+        active = json.loads(row[0]) if row else {}
+        if (
+            active.get("view") == str(view)
+            and public.is_dir()
+            and not public.is_symlink()
+            and intact(public, state, allow_mod=True)
+            and entry.is_symlink()
+            and entry.resolve() == public / EXECUTABLES[state["channel"]]
+        ):
+            connection.execute("COMMIT")
+            return public
         row = connection.execute("SELECT value FROM key_values WHERE key=?", (key,)).fetchone()
         previous = json.loads(row[0]) if row else []
         if not isinstance(previous, list):
             raise ValueError("Unsupported Discord installer database")
-        incoming = read_object(view / "installer-record.json")
+        token = uuid.uuid4().hex
+        backup = profile / "dpe-updater/backups" / token
+        backup.mkdir(parents=True)
+        if existed:
+            with (
+                sqlite3.connect(database) as source,
+                sqlite3.connect(backup / "installer.db") as copy,
+            ):
+                source.backup(copy)
+        # Real directories are required by both official mod installers. Keep
+        # modules anchored to their prepared view across a same-version update.
+        staged = backup / "incoming"
+        staged.mkdir()
+        for item in view.iterdir():
+            if item.name == "modules":
+                (staged / "modules").symlink_to(item, target_is_directory=True)
+            else:
+                copy_payload(item, staged / item.name)
+        old_resources = (
+            entry.resolve().parent / "resources" if entry.exists() else public / "resources"
+        )
+        if (old_resources / "_app.asar").is_file() and (old_resources / "app.asar").is_file():
+            resources = staged / "resources"
+            # Refresh the underlying bootstrap while retaining the user's loader.
+            if not (resources / "_app.asar").exists():
+                (resources / "app.asar").rename(resources / "_app.asar")
+            shutil.copy2(old_resources / "app.asar", resources / "app.asar")
+        incoming = record(staged, state)
+        # Keep the copied integrity record for the unwrapped bootstrap; the
+        # native database below records the actual installed loader bytes.
         records = [item for item in previous if item["host_version"] != incoming["host_version"]]
         records.append(incoming)
-        for name, target in ((public, view), (entry, public / EXECUTABLES[state["channel"]])):
-            old = name.readlink() if name.is_symlink() else None
-            saved = None
-            if name in takeovers:
-                saved = backup / name.name
-                name.rename(saved)
-                old = None
-            changes.append((name, old, saved))
-            replace_link(name, target)
+        transaction = {
+            "id": token,
+            "key": active_key,
+            "changes": [
+                {
+                    "path": str(name),
+                    "saved": str(backup / name.name),
+                    "existed": name.exists() or name.is_symlink(),
+                }
+                for name in (public, entry)
+            ],
+        }
+        # Flush the prepared payload before recording a recoverable activation.
+        # sync -f is Linux coreutils, already needed for reflink-aware copies.
+        subprocess.run(["sync", "-f", str(backup)], check=True)
+        write_json(profile / "dpe-updater/activation.json", transaction)
+        sync_directory(profile / "dpe-updater")
+        for change in transaction["changes"]:
+            name = Path(change["path"])
+            if change["existed"]:
+                name.rename(change["saved"])
+            if name == public:
+                staged.rename(public)
+            else:
+                replace_link(entry, public / EXECUTABLES[state["channel"]])
+        sync_directory(profile)
+        sync_directory(backup)
         connection.execute(
             "INSERT OR IGNORE INTO key_values VALUES ('install_id', ?)",
             (json.dumps(str(uuid.uuid4())),),
@@ -233,27 +319,32 @@ def publish_locked(app: Path, profile: Path, host: Path, executable: Path) -> Pa
         for name, value in (
             (key, records),
             (
-                "dpe/active/" + state["channel"],
-                {"generation": host.name, "view": str(view), "version": state["version"]},
+                active_key,
+                {
+                    "generation": host.name,
+                    "view": str(view),
+                    "version": state["version"],
+                    "activation": token,
+                },
             ),
         ):
             connection.execute(
                 "INSERT OR REPLACE INTO key_values VALUES (?, ?)", (name, json.dumps(value))
             )
         connection.execute("COMMIT")
+        (profile / "dpe-updater/activation.json").unlink()
+        sync_directory(profile / "dpe-updater")
     except BaseException:
         if connection.in_transaction:
             connection.execute("ROLLBACK")
-        for name, old, saved in reversed(changes):
-            if old is not None:
-                replace_link(name, old)
-            else:
-                name.unlink(missing_ok=True)
-                if saved is not None:
-                    saved.rename(name)
+        recover(profile, connection)
         raise
     finally:
         connection.close()
+        # A failed copy must not accumulate another partial payload on each
+        # automatic retry. This is only our unpublished staging directory.
+        if staged is not None and staged.exists():
+            shutil.rmtree(staged)
     return public
 
 

@@ -323,10 +323,8 @@ def _ensure_runtime(app: Path, profile: Path, *, offline: bool) -> Path:
                     file=sys.stderr,
                 )
                 archive = directory / "runtime.zip"
-                download(
-                    incoming["url"], archive, limit=512 * 1024 * 1024, label="Patched Electron"
-                )
-                progress("install", "Verifying patched Electron")
+                download(incoming["url"], archive, limit=512 * 1024 * 1024, label="Electron")
+                progress("install", "Electron")
                 if checksum(archive) != incoming["archive_sha256"]:
                     raise ValueError("Runtime archive checksum mismatch")
                 staged = directory / "runtime"
@@ -338,6 +336,7 @@ def _ensure_runtime(app: Path, profile: Path, *, offline: bool) -> Path:
                 write_json(staged / "runtime.json", incoming)
                 staged.rename(destination)
                 write_json(root / "current.json", incoming["archive_sha256"])
+                progress("installed", "Electron")
                 return destination / "electron"
         except FAILURES as error:
             print(

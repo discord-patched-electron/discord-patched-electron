@@ -99,21 +99,25 @@ class NativeInstallation(unittest.TestCase):
         backup = next((self.profile / "dpe-updater/backups").iterdir())
         self.assertEqual((backup / "app-1.0.9/DiscordCanary").read_text(), "stock runtime")
         self.assertTrue((backup / "installer.db").is_file())
+        self.assertFalse(public.is_symlink())
         target = public.resolve()
         self.assertEqual(self.publish().resolve(), target)
         self.assertEqual(self.database(), rows)
 
     def test_stock_writes_do_not_mutate_sources_and_are_repaired(self):
         public = self.publish()
-        old = public.resolve()
+        old = self.database()["dpe/active/canary"]["view"]
         (public / "electron").write_text("stock overwrite")
         (public / "modules/discord_voice-7/discord_voice/index.js").write_text("stock module")
         self.assertEqual(self.exe.read_text(), "fork runtime")
         self.assertEqual(self.module.read_text(), "prepared voice")
         restored = self.publish()
-        self.assertNotEqual(restored.resolve(), old)
+        self.assertNotEqual(self.database()["dpe/active/canary"]["view"], old)
         self.assertEqual((restored / "electron").read_text(), "fork runtime")
-        self.assertEqual((old / "electron").read_text(), "stock overwrite")
+        backups = self.profile / "dpe-updater/backups"
+        self.assertTrue(
+            any(p.read_text() == "stock overwrite" for p in backups.glob("*/app-1.0.9/electron"))
+        )
 
     def test_failed_activation_restores_stock_tree_links_and_database(self):
         stock = self.stock()
@@ -124,7 +128,7 @@ class NativeInstallation(unittest.TestCase):
         def fail_second(*args):
             nonlocal calls
             calls += 1
-            if calls == 2:
+            if calls == 1:
                 raise OSError("simulated activation failure")
             return original(*args)
 
@@ -140,18 +144,23 @@ class NativeInstallation(unittest.TestCase):
         self.assertEqual((self.profile / "app-1.0.9/electron").read_text(), "fork runtime")
 
     def test_same_path_runtime_or_mod_changes_refresh_view(self):
-        first = self.publish().resolve()
+        self.publish()
+        first = self.database()["dpe/active/canary"]["view"]
         self.exe.write_text("new fork runtime")
-        second = self.publish().resolve()
+        self.publish()
+        second = self.database()["dpe/active/canary"]["view"]
         self.assertNotEqual(first, second)
         (self.exe.parent / "libffmpeg.so").write_text("new runtime library")
-        third = self.publish().resolve()
+        self.publish()
+        third = self.database()["dpe/active/canary"]["view"]
         self.assertNotEqual(second, third)
         (self.app / "libdpe-camera-probe.so").write_text("updated helper")
-        fourth = self.publish().resolve()
+        self.publish()
+        fourth = self.database()["dpe/active/canary"]["view"]
         self.assertNotEqual(third, fourth)
         (self.app / "resources/mod.js").write_text("updated mod loader")
-        self.assertNotEqual(fourth, self.publish().resolve())
+        self.publish()
+        self.assertNotEqual(fourth, self.database()["dpe/active/canary"]["view"])
 
     def test_simultaneous_publishers_reuse_one_complete_view(self):
         with ThreadPoolExecutor(max_workers=2) as pool:
@@ -168,3 +177,74 @@ class NativeInstallation(unittest.TestCase):
             self.publish()
         self.assertFalse(stock.is_symlink())
         self.assertEqual((self.profile / "DiscordCanary").read_text(), "stock runtime")
+
+    def test_default_mod_loader_survives_update_and_uninstall(self):
+        public = self.publish()
+        resources = public / "resources"
+        (resources / "app.asar").rename(resources / "_app.asar")
+        (resources / "app.asar").write_text("user mod loader")
+        before = self.database()
+        self.publish()
+        self.assertEqual(self.database(), before)
+        self.exe.write_text("updated fork")
+        (self.app / "resources/app.asar").write_text("updated bootstrap")
+        self.publish()
+        self.assertEqual((resources / "app.asar").read_text(), "user mod loader")
+        self.assertEqual((resources / "_app.asar").read_text(), "updated bootstrap")
+        (resources / "app.asar").unlink()
+        (resources / "_app.asar").rename(resources / "app.asar")
+        self.exe.write_text("another fork")
+        self.publish()
+        self.assertEqual((resources / "app.asar").read_text(), "updated bootstrap")
+        self.assertFalse((resources / "_app.asar").exists())
+
+    def test_abrupt_activation_interruption_recovers_on_next_launch(self):
+        self.stock()
+        before = self.database()
+        # Simulate process death: exception rollback is deliberately unavailable.
+        with (
+            patch.object(installation, "replace_link", side_effect=OSError("power loss")),
+            patch.object(installation, "recover"),
+            self.assertRaises(OSError),
+        ):
+            self.publish()
+        self.assertTrue((self.profile / "dpe-updater/activation.json").exists())
+        with sqlite3.connect(self.profile / "installer.db") as connection:
+            installation.recover(self.profile, connection)
+        self.assertEqual((self.profile / "DiscordCanary").read_text(), "stock runtime")
+        self.assertEqual(self.database(), before)
+        self.publish()
+        self.assertEqual((self.profile / "app-1.0.9/electron").read_text(), "fork runtime")
+
+    def test_legacy_symlink_tree_migrates_without_losing_mod(self):
+        view = installation.prepare_view(self.app, self.profile, self.host, self.exe, self.state)
+        public = self.profile / "app-1.0.9"
+        public.symlink_to(view)
+        (self.profile / "DiscordCanary").symlink_to(public / "DiscordCanary")
+        resources = public / "resources"
+        (resources / "app.asar").rename(resources / "_app.asar")
+        (resources / "app.asar").write_text("legacy mod")
+        self.publish()
+        self.assertFalse(public.is_symlink())
+        self.assertEqual((resources / "app.asar").read_text(), "legacy mod")
+        self.assertEqual((resources / "_app.asar").read_text(), "project loader")
+
+    def test_recovery_keeps_a_committed_activation(self):
+        self.publish()
+        active = self.database()["dpe/active/canary"]
+        journal = self.profile / "dpe-updater/activation.json"
+        write_json(journal, {"id": active["activation"], "key": "dpe/active/canary", "changes": []})
+        with sqlite3.connect(self.profile / "installer.db") as connection:
+            installation.recover(self.profile, connection)
+        self.assertFalse(journal.exists())
+        self.assertEqual((self.profile / "app-1.0.9/electron").read_text(), "fork runtime")
+
+    def test_failed_public_copy_does_not_accumulate_partial_payloads(self):
+        installation.prepare_view(self.app, self.profile, self.host, self.exe, self.state)
+        with (
+            patch.object(installation, "copy_payload", side_effect=OSError("disk full")),
+            self.assertRaises(OSError),
+        ):
+            self.publish()
+        self.assertFalse(list((self.profile / "dpe-updater/backups").glob("*/incoming")))
+        self.assertFalse((self.profile / "app-1.0.9").exists())

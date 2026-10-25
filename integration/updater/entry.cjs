@@ -38,7 +38,7 @@ function start() {
     host,
     root,
     process.env.DPE_CLIENT_ROOT,
-    fs.realpathSync(installed),
+    path.dirname(fs.realpathSync(path.join(installed, "modules"))),
   );
   supply("updater/moduleUpdater.js", updater);
   supply("asarUpdate.js", () => {});

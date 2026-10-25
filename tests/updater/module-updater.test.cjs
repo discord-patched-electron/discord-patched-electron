@@ -104,6 +104,7 @@ test("checks serialize, advertise prepared generations, and restart through app.
     "canary",
   ]);
   assert.equal(options.env.LD_PRELOAD, "");
+  assert.equal(options.env.DPE_PREPARE_ONLY, "1");
   done(
     null,
     JSON.stringify({ host: "/profile/generations/new", runtime: "/portable app/runtime/electron" }),
