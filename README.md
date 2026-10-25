@@ -11,6 +11,7 @@ Discord Canary with the latest Electron for better Linux support.
 
 ## Features and patches
 
+- Updated Electron for newer Chromium features and Linux improvements.
 - Discord's native screen sharing and Krisp noise suppression.
 - Wayland by default, with X11 support too.
 - [Application audio](docs/wayland-audio.md) for screen sharing.
