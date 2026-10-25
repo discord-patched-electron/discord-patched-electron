@@ -458,8 +458,10 @@ Confirmed findings and fixes:
   paths now use the bounded streaming runner, clear Python home overrides and
   explicitly select preparation or activation. Quit cancels the helper group,
   waits for shutdown and escalates to SIGKILL if needed. A real subprocess test
-  includes a descendant that ignores SIGTERM; startup tests cover cancellation
-  racing with successful completion.
+  includes descendants that ignore SIGTERM, both with inherited streams and
+  with private streams after the helper exits. The latter initially reproduced
+  an orphaned child; cancellation now also kills the remaining group on helper
+  closure. Startup tests cover cancellation racing with successful completion.
 - The launcher reselected pointers and published the installation again after
   closing the splash. It now consumes a private, validated result from that
   preparation, preserving its runtime/client pairing and avoiding repeated
@@ -487,8 +489,10 @@ fresh launch encountered real ENOSPC on the workspace filesystem and displayed
 space-recovery guidance. Only this pass's disposable fixtures were moved to
 `/tmp/dpe-pr1-review-20261025`; retained builds and compiler objects were untouched.
 
-- `out/pr1-tests.log`, `out/pr1-lint.log`: 184 Python and 48 JavaScript tests
+- `out/pr1-tests.log`, `out/pr1-lint.log`: 184 Python and 49 JavaScript tests
   passed; required lint checks and `git diff --check` passed.
+- `out/pr1-electron-runner-test.log`: all five runner tests also passed in
+  the retained Electron runtime's Node mode, including both cancellation cases.
 - `/tmp/dpe-pr1-review-20261025/launch/`: fresh module download, Canary 1.0.2367
   login and relaunch. `handoff-launch/` repeats login offline through the final
   launcher handoff using that same logged-out fixture profile.

@@ -112,3 +112,47 @@ test("cancellation terminates a helper group even when its children ignore SIGTE
     }
   }
 });
+
+test("cancellation also stops children with private pipes after the helper exits", async (t) => {
+  const { spawn } = require("node:child_process");
+  const fs = require("node:fs");
+  let task, descendant;
+  const running = (pid) => {
+    try {
+      return !/\) Z /.test(fs.readFileSync(`/proc/${pid}/stat`, "utf8"));
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  };
+  t.after(() => {
+    if (descendant && running(descendant)) process.kill(descendant, "SIGKILL");
+  });
+  task = runUpdate(
+    {
+      root: "/fixture",
+      clientRoot: "/fixture/profile",
+      channel: "canary",
+      prepareOnly: true,
+      killDelayMs: 50,
+      timeoutMs: 5000,
+      onProgress(state) {
+        descendant = state.pid;
+        task.cancel();
+      },
+    },
+    (_command, _args, options) => {
+      const childCode = `process.on('SIGTERM', () => {}); setInterval(() => {}, 1000); process.send('ready');`;
+      const parentCode = `const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(childCode)}], {stdio: ['ignore','ignore','ignore','ipc']});
+      child.once('message', () => console.log(JSON.stringify({type:'progress',pid:child.pid})));`;
+      return spawn(process.execPath, ["-e", parentCode], options);
+    },
+  );
+  await assert.rejects(task.promise, /cancelled/);
+  assert.ok(descendant);
+  // A signal is asynchronous; allow the kernel to finish terminating the child.
+  const deadline = Date.now() + 1000;
+  while (running(descendant) && Date.now() < deadline)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(running(descendant), false);
+});

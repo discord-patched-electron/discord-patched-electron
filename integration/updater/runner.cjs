@@ -113,6 +113,9 @@ module.exports = function runUpdate(
     });
     child.once("close", (code) => {
       finished = true;
+      // The leader can exit before a child with captured/private output. Such
+      // children no longer hold our pipes open, so close alone is not cleanup.
+      if (cancelled) signal("SIGKILL");
       clearTimeout(timer);
       clearTimeout(killTimer);
       if (failure) reject(failure);
