@@ -59,7 +59,7 @@ may need different dependencies.
 
 Extract the `.tar.gz`, open its folder and run `./launch.sh`. Keep all the files
 together. The folder can be moved. Install GTK 3, NSS, ALSA, libpulse, GBM, libdrm,
-CUPS, Xss, Xtst, libatomic, Python 3 with Capstone and pyelftools, Brotli, CA
+CUPS, Xss, Xtst, libatomic, Python 3, Brotli, CA
 certificates, GnuPG (`gpg` and `gpgv`), Bash and coreutils through your package manager.
 Screen-share audio also needs PipeWire tools, PulseAudio tools, a session manager
 such as WirePlumber, and Zenity.
@@ -79,6 +79,8 @@ when either update is ready. Modules come from Discord; Electron comes from the
 project's approved GitHub release and is verified using its signed checksums.
 Downloads and compatibility checks finish before activation. A failed download
 keeps the current installation.
+OpenAsar's startup screen shows download and installation progress. Failed first
+launches retry automatically. Capstone and pyelftools are included in the package.
 
 Electron updates live in your profile and need no administrator access. Your
 installed mod loader stays in place. For bootstrap and Linux integration updates,

@@ -24,6 +24,7 @@ from common import ROOT, digest, download, enabled_electron_channels, read_json,
 from desktop_identity import desktop_id
 from generate_package import generate
 from stage_updater import validate_payload_entry
+from updater_python import sources as python_sources
 
 
 def missing_libraries(relative: str, checksum: str, listing: str) -> list[str]:
@@ -130,6 +131,8 @@ def package_one(
     )
     for filename in ("runtime.zip", "openasar.tar.gz", "libdpe-camera-probe.so"):
         os.link(downloads / filename, directory / filename)
+    for archive in downloads.glob("*.whl"):
+        os.link(archive, directory / archive.name)
     with (directory / "makepkg.log").open("w") as log:
         subprocess.run(
             ["makepkg", "--nocheck", "--cleanbuild"],
@@ -169,6 +172,8 @@ def smoke(
     targets = read_json(ROOT / "config/sources.lock.json")["targets"]
     bootstrap = read_json(ROOT / "config/openasar.lock.json")
     download(bootstrap["url"], downloads / "openasar.tar.gz", bootstrap["sha256"])
+    for source in python_sources().values():
+        download(source["url"], downloads / source["url"].rsplit("/", 1)[-1], source["sha256"])
     fixture = downloads / "runtime.zip"
     with zipfile.ZipFile(fixture, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name in (

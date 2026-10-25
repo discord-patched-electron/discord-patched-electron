@@ -4,9 +4,22 @@ import hashlib
 import json
 import os
 import tempfile
+import threading
+import time
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
+
+_progress_lock = threading.Lock()
+
+
+def progress(stage: str, label: str, **details):
+    if os.environ.get("DPE_UPDATE_PROGRESS") == "1":
+        with _progress_lock:
+            print(
+                json.dumps({"type": "progress", "stage": stage, "label": label, **details}),
+                flush=True,
+            )
 
 
 def checksum(path: Path) -> str:
@@ -44,15 +57,22 @@ class HTTPSRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def download(url: str, target: Path, *, limit: int = 4 * 1024 * 1024):
+def download(url: str, target: Path, *, limit: int = 4 * 1024 * 1024, label: str | None = None):
     if urlparse(url).scheme != "https":
         raise ValueError("Update downloads must use HTTPS")
     opener = urllib.request.build_opener(HTTPSRedirect())
     opener.addheaders = [("User-Agent", "discord-patched-electron-updater/1")]
     with opener.open(url, timeout=20) as response, target.open("wb") as output:
         total = 0
+        size = int(response.headers.get("Content-Length", "0")) if label else 0
+        reported = 0
         while block := response.read(1024 * 1024):
             total += len(block)
             if total > limit:
                 raise ValueError("Update download exceeds size limit")
             output.write(block)
+            if label and time.monotonic() - reported >= 0.1:
+                progress("download", label, current=total, total=size)
+                reported = time.monotonic()
+        if label:
+            progress("download", label, current=total, total=size or total)

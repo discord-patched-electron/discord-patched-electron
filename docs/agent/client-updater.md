@@ -10,8 +10,9 @@ This branch therefore uses pinned OpenAsar startup code with a project-owned
 module updater. It consumes the new `updates.discord.com/distributions/app/manifests/latest`
 API, validates module URLs and SHA-256 hashes, and never fetches `full.url` or host
 deltas. OpenAsar's upstream native updater, legacy downloads, self-update,
-performance flags, remote splash/settings UI and renderer customization are
-replaced or disabled. All executed bootstrap source and its AGPL license ship
+performance flags, remote settings UI and renderer customization are
+replaced or disabled. The splash uses OpenAsar's original screen served locally,
+as described below. All executed bootstrap source and its AGPL license ship
 in the package. `resources/app.asar` contains only the project's entry point and
 metadata, preserving the layout used by official mod installers.
 
@@ -75,6 +76,38 @@ bundled client directories. Published AUR recipes use the verified portable tree
 Pinned client locks remain inputs for isolated native regression tests; normal
 launches resolve the current module manifest. Release launch reports record the
 actual tested version and generation.
+
+## OpenAsar startup screen
+
+`integration/updater/openasar/` pins the exact upstream `splash/index.html` from
+OpenAsar/cdn commit `4448ff4b5d7442802fa912054699b9c1e2ab7dd8`, with its MIT license.
+Do not format or redesign it. `window.cjs` retains OpenAsar's 300×350 frameless
+Linux window and loads the original preload from the pinned bootstrap. A narrow
+local protocol serves the HTML with a restrictive CSP. The original animation
+and Whitney font download separately from the pinned revision, are verified by
+size and SHA-256, and stay under `dpe-updater/splash/` in the user's profile.
+Packages contain neither media asset; offline launches reuse verified cached
+copies. Without cached media and network access, text still renders.
+
+The launcher starts this screen with its bundled patched Electron before running
+Python. `startup.cjs` owns lifecycle and OpenAsar's ten-second retry behavior;
+`runner.cjs` owns the cancellable Python process group and bounded JSON-lines
+output. `splash-state.cjs` adapts byte/module progress to the original renderer's
+state contract. Detailed errors remain in stderr. Closing the screen cancels
+preparation and returns failure to the launcher. No incomplete first installation
+can be skipped. After success, the launcher resolves the prepared pointers
+offline, applies its camera/AppArmor setup and starts the selected fork runtime.
+The normal OpenAsar bootstrap uses the same screen until Discord's page is ready.
+Neither path loads executable splash code from the network.
+
+Capstone and pyelftools are staged from checksum-pinned wheels selected from
+`uv.lock`, including their upstream notices and Capstone's native library. Both
+foreground and background helpers set `PYTHONPATH` to the package's `python/`
+directory and disable user site packages and bytecode writes. Python itself and
+Brotli remain distro dependencies. Prerequisites are checked before downloads.
+The old portable-launch check inherited uv's environment and therefore missed
+the user's system-Python import failure; it now launches with the system PATH
+and without virtualenv/Python overrides.
 
 ## Validation
 
@@ -184,3 +217,40 @@ Review validation used the retained Electron 46.0.0-alpha.1 compiler artifact:
 No Electron rebuild, publication, account login, call or webcam capture was performed.
 This pass does not add cache garbage collection or prove compatibility with future
 Discord modules. Existing live-call and AppArmor GUI coverage limits still apply.
+
+## Original splash and portable dependencies: October 25 follow-up
+
+The initial command-line-only startup missed the requested screen, and tests
+inherited uv's Capstone/pyelftools instead of exercising ordinary system Python.
+The changes above correct both. An intermediate custom splash was removed;
+the packaged HTML is byte-for-byte identical to the pinned OpenAsar source.
+
+- `out/openasar-ui-tests.log` and `out/openasar-ui-lint.log`: 166 Python and
+  34 JavaScript tests, plus lint, pass. New coverage exercises streamed results,
+  missing Python, cancellation, pinned media and offline cache verification,
+  upstream HTML integrity, state translation and wheel staging. Distribution
+  checks reject the proprietary animation and font as well as Discord ASARs.
+- `out/openasar-ui-clean-launch/` and `out/openasar-ui-offline/`: fresh system-Python
+  launch, relaunch and cached offline launch reach Canary 1.0.2366's login form
+  on native Wayland. Both first-launch reports observed the updater screen.
+- `out/openasar-ui-failure-final/report.json`: the real Electron window is 300×350,
+  plays the upstream video, loads Whitney, exposes the original preload bridge
+  and has no renderer `require`. An incomplete offline first launch counted down
+  through 8/6/4/2 seconds and retried at 9; Quit exited with status 1 without
+  publishing a client pointer. The first fixture attempt closed the CDP target
+  before its evaluation returned; delaying Quit by 100 ms fixed the test race.
+- `out/openasar-ui-mods/`: official Vencord and Equilotl install, login/relaunch
+  and removal pass. Each restores the original loader exactly.
+- `out/openasar-ui-packages/package-checks.json`: all four package formats have
+  identical client-free payloads. `out/openasar-ui-arch/packaging-report.json`
+  verifies the generated Arch recipe with pinned Python wheel sources.
+- `out/openasar-ui-ubuntu-install.log`: the Debian package installs in Ubuntu
+  24.04, remains readable as an ordinary user and loads the retained runtime.
+  System Python imports bundled Capstone 5.0.6 and pyelftools 0.32.
+
+The final local build is `out/openasar updater final app`; its launch report is
+`out/openasar-ui-final-launch/`. It also cancels the helper group on application
+quit or SIGINT/SIGTERM. It reuses the retained verified
+Electron artifact. No runtime compilation, publication or authenticated Discord
+interaction was performed. The browser preview used only the public upstream
+splash and a progress fixture; no desktop or camera images were captured.

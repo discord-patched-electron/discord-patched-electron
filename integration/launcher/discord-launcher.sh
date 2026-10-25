@@ -69,18 +69,24 @@ if ((${#disabled[@]})); then flags+=("--disable-features=$(
 )"); fi
 # Use the standard channel profile unless a test or user explicitly overrides it.
 export DISCORD_USER_DATA_DIR=${DISCORD_USER_DATA_DIR:-"$config_root/@PROFILE_NAME@"}
+DISCORD_USER_DATA_DIR=$(readlink -m -- "$DISCORD_USER_DATA_DIR")
 export DPE_RUNTIME_EXECUTABLE="$root/runtime/electron"
 if [[ -f "$root/client-distribution.json" ]]; then
   export PYTHONDONTWRITEBYTECODE=1
+  export PYTHONNOUSERSITE=1
+  export PYTHONPATH="$root/python"
+  unset PYTHONHOME ELECTRON_RUN_AS_NODE
   export DPE_CLIENT_ROOT="$DISCORD_USER_DATA_DIR/dpe-updater"
   channel=${name#discord-}
-  updater_flags=()
-  if [[ ${DPE_CLIENT_OFFLINE:-0} == 1 ]]; then updater_flags+=(--offline); fi
-  DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/runtime.py" "$root" "$DISCORD_USER_DATA_DIR" "${updater_flags[@]}")
-  DPE_CLIENT_HOST=$(python3 "$root/integration/updater/client.py" "$DPE_CLIENT_ROOT" "${channel%%-*}" "${updater_flags[@]}")
-  export DPE_CLIENT_HOST
   export DPE_LAUNCHER
   DPE_LAUNCHER=$(readlink -f -- "${BASH_SOURCE[0]}")
+  # Show progress before starting Python or downloading anything. The UI commits
+  # complete updates, then this launcher starts the selected runtime with its
+  # camera preload and the user's existing mod loader.
+  DPE_UPDATER_UI=1 "$root/runtime/electron" "${flags[@]}"
+  DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/runtime.py" "$root" "$DISCORD_USER_DATA_DIR" --offline)
+  DPE_CLIENT_HOST=$(python3 "$root/integration/updater/client.py" "$DPE_CLIENT_ROOT" "${channel%%-*}" --offline)
+  export DPE_CLIENT_HOST
 fi
 if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
   if [[ ! -f "$root/client-distribution.json" ]]; then

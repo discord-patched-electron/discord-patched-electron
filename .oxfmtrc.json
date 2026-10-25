@@ -6,6 +6,7 @@
     "node_modules/**",
     ".venv/**",
     "packaging/upstream/**",
+    "integration/updater/openasar/**",
     "patches/**",
     "docs/evidence/**",
     "bun.lock",

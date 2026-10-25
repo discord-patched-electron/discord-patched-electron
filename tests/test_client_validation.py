@@ -81,7 +81,12 @@ class ClientValidation(unittest.TestCase):
             [call.args[2] for call in recipes.call_args_list], ["stable", "ptb", "canary"]
         )
         self.assertEqual(
-            [call.args[1].name for call in downloads.call_args_list], ["openasar.tar.gz"]
+            [
+                call.args[1].name
+                for call in downloads.call_args_list
+                if not call.args[1].name.endswith(".whl")
+            ],
+            ["openasar.tar.gz"],
         )
         for item in report["combinations"]:
             self.assertEqual(item["passed"], item["discord_channel"] != "canary")

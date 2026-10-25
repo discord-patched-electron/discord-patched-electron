@@ -1,0 +1,78 @@
+// Serve OpenAsar's unmodified screen locally. Its proprietary media stays in
+// the user's cache, fetched separately from the pinned upstream revision.
+const fs = require("node:fs/promises");
+const path = require("node:path");
+const { createHash } = require("node:crypto");
+const source = require("./openasar/source.json");
+const checksum = (data) => createHash("sha256").update(data).digest("hex");
+const policy =
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src dpe-splash:; font-src dpe-splash:";
+
+module.exports = function assetHandler(cache, fetch, offline = false) {
+  const pending = new Map();
+  async function asset(name, metadata) {
+    const target = path.join(cache, metadata.sha256 + path.extname(name));
+    try {
+      const data = await fs.readFile(target);
+      if (checksum(data) === metadata.sha256) return data;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    if (offline) throw new Error("OpenAsar splash media is not cached");
+    const response = await fetch(
+      `https://raw.githubusercontent.com/OpenAsar/cdn/${source.commit}/splash/${name}`,
+      { credentials: "omit", signal: AbortSignal.timeout(15000) },
+    );
+    if (!response.ok) throw new Error(`OpenAsar splash download failed: ${response.status}`);
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of response.body) {
+      size += chunk.length;
+      if (size > metadata.size) throw new Error("OpenAsar splash media exceeds pinned size");
+      chunks.push(chunk);
+    }
+    const data = Buffer.concat(chunks);
+    if (checksum(data) !== metadata.sha256) throw new Error("OpenAsar splash checksum mismatch");
+    await fs.mkdir(cache, { recursive: true, mode: 0o700 });
+    const temporary = `${target}.${process.pid}.tmp`;
+    try {
+      await fs.writeFile(temporary, data, { mode: 0o600 });
+      await fs.rename(temporary, target);
+    } finally {
+      await fs.rm(temporary, { force: true });
+    }
+    return data;
+  }
+  return async ({ url }) => {
+    const parsed = new URL(url);
+    if (parsed.host !== "app") return new Response(null, { status: 404 });
+    const name = parsed.pathname.slice(1);
+    try {
+      if (name === "index.html") {
+        const html = await fs.readFile(path.join(__dirname, "openasar/index.html"));
+        if (checksum(html) !== source.html_sha256)
+          throw new Error("OpenAsar screen checksum mismatch");
+        return new Response(html, {
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "content-security-policy": policy,
+          },
+        });
+      }
+      const metadata = Object.hasOwn(source.assets, name) && source.assets[name];
+      if (!metadata) return new Response(null, { status: 404 });
+      if (!pending.has(name))
+        pending.set(
+          name,
+          asset(name, metadata).catch((error) => {
+            pending.delete(name);
+            throw error;
+          }),
+        );
+      return new Response(await pending.get(name), { headers: { "content-type": metadata.type } });
+    } catch (error) {
+      console.error(error.message);
+      return new Response(null, { status: 503 });
+    }
+  };
+};

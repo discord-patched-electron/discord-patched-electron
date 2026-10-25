@@ -29,6 +29,7 @@ from common import (
 from desktop_identity import arch_conflicts, desktop_id, display_name, profile_name
 from fingerprints import integration_key
 from lock_clients import normalize
+from updater_python import sources as python_sources
 
 SUPPORT = [
     "scripts/channels.py",
@@ -40,6 +41,8 @@ SUPPORT = [
     "scripts/client_native.py",
     "scripts/stage_package.py",
     "scripts/stage_updater.py",
+    "scripts/updater_python.py",
+    "uv.lock",
     "packaging/upstream/krisp-patcher.py",
     "packaging/upstream/provenance.json",
     "packaging/release-signing-key.asc",
@@ -170,7 +173,11 @@ def generate(
     sources += [("libdpe-camera-probe.so::" + camera["url"], checksum)]
     bootstrap = read_json(ROOT / "config/openasar.lock.json")
     sources += [("openasar.tar.gz::" + bootstrap["url"], bootstrap["sha256"])]
-    archives = [source.split("::")[0] for source, _ in sources]
+    sources += [(item["url"], item["sha256"]) for item in python_sources().values()]
+    archives = [
+        source.split("::")[0] if "::" in source else Path(urlparse(source).path).name
+        for source, _ in sources
+    ]
     sources += [
         (filename, sha256(output / filename))
         for filename in [

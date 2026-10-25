@@ -1,0 +1,17 @@
+{
+  "repository": "https://github.com/OpenAsar/cdn",
+  "commit": "4448ff4b5d7442802fa912054699b9c1e2ab7dd8",
+  "html_sha256": "470e6583752489cf4da14d1e96e063b249a4883ab0813d8c8035b87ea5252ebe",
+  "assets": {
+    "discord_loading.webm": {
+      "sha256": "313818d6b177a70fbe715a5142d6221ac1a1851eff5a9f6df505670ddcd73074",
+      "size": 160381,
+      "type": "video/webm"
+    },
+    "whitney_400.woff": {
+      "sha256": "0f823bc4b56f481fbceab4158d855e5d11628198a9e404b827b755fe45d4d1c4",
+      "size": 77784,
+      "type": "font/woff"
+    }
+  }
+}

@@ -18,7 +18,7 @@ import time
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from support import checksum, download, object_value, read_object, write_json
+from support import checksum, download, object_value, progress, read_object, write_json
 
 REPOSITORY = "discord-patched-electron/discord-patched-electron"
 CACHE_REPOSITORY = "discord-patched-electron/cache"
@@ -323,7 +323,10 @@ def _ensure_runtime(app: Path, profile: Path, *, offline: bool) -> Path:
                     file=sys.stderr,
                 )
                 archive = directory / "runtime.zip"
-                download(incoming["url"], archive, limit=512 * 1024 * 1024)
+                download(
+                    incoming["url"], archive, limit=512 * 1024 * 1024, label="Patched Electron"
+                )
+                progress("install", "Verifying patched Electron")
                 if checksum(archive) != incoming["archive_sha256"]:
                     raise ValueError("Runtime archive checksum mismatch")
                 staged = directory / "runtime"

@@ -16,6 +16,10 @@ class Launcher(unittest.TestCase):
             runtime = root / "runtime/electron"
             runtime.write_text(
                 "#!/usr/bin/env python3\nimport json,sys,os\n"
+                "if os.environ.get('DPE_UPDATER_UI') == '1':\n"
+                "    assert 'DPE_CLIENT_HOST' not in os.environ\n"
+                "    assert os.environ['PYTHONPATH'].endswith('/python')\n"
+                "    sys.exit(0)\n"
                 'print(json.dumps({"flags":sys.argv[1:], "profile":os.environ["DISCORD_USER_DATA_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"]}))\n'
             )
             runtime.chmod(0o755)

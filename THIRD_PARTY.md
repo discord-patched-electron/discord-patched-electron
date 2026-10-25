@@ -25,6 +25,17 @@ adapter supplies module-only updates using Discord's distribution manifests;
 it disables OpenAsar's own updater and renderer customization. The packaged
 `resources/app.asar` is a small project-owned entry point, not Discord's ASAR.
 
+The splash uses the unmodified MIT-licensed `splash/index.html` from
+[OpenAsar/cdn](https://github.com/OpenAsar/cdn), with its license and pinned
+revision in `integration/updater/openasar/`. The animation and Whitney font are
+excluded from packages: they are fetched from that revision into the user's
+cache on launch and checked against pinned hashes. OpenAsar's original preload
+is used directly from the bundled bootstrap source.
+
+The updater bundles Capstone and pyelftools from the wheels pinned in `uv.lock`.
+Their Python sources, Capstone's native library and upstream license notices
+are retained under `python/`, including each wheel's `.dist-info` directory.
+
 `tests/audio/speech.wav` is synthesized test speech generated with eSpeak NG
 1.52.0, then resampled with FFmpeg. Its phrase and generation metadata are recorded
 in `tests/audio/speech.json`. It contains no recorded personal audio. The native

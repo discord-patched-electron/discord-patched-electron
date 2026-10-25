@@ -36,13 +36,7 @@ function start() {
   );
   supply("cmdSwitches.js", () => {});
   supply("asarUpdate.js", () => {});
-  const events = new (require("node:events").EventEmitter)();
-  supply("splash/index.js", {
-    events,
-    initSplash: () => queueMicrotask(() => events.emit("APP_SHOULD_LAUNCH")),
-    pageReady: () => events.emit("APP_SHOULD_SHOW"),
-    focusWindow() {},
-  });
+  supply("splash/index.js", require("./splash.cjs"));
   Module.globalPaths.unshift(path.join(host, "modules"));
   for (const name of Object.keys(state.modules))
     Module.globalPaths.push(fs.realpathSync(path.join(host, "modules", name)));
@@ -66,7 +60,8 @@ function start() {
 }
 
 try {
-  start();
+  if (process.env.DPE_UPDATER_UI === "1") require("./startup.cjs");
+  else start();
 } catch (error) {
   console.error(error);
   app.whenReady().then(() => {

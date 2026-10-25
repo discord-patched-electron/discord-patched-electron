@@ -18,7 +18,15 @@ import tempfile
 import urllib.request
 from pathlib import Path, PurePosixPath
 
-from support import HTTPSRedirect, checksum, download, object_value, read_object, write_json
+from support import (
+    HTTPSRedirect,
+    checksum,
+    download,
+    object_value,
+    progress,
+    read_object,
+    write_json,
+)
 
 REQUIRED = {"discord_desktop_core", "discord_voice", "discord_krisp", "discord_utils"}
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
@@ -58,7 +66,10 @@ def identity(value) -> str:
 
 
 def fetch(url: str, target: Path, expected: str, limit: int = 512 * 1024 * 1024):
-    download(url, target, limit=limit)
+    name = url.split("/")[-3]
+    download(
+        url, target, limit=limit, label=name.removeprefix("discord_").replace("_", " ").title()
+    )
     if checksum(target) != expected:
         raise ValueError("Discord module checksum mismatch")
 
@@ -197,6 +208,7 @@ def install_module(
     with tempfile.TemporaryDirectory(prefix="module-", dir=cache) as temporary:
         archive = Path(temporary) / "module.br"
         fetch(source["url"], archive, source["sha256"])
+        progress("install", "Preparing " + name.removeprefix("discord_").replace("_", " "))
         extracted = Path(temporary) / "files"
         extracted.mkdir()
         extract_module(archive, extracted)
@@ -311,15 +323,22 @@ def ensure_client(
                     raise ValueError("Refusing a Discord module downgrade")
             cache = root / "cache"
             cache.mkdir(exist_ok=True)
+            pending = [
+                (name, source)
+                for name, source in state["modules"].items()
+                if not (
+                    module_path(cache, name, source, state["compatibility"]) / ".complete"
+                ).is_file()
+            ]
+            progress("batch", "Discord modules", total=len(pending))
+
+            def install(item):
+                result = install_module(cache, *item, state["compatibility"], executable)
+                progress("installed", item[0])
+                return result
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-                list(
-                    pool.map(
-                        lambda item: install_module(
-                            cache, *item, state["compatibility"], executable
-                        ),
-                        state["modules"].items(),
-                    )
-                )
+                list(pool.map(install, pending))
             generations = root / "generations"
             generations.mkdir(exist_ok=True)
             destination = generations / generation

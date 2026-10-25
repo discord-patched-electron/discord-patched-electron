@@ -9,9 +9,18 @@ from pathlib import Path
 from common import ROOT, download, read_json, sha256, write_json
 from desktop_identity import desktop_id
 from patch_app_audio import SIDECARS
+from updater_python import stage as stage_python
 
 
-def stage(output: Path, channel: str, version: str, asar: str, source_archive: Path | None = None):
+def stage(
+    output: Path,
+    channel: str,
+    version: str,
+    asar: str,
+    source_archive: Path | None = None,
+    *,
+    python_archives: Path | None = None,
+):
     lock = read_json(ROOT / "config/openasar.lock.json")
     # Include the exact corresponding source and license for the AGPL bootstrap.
     with tempfile.TemporaryDirectory(prefix="openasar-") as temporary:
@@ -84,6 +93,7 @@ def stage(output: Path, channel: str, version: str, asar: str, source_archive: P
         shutil.copy2(ROOT / "packaging/upstream" / name, upstream)
     write_json(output / "openasar-source.json", lock)
     shutil.copy2(ROOT / "discord-patched-electron.png", output / "discord.png")
+    stage_python(output, python_archives)
     write_json(
         output / "client-distribution.json",
         {
@@ -135,7 +145,10 @@ def validate_payload_entry(relative: str, *, is_dir: bool, link: str | None = No
         if relative != "runtime/resources" or link != "../resources":
             raise ValueError(f"Unexpected release symlink: {relative}")
     elif (
-        (path.suffix in (".asar", ".node", ".distro", ".br") and relative != "resources/app.asar")
+        path.name in ("discord_loading.webm", "whitney_400.woff")
+        or (
+            path.suffix in (".asar", ".node", ".distro", ".br") and relative != "resources/app.asar"
+        )
         or path.name in ("modules", "core", "updater_bootstrap", "installer.db")
         or (is_dir and path.name.startswith("app-"))
     ):

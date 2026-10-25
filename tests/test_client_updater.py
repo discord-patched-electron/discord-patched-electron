@@ -10,6 +10,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
@@ -217,7 +218,9 @@ class ModuleUpdates(unittest.TestCase):
     def test_checksum_mismatch_and_oversized_download_are_rejected(self):
         class Opener:
             def open(self, *_args, **_kwargs):
-                return io.BytesIO(b"incorrect bytes")
+                response = io.BytesIO(b"incorrect bytes")
+                response.headers = Message()
+                return response
 
         with (
             tempfile.TemporaryDirectory() as temporary,
@@ -305,7 +308,10 @@ class DistributionBoundary(unittest.TestCase):
                     source.addfile(member, io.BytesIO(value))
             lock = {"commit": commit, "sha256": sha256(archive)}
             app = root / "app"
-            with patch("stage_updater.read_json", return_value=lock):
+            with (
+                patch("stage_updater.read_json", return_value=lock),
+                patch("stage_updater.stage_python"),
+            ):
                 stage(app, "canary", "1.0.123", asar, archive)
             validate_distribution(app)
             unpacked = root / "unpacked"
@@ -351,6 +357,8 @@ class DistributionBoundary(unittest.TestCase):
                 "discord_voice.node",
                 "updater_bootstrap",
                 "client.distro",
+                "discord_loading.webm",
+                "whitney_400.woff",
             ):
                 path = app / name
                 path.write_bytes(b"unwanted client")

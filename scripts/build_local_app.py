@@ -204,7 +204,7 @@ def build(
             "Extract the whole folder, then run ./launch.sh. You can move the folder.\n"
             "First launch downloads Discord directly; an internet connection is required.\n"
             "Discord modules and signed patched Electron builds update automatically in your profile.\n"
-            "Requires x86-64-v3, Linux desktop libraries, Python 3 with capstone and pyelftools, Brotli, GnuPG (gpg and gpgv), PipeWire and PulseAudio tools.\n"
+            "Requires x86-64-v3, Linux desktop libraries, Python 3, Brotli, GnuPG (gpg and gpgv), PipeWire and PulseAudio tools.\n"
             f"Settings: ~/.config/discord-{channel}-patched-electron.conf\n"
             f"Profile: ~/.config/{profile_name(channel)}\n"
             "See https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/install.md\n"

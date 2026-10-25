@@ -34,7 +34,7 @@ def check(
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    profile = profile or output / "profile"
+    profile = (profile or output / "profile").resolve()
     environment = {
         **os.environ,
         "DISCORD_USER_DATA_DIR": str(profile),
@@ -42,6 +42,11 @@ def check(
         "WAYLAND_DEBUG": "client",
     }
     environment.pop("ELECTRON_RUN_AS_NODE", None)
+    # A staged portable app must work from an ordinary terminal, without uv's
+    # virtualenv accidentally supplying its runtime Python dependencies.
+    environment["PATH"] = os.defpath
+    for name in ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME"):
+        environment.pop(name, None)
     report = {
         "passed": False,
         "profile": str(profile),
@@ -49,6 +54,7 @@ def check(
         "real_discord_call_verified": False,
         "app": str(app),
         "targets": [],
+        "updater_ui_seen": False,
     }
     channel = read_json(app / "local-build.json")["channel"]
     host = {"stable": "discord.com", "ptb": "ptb.discord.com", "canary": "canary.discord.com"}[
@@ -77,6 +83,8 @@ def check(
                     report["targets"] = [
                         {k: t.get(k) for k in ("type", "url", "title")} for t in targets
                     ]
+                    if any(t.get("url") == "dpe-splash://app/index.html" for t in targets):
+                        report["updater_ui_seen"] = True
                     for target in targets:
                         if target.get("type") != "page" or not target.get("url", "").startswith(
                             f"https://{host}/"

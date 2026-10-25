@@ -50,7 +50,17 @@ module.exports = function createUpdater(app, state, host, root, clientRoot) {
       execFile(
         "python3",
         [path.join(root, "integration/updater/check.py"), root, clientRoot, state.channel],
-        { timeout: 900000, env: { ...process.env, LD_PRELOAD: "" } },
+        {
+          timeout: 900000,
+          env: {
+            ...process.env,
+            LD_PRELOAD: "",
+            DPE_UPDATE_PROGRESS: "0",
+            PYTHONPATH: path.join(root, "python"),
+            PYTHONNOUSERSITE: "1",
+            PYTHONDONTWRITEBYTECODE: "1",
+          },
+        },
         (error, stdout, stderr) => {
           checking = false;
           if (stderr) console.error(stderr.trim());

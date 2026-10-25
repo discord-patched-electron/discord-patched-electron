@@ -31,7 +31,12 @@ def stage(inputs: dict, directory: Path, asar: str):
         check=True,
     )
     stage_updater(
-        destination, client["channel"], client["version"], asar, directory / "openasar.tar.gz"
+        destination,
+        client["channel"],
+        client["version"],
+        asar,
+        directory / "openasar.tar.gz",
+        python_archives=directory,
     )
     resources = destination / "runtime/resources"
     if resources.exists():
