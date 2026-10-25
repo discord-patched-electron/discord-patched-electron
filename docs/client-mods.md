@@ -6,8 +6,9 @@ Launch Discord once, then close it and run the official
 from its detected installations. Install one mod at a time.
 
 The installation uses Discord's usual path:
-`~/.config/discordcanary/app-<version>/resources`. Automatic updates preserve
-the mod loader and refresh the underlying bootstrap. No root access is needed.
+`~/.config/discordcanary/app-<version>/resources`. The launcher detects Vencord or
+Equicord there and preserves it across Discord, Electron and package updates.
+No reinstall or root access is needed.
 
 If you override `XDG_CONFIG_HOME` or `DPE_PROFILE_DIR`, choose **Custom Location**
 and select that profile directory. Some installers only search `~/.config`.

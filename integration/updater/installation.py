@@ -18,7 +18,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from support import checksum, read_object, write_json
+from client_mods import detect
+from support import checksum, progress, read_object, write_json
 
 EXECUTABLES = {"stable": "Discord", "canary": "DiscordCanary", "ptb": "DiscordPTB"}
 
@@ -42,7 +43,9 @@ def intact(directory: Path, state: dict, *, allow_mod=False) -> bool:
         if (
             allow_mod
             and "resources/_app.asar" not in wanted["files"]
+            and detect(directory / "resources") is not None
             and (directory / "resources/_app.asar").is_file()
+            and not (directory / "resources/_app.asar").is_symlink()
         ):
             # Default Vencord/Equicord installers wrap app.asar and retain its
             # original as _app.asar. Only this deliberate mutation is exempt.
@@ -118,6 +121,7 @@ def prepare_view(app: Path, profile: Path, host: Path, executable: Path, state: 
                 "resources": manifest(app / "resources"),
                 "camera": checksum(app / "libdpe-camera-probe.so"),
                 "adapter": checksum(Path(__file__)),
+                "client_mods": checksum(Path(__file__).with_name("client_mods.py")),
             },
             sort_keys=True,
         ).encode()
@@ -142,6 +146,13 @@ def prepare_view(app: Path, profile: Path, host: Path, executable: Path, state: 
         shutil.copy2(app / "libdpe-camera-probe.so", preload / "libdpe-camera-probe.so")
         resources = staged / "resources"
         shutil.copytree(app / "resources", resources)
+        # Older installations allowed patching the package itself. Publish a
+        # clean base so its loader can migrate once into the user's profile,
+        # and a later uninstall cannot be undone by that package copy.
+        if detect(resources):
+            (resources / "_app.asar").replace(resources / "app.asar")
+        else:
+            (resources / "_app.asar").unlink(missing_ok=True)
         shutil.copy2(host / "resources/build_info.json", resources / "build_info.json")
         shutil.copy2(host / "client.json", staged / "client.json")
         for name, source in state["modules"].items():
@@ -218,6 +229,32 @@ def recover(profile: Path, connection):
     sync_directory(journal.parent)
 
 
+def mod_resources(app: Path, profile: Path, state: dict, active: dict) -> Path:
+    """Use the current installation, including its explicit uninstalled state.
+
+    Never search retained backups for a mod: that would resurrect removals or
+    switch back to an older mod. Before the first takeover, discover the stock
+    installation in this profile or an older, directly patched package.
+    """
+    version = active.get("version")
+    if isinstance(version, str) and re.fullmatch(r"\d+\.\d+\.\d+", version):
+        return profile / ("app-" + version) / "resources"
+    entry = profile / EXECUTABLES[state["channel"]]
+    if entry.is_symlink():
+        parent = entry.resolve().parent
+        if parent.parent == profile and re.fullmatch(r"app-\d+\.\d+\.\d+", parent.name):
+            return parent / "resources"
+    candidates = [
+        path
+        for path in profile.glob("app-*")
+        if re.fullmatch(r"app-\d+\.\d+\.\d+", path.name) and (path / "resources").is_dir()
+    ]
+    if candidates:
+        latest = max(candidates, key=lambda path: tuple(map(int, path.name[4:].split("."))))
+        return latest / "resources"
+    return app / "resources"
+
+
 def publish_locked(app: Path, profile: Path, host: Path, executable: Path) -> Path:
     state = read_object(host / "client.json")
     public = profile / ("app-" + state["version"])
@@ -271,15 +308,13 @@ def publish_locked(app: Path, profile: Path, host: Path, executable: Path) -> Pa
                 (staged / "modules").symlink_to(item, target_is_directory=True)
             else:
                 copy_payload(item, staged / item.name)
-        old_resources = (
-            entry.resolve().parent / "resources" if entry.exists() else public / "resources"
-        )
-        if (old_resources / "_app.asar").is_file() and (old_resources / "app.asar").is_file():
+        mod = detect(mod_resources(app, profile, state, active))
+        if mod:
             resources = staged / "resources"
             # Refresh the underlying bootstrap while retaining the user's loader.
-            if not (resources / "_app.asar").exists():
-                (resources / "app.asar").rename(resources / "_app.asar")
-            shutil.copy2(old_resources / "app.asar", resources / "app.asar")
+            (resources / "app.asar").replace(resources / "_app.asar")
+            (resources / "app.asar").write_bytes(mod.loader)
+            progress("check", f"Preserving {mod.name}")
         incoming = record(staged, state)
         # Keep the copied integrity record for the unwrapped bootstrap; the
         # native database below records the actual installed loader bytes.

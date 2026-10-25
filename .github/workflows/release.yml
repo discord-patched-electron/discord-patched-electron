@@ -156,7 +156,7 @@ jobs:
           cat <<EOF_RULE | sudo tee /etc/apparmor.d/discord-release-fixture >/dev/null
           abi <abi/4.0>,
           include <tunables/global>
-          profile discord-release-fixture "$GITHUB_WORKSPACE/out/relocated app/runtime/electron" flags=(unconfined) {
+          profile discord-release-fixture "$GITHUB_WORKSPACE/out/**/runtime/electron" flags=(unconfined) {
             userns,
           }
           profile discord-release-client-fixture "$GITHUB_WORKSPACE/out/**/profile/app-*/electron" flags=(unconfined) {

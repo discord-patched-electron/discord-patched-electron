@@ -17,16 +17,6 @@ runs:
       run: |
         set -euo pipefail
         fixture=$(mktemp -d "$RUNNER_TEMP/client-mods.XXXXXX")
-        export EQUICORD_USER_DATA_DIR="$fixture/equicord"
-        export VENCORD_USER_DATA_DIR="$fixture/vencord"
-        mkdir -p "$EQUICORD_USER_DATA_DIR" "$VENCORD_USER_DATA_DIR"
-        cp "$APP/resources/app.asar" "$fixture/bootstrap.asar"
-        sha256sum "$APP/resources/app.asar" >"$fixture/bootstrap.sha256"
-        restore() {
-          if [[ -e "$APP/resources/_app.asar" ]]; then
-            "$installer" -uninstall -location "$APP"
-          fi
-        }
         for mod in vencord equicord; do
           if [[ "$mod" == vencord ]]; then
             url=https://github.com/Vencord/Installer/releases/download/v1.4.2/VencordInstallerCli-linux
@@ -39,20 +29,7 @@ runs:
           curl --fail --location --silent --show-error --retry 3 "$url" --output "$installer"
           echo "$checksum  $installer" | sha256sum --check
           chmod +x "$installer"
-          trap restore EXIT
-          "$installer" -install -location "$APP"
-          # Simulate upgrading over an installed mod with an older bootstrap.
-          printf '\nprevious bootstrap\n' >> "$APP/resources/_app.asar"
-          cp "$fixture/bootstrap.asar" "$APP/resources/app.asar"
-          (cd "$APP" && sha256sum resources/app.asar > SHA256SUMS)
-          sh packaging/linux/refresh-mod-backup.sh "$APP"
-          cmp "$APP/resources/_app.asar" "$fixture/bootstrap.asar"
-          "$installer" -install -location "$APP"
-          xvfb-run -a python scripts/check_desktop_launch.py "$APP" --output "$OUTPUT/$mod" --relaunch --equicord
-          restore
-          sha256sum --check "$fixture/bootstrap.sha256"
-          test ! -e "$APP/resources/_app.asar"
-          trap - EXIT
         done
-        sha256sum "$EQUICORD_USER_DATA_DIR/equicord.asar" "$VENCORD_USER_DATA_DIR/dist/patcher.js" "$VENCORD_USER_DATA_DIR/dist/preload.js" "$VENCORD_USER_DATA_DIR/dist/renderer.js" >"$OUTPUT/mod-sha256.txt"
+        xvfb-run -a uv run python scripts/check_client_mods.py "$APP" --output "$OUTPUT" \
+          --vencord "$fixture/vencord-installer" --equicord "$fixture/equicord-installer"
         rm -rf "$fixture"

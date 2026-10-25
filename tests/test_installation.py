@@ -1,6 +1,7 @@
 """Native installer compatibility, takeover rollback and writable-copy isolation."""
 
 import json
+import shutil
 import sqlite3
 import sys
 import tempfile
@@ -8,6 +9,8 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
+
+from mod_fixture import install, uninstall
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "integration/updater"))
 import installation
@@ -53,6 +56,18 @@ class NativeInstallation(unittest.TestCase):
                 key: json.loads(value)
                 for key, value in connection.execute("SELECT * FROM key_values")
             }
+
+    def advance(self, *, version=None, revision=None):
+        self.state["version"] = version or self.state["version"]
+        if revision is not None:
+            self.state["modules"]["discord_voice"]["version"] = revision
+        destination = self.root / (
+            f"prepared-{self.state['version']}-{self.state['modules']['discord_voice']['version']}"
+        )
+        shutil.copytree(self.host, destination)
+        self.host = destination
+        write_json(self.host / "client.json", self.state)
+        write_json(self.host / "resources/build_info.json", {"version": self.state["version"]})
 
     def stock(self):
         public = self.profile / "app-1.0.9"
@@ -181,22 +196,158 @@ class NativeInstallation(unittest.TestCase):
     def test_default_mod_loader_survives_update_and_uninstall(self):
         public = self.publish()
         resources = public / "resources"
-        (resources / "app.asar").rename(resources / "_app.asar")
-        (resources / "app.asar").write_text("user mod loader")
+        loader = install(resources)
         before = self.database()
         self.publish()
         self.assertEqual(self.database(), before)
         self.exe.write_text("updated fork")
         (self.app / "resources/app.asar").write_text("updated bootstrap")
         self.publish()
-        self.assertEqual((resources / "app.asar").read_text(), "user mod loader")
+        self.assertEqual((resources / "app.asar").read_bytes(), loader)
         self.assertEqual((resources / "_app.asar").read_text(), "updated bootstrap")
-        (resources / "app.asar").unlink()
-        (resources / "_app.asar").rename(resources / "app.asar")
+        uninstall(resources)
         self.exe.write_text("another fork")
         self.publish()
         self.assertEqual((resources / "app.asar").read_text(), "updated bootstrap")
         self.assertFalse((resources / "_app.asar").exists())
+
+    def test_both_mods_survive_module_runtime_package_and_host_updates(self):
+        for name in ("Vencord", "Equicord"):
+            with self.subTest(mod=name):
+                self.profile = self.root / name
+                self.state.update(version="1.0.9", modules={"discord_voice": {"version": 7}})
+                write_json(self.host / "client.json", self.state)
+                (self.app / "resources/app.asar").write_text("project loader")
+                resources = self.publish() / "resources"
+                loader = install(resources, name)
+                # A normal launch must accept the loader without rebuilding.
+                before = self.database()
+                self.publish()
+                self.assertEqual(self.database(), before)
+                # Immutable module generations can change without a host bump.
+                self.state["modules"]["discord_voice"]["version"] = 8
+                write_json(self.host / "client.json", self.state)
+                public = self.publish()
+                self.assertTrue((public / "modules/discord_voice-8/discord_voice").is_dir())
+                self.assertEqual((resources / "app.asar").read_bytes(), loader)
+                self.exe.write_text(f"updated runtime for {name}")
+                self.publish()
+                self.assertEqual((resources / "app.asar").read_bytes(), loader)
+                (self.app / "resources/app.asar").write_text("updated bootstrap")
+                self.publish()
+                self.assertEqual((resources / "app.asar").read_bytes(), loader)
+                self.assertEqual((resources / "_app.asar").read_text(), "updated bootstrap")
+                self.state["version"] = "1.0.10"
+                write_json(self.host / "client.json", self.state)
+                resources = self.publish() / "resources"
+                self.assertEqual(resources.parent.name, "app-1.0.10")
+                self.assertEqual((resources / "app.asar").read_bytes(), loader)
+                self.assertEqual((resources / "_app.asar").read_text(), "updated bootstrap")
+                self.assertTrue(installation.intact(resources.parent, self.state, allow_mod=True))
+                uninstall(resources)
+                # Previous host directories retain their mod; never import it again.
+                self.state["version"] = "1.0.11"
+                write_json(self.host / "client.json", self.state)
+                resources = self.publish() / "resources"
+                self.assertEqual((resources / "app.asar").read_text(), "updated bootstrap")
+                self.assertFalse((resources / "_app.asar").exists())
+
+    def test_host_update_keeps_mod_when_entry_is_missing_or_broken(self):
+        for broken in (False, True):
+            with self.subTest(broken=broken):
+                self.profile = self.root / str(broken)
+                self.state["version"] = "1.0.9"
+                write_json(self.host / "client.json", self.state)
+                loader = install(self.publish() / "resources", "Equicord")
+                entry = self.profile / "DiscordCanary"
+                entry.unlink()
+                if broken:
+                    entry.symlink_to("missing/DiscordCanary")
+                self.state["version"] = "1.0.10"
+                write_json(self.host / "client.json", self.state)
+                resources = self.publish() / "resources"
+                self.assertEqual((resources / "app.asar").read_bytes(), loader)
+                self.assertEqual((resources / "_app.asar").read_text(), "project loader")
+
+    def test_first_takeover_detects_stock_mod_with_no_launcher_link(self):
+        self.stock()
+        (self.profile / "DiscordCanary").unlink()
+        for version, mod in (("1.0.9", "Vencord"), ("1.0.10", "Equicord")):
+            resources = self.profile / f"app-{version}/resources"
+            resources.mkdir(parents=True)
+            (resources / "app.asar").write_text("stock bootstrap")
+            expected = install(resources, mod)
+        self.advance(version="1.0.11")
+        resources = self.publish() / "resources"
+        self.assertEqual((resources / "app.asar").read_bytes(), expected)
+        self.assertEqual((resources / "_app.asar").read_text(), "project loader")
+
+    def test_switching_mods_and_uninstall_survive_later_updates(self):
+        resources = self.publish() / "resources"
+        install(resources, "Vencord")
+        self.exe.write_text("updated runtime")
+        self.publish()
+        uninstall(resources)
+        expected = install(resources, "Equicord")
+        self.advance(version="1.0.10")
+        resources = self.publish() / "resources"
+        self.assertEqual((resources / "app.asar").read_bytes(), expected)
+        uninstall(resources)
+        self.assertTrue(installation.intact(resources.parent, self.state))
+        self.advance(version="1.0.11")
+        resources = self.publish() / "resources"
+        self.assertEqual((resources / "app.asar").read_text(), "project loader")
+        self.assertFalse((resources / "_app.asar").exists())
+
+    def test_package_mod_migrates_once_and_cannot_override_profile_uninstall(self):
+        expected = install(self.app / "resources", "Vencord")
+        resources = self.publish() / "resources"
+        self.assertEqual((resources / "app.asar").read_bytes(), expected)
+        self.assertEqual((resources / "_app.asar").read_text(), "project loader")
+        uninstall(resources)
+        self.exe.write_text("updated runtime")
+        self.publish()
+        self.assertEqual((resources / "app.asar").read_text(), "project loader")
+        self.assertFalse((resources / "_app.asar").exists())
+
+    def test_stale_backup_is_not_detected_as_a_mod_or_used_as_a_bootstrap(self):
+        resources = self.publish() / "resources"
+        (resources / "_app.asar").write_text("old bootstrap")
+        (resources / "app.asar").write_text("stock overwrite")
+        self.publish()
+        self.assertEqual((resources / "app.asar").read_text(), "project loader")
+        self.assertFalse((resources / "_app.asar").exists())
+
+    def test_missing_or_corrupt_backup_is_repaired_without_removing_mod(self):
+        resources = self.publish() / "resources"
+        expected = install(resources, "Equicord")
+        for corrupt in (None, b"stale bootstrap"):
+            with self.subTest(corrupt=corrupt):
+                backup = resources / "_app.asar"
+                if corrupt is None:
+                    backup.unlink()
+                else:
+                    backup.write_bytes(corrupt)
+                self.publish()
+                self.assertEqual((resources / "app.asar").read_bytes(), expected)
+                self.assertEqual(backup.read_text(), "project loader")
+
+    def test_failed_mod_update_rolls_back_and_retry_preserves_it(self):
+        resources = self.publish() / "resources"
+        expected = install(resources, "Vencord")
+        before = self.database()
+        (self.app / "resources/app.asar").write_text("updated bootstrap")
+        with (
+            patch.object(installation, "replace_link", side_effect=OSError("power loss")),
+            self.assertRaises(OSError),
+        ):
+            self.publish()
+        self.assertEqual(self.database(), before)
+        self.assertEqual((resources / "app.asar").read_bytes(), expected)
+        self.assertEqual((resources / "_app.asar").read_text(), "project loader")
+        self.publish()
+        self.assertEqual((resources / "app.asar").read_bytes(), expected)
+        self.assertEqual((resources / "_app.asar").read_text(), "updated bootstrap")
 
     def test_abrupt_activation_interruption_recovers_on_next_launch(self):
         self.stock()
@@ -222,11 +373,10 @@ class NativeInstallation(unittest.TestCase):
         public.symlink_to(view)
         (self.profile / "DiscordCanary").symlink_to(public / "DiscordCanary")
         resources = public / "resources"
-        (resources / "app.asar").rename(resources / "_app.asar")
-        (resources / "app.asar").write_text("legacy mod")
+        loader = install(resources, "Equicord")
         self.publish()
         self.assertFalse(public.is_symlink())
-        self.assertEqual((resources / "app.asar").read_text(), "legacy mod")
+        self.assertEqual((resources / "app.asar").read_bytes(), loader)
         self.assertEqual((resources / "_app.asar").read_text(), "project loader")
 
     def test_recovery_keeps_a_committed_activation(self):
