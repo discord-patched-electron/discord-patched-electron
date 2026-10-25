@@ -8,7 +8,12 @@ const checksum = (data) => createHash("sha256").update(data).digest("hex");
 const policy =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src dpe-splash:; font-src dpe-splash:";
 
-module.exports = function assetHandler(cache, fetch, offline = false) {
+module.exports = function assetHandler(
+  cache,
+  fetch,
+  offline = false,
+  editorRoot = path.join(process.env.DPE_APP_ROOT || "", "bootstrap/cdn"),
+) {
   const pending = new Map();
   async function asset(name, metadata) {
     const target = path.join(cache, metadata.sha256 + path.extname(name));
@@ -48,6 +53,33 @@ module.exports = function assetHandler(cache, fetch, offline = false) {
     if (parsed.host !== "app") return new Response(null, { status: 404 });
     const name = parsed.pathname.slice(1);
     try {
+      if (
+        name === "config.html" ||
+        (/^monaco-editor\/min\/[A-Za-z0-9_./-]+$/.test(name) && !name.split("/").includes(".."))
+      ) {
+        const file =
+          name === "config.html"
+            ? path.join(__dirname, "openasar/config.html")
+            : path.join(editorRoot, name);
+        const mime =
+          {
+            ".html": "text/html; charset=utf-8",
+            ".js": "text/javascript",
+            ".css": "text/css",
+            ".json": "application/json",
+            ".ttf": "font/ttf",
+          }[path.extname(file)] || "application/octet-stream";
+        const contents = await fs.readFile(file);
+        if (name === "config.html" && checksum(contents) !== source.config_sha256)
+          throw new Error("OpenAsar settings checksum mismatch");
+        return new Response(contents, {
+          headers: {
+            "content-type": mime,
+            "content-security-policy":
+              "default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src dpe-splash: https://fonts.gstatic.com; connect-src dpe-splash:; worker-src blob: dpe-splash:; img-src dpe-splash: data:",
+          },
+        });
+      }
       if (name === "index.html") {
         const html = await fs.readFile(path.join(__dirname, "openasar/index.html"));
         if (checksum(html) !== source.html_sha256)

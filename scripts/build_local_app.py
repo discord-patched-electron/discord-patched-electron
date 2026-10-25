@@ -156,7 +156,8 @@ def build(
     launcher = launcher.replace("root=/usr/lib/" + name, root_line)
     if not portable:
         launcher = launcher.replace(
-            f'"$config_root/{profile_name(channel)}"', '"$config_root/$name-local"'
+            f'"${{DISCORD_USER_DATA_DIR:-$config_root}}/{profile_name(channel)}"',
+            '"${DISCORD_USER_DATA_DIR:-$config_root}/$name-local"',
         )
     # A user-owned directory cannot supply a root-owned setuid helper. Chromium
     # still uses its user-namespace sandbox; never disable the whole sandbox.

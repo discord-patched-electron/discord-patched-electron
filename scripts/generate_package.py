@@ -42,6 +42,7 @@ SUPPORT = [
     "scripts/stage_package.py",
     "scripts/stage_updater.py",
     "scripts/updater_python.py",
+    "scripts/stage_openasar.py",
     "uv.lock",
     "packaging/upstream/krisp-patcher.py",
     "packaging/upstream/provenance.json",
@@ -173,6 +174,8 @@ def generate(
     sources += [("libdpe-camera-probe.so::" + camera["url"], checksum)]
     bootstrap = read_json(ROOT / "config/openasar.lock.json")
     sources += [("openasar.tar.gz::" + bootstrap["url"], bootstrap["sha256"])]
+    editor = read_json(ROOT / "integration/updater/openasar/source.json")["archive"]
+    sources += [("openasar-cdn.tar.gz::" + editor["url"], editor["sha256"])]
     sources += [(item["url"], item["sha256"]) for item in python_sources().values()]
     archives = [
         source.split("::")[0] if "::" in source else Path(urlparse(source).path).name

@@ -372,9 +372,13 @@ class RuntimeBoundaries(unittest.TestCase):
         with (
             patch.object(check, "ensure_runtime", return_value=Path("/selected/electron")),
             patch.object(check, "ensure_client", return_value=Path("/client/new")) as modules,
+            patch.object(check, "publish") as publish,
             patch.dict(os.environ),
         ):
             result = check.check(Path("/app"), Path("/profile/dpe-updater"), "canary")
+            publish.assert_called_once_with(
+                Path("/app"), Path("/profile"), Path("/client/new"), Path("/selected/electron")
+            )
             self.assertEqual(result, {"runtime": "/selected/electron", "host": "/client/new"})
             modules.assert_called_once_with(
                 Path("/profile/dpe-updater"),

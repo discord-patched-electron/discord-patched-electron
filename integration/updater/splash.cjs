@@ -14,6 +14,8 @@ module.exports = {
       if (!ready) app.quit();
     });
     queueMicrotask(() => events.emit("APP_SHOULD_LAUNCH"));
+    if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)
+      setTimeout(() => module.exports.pageReady(), 300);
   },
   pageReady() {
     if (ready) return;

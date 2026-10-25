@@ -2,7 +2,13 @@ const { spawn } = require("node:child_process");
 const path = require("node:path");
 
 module.exports = function runUpdate(
-  { root, clientRoot, channel, onProgress = () => {} },
+  {
+    root,
+    clientRoot,
+    channel,
+    offline = process.env.DPE_CLIENT_OFFLINE === "1",
+    onProgress = () => {},
+  },
   launch = spawn,
 ) {
   const child = launch(
@@ -19,6 +25,7 @@ module.exports = function runUpdate(
         PYTHONNOUSERSITE: "1",
         PYTHONDONTWRITEBYTECODE: "1",
         DPE_UPDATE_PROGRESS: "1",
+        DPE_CLIENT_OFFLINE: offline ? "1" : "0",
       },
     },
   );

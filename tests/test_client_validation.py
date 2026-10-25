@@ -86,7 +86,7 @@ class ClientValidation(unittest.TestCase):
                 for call in downloads.call_args_list
                 if not call.args[1].name.endswith(".whl")
             ],
-            ["openasar.tar.gz"],
+            ["openasar.tar.gz", "openasar-cdn.tar.gz"],
         )
         for item in report["combinations"]:
             self.assertEqual(item["passed"], item["discord_channel"] != "canary")

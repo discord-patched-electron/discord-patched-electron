@@ -13,7 +13,8 @@ function bootstrap(source, filename, desktopExec) {
   if (filename === "bootstrap.js") {
     const begin = "  app.on('browser-window-created'";
     const end = "  desktopCore = require('discord_desktop_core');";
-    // Validate both boundaries before removing upstream renderer customization.
+    // Keep the original OpenAsar renderer/settings integration, with safe CSS
+    // serialization and current Discord theme-token compatibility in our adapter.
     patch(begin, begin);
     patch(end, end);
     const start = source.indexOf(begin);
@@ -21,12 +22,21 @@ function bootstrap(source, filename, desktopExec) {
     if (finish <= start) throw new Error("Unsupported pinned OpenAsar bootstrap order");
     source =
       source.slice(0, start) +
-      "  app.on('browser-window-created', (_event, window) => { window.webContents.once('did-finish-load', () => splash.pageReady()); });\n" +
+      "  require(process.env.DPE_APP_ROOT + '/integration/updater/renderer.cjs')(app, splash, oaConfig, oaVersion);\n" +
       source.slice(finish);
   } else if (filename === "index.js") {
     patch(
+      "process.resourcesPath = join(__dirname, '..');",
+      "process.resourcesPath = join(process.env.DPE_PROFILE_DIR, 'app-' + require('./utils/buildInfo').version, 'resources');",
+    );
+    patch(
       "global.oaConfig = settings.get('openasar', {});",
-      "global.oaConfig = { setup: true, autoupdate: false, noTrack: false };",
+      "global.oaConfig = { ...settings.get('openasar', {}), autoupdate: false };",
+    );
+  } else if (filename === "cmdSwitches.js") {
+    patch(
+      "app.commandLine.appendSwitch(k.replace('--', ''), c[k].join(','));",
+      "require(process.env.DPE_APP_ROOT + '/integration/updater/flags.cjs')(app.commandLine, k.replace('--', ''), c[k].join(','));",
     );
   } else if (filename === "autoStart.js") {
     patch("const exec = app.getPath('exe');", "const exec = process.env.DPE_LAUNCHER;");

@@ -2,20 +2,37 @@ const { BrowserWindow, ipcMain, net, protocol } = require("electron");
 const path = require("node:path");
 const assetHandler = require("./splash-assets.cjs");
 const splashState = require("./splash-state.cjs");
+const preferences = require("./profile.cjs");
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: "dpe-splash", privileges: { standard: true, secure: true, stream: true } },
+  {
+    scheme: "dpe-splash",
+    privileges: {
+      standard: true,
+      secure: true,
+      stream: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
 ]);
 
-module.exports = function createWindow(onAction) {
+let registered = false;
+function register() {
+  if (registered) return;
   protocol.handle(
     "dpe-splash",
     assetHandler(
-      path.join(process.env.DISCORD_USER_DATA_DIR, "dpe-updater/splash"),
+      path.join(process.env.DPE_PROFILE_DIR, "discord_asset_cache/openasar"),
       net.fetch,
       process.env.DPE_CLIENT_OFFLINE === "1",
     ),
   );
+  registered = true;
+}
+
+module.exports = function createWindow(onAction) {
+  register();
   const window = new BrowserWindow({
     title: "Discord",
     width: 300,
@@ -44,9 +61,12 @@ module.exports = function createWindow(onAction) {
   ipcMain.on("sq", quit);
   window.once("closed", () => ipcMain.removeListener("sq", quit));
   window.webContents.once("did-finish-load", () => window.webContents.send("state", state));
+  window.webContents.once("dom-ready", () => preferences.theme(window));
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
-  window.once("ready-to-show", () => window.show());
+  window.once("ready-to-show", () => {
+    if (!process.argv.includes("--start-minimized")) window.show();
+  });
   void window.loadURL("dpe-splash://app/index.html").catch((error) => {
     console.error(error);
     window.close();
@@ -59,3 +79,4 @@ module.exports = function createWindow(onAction) {
     },
   };
 };
+module.exports.register = register;

@@ -2,6 +2,11 @@
   "repository": "https://github.com/OpenAsar/cdn",
   "commit": "4448ff4b5d7442802fa912054699b9c1e2ab7dd8",
   "html_sha256": "470e6583752489cf4da14d1e96e063b249a4883ab0813d8c8035b87ea5252ebe",
+  "config_sha256": "8cc7c8553c96299c16dd9f88c3937e67097894f29c1761a4d2502a85766b4da6",
+  "archive": {
+    "url": "https://codeload.github.com/OpenAsar/cdn/tar.gz/4448ff4b5d7442802fa912054699b9c1e2ab7dd8",
+    "sha256": "17726687ab7f593e9fc6c245ea829f91270ed6b9473400402ddef3c1b8aecaa7"
+  },
   "assets": {
     "discord_loading.webm": {
       "sha256": "313818d6b177a70fbe715a5142d6221ac1a1851eff5a9f6df505670ddcd73074",

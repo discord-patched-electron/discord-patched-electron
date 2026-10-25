@@ -129,7 +129,12 @@ def package_one(
     inputs = generate(
         runtime, client, electron, 1, directory, camera=read_json(downloads / "camera-support.json")
     )
-    for filename in ("runtime.zip", "openasar.tar.gz", "libdpe-camera-probe.so"):
+    for filename in (
+        "runtime.zip",
+        "openasar.tar.gz",
+        "openasar-cdn.tar.gz",
+        "libdpe-camera-probe.so",
+    ):
         os.link(downloads / filename, directory / filename)
     for archive in downloads.glob("*.whl"):
         os.link(archive, directory / archive.name)
@@ -172,6 +177,8 @@ def smoke(
     targets = read_json(ROOT / "config/sources.lock.json")["targets"]
     bootstrap = read_json(ROOT / "config/openasar.lock.json")
     download(bootstrap["url"], downloads / "openasar.tar.gz", bootstrap["sha256"])
+    editor = read_json(ROOT / "integration/updater/openasar/source.json")["archive"]
+    download(editor["url"], downloads / "openasar-cdn.tar.gz", editor["sha256"])
     for source in python_sources().values():
         download(source["url"], downloads / source["url"].rsplit("/", 1)[-1], source["sha256"])
     fixture = downloads / "runtime.zip"

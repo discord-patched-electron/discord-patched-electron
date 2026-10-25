@@ -37,6 +37,7 @@ def stage(inputs: dict, directory: Path, asar: str):
         asar,
         directory / "openasar.tar.gz",
         python_archives=directory,
+        cdn_archive=directory / "openasar-cdn.tar.gz",
     )
     resources = destination / "runtime/resources"
     if resources.exists():

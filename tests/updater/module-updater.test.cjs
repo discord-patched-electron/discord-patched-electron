@@ -4,7 +4,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { test } = require("node:test");
 
-function fixture(env = {}) {
+function fixture(env = {}, installedHost) {
   const calls = [];
   const app = { relaunch: () => calls.push("relaunch"), quit: () => calls.push("quit") };
   const module = { exports: {} };
@@ -39,6 +39,7 @@ function fixture(env = {}) {
     "/profile/generations/old",
     "/portable app",
     "/profile",
+    installedHost,
   );
   return { updater, calls, pending, tick };
 }
@@ -63,6 +64,26 @@ test("module requests expose only installed modules and preserve version checks"
   await new Promise((resolve) => queueMicrotask(resolve));
   assert.equal(installed[0].succeeded, true);
   assert.equal(installed[1].succeeded, false);
+});
+
+test("native module paths remain anchored to the running install after an update", () => {
+  const { updater, pending } = fixture(
+    { DPE_RUNTIME_SOURCE: "/signed-cache/electron" },
+    "/profile/dpe-updater/installations/running",
+  );
+  const checked = [];
+  updater.events.on(updater.UPDATE_CHECK_FINISHED, (event) => checked.push(event));
+  updater.checkForUpdates();
+  pending.shift()[3](
+    null,
+    JSON.stringify({ host: "/profile/generations/old", runtime: "/signed-cache/electron" }),
+    "",
+  );
+  assert.equal(checked[0].updateCount, 0);
+  assert.equal(
+    updater.getModulePath("discord_voice"),
+    "/profile/dpe-updater/installations/running/modules/discord_voice-7/discord_voice",
+  );
 });
 
 test("checks serialize, advertise prepared generations, and restart through app.relaunch", () => {

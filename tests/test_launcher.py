@@ -20,7 +20,7 @@ class Launcher(unittest.TestCase):
                 "    assert 'DPE_CLIENT_HOST' not in os.environ\n"
                 "    assert os.environ['PYTHONPATH'].endswith('/python')\n"
                 "    sys.exit(0)\n"
-                'print(json.dumps({"flags":sys.argv[1:], "profile":os.environ["DISCORD_USER_DATA_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"]}))\n'
+                'print(json.dumps({"flags":sys.argv[1:], "profile":os.environ["DPE_PROFILE_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"]}))\n'
             )
             runtime.chmod(0o755)
             if cached:
@@ -42,6 +42,9 @@ class Launcher(unittest.TestCase):
                     "assert os.environ['PYTHONDONTWRITEBYTECODE'] == '1'\n"
                     "assert os.environ['DPE_RUNTIME_EXECUTABLE'].endswith('/cached runtime/electron')\n"
                     "print(sys.argv[1] + '/generation')\n"
+                )
+                (updater / "installation.py").write_text(
+                    "import sys\nprint(sys.argv[4])\nprint('/fixture/voice')\n"
                 )
             name = "discord-canary-prerelease-patched-electron-bin"
             (root / f"{name}-flags.conf").write_text(legacy)
@@ -83,7 +86,9 @@ class Launcher(unittest.TestCase):
         self.assertEqual(default["desktop"], "discord-canary.desktop")
         self.assertIn("--class=discord-canary", default["flags"])
         custom = self.launch(details=True, env={"DISCORD_USER_DATA_DIR": "/temporary/test-profile"})
-        self.assertEqual(custom["profile"], "/temporary/test-profile")
+        self.assertEqual(custom["profile"], "/temporary/test-profile/discordcanary")
+        exact = self.launch(details=True, env={"DPE_PROFILE_DIR": "/temporary/exact"})
+        self.assertEqual(exact["profile"], "/temporary/exact")
 
     def test_defaults_and_feature_precedence(self):
         flags = self.launch(

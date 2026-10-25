@@ -64,6 +64,31 @@ test("splash media is pinned, cached outside the app, and reusable offline", asy
   assert.equal((await absent({ url })).status, 503);
 });
 
+test("upstream settings and its local editor work without remote executable code", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "openasar-editor-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, "monaco-editor/min/vs"), { recursive: true });
+  await fs.writeFile(path.join(root, "monaco-editor/min/vs/loader.js"), "fixture editor");
+  const handler = assetHandler("/unused", () => assert.fail("settings must be local"), true, root);
+  const config = await handler({ url: "dpe-splash://app/config.html" });
+  assert.equal(config.status, 200);
+  assert.equal(
+    createHash("sha256")
+      .update(await config.text())
+      .digest("hex"),
+    source.config_sha256,
+  );
+  const editor = await handler({ url: "dpe-splash://app/monaco-editor/min/vs/loader.js" });
+  assert.equal(await editor.text(), "fixture editor");
+  assert.match(editor.headers.get("content-type"), /javascript/);
+  for (const name of [
+    "monaco-editor/LICENSE",
+    "monaco-editor/min/%2e%2e/secret.js",
+    "monaco-editor/min/vs/%2fetc/passwd",
+  ])
+    assert.equal((await handler({ url: "dpe-splash://app/" + name })).status, 404);
+});
+
 test("parallel download and install progress use OpenAsar states and retry countdown", () => {
   const translate = splashState();
   assert.deepEqual(translate({ stage: "check" }), { status: "checking-for-updates" });

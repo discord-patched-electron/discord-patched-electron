@@ -15,6 +15,7 @@ function start() {
   const bootstrap = path.join(root, "bootstrap/src");
   const info = JSON.parse(fs.readFileSync(path.join(resources, "build_info.json"), "utf8"));
   const state = JSON.parse(fs.readFileSync(path.join(host, "client.json"), "utf8"));
+  const installed = path.join(process.env.DPE_PROFILE_DIR, "app-" + info.version);
   app.setAppPath(bootstrap);
   const relaunch = app.relaunch.bind(app);
   app.relaunch = (options = {}) =>
@@ -29,18 +30,28 @@ function start() {
     require.cache[filename] = { id: filename, filename, loaded: true, exports: value };
   }
   supply("utils/buildInfo.js", info);
+  supply("paths.js", require("./profile.cjs").paths(app, info, installed));
   supply("updater/updater.js", { getUpdater: () => null, tryInitUpdater: () => false });
-  supply(
-    "updater/moduleUpdater.js",
-    require("./module-updater.cjs")(app, state, host, root, process.env.DPE_CLIENT_ROOT),
+  const updater = require("./module-updater.cjs")(
+    app,
+    state,
+    host,
+    root,
+    process.env.DPE_CLIENT_ROOT,
+    fs.realpathSync(installed),
   );
-  supply("cmdSwitches.js", () => {});
+  supply("updater/moduleUpdater.js", updater);
   supply("asarUpdate.js", () => {});
   supply("splash/index.js", require("./splash.cjs"));
-  Module.globalPaths.unshift(path.join(host, "modules"));
-  for (const name of Object.keys(state.modules))
-    Module.globalPaths.push(fs.realpathSync(path.join(host, "modules", name)));
-  const desktopRoot = fs.realpathSync(path.join(host, "modules/discord_desktop_core"));
+  supply("config/index.js", require("./config.cjs"));
+  const modules = Object.fromEntries(
+    Object.entries(state.modules).map(([name, source]) => [
+      name,
+      fs.realpathSync(path.join(installed, "modules", name + "-" + source.version, name)),
+    ]),
+  );
+  for (const module of Object.values(modules)) Module.globalPaths.push(path.dirname(module));
+  const desktopRoot = modules.discord_desktop_core;
 
   const compile = Module.prototype._compile;
   Module.prototype._compile = function (source, filename) {
@@ -57,6 +68,8 @@ function start() {
   };
 
   require(bootstrap);
+  if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)
+    app.whenReady().then(() => setTimeout(() => updater.checkForUpdates(), 1000).unref());
 }
 
 try {

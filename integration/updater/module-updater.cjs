@@ -2,7 +2,7 @@ const { EventEmitter } = require("node:events");
 const { execFile } = require("node:child_process");
 const path = require("node:path");
 
-module.exports = function createUpdater(app, state, host, root, clientRoot) {
+module.exports = function createUpdater(app, state, host, root, clientRoot, installedHost) {
   const events = new EventEmitter();
   events.history = [];
   const installed = Object.fromEntries(
@@ -24,7 +24,11 @@ module.exports = function createUpdater(app, state, host, root, clientRoot) {
     getInstalled: () =>
       Object.fromEntries(Object.entries(installed).map(([name, value]) => [name, { ...value }])),
     getModulePath: (name) =>
-      Object.hasOwn(installed, name) ? path.join(host, "modules", name) : null,
+      Object.hasOwn(installed, name)
+        ? installedHost
+          ? path.join(installedHost, "modules", name + "-" + state.modules[name].version, name)
+          : path.join(host, "modules", name)
+        : null,
     isInstalled: (name, version) =>
       Object.hasOwn(installed, name) &&
       (version == null || installed[name].installedVersion === version),
@@ -70,7 +74,9 @@ module.exports = function createUpdater(app, state, host, root, clientRoot) {
               const prepared = JSON.parse(stdout);
               if (typeof prepared.host !== "string" || typeof prepared.runtime !== "string")
                 throw new Error("Invalid prepared update result");
-              changed = prepared.host !== host || prepared.runtime !== process.execPath;
+              changed =
+                prepared.host !== host ||
+                prepared.runtime !== (process.env.DPE_RUNTIME_SOURCE || process.execPath);
             } catch (invalid) {
               error = invalid;
               console.error(invalid.message);

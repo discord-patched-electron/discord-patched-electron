@@ -81,6 +81,8 @@ Downloads and compatibility checks finish before activation. A failed download
 keeps the current installation.
 OpenAsar's startup screen shows download and installation progress. Failed first
 launches retry automatically. Capstone and pyelftools are included in the package.
+OpenAsar's settings and CSS editor are included. Splash Theming uses your client's
+cached colors; Quickstart uses a prepared installation and checks updates in the background.
 
 Electron updates live in your profile and need no administrator access. Your
 installed mod loader stays in place. For bootstrap and Linux integration updates,
@@ -91,13 +93,18 @@ You do not need to uninstall it first.
 Settings, login sessions and cache use the standard `~/.config/discordcanary`
 folder (or under `XDG_CONFIG_HOME` if set). Updates preserve them and your
 [launcher settings](linux-launcher.md). Close any running Canary instance first.
-Downloaded modules live in `dpe-updater/` and Electron versions in `dpe-runtime/`
-inside that profile. `DPE_CLIENT_OFFLINE=1` skips both update checks.
+The fork shares Discord's `app-<version>/`, versioned module directories and
+`installer.db`. Replaced stock files are backed up under `dpe-updater/backups/`.
+Preparation caches remain under `dpe-updater/` and `dpe-runtime/`.
+The stock updater can replace a shared installation; this package's launcher
+restores the fork from verified sources on its next launch.
+`DISCORD_USER_DATA_DIR` changes the parent folder (Canary adds `discordcanary/`);
+`DPE_PROFILE_DIR` selects an exact profile path. `DPE_CLIENT_OFFLINE=1` skips both update checks.
 `DPE_RUNTIME_UPDATES=0` skips only GitHub checks while retaining an already updated
 runtime; `DPE_RUNTIME_BUNDLED=1` uses the runtime installed with the package.
 
 Older builds used `~/.config/discord-canary-prerelease-patched-electron-bin`.
-That folder is left untouched. To keep using it, set `DISCORD_USER_DATA_DIR`
+That folder is left untouched. To keep using it, set `DPE_PROFILE_DIR`
 to its full path when launching.
 
 Discord client updates are checked independently of Electron. Routine Electron

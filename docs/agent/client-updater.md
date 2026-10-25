@@ -9,9 +9,9 @@ updater found no resource-only host download option.
 This branch therefore uses pinned OpenAsar startup code with a project-owned
 module updater. It consumes the new `updates.discord.com/distributions/app/manifests/latest`
 API, validates module URLs and SHA-256 hashes, and never fetches `full.url` or host
-deltas. OpenAsar's upstream native updater, legacy downloads, self-update,
-performance flags, remote settings UI and renderer customization are
-replaced or disabled. The splash uses OpenAsar's original screen served locally,
+deltas. OpenAsar's upstream native updater, legacy downloads and self-update are
+replaced. Saved settings, renderer customization and performance presets are
+preserved; explicit launcher flags take precedence. The splash and settings use OpenAsar's original screens served locally,
 as described below. All executed bootstrap source and its AGPL license ship
 in the package. `resources/app.asar` contains only the project's entry point and
 metadata, preserving the layout used by official mod installers.
@@ -19,7 +19,7 @@ metadata, preserving the layout used by official mod installers.
 ## Ownership and updates
 
 - The package provides the initial patched Electron, bootstrap source and Linux integrations.
-- `$DISCORD_USER_DATA_DIR/dpe-updater` owns downloaded modules, complete generations
+- `<profile>/dpe-updater` owns downloaded modules, complete generations
   and the atomic `current.json` pointer. No install hook downloads or launches Discord.
 - A lock serializes updates. Archives are checksum-verified before extraction;
   extraction rejects traversal, external links and device files. Failed downloads
@@ -27,6 +27,9 @@ metadata, preserving the layout used by official mod installers.
 - Module content hashes allow reuse across host versions. Compatibility code
   changes create new prepared modules. Old generations are retained so running
   clients are never rewritten underneath Electron.
+- `installation.py` publishes prepared files through the shared `app-<version>/`
+  tree and `installer.db`. See the compatibility follow-up below for its native
+  schema, rollback and backup behavior.
 - Voice/audio and Krisp patches apply locally before activation, including the
   validated camera function scope. The safe-storage adapter runs in memory when
   the downloaded desktop ASAR is loaded. Unknown patch layouts fail closed.
@@ -85,7 +88,7 @@ Do not format or redesign it. `window.cjs` retains OpenAsar's 300×350 frameless
 Linux window and loads the original preload from the pinned bootstrap. A narrow
 local protocol serves the HTML with a restrictive CSP. The original animation
 and Whitney font download separately from the pinned revision, are verified by
-size and SHA-256, and stay under `dpe-updater/splash/` in the user's profile.
+size and SHA-256, and stay under `discord_asset_cache/openasar/` in the user's profile.
 Packages contain neither media asset; offline launches reuse verified cached
 copies. Without cached media and network access, text still renders.
 
@@ -254,3 +257,82 @@ quit or SIGINT/SIGTERM. It reuses the retained verified
 Electron artifact. No runtime compilation, publication or authenticated Discord
 interaction was performed. The browser preview used only the public upstream
 splash and a progress fixture; no desktop or camera images were captured.
+
+## Settings and native install-tree compatibility: October 25 follow-up
+
+The live `https://cdn.openasar.dev/splash/` response was HTTP 200 and SHA-256
+`470e6583752489cf4da14d1e96e063b249a4883ab0813d8c8035b87ea5252ebe`, exactly our
+pinned HTML. OpenAsar and CDN HEADs still match their locks. The retained current
+Canary 1.0.2366 bootstrap was also inspected: Discord itself uses a newer 300×300
+splash, gg sans and `connecting.webp`. OpenAsar still serves its older screen,
+so its HTML, animation, typography and dimensions remain unchanged here.
+Downloaded proprietary reference code stays in `out/`.
+
+The adapter previously replaced the entire `openasar` settings object. It now
+preserves saved preferences, custom CSS/JS, tracking/typing controls, DOM optimizer,
+multi-instance, hardware acceleration and Focus presets. Explicit launcher flags
+win over presets. Quickstart validates the prepared client offline, falls back to
+normal preparation if incomplete, and checks updates in the background. Bootstrap
+self-replacement remains disabled because it would remove this integration.
+
+The unchanged upstream settings HTML/preload and pinned Monaco editor run locally.
+Settings IPC accepts only the local main frame, and window navigation is blocked.
+The settings entry in Discord is the original OpenAsar renderer injection.
+CSS serialization also escapes template interpolation and replacement tokens.
+The theme collector accepts both legacy custom-theme tokens and current Discord
+tokens, including light/default themes. It keeps OpenAsar's five-color
+`userDataCache.json` contract and respects `openasar.themeSync === false` in both
+windows. Splash media now uses `discord_asset_cache/openasar/`.
+
+`DISCORD_USER_DATA_DIR` has Discord's parent-directory semantics; Canary adds
+`discordcanary/`. `DPE_PROFILE_DIR` is a separate exact-path override. The path
+adapter supplies the standard profile, version subdirectory, `module_data`, logs,
+asset cache, install root and `app-<version>/resources` locations. Local reference
+builds also honor the exact override, so test launches cannot leak into a real profile.
+
+The user explicitly chose to share the native installation tree and database.
+`installation.py` publishes `app-<version>` as an atomic symlink to a prepared
+payload, with modules at `modules/<name>-<revision>/<name>/`. Payloads are writable
+reflinks/copies rather than links into the package or verified download caches.
+A private lock serializes publishers; a SQLite write transaction coordinates
+database changes. The native `key_values` table contains the real host/module
+versions, `Installed` states and SHA-256 file manifests. Existing `install_id`,
+unrelated keys and older host records survive. Stock files/symlinks displaced by
+takeover and a database snapshot are retained under `dpe-updater/backups/`.
+Caught activation failures restore the previous links and database; interrupted
+activation can be reconciled by running the package launcher again. Running
+clients keep their original resolved module paths during background publication.
+
+The channel executable is a wrapper back through the stable package launcher.
+This lets Discord's stock shell launcher use the same installation without losing
+runtime selection, mod loading or camera setup. Native updater writes can replace
+shared files; subsequent fork launches detect changed installed bytes and publish
+a fresh copy. Old payloads remain available. The camera helper has a dedicated
+`preload/` library directory so paths containing spaces work without exposing
+Electron's other libraries to system child programs.
+
+Validation (fresh profiles, no account login or calls):
+
+- `bun run test`: 172 Python and 41 JavaScript tests; `bun run lint`: pass.
+  New cases cover native schema/preservation, takeover rollback, concurrent
+  publishers, corrupted-file repair, runtime/mod refresh, anchored module paths,
+  saved preferences, theme sync, safe CSS serialization and local editor assets.
+- `out/openasar-compatible-launch/`: fresh Canary 1.0.2366 login on native Wayland,
+  using the retained compiled fork and system Python with bundled dependencies.
+- `out/openasar-compatible-settings/` and `out/openasar-compatible-no-sync/`:
+  native splash/settings colors, unchanged 300×350/500×650 windows, offline Monaco,
+  CSS editing/saving and preservation of other cached fields. ThemeSync false
+  keeps the upstream default colors while custom client CSS continues to work.
+- `out/openasar-native-db-symlink-test/`: the real Discord `updater_bootstrap`
+  accepted the database and symlinked host tree, printing `app-1.0.2366`. Its local
+  manifest fixture forbade payload downloads; only two manifest requests occurred.
+- `out/openasar-parent-launch-check/` and `out/openasar-official-launch-check/`:
+  parent-directory override, spaces in the profile path, and the official shell
+  launcher all reach login through the canonical channel entry. The camera helper
+  also resolves in Electron Node mode and a system child executable from that path.
+- `out/openasar-compatible-packaging/packaging-report.json`: generated Arch
+  package passes with the pinned CDN/editor source and client-free payload rules.
+
+The current runnable build is `out/openasar-compatible-app`. No compiler was
+restarted. Account-specific settings-sidebar rendering and real calls were not
+tested; existing live-call/AppArmor coverage limits still apply.

@@ -67,16 +67,17 @@ if ((${#disabled[@]})); then flags+=("--disable-features=$(
   IFS=,
   echo "${disabled[*]}"
 )"); fi
-# Use the standard channel profile unless a test or user explicitly overrides it.
-export DISCORD_USER_DATA_DIR=${DISCORD_USER_DATA_DIR:-"$config_root/@PROFILE_NAME@"}
-DISCORD_USER_DATA_DIR=$(readlink -m -- "$DISCORD_USER_DATA_DIR")
+# Discord treats DISCORD_USER_DATA_DIR as the parent of its channel directory.
+# DPE_PROFILE_DIR is an explicit full-profile override for portable/test launches.
+export DPE_PROFILE_DIR=${DPE_PROFILE_DIR:-"${DISCORD_USER_DATA_DIR:-$config_root}/@PROFILE_NAME@"}
+DPE_PROFILE_DIR=$(readlink -m -- "$DPE_PROFILE_DIR")
 export DPE_RUNTIME_EXECUTABLE="$root/runtime/electron"
 if [[ -f "$root/client-distribution.json" ]]; then
   export PYTHONDONTWRITEBYTECODE=1
   export PYTHONNOUSERSITE=1
   export PYTHONPATH="$root/python"
   unset PYTHONHOME ELECTRON_RUN_AS_NODE
-  export DPE_CLIENT_ROOT="$DISCORD_USER_DATA_DIR/dpe-updater"
+  export DPE_CLIENT_ROOT="$DPE_PROFILE_DIR/dpe-updater"
   channel=${name#discord-}
   export DPE_LAUNCHER
   DPE_LAUNCHER=$(readlink -f -- "${BASH_SOURCE[0]}")
@@ -84,9 +85,14 @@ if [[ -f "$root/client-distribution.json" ]]; then
   # complete updates, then this launcher starts the selected runtime with its
   # camera preload and the user's existing mod loader.
   DPE_UPDATER_UI=1 "$root/runtime/electron" "${flags[@]}"
-  DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/runtime.py" "$root" "$DISCORD_USER_DATA_DIR" --offline)
+  DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/runtime.py" "$root" "$DPE_PROFILE_DIR" --offline)
   DPE_CLIENT_HOST=$(python3 "$root/integration/updater/client.py" "$DPE_CLIENT_ROOT" "${channel%%-*}" --offline)
   export DPE_CLIENT_HOST
+  export DPE_RUNTIME_SOURCE="$DPE_RUNTIME_EXECUTABLE"
+  installed=$(python3 "$root/integration/updater/installation.py" "$root" "$DPE_PROFILE_DIR" "$DPE_CLIENT_HOST" "$DPE_RUNTIME_SOURCE")
+  mapfile -t installed_paths <<<"$installed"
+  export DPE_RUNTIME_EXECUTABLE=${installed_paths[0]}
+  DPE_VOICE_ROOT=${installed_paths[1]}
 fi
 if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
   if [[ ! -f "$root/client-distribution.json" ]]; then
@@ -94,16 +100,24 @@ if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
     export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END
     export DPE_CAMERA_VOICE_MODULE="$root/modules/discord_voice/discord_voice.node"
   else
-    read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$DPE_CLIENT_HOST/modules/discord_voice/camera-probe.conf"
+    read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$DPE_VOICE_ROOT/camera-probe.conf"
     export DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END
-    DPE_CAMERA_VOICE_MODULE=$(readlink -f -- "$DPE_CLIENT_HOST/modules/discord_voice/discord_voice.node")
+    DPE_CAMERA_VOICE_MODULE=$(readlink -f -- "$DPE_VOICE_ROOT/discord_voice.node")
     export DPE_CAMERA_VOICE_MODULE
   fi
-  export LD_PRELOAD="$root/libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+  if [[ -f "$root/client-distribution.json" ]]; then
+    # LD_LIBRARY_PATH accepts spaces; LD_PRELOAD splits them. Keep this search
+    # directory limited to our helper so child programs keep their system libs.
+    preload_dir=$(dirname -- "$(readlink -f -- "$DPE_RUNTIME_EXECUTABLE")")/preload
+    export LD_LIBRARY_PATH="$preload_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export LD_PRELOAD="libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+  else
+    export LD_PRELOAD="$root/libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+  fi
 fi
 # Equicord's official installer patches resources/app.asar in place.
 # Keep its settings in this channel's profile; package updates own the bootstrap.
-export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DISCORD_USER_DATA_DIR/equicord"}
+export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DPE_PROFILE_DIR/equicord"}
 export DISABLE_UPDATER_AUTO_PATCHING=1
 # Ubuntu's installed profile grants the user-namespace sandbox to this app.
 # Enter that same profile when its verified runtime lives in the user cache.

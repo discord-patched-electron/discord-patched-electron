@@ -37,7 +37,7 @@ def check(
     profile = (profile or output / "profile").resolve()
     environment = {
         **os.environ,
-        "DISCORD_USER_DATA_DIR": str(profile),
+        "DPE_PROFILE_DIR": str(profile),
         "EQUICORD_USER_DATA_DIR": str(profile / "equicord"),
         "WAYLAND_DEBUG": "client",
     }

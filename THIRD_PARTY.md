@@ -22,15 +22,18 @@ under AGPL-3.0. Its source commit and archive checksum are pinned in
 `config/openasar.lock.json`. Packages include its complete `src/` tree and license
 under `bootstrap/`, alongside this project's readable integration source. The
 adapter supplies module-only updates using Discord's distribution manifests;
-it disables OpenAsar's own updater and renderer customization. The packaged
+it replaces OpenAsar's updater while retaining its settings and renderer customization. The packaged
 `resources/app.asar` is a small project-owned entry point, not Discord's ASAR.
 
-The splash uses the unmodified MIT-licensed `splash/index.html` from
+The splash and settings use the unmodified MIT-licensed `splash/index.html` and `config.html` from
 [OpenAsar/cdn](https://github.com/OpenAsar/cdn), with its license and pinned
 revision in `integration/updater/openasar/`. The animation and Whitney font are
 excluded from packages: they are fetched from that revision into the user's
 cache on launch and checked against pinned hashes. OpenAsar's original preload
 is used directly from the bundled bootstrap source.
+The pinned CDN archive also supplies the settings screen's MIT-licensed Monaco
+editor. Its license and third-party notices ship under `bootstrap/cdn/monaco-editor/`.
+The original settings page loads Roboto through Google Fonts when available.
 
 The updater bundles Capstone and pyelftools from the wheels pinned in `uv.lock`.
 Their Python sources, Capstone's native library and upstream license notices

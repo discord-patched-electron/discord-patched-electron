@@ -4,10 +4,12 @@ import importlib
 import json
 import os
 import shutil
+import sqlite3
 import sys
 from pathlib import Path
 
 from client import FAILURES, ensure_client
+from installation import publish
 from runtime import ensure_runtime
 from support import progress
 
@@ -36,6 +38,7 @@ def check(app: Path, client_root: Path, channel: str) -> dict:
     executable = ensure_runtime(app, client_root.parent, offline=offline)
     progress("check", "Checking Discord modules")
     host = ensure_client(client_root, channel, offline=offline, executable=executable)
+    publish(app, client_root.parent, host, executable)
     progress("ready", "Starting Discord")
     return {"runtime": str(executable), "host": str(host)}
 
@@ -43,6 +46,6 @@ def check(app: Path, client_root: Path, channel: str) -> dict:
 if __name__ == "__main__":
     try:
         print(json.dumps(check(Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3])))
-    except FAILURES as error:
+    except (*FAILURES, sqlite3.Error) as error:
         print(str(error), file=sys.stderr)
         raise SystemExit(1) from None

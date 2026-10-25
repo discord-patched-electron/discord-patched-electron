@@ -311,6 +311,7 @@ class DistributionBoundary(unittest.TestCase):
             with (
                 patch("stage_updater.read_json", return_value=lock),
                 patch("stage_updater.stage_python"),
+                patch("stage_updater.stage_editor"),
             ):
                 stage(app, "canary", "1.0.123", asar, archive)
             validate_distribution(app)

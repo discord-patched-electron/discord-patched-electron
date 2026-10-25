@@ -9,6 +9,7 @@ from pathlib import Path
 from common import ROOT, download, read_json, sha256, write_json
 from desktop_identity import desktop_id
 from patch_app_audio import SIDECARS
+from stage_openasar import stage as stage_editor
 from updater_python import stage as stage_python
 
 
@@ -20,6 +21,7 @@ def stage(
     source_archive: Path | None = None,
     *,
     python_archives: Path | None = None,
+    cdn_archive: Path | None = None,
 ):
     lock = read_json(ROOT / "config/openasar.lock.json")
     # Include the exact corresponding source and license for the AGPL bootstrap.
@@ -94,6 +96,7 @@ def stage(
     write_json(output / "openasar-source.json", lock)
     shutil.copy2(ROOT / "discord-patched-electron.png", output / "discord.png")
     stage_python(output, python_archives)
+    stage_editor(output, cdn_archive)
     write_json(
         output / "client-distribution.json",
         {

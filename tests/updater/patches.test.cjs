@@ -38,18 +38,17 @@ test("autostart quotes portable paths and escapes desktop field codes", () => {
   assert.equal(desktopExec("/a`/launch.sh"), '"/a\\\\`/launch.sh"');
 });
 
-test("bootstrap transforms remove customization and keep relaunches on the package launcher", () => {
+test("bootstrap transforms restore settings through the renderer adapter and keep the package launcher", () => {
+  const entry =
+    "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});";
   const source =
     "before\n  app.on('browser-window-created', customize);\ncustomization();\n  desktopCore = require('discord_desktop_core');\nafter";
   const transformed = bootstrap(source, "bootstrap.js", "/desktop-exec.cjs");
   assert.ok(!transformed.includes("customization()"));
-  assert.ok(transformed.includes("splash.pageReady()"));
+  assert.ok(transformed.includes("renderer.cjs"));
+  assert.ok(bootstrap(entry, "index.js").includes("...settings.get('openasar', {})"));
   assert.ok(transformed.endsWith("  desktopCore = require('discord_desktop_core');\nafter"));
-  assert.ok(
-    bootstrap("global.oaConfig = settings.get('openasar', {});", "index.js").includes(
-      "autoupdate: false",
-    ),
-  );
+  assert.ok(bootstrap(entry, "index.js").includes("autoupdate: false"));
   const autostart = bootstrap(
     "const exec = app.getPath('exe');\n`Exec=${exec}`",
     "autoStart.js",

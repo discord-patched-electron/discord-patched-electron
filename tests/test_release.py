@@ -27,6 +27,7 @@ class PortableReleases(unittest.TestCase):
     def test_bootstrap_uses_launch_root_even_for_equicord_copies(self):
         source = (
             'resourcesPath=path_1.default.join(require.main.filename,"..",".."),'
+            'userDataPath=path_1.default.join(userDataRoot,"discord"+("stable"===buildInfo.releaseChannel?"":buildInfo.releaseChannel));'
             'process.resourcesPath;"build_info.json")),disableUpdater:'
             'skipHostUpdate=settings?.get("SKIP_HOST_UPDATE")||!hostUpdatable;'
             "Exec=${exePath};Name=${appName};Icon=${iconPath}"

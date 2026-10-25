@@ -3,11 +3,14 @@ const fs = require("node:fs");
 const path = require("node:path");
 const createWindow = require("./window.cjs");
 const runUpdate = require("./runner.cjs");
+const preferences = require("./profile.cjs");
 
 const root = process.env.DPE_APP_ROOT;
-const profile = path.join(process.env.DISCORD_USER_DATA_DIR, "dpe-updater/ui");
+const profile = process.env.DPE_PROFILE_DIR;
 fs.mkdirSync(profile, { recursive: true, mode: 0o700 });
 app.setPath("userData", profile);
+if (preferences.settings(profile).enableHardwareAcceleration === false)
+  app.disableHardwareAcceleration();
 let view,
   task,
   retry,
@@ -22,7 +25,12 @@ for (const signal of ["SIGINT", "SIGTERM"])
     cancel();
     app.exit(1);
   });
-if (!app.requestSingleInstanceLock()) app.exit(1);
+if (
+  !app.requestSingleInstanceLock() &&
+  !preferences.config(profile).multiInstance &&
+  !process.argv.includes("--multi-instance")
+)
+  app.exit(1);
 else {
   app.on("second-instance", () => {
     view?.window.show();
@@ -34,6 +42,10 @@ else {
       const channel = JSON.parse(
         fs.readFileSync(path.join(root, "resources/build_info.json"), "utf8"),
       ).releaseChannel;
+      let quickstart = Boolean(
+        (preferences.config(profile).quickstart || process.env.OPENASAR_QUICKSTART) &&
+        fs.existsSync(path.join(process.env.DPE_CLIENT_ROOT, "current.json")),
+      );
       const attempt = async () => {
         if (task) return;
         clearTimeout(retry);
@@ -42,6 +54,7 @@ else {
           root,
           clientRoot: process.env.DPE_CLIENT_ROOT,
           channel,
+          offline: quickstart || process.env.DPE_CLIENT_OFFLINE === "1",
           onProgress: (state) => view.update(state),
         });
         try {
@@ -51,8 +64,9 @@ else {
         } catch (error) {
           console.error(error.message);
           if (!view.window.isDestroyed()) {
-            view.update({ stage: "error" });
-            retry = setTimeout(() => void attempt(), 10000);
+            view.update({ stage: quickstart ? "check" : "error" });
+            retry = setTimeout(() => void attempt(), quickstart ? 0 : 10000);
+            quickstart = false;
           }
         } finally {
           task = null;
