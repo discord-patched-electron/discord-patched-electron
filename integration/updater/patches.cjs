@@ -1,9 +1,38 @@
 // Compatibility transforms run in memory; updater-owned ASARs stay unchanged.
-function replace(source, before, after) {
+function replace(source, before, after, component = "Discord client") {
   if (source.split(before).length !== 2) {
-    throw new Error(`Unsupported Discord client layout: ${before}`);
+    throw new Error(`Unsupported ${component} layout: ${before}`);
   }
   return source.replace(before, after);
+}
+
+function bootstrap(source, filename, desktopExec) {
+  const patch = (before, after) => {
+    source = replace(source, before, after, "pinned OpenAsar");
+  };
+  if (filename === "bootstrap.js") {
+    const begin = "  app.on('browser-window-created'";
+    const end = "  desktopCore = require('discord_desktop_core');";
+    // Validate both boundaries before removing upstream renderer customization.
+    patch(begin, begin);
+    patch(end, end);
+    const start = source.indexOf(begin);
+    const finish = source.indexOf(end);
+    if (finish <= start) throw new Error("Unsupported pinned OpenAsar bootstrap order");
+    source =
+      source.slice(0, start) +
+      "  app.on('browser-window-created', (_event, window) => { window.webContents.once('did-finish-load', () => splash.pageReady()); });\n" +
+      source.slice(finish);
+  } else if (filename === "index.js") {
+    patch(
+      "global.oaConfig = settings.get('openasar', {});",
+      "global.oaConfig = { setup: true, autoupdate: false, noTrack: false };",
+    );
+  } else if (filename === "autoStart.js") {
+    patch("const exec = app.getPath('exe');", "const exec = process.env.DPE_LAUNCHER;");
+    patch("Exec=${exec}", "Exec=${require(" + JSON.stringify(desktopExec) + ")(exec)}");
+  }
+  return source;
 }
 
 function desktop(source, adapter) {
@@ -31,7 +60,7 @@ function desktop(source, adapter) {
   );
 }
 
-module.exports = { desktop };
+module.exports = { desktop, bootstrap };
 
 if (require.main === module) {
   const fs = require("node:fs");

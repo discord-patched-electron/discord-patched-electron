@@ -6,6 +6,7 @@ import argparse
 import concurrent.futures
 import fcntl
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -16,10 +17,20 @@ import tarfile
 import tempfile
 import urllib.request
 from pathlib import Path, PurePosixPath
-from urllib.parse import urlparse
+
+from support import HTTPSRedirect, checksum, download, object_value, read_object, write_json
 
 REQUIRED = {"discord_desktop_core", "discord_voice", "discord_krisp", "discord_utils"}
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+FAILURES = (
+    OSError,
+    ValueError,
+    KeyError,
+    TypeError,
+    subprocess.SubprocessError,
+    tarfile.TarError,
+    http.client.HTTPException,
+)
 
 
 def compatibility_key() -> str:
@@ -31,6 +42,7 @@ def compatibility_key() -> str:
         "scripts/camera_scope.py",
         "packaging/upstream/krisp-patcher.py",
         "integration/updater/client.py",
+        "integration/updater/support.py",
         "integration/updater/patches.cjs",
     ]
     files += [
@@ -41,47 +53,19 @@ def compatibility_key() -> str:
     return identity({name: checksum(PACKAGE_ROOT / name) for name in files})
 
 
-def checksum(path: Path) -> str:
-    with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
-
-
 def identity(value) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
-def write_json(path: Path, value):
-    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as output:
-        temporary = Path(output.name)
-        output.write((json.dumps(value, sort_keys=True) + "\n").encode())
-    temporary.replace(path)
-
-
-class HTTPSRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        if urlparse(newurl).scheme != "https":
-            raise ValueError("Discord download redirect must use HTTPS")
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-
 def fetch(url: str, target: Path, expected: str, limit: int = 512 * 1024 * 1024):
-    if urlparse(url).scheme != "https":
-        raise ValueError("Discord download must use HTTPS")
-    opener = urllib.request.build_opener(HTTPSRedirect())
-    opener.addheaders = [("User-Agent", "Discord-Updater/1")]
-    with opener.open(url, timeout=30) as response, target.open("wb") as output:
-        total = 0
-        while block := response.read(1024 * 1024):
-            total += len(block)
-            if total > limit:
-                raise ValueError("Discord module exceeds download size limit")
-            output.write(block)
+    download(url, target, limit=limit)
     if checksum(target) != expected:
         raise ValueError("Discord module checksum mismatch")
 
 
 def normalize(manifest: dict, channel: str) -> dict:
-    host = manifest["full"]["host_version"]
+    manifest = object_value(manifest, "Discord manifest")
+    host = object_value(manifest["full"], "Discord host")["host_version"]
     if (
         not isinstance(host, list)
         or len(host) != 3
@@ -90,10 +74,10 @@ def normalize(manifest: dict, channel: str) -> dict:
         raise ValueError("Invalid Discord host version")
     version = ".".join(map(str, host))
     modules = {}
-    for name, item in manifest["modules"].items():
+    for name, item in object_value(manifest["modules"], "Discord modules").items():
         if not re.fullmatch(r"discord_[a-z0-9_]+", name):
             raise ValueError("Invalid Discord module name")
-        item = item["full"]
+        item = object_value(object_value(item, name)["full"], name + " source")
         revision = item["module_version"]
         url = f"https://{channel}.dl2.discordapp.net/distro/app/{channel}/linux/x64/{version}/{name}/{revision}/full.distro"
         if (
@@ -122,7 +106,22 @@ def latest(channel: str) -> dict:
     return normalize(json.loads(data), channel)
 
 
-def extract_module(archive: Path, destination: Path):
+class ArchiveStream:
+    """Bound all decompressed bytes, including tar metadata and trailing data."""
+
+    def __init__(self, stream, limit: int):
+        self.stream = stream
+        self.remaining = limit
+
+    def read(self, size: int):
+        data = self.stream.read(min(size, self.remaining + 1))
+        self.remaining -= len(data)
+        if self.remaining < 0:
+            raise ValueError("Discord module exceeds extracted size limit")
+        return data
+
+
+def extract_module(archive: Path, destination: Path, *, limit: int = 2 * 1024 * 1024 * 1024):
     """Extract files/ with internal relative symlinks; reject traversal and devices."""
     with tempfile.TemporaryFile() as errors:
         process = subprocess.Popen(
@@ -131,9 +130,12 @@ def extract_module(archive: Path, destination: Path):
             stderr=errors,
         )
         total = 0
+        stream = ArchiveStream(process.stdout, limit)
         try:
-            with tarfile.open(fileobj=process.stdout, mode="r|") as bundle:
-                for member in bundle:
+            with tarfile.open(fileobj=stream, mode="r|") as bundle:
+                for count, member in enumerate(bundle, start=1):
+                    if count > 100000:
+                        raise ValueError("Too many Discord archive entries")
                     if member.name == "delta_manifest.json":
                         continue
                     name = PurePosixPath(member.name)
@@ -164,13 +166,13 @@ def extract_module(archive: Path, destination: Path):
                         target.mkdir(parents=True, exist_ok=True)
                         continue
                     total += member.size
-                    if total > 2 * 1024 * 1024 * 1024:
+                    if total > limit:
                         raise ValueError("Discord module exceeds extracted size limit")
                     target.parent.mkdir(parents=True, exist_ok=True)
-                    with bundle.extractfile(member) as source, target.open("wb") as output:
+                    with bundle.extractfile(member) as source, target.open("xb") as output:
                         shutil.copyfileobj(source, output)
                     target.chmod(0o700 if member.mode & 0o111 else 0o600)
-            while process.stdout.read(1024 * 1024):
+            while stream.read(1024 * 1024):
                 pass
             if process.wait(timeout=60):
                 raise ValueError("Unable to decompress Discord module")
@@ -185,7 +187,9 @@ def module_path(cache: Path, name: str, source: dict, compatibility: str) -> Pat
     return cache / (name + "-" + source["sha256"] + "-" + compatibility)
 
 
-def install_module(cache: Path, name: str, source: dict, compatibility: str) -> Path:
+def install_module(
+    cache: Path, name: str, source: dict, compatibility: str, executable: Path
+) -> Path:
     destination = module_path(cache, name, source, compatibility)
     if (destination / ".complete").is_file():
         return destination
@@ -203,15 +207,19 @@ def install_module(cache: Path, name: str, source: dict, compatibility: str) -> 
             # our in-memory transforms before making this generation current.
             subprocess.run(
                 [
-                    os.environ.get(
-                        "DPE_RUNTIME_EXECUTABLE", str(PACKAGE_ROOT / "runtime/electron")
-                    ),
+                    str(executable),
                     str(PACKAGE_ROOT / "integration/updater/patches.cjs"),
                     str(extracted),
                 ],
-                env={**os.environ, "ELECTRON_RUN_AS_NODE": "1", "LD_PRELOAD": ""},
+                env={
+                    **os.environ,
+                    "ELECTRON_RUN_AS_NODE": "1",
+                    "LD_PRELOAD": "",
+                    "NODE_OPTIONS": "",
+                },
                 check=True,
                 timeout=30,
+                stdout=sys.stderr,
             )
         if name in ("discord_voice", "discord_krisp"):
             subprocess.run(
@@ -223,40 +231,62 @@ def install_module(cache: Path, name: str, source: dict, compatibility: str) -> 
                 ],
                 check=True,
                 timeout=120,
+                stdout=sys.stderr,
             )
         (extracted / ".complete").write_text(source["sha256"])
         extracted.rename(destination)
     return destination
 
 
-def current_host(root: Path, channel: str) -> Path | None:
-    pointer = root / "current.json"
-    if not pointer.exists():
-        return None
-    selected = json.loads(pointer.read_text())
-    if not re.fullmatch(r"[a-f0-9]{64}", selected):
+def validate_host(root: Path, channel: str, selected: str) -> Path:
+    if not isinstance(selected, str) or not re.fullmatch(r"[a-f0-9]{64}", selected):
         raise ValueError("Invalid current Discord generation")
     host = root / "generations" / selected
-    state = json.loads((host / "client.json").read_text())
+    state = read_object(host / "client.json")
     if state["channel"] != channel or identity(state) != selected:
         raise ValueError("Discord generation identity mismatch")
-    for name, source in state["modules"].items():
+    for name, source in object_value(state["modules"], "Cached Discord modules").items():
         module = module_path(root / "cache", name, source, state["compatibility"])
         if (
-            not (module / ".complete").is_file()
+            (module / ".complete").read_text() != source["sha256"]
+            or not (module / "index.js").is_file()
             or (host / "modules" / name).resolve() != module.resolve()
         ):
             raise ValueError(f"Incomplete Discord module: {name}")
     return host
 
 
-def ensure_client(root: Path, channel: str, *, offline: bool = False) -> Path:
+def current_host(root: Path, channel: str) -> Path | None:
+    pointer = root / "current.json"
+    return (
+        validate_host(root, channel, json.loads(pointer.read_text())) if pointer.exists() else None
+    )
+
+
+def ensure_client(
+    root: Path, channel: str, *, offline: bool = False, executable: Path | None = None
+) -> Path:
     if channel not in ("stable", "ptb", "canary"):
         raise ValueError("Unknown Discord channel")
+    root = root.resolve()
+    executable = executable or Path(
+        os.environ.get("DPE_RUNTIME_EXECUTABLE", str(PACKAGE_ROOT / "runtime/electron"))
+    )
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (root / ".update.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        previous = current_host(root, channel)
+        try:
+            previous = current_host(root, channel)
+        except FAILURES as error:
+            if offline:
+                raise ValueError(
+                    "Cached Discord client is incomplete; reconnect to repair it"
+                ) from error
+            print(
+                f"Discord cache unavailable; checking for a complete client: {error}",
+                file=sys.stderr,
+            )
+            previous = None
         if offline:
             if previous is None:
                 raise ValueError("First launch requires an internet connection")
@@ -268,17 +298,25 @@ def ensure_client(root: Path, channel: str, *, offline: bool = False) -> Path:
             if previous and previous.name == generation:
                 return previous
             if previous:
-                old = json.loads((previous / "client.json").read_text())
+                old = read_object(previous / "client.json")
                 if tuple(map(int, state["version"].split("."))) < tuple(
                     map(int, old["version"].split("."))
                 ):
                     raise ValueError("Refusing a Discord host downgrade")
+                if state["version"] == old["version"] and any(
+                    source["version"] < old["modules"][name]["version"]
+                    for name, source in state["modules"].items()
+                    if name in old["modules"]
+                ):
+                    raise ValueError("Refusing a Discord module downgrade")
             cache = root / "cache"
             cache.mkdir(exist_ok=True)
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
                 list(
                     pool.map(
-                        lambda item: install_module(cache, *item, state["compatibility"]),
+                        lambda item: install_module(
+                            cache, *item, state["compatibility"], executable
+                        ),
                         state["modules"].items(),
                     )
                 )
@@ -306,16 +344,10 @@ def ensure_client(root: Path, channel: str, *, offline: bool = False) -> Path:
                     )
                     write_json(staged / "client.json", state)
                     staged.rename(destination)
+            validate_host(root, channel, generation)
             write_json(root / "current.json", generation)
             return destination
-        except (
-            OSError,
-            ValueError,
-            KeyError,
-            TypeError,
-            subprocess.SubprocessError,
-            tarfile.TarError,
-        ) as error:
+        except FAILURES as error:
             if previous is None:
                 raise
             print(
@@ -337,13 +369,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (
-        OSError,
-        ValueError,
-        KeyError,
-        TypeError,
-        subprocess.SubprocessError,
-        tarfile.TarError,
-    ) as error:
+    except FAILURES as error:
         print(f"Unable to prepare Discord: {error}", file=sys.stderr)
         raise SystemExit(1) from error

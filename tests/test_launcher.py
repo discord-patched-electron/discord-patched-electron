@@ -35,6 +35,7 @@ class Launcher(unittest.TestCase):
                 (updater / "client.py").write_text(
                     "import os,sys\n"
                     "assert '--offline' in sys.argv\n"
+                    "assert os.environ['PYTHONDONTWRITEBYTECODE'] == '1'\n"
                     "assert os.environ['DPE_RUNTIME_EXECUTABLE'].endswith('/cached runtime/electron')\n"
                     "print(sys.argv[1] + '/generation')\n"
                 )

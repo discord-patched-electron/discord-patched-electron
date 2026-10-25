@@ -21,7 +21,8 @@ module.exports = function createUpdater(app, state, host, root, clientRoot) {
     DOWNLOADING_MODULES_FINISHED: "downloading-modules-finished",
     INSTALLED_MODULE: "installed-module",
     init() {},
-    getInstalled: () => ({ ...installed }),
+    getInstalled: () =>
+      Object.fromEntries(Object.entries(installed).map(([name, value]) => [name, { ...value }])),
     getModulePath: (name) =>
       Object.hasOwn(installed, name) ? path.join(host, "modules", name) : null,
     isInstalled: (name, version) =>

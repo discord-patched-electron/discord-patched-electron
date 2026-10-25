@@ -126,6 +126,22 @@ def configure_runtime(
     (output / "runtime-update.json").chmod(0o644)
 
 
+def validate_payload_entry(relative: str, *, is_dir: bool, link: str | None = None):
+    """Apply the same client-free layout rules to staging trees and archives."""
+    path = Path(relative)
+    if path.name == "__pycache__" or path.suffix == ".pyc":
+        raise ValueError(f"Generated Python bytecode cannot be shipped: {relative}")
+    if link is not None:
+        if relative != "runtime/resources" or link != "../resources":
+            raise ValueError(f"Unexpected release symlink: {relative}")
+    elif (
+        (path.suffix in (".asar", ".node", ".distro", ".br") and relative != "resources/app.asar")
+        or path.name in ("modules", "core", "updater_bootstrap", "installer.db")
+        or (is_dir and path.name.startswith("app-"))
+    ):
+        raise ValueError(f"Discord client data cannot be shipped: {relative}")
+
+
 def validate_distribution(app: Path):
     """Fail closed if a staging tree contains an old bundled client or mod loader."""
     policy = read_json(app / "client-distribution.json")
@@ -134,16 +150,8 @@ def validate_distribution(app: Path):
     if sha256(app / "resources/app.asar") != policy.get("loader_sha256"):
         raise ValueError("Release loader differs from the project-owned bootstrap")
     for path in app.rglob("*"):
-        relative = path.relative_to(app).as_posix()
-        if path.is_symlink():
-            if relative != "runtime/resources" or path.readlink() != Path("../resources"):
-                raise ValueError(f"Unexpected release symlink: {relative}")
-        elif (
-            (
-                path.suffix in (".asar", ".node", ".distro", ".br")
-                and relative != "resources/app.asar"
-            )
-            or path.name in ("modules", "core", "updater_bootstrap", "installer.db")
-            or (path.is_dir() and path.name.startswith("app-"))
-        ):
-            raise ValueError(f"Discord client data cannot be shipped: {relative}")
+        validate_payload_entry(
+            path.relative_to(app).as_posix(),
+            is_dir=path.is_dir(),
+            link=str(path.readlink()) if path.is_symlink() else None,
+        )

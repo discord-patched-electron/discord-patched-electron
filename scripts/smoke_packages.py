@@ -23,6 +23,7 @@ from client_inputs import load_clients
 from common import ROOT, digest, download, enabled_electron_channels, read_json, sha256, write_json
 from desktop_identity import desktop_id
 from generate_package import generate
+from stage_updater import validate_payload_entry
 
 
 def missing_libraries(relative: str, checksum: str, listing: str) -> list[str]:
@@ -65,11 +66,13 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
         ).hexdigest()
         if actual != policy["loader_sha256"]:
             raise ValueError("Package loader differs from project bootstrap")
-        for filename in members:
-            if filename.endswith((".node", ".distro", ".br")) or (
-                filename.endswith(".asar") and filename != root + "/resources/app.asar"
-            ):
-                raise ValueError("Package contains Discord client data: " + filename)
+        for filename, entry in members.items():
+            if filename.startswith(root + "/"):
+                validate_payload_entry(
+                    filename.removeprefix(root + "/"),
+                    is_dir=entry.isdir(),
+                    link=entry.linkname if entry.issym() or entry.islnk() else None,
+                )
         allowed_prefixes = (root + "/", f"usr/share/licenses/{name}/")
         allowed_files = {
             f"usr/bin/{name}",

@@ -12,8 +12,7 @@ from runtime import ensure_runtime
 def check(app: Path, client_root: Path, channel: str) -> dict:
     offline = os.environ.get("DPE_CLIENT_OFFLINE") == "1"
     executable = ensure_runtime(app, client_root.parent, offline=offline)
-    os.environ["DPE_RUNTIME_EXECUTABLE"] = str(executable)
-    host = ensure_client(client_root, channel, offline=offline)
+    host = ensure_client(client_root, channel, offline=offline, executable=executable)
     return {"runtime": str(executable), "host": str(host)}
 
 

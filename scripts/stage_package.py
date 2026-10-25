@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -34,8 +35,6 @@ def stage(inputs: dict, directory: Path, asar: str):
     )
     resources = destination / "runtime/resources"
     if resources.exists():
-        import shutil
-
         shutil.rmtree(resources)
     resources.symlink_to("../resources")
     configure_runtime(

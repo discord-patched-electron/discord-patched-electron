@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -14,11 +15,10 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib.request
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from client import HTTPSRedirect, checksum, write_json
+from support import checksum, download, object_value, read_object, write_json
 
 REPOSITORY = "discord-patched-electron/discord-patched-electron"
 CACHE_REPOSITORY = "discord-patched-electron/cache"
@@ -31,21 +31,8 @@ FAILURES = (
     TypeError,
     subprocess.SubprocessError,
     zipfile.BadZipFile,
+    http.client.HTTPException,
 )
-
-
-def download(url: str, target: Path, *, limit: int = 4 * 1024 * 1024):
-    if not url.startswith("https://"):
-        raise ValueError("Runtime downloads must use HTTPS")
-    opener = urllib.request.build_opener(HTTPSRedirect())
-    opener.addheaders = [("User-Agent", "discord-patched-electron-updater/1")]
-    with opener.open(url, timeout=20) as response, target.open("wb") as output:
-        total = 0
-        while block := response.read(1024 * 1024):
-            total += len(block)
-            if total > limit:
-                raise ValueError("Runtime download exceeds size limit")
-            output.write(block)
 
 
 def electron_version(value: str) -> tuple:
@@ -130,7 +117,7 @@ def latest(directory: Path, policy: dict, key: Path) -> dict:
     download(
         f"https://api.github.com/repos/{REPOSITORY}/releases/latest", directory / "github.json"
     )
-    release = json.loads((directory / "github.json").read_text())
+    release = read_object(directory / "github.json")
     tag = release["tag_name"]
     if (
         release.get("draft") is not False
@@ -145,8 +132,8 @@ def latest(directory: Path, policy: dict, key: Path) -> dict:
             raise ValueError("Missing or unexpected signed release asset")
         download(url, directory / name)
     verify_signature(directory, key)
-    manifest = json.loads((directory / "release.json").read_text())
-    runtime = manifest["runtime"]
+    manifest = read_object(directory / "release.json")
+    runtime = object_value(manifest["runtime"], "Release runtime")
     version = electron_version(runtime["version"])
     if (
         manifest.get("source_dirty") is not False
@@ -235,27 +222,40 @@ def probe(executable: Path, version: str):
         raise ValueError("Downloaded Electron version differs from the signed release")
 
 
+def validate_generation(root: Path, app: Path, policy: dict, digest: str) -> tuple[Path, dict]:
+    if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
+        raise ValueError("Invalid runtime generation")
+    generation = root / "generations" / digest
+    info = read_object(generation / "runtime.json")
+    if (
+        info["archive_sha256"] != digest
+        or info["channel"] != policy["channel"]
+        or info["electron_channel"] != policy["electron_channel"]
+        or not all((generation / name).is_file() for name in REQUIRED_FILES)
+        or (generation / "resources").resolve() != (app / "resources").resolve()
+        or checksum(generation / "electron") != info["executable_sha256"]
+    ):
+        raise ValueError("Incomplete or mismatched runtime generation")
+    return generation / "electron", info
+
+
 def selected(root: Path, app: Path, policy: dict) -> tuple[Path, dict]:
     bundled = app / "runtime/electron"
     pointer = root / "current.json"
     if not pointer.exists():
         return bundled, policy
-    digest = json.loads(pointer.read_text())
-    if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
-        raise ValueError("Invalid runtime generation")
-    generation = root / "generations" / digest
-    info = json.loads((generation / "runtime.json").read_text())
-    if (
-        info["archive_sha256"] != digest
-        or info["channel"] != policy["channel"]
-        or info["electron_channel"] != policy["electron_channel"]
-        or (generation / "resources").resolve() != (app / "resources").resolve()
-        or checksum(generation / "electron") != info["executable_sha256"]
-    ):
-        raise ValueError("Incomplete or mismatched runtime generation")
+    executable, info = validate_generation(root, app, policy, json.loads(pointer.read_text()))
     if newer(info, policy):
-        return generation / "electron", info
+        return executable, info
     return bundled, policy
+
+
+def recently_checked(path: Path) -> bool:
+    try:
+        checked = json.loads(path.read_text())
+        return type(checked) in (int, float) and 0 <= time.time() - checked < CHECK_INTERVAL
+    except (OSError, ValueError):
+        return False
 
 
 def cache_root(profile: Path, app: Path) -> Path:
@@ -265,14 +265,14 @@ def cache_root(profile: Path, app: Path) -> Path:
     return profile / "dpe-runtime" / identity
 
 
-def ensure_runtime(app: Path, profile: Path, *, offline: bool = False) -> Path:
+def _ensure_runtime(app: Path, profile: Path, *, offline: bool) -> Path:
     app = app.resolve()
     profile = profile.resolve()
     bundled = app / "runtime/electron"
     policy_path = app / "runtime-update.json"
     if not policy_path.is_file() or os.environ.get("DPE_RUNTIME_BUNDLED") == "1":
         return bundled
-    policy = json.loads(policy_path.read_text())
+    policy = read_object(policy_path)
     root = cache_root(profile, app)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (root / ".update.lock").open("a") as lock:
@@ -288,10 +288,7 @@ def ensure_runtime(app: Path, profile: Path, *, offline: bool = False) -> Path:
             return current
         try:
             checked = root / "last-check.json"
-            if (
-                checked.exists()
-                and 0 <= time.time() - json.loads(checked.read_text()) < CHECK_INTERVAL
-            ):
+            if recently_checked(checked):
                 return current
             # Throttle failures as well as success; GitHub's anonymous API has a
             # shared IP rate limit. Checking again never delays module updates.
@@ -303,6 +300,24 @@ def ensure_runtime(app: Path, profile: Path, *, offline: bool = False) -> Path:
                 )
                 if not newer(incoming, current_info):
                     return current
+                generations = root / "generations"
+                generations.mkdir(exist_ok=True)
+                destination = generations / incoming["archive_sha256"]
+                if destination.exists():
+                    # A crash after rename but before publishing current.json
+                    # leaves a complete generation. Verify and reuse it without
+                    # downloading or mutating files a process might be using.
+                    executable, info = validate_generation(
+                        root, app, policy, incoming["archive_sha256"]
+                    )
+                    if any(
+                        info.get(key) != incoming[key]
+                        for key in ("electron_version", "runtime_key", "archive_sha256")
+                    ):
+                        raise ValueError("Cached runtime differs from the signed release")
+                    probe(executable, incoming["electron_version"])
+                    write_json(root / "current.json", incoming["archive_sha256"])
+                    return executable
                 print(
                     f"Downloading patched Electron {incoming['electron_version']} from GitHub",
                     file=sys.stderr,
@@ -318,13 +333,6 @@ def ensure_runtime(app: Path, profile: Path, *, offline: bool = False) -> Path:
                 probe(staged / "electron", incoming["electron_version"])
                 incoming["executable_sha256"] = checksum(staged / "electron")
                 write_json(staged / "runtime.json", incoming)
-                generations = root / "generations"
-                generations.mkdir(exist_ok=True)
-                destination = generations / incoming["archive_sha256"]
-                if destination.exists():
-                    # Keep running generations immutable. An invalid existing
-                    # generation needs explicit cleanup, not an in-place rewrite.
-                    raise ValueError("Runtime generation already exists but was not usable")
                 staged.rename(destination)
                 write_json(root / "current.json", incoming["archive_sha256"])
                 return destination / "electron"
@@ -333,6 +341,15 @@ def ensure_runtime(app: Path, profile: Path, *, offline: bool = False) -> Path:
                 f"Runtime update unavailable; keeping the current runtime: {error}", file=sys.stderr
             )
             return current
+
+
+def ensure_runtime(app: Path, profile: Path, *, offline: bool = False) -> Path:
+    try:
+        return _ensure_runtime(app, profile, offline=offline)
+    except FAILURES as error:
+        # Cache creation and policy parsing are optional to launching the app.
+        print(f"Runtime updater unavailable; using the packaged runtime: {error}", file=sys.stderr)
+        return app.resolve() / "runtime/electron"
 
 
 def main():

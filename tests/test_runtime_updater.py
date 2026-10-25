@@ -1,6 +1,7 @@
 """Exercise signed GitHub updates with disposable keys and executable fixtures."""
 
 import copy
+import http.client
 import importlib.util
 import json
 import os
@@ -17,6 +18,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "integration/updater"))
 import runtime
+import support
 
 
 def write_json(path, value):
@@ -264,6 +266,55 @@ class RuntimeUpdates(unittest.TestCase):
             self.app / "runtime/electron",
         )
 
+    def test_interrupted_activation_reuses_verified_generation_without_redownloading(self):
+        original_write = runtime.write_json
+
+        def interrupted(path, value):
+            if path.name == "current.json":
+                raise OSError("interrupted pointer publication")
+            original_write(path, value)
+
+        with patch.object(runtime, "write_json", side_effect=interrupted):
+            self.assertEqual(
+                runtime.ensure_runtime(self.app, self.profile), self.app / "runtime/electron"
+            )
+        self.assertFalse((self.cache / "current.json").exists())
+        self.clear_cooldown()
+        self.downloads.clear()
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        self.assertTrue(executable.is_relative_to(self.cache))
+        self.assertFalse(any(url.endswith(".zip") for url in self.downloads))
+        self.assertEqual(runtime.ensure_runtime(self.app, self.profile, offline=True), executable)
+
+    def test_damaged_metadata_and_truncated_responses_do_not_disable_updates_or_launch(self):
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        for damaged in ("{", "{}", "null", '"unexpected"'):
+            (self.cache / "last-check.json").write_text(damaged)
+            self.downloads.clear()
+            self.assertEqual(runtime.ensure_runtime(self.app, self.profile), executable)
+            self.assertTrue(self.downloads)
+        for damaged in ("{", "{}", "null"):
+            (self.cache / "current.json").write_text(damaged)
+            self.clear_cooldown()
+            self.assertEqual(runtime.ensure_runtime(self.app, self.profile), executable)
+        self.clear_cooldown()
+        with patch.object(
+            runtime, "download", side_effect=http.client.IncompleteRead(b"truncated")
+        ):
+            self.assertEqual(runtime.ensure_runtime(self.app, self.profile), executable)
+        (self.app / "runtime-update.json").write_text("[]")
+        self.assertEqual(
+            runtime.ensure_runtime(self.app, self.profile), self.app / "runtime/electron"
+        )
+
+    def test_missing_runtime_files_are_not_reused_offline(self):
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        (executable.parent / "icudtl.dat").unlink()
+        self.assertEqual(
+            runtime.ensure_runtime(self.app, self.profile, offline=True),
+            self.app / "runtime/electron",
+        )
+
 
 class RuntimeBoundaries(unittest.TestCase):
     def test_version_order_prevents_downgrades_but_accepts_newer_rebuilds(self):
@@ -325,12 +376,23 @@ class RuntimeBoundaries(unittest.TestCase):
         ):
             result = check.check(Path("/app"), Path("/profile/dpe-updater"), "canary")
             self.assertEqual(result, {"runtime": "/selected/electron", "host": "/client/new"})
-            self.assertEqual(os.environ["DPE_RUNTIME_EXECUTABLE"], "/selected/electron")
             modules.assert_called_once_with(
                 Path("/profile/dpe-updater"),
                 "canary",
                 offline=os.environ.get("DPE_CLIENT_OFFLINE") == "1",
+                executable=Path("/selected/electron"),
             )
+
+    def test_failed_metadata_publication_leaves_previous_pointer_and_no_temporary_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            pointer = root / "current.json"
+            support.write_json(pointer, "old")
+            with patch.object(Path, "replace", side_effect=OSError("read-only")):
+                with self.assertRaises(OSError):
+                    support.write_json(pointer, "new")
+            self.assertEqual(json.loads(pointer.read_text()), "old")
+            self.assertEqual(list(root.iterdir()), [pointer])
 
 
 if __name__ == "__main__":

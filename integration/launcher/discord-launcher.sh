@@ -71,6 +71,7 @@ if ((${#disabled[@]})); then flags+=("--disable-features=$(
 export DISCORD_USER_DATA_DIR=${DISCORD_USER_DATA_DIR:-"$config_root/@PROFILE_NAME@"}
 export DPE_RUNTIME_EXECUTABLE="$root/runtime/electron"
 if [[ -f "$root/client-distribution.json" ]]; then
+  export PYTHONDONTWRITEBYTECODE=1
   export DPE_CLIENT_ROOT="$DISCORD_USER_DATA_DIR/dpe-updater"
   channel=${name#discord-}
   updater_flags=()

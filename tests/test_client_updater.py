@@ -1,6 +1,7 @@
 """Exercise module-only updates, atomic activation and archive boundaries."""
 
 import copy
+import http.client
 import importlib.util
 import io
 import json
@@ -14,6 +15,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "integration/updater"))
+from check_release_packages import check_client_free_archive
 from common import sha256
 from stage_updater import stage, validate_distribution
 
@@ -120,6 +123,40 @@ class ModuleUpdates(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "internet"):
                 client.ensure_client(root, "canary", offline=True)
 
+    def test_damaged_pointer_recovers_and_same_host_module_downgrades_are_rejected(self):
+        state = client.normalize(manifest(), "canary")
+        state["modules"]["discord_voice"]["version"] = 2
+
+        def extract(_archive, destination):
+            (destination / "index.js").write_text("module.exports = {}")
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(client, "fetch") as fetch,
+            patch.object(client, "extract_module", side_effect=extract),
+            patch.object(client.subprocess, "run"),
+            patch.object(client, "compatibility_key", return_value="b" * 64),
+            patch.object(client, "latest", return_value=state) as latest,
+        ):
+            root = Path(temporary)
+            previous = client.ensure_client(root, "canary")
+            calls = fetch.call_count
+            for damaged in ("invalid-json", "null", "{}", '"' + "c" * 64 + '"'):
+                (root / "current.json").write_text(damaged)
+                self.assertEqual(client.ensure_client(root, "canary"), previous)
+                self.assertEqual(client.current_host(root, "canary"), previous)
+            self.assertEqual(fetch.call_count, calls)
+            latest.return_value = client.normalize(manifest(), "canary")
+            self.assertEqual(client.ensure_client(root, "canary"), previous)
+            self.assertEqual(fetch.call_count, calls)
+            latest.side_effect = http.client.IncompleteRead(b"truncated")
+            self.assertEqual(client.ensure_client(root, "canary"), previous)
+
+    def test_malformed_manifest_objects_fail_with_a_validation_error(self):
+        for value in (None, [], {**manifest(), "modules": []}, {**manifest(), "full": None}):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                client.normalize(value, "canary")
+
     def test_archives_reject_traversal_external_links_and_devices(self):
         for name, kind, link in (
             ("files/../../outside", tarfile.REGTYPE, ""),
@@ -162,6 +199,7 @@ class ModuleUpdates(unittest.TestCase):
                 previous = client.ensure_client(root, "canary")
             commands = [call.args[0] for call in run.call_args_list]
             self.assertTrue(any(command[1].endswith("patches.cjs") for command in commands))
+            self.assertTrue(all(call.kwargs["stdout"] is sys.stderr for call in run.call_args_list))
             updated = client.normalize(manifest(124), "canary")
             updated["modules"]["discord_desktop_core"]["sha256"] = "d" * 64
             run.side_effect = subprocess.CalledProcessError(1, "desktop-preflight")
@@ -207,8 +245,50 @@ class ModuleUpdates(unittest.TestCase):
             client.extract_module(compressed, root)
             self.assertEqual((root / "node_modules/.bin/tool").readlink(), Path("../tool/index.js"))
 
+    def test_extraction_limit_includes_trailing_decompressed_data(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            compressed = root / "module.br"
+            # An empty tar ends after two zero blocks; data after it still costs
+            # decompression work and must count towards the extraction limit.
+            compressed.write_bytes(
+                subprocess.check_output(["brotli", "--stdout"], input=b"\0" * (32 * 1024))
+            )
+            with self.assertRaisesRegex(ValueError, "size limit"):
+                client.extract_module(compressed, root / "files", limit=16 * 1024)
+
 
 class DistributionBoundary(unittest.TestCase):
+    def test_archives_reject_old_client_directories_and_unexpected_links(self):
+        for name, kind, link in (
+            ("app-1.0.123", tarfile.DIRTYPE, ""),
+            ("scripts/__pycache__", tarfile.DIRTYPE, ""),
+            ("resources/client", tarfile.SYMTYPE, "../../private-client"),
+            ("modules", tarfile.DIRTYPE, ""),
+        ):
+            with self.subTest(name=name):
+                data = io.BytesIO()
+                with tarfile.open(fileobj=data, mode="w") as bundle:
+                    for filename, value in {
+                        "client-distribution.json": json.dumps(
+                            {
+                                "mode": "module-only",
+                                "bundled_discord_client": False,
+                                "loader_sha256": client.hashlib.sha256(b"loader").hexdigest(),
+                            }
+                        ).encode(),
+                        "resources/app.asar": b"loader",
+                    }.items():
+                        entry = tarfile.TarInfo("app/" + filename)
+                        entry.size = len(value)
+                        bundle.addfile(entry, io.BytesIO(value))
+                    entry = tarfile.TarInfo("app/" + name)
+                    entry.type, entry.linkname = kind, link
+                    bundle.addfile(entry)
+                data.seek(0)
+                with tarfile.open(fileobj=data) as bundle, self.assertRaises(ValueError):
+                    check_client_free_archive(bundle, "app")
+
     def test_stages_only_our_loader_and_pinned_bootstrap_source(self):
         asar = str(ROOT / "node_modules/.bin/asar")
         with tempfile.TemporaryDirectory() as temporary:

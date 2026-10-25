@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
-const { desktop } = require("../../integration/updater/patches.cjs");
+const { desktop, bootstrap } = require("../../integration/updater/patches.cjs");
 const desktopExec = require("../../integration/updater/desktop-exec.cjs");
 
 const migration = "event.returnValue=injectedUpdater?.getUpdater()!=null";
@@ -36,4 +36,39 @@ test("autostart quotes portable paths and escapes desktop field codes", () => {
   assert.equal(desktopExec("/portable app/launch.sh"), '"/portable app/launch.sh"');
   assert.equal(desktopExec('/a%u/"$\\/launch.sh'), String.raw`"/a%%u/\\"\\$\\\\/launch.sh"`);
   assert.equal(desktopExec("/a`/launch.sh"), '"/a\\\\`/launch.sh"');
+});
+
+test("bootstrap transforms remove customization and keep relaunches on the package launcher", () => {
+  const source =
+    "before\n  app.on('browser-window-created', customize);\ncustomization();\n  desktopCore = require('discord_desktop_core');\nafter";
+  const transformed = bootstrap(source, "bootstrap.js", "/desktop-exec.cjs");
+  assert.ok(!transformed.includes("customization()"));
+  assert.ok(transformed.includes("splash.pageReady()"));
+  assert.ok(transformed.endsWith("  desktopCore = require('discord_desktop_core');\nafter"));
+  assert.ok(
+    bootstrap("global.oaConfig = settings.get('openasar', {});", "index.js").includes(
+      "autoupdate: false",
+    ),
+  );
+  const autostart = bootstrap(
+    "const exec = app.getPath('exe');\n`Exec=${exec}`",
+    "autoStart.js",
+    "/desktop-exec.cjs",
+  );
+  assert.ok(autostart.includes("process.env.DPE_LAUNCHER"));
+  assert.ok(autostart.includes('require("/desktop-exec.cjs")(exec)'));
+});
+
+test("missing or repeated bootstrap patch sites fail closed", () => {
+  for (const [filename, source] of [
+    ["index.js", "global.oaConfig = settings.get('openasar', {});"],
+    ["autoStart.js", "const exec = app.getPath('exe');\n`Exec=${exec}`"],
+    [
+      "bootstrap.js",
+      "  app.on('browser-window-created', customize);\n  desktopCore = require('discord_desktop_core');",
+    ],
+  ]) {
+    assert.throws(() => bootstrap("unknown", filename), /Unsupported pinned OpenAsar/);
+    assert.throws(() => bootstrap(source + source, filename), /Unsupported pinned OpenAsar/);
+  }
 });

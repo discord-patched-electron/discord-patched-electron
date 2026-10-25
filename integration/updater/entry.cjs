@@ -50,37 +50,14 @@ function start() {
 
   const compile = Module.prototype._compile;
   Module.prototype._compile = function (source, filename) {
-    if (filename === path.join(bootstrap, "bootstrap.js")) {
-      // Use OpenAsar's startup contract without its renderer customization or
-      // remotely hosted settings UI. Bootstrap updates come from our package.
-      const begin = source.indexOf("  app.on('browser-window-created'");
-      const end = source.indexOf("  desktopCore = require('discord_desktop_core');", begin);
-      if (begin < 0 || end < 0) throw new Error("Unsupported pinned OpenAsar bootstrap");
-      source =
-        source.slice(0, begin) +
-        "  app.on('browser-window-created', (_event, window) => { window.webContents.once('did-finish-load', () => splash.pageReady()); });\n" +
-        source.slice(end);
-    } else if (filename === path.join(bootstrap, "index.js")) {
-      source = source.replace(
-        "global.oaConfig = settings.get('openasar', {});",
-        "global.oaConfig = { setup: true, autoupdate: false, noTrack: false };",
+    if (path.dirname(filename) === bootstrap) {
+      source = patches.bootstrap(
+        source,
+        path.basename(filename),
+        path.join(root, "integration/updater/desktop-exec.cjs"),
       );
-    } else if (filename === path.join(bootstrap, "autoStart.js")) {
-      source = source.replace(
-        "const exec = app.getPath('exe');",
-        "const exec = process.env.DPE_LAUNCHER;",
-      );
-      // Desktop Entry Exec values have two escaping layers and expand % codes.
-      source = source.replace(
-        "Exec=${exec}",
-        "Exec=${require(" +
-          JSON.stringify(path.join(root, "integration/updater/desktop-exec.cjs")) +
-          ")(exec)}",
-      );
-    } else if (filename.startsWith(process.env.DPE_CLIENT_ROOT + path.sep)) {
-      if (filename === path.join(desktopRoot, "core.asar/bundle.js")) {
-        source = patches.desktop(source, path.join(root, "integration/desktop/safe-storage.cjs"));
-      }
+    } else if (filename === path.join(desktopRoot, "core.asar/bundle.js")) {
+      source = patches.desktop(source, path.join(root, "integration/desktop/safe-storage.cjs"));
     }
     return compile.call(this, source, filename);
   };

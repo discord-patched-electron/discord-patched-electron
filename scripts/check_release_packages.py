@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 from common import read_json, sha256, write_json
-from stage_updater import validate_distribution
+from stage_updater import validate_distribution, validate_payload_entry
 
 
 def check_client_free_archive(bundle, root):
@@ -21,14 +21,12 @@ def check_client_free_archive(bundle, root):
     if hashlib.sha256(loader).hexdigest() != policy.get("loader_sha256"):
         raise ValueError("Package contains an unexpected bootstrap ASAR")
     for entry in bundle.getmembers():
-        relative = entry.name.removeprefix(root + "/")
-        path = Path(relative)
-        if (
-            path.suffix in (".node", ".distro", ".br")
-            or (path.suffix == ".asar" and relative != "resources/app.asar")
-            or path.name in ("modules", "core", "updater_bootstrap", "installer.db")
-        ):
-            raise ValueError(f"Package contains Discord client data: {relative}")
+        if entry.name.startswith(root + "/") or not (entry.issym() or entry.islnk()):
+            validate_payload_entry(
+                entry.name.removeprefix(root + "/"),
+                is_dir=entry.isdir(),
+                link=entry.linkname if entry.issym() or entry.islnk() else None,
+            )
 
 
 def check(directory: Path):

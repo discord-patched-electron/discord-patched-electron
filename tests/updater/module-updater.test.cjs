@@ -47,6 +47,8 @@ test("module requests expose only installed modules and preserve version checks"
   const { updater } = fixture();
   assert.equal(updater.isInstalled("discord_voice", 7), true);
   assert.equal(updater.isInstalled("discord_voice", 8), false);
+  updater.getInstalled().discord_voice.installedVersion = 8;
+  assert.equal(updater.isInstalled("discord_voice", 7), true);
   assert.equal(updater.isInstalled("toString"), false);
   assert.equal(updater.getModulePath("../discord_voice"), null);
   assert.equal(

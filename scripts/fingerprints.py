@@ -21,6 +21,7 @@ def integration_key(
                     "integration/updater/client.py",
                     "integration/updater/runtime.py",
                     "integration/updater/check.py",
+                    "integration/updater/support.py",
                     "integration/updater/entry.cjs",
                     "integration/updater/module-updater.cjs",
                     "integration/updater/patches.cjs",
