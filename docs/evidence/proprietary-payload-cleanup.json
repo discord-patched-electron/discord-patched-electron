@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-25",
+  "retained_release": "v20261025.223908.0-canary.041bb4c70d3f760e",
+  "approval_run": 40243186523,
+  "git_objects_scanned": 2140,
+  "diagnostic_artifacts_inspected": 440,
+  "diagnostic_artifacts_with_client_payloads": 0,
+  "removed": [
+    {
+      "kind": "release",
+      "id": 423586875,
+      "tag": "v20261025.182721.0-canary.ff5d4eb53febdd96"
+    },
+    {
+      "kind": "release",
+      "id": 423158923,
+      "tag": "v20261025.45557.0-canary.a5a01e8c67196458"
+    },
+    {
+      "kind": "release",
+      "id": 423008331,
+      "tag": "v20261024.215927.0-canary.0fcf860b0b2ec623"
+    },
+    {
+      "kind": "release",
+      "id": 422966321,
+      "tag": "canary-1.0.2365-0127ebd36508aff4"
+    },
+    {
+      "kind": "artifact",
+      "id": 12609940474,
+      "name": "linux-packages-canary",
+      "run": 40221323465,
+      "bytes": 1052977928
+    },
+    {
+      "kind": "artifact",
+      "id": 12587537989,
+      "name": "linux-packages-canary",
+      "run": 40163674384,
+      "bytes": 1052894392
+    },
+    {
+      "kind": "artifact",
+      "id": 12577746243,
+      "name": "linux-packages-canary",
+      "run": 40136604122,
+      "bytes": 1052828620
+    },
+    {
+      "kind": "artifact",
+      "id": 12573827649,
+      "name": "linux-packages-canary",
+      "run": 40129779161,
+      "bytes": 1052946590
+    },
+    {
+      "kind": "artifact",
+      "id": 12572668796,
+      "name": "linux-packages-canary",
+      "run": 40126661821,
+      "bytes": 1052909223
+    },
+    {
+      "kind": "artifact",
+      "id": 12571150124,
+      "name": "linux-packages-canary",
+      "run": 40119313295,
+      "bytes": 1052787869
+    },
+    {
+      "kind": "artifact",
+      "id": 12570296313,
+      "name": "linux-packages-canary",
+      "run": 40115936374,
+      "bytes": 1052832210
+    },
+    {
+      "kind": "artifact",
+      "id": 12566842968,
+      "name": "linux-packages-canary",
+      "run": 40111540714,
+      "bytes": 1052832176
+    },
+    {
+      "kind": "artifact",
+      "id": 12566043968,
+      "name": "linux-packages-canary",
+      "run": 40110382935,
+      "bytes": 1052747024
+    },
+    {
+      "kind": "artifact",
+      "id": 12564713917,
+      "name": "linux-packages-canary",
+      "run": 40106617738,
+      "bytes": 1052976810
+    },
+    {
+      "kind": "artifact",
+      "id": 12562946766,
+      "name": "linux-packages-canary",
+      "run": 40100767363,
+      "bytes": 1052978859
+    },
+    {
+      "kind": "artifact",
+      "id": 12560296496,
+      "name": "linux-packages-canary",
+      "run": 40094176848,
+      "bytes": 800272403
+    },
+    {
+      "kind": "artifact",
+      "id": 12560215497,
+      "name": "linux-packages-canary",
+      "run": 40092737843,
+      "bytes": 800330616
+    },
+    {
+      "kind": "artifact",
+      "id": 12559949945,
+      "name": "linux-packages-canary",
+      "run": 40096032757,
+      "bytes": 1052975279
+    },
+    {
+      "kind": "artifact",
+      "id": 12559831930,
+      "name": "linux-packages-stable",
+      "run": 40092737843,
+      "bytes": 801682123
+    },
+    {
+      "kind": "artifact",
+      "id": 12559278017,
+      "name": "linux-packages-ptb",
+      "run": 40092737843,
+      "bytes": 799968426
+    },
+    {
+      "kind": "artifact",
+      "id": 12558682161,
+      "name": "linux-packages-canary",
+      "run": 40089383775,
+      "bytes": 800520081
+    },
+    {
+      "kind": "artifact",
+      "id": 12558418060,
+      "name": "linux-packages-ptb",
+      "run": 40089383775,
+      "bytes": 800155794
+    },
+    {
+      "kind": "artifact",
+      "id": 12558314090,
+      "name": "linux-packages-stable",
+      "run": 40089383775,
+      "bytes": 801945143
+    }
+  ]
+}

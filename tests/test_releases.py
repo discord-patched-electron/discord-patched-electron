@@ -39,6 +39,31 @@ class ReleaseApproval(unittest.TestCase):
         with self.assertRaises(ValueError):
             release_tag("1.0.2365", "b" * 64, version="invalid")
 
+    def test_fixed_width_tags_sort_chronologically(self):
+        versions = [
+            "20261025.010203",
+            "20261025.095959",
+            "20261025.100000",
+            "20261026.000000",
+            "20270101.000000",
+        ]
+        tags = [release_tag("1.0.2365", "b" * 64, version=v) for v in versions]
+        self.assertEqual(tags, sorted(tags))
+        self.assertEqual(
+            tags, sorted(tags, key=lambda t: tuple(map(int, t[1:].split("-")[0].split("."))))
+        )
+        self.assertEqual(tags[0], "v20261025010203.0.0-canary." + "b" * 16)
+        manifest = {**self.manifest, "tag_schema": 3, "version": versions[0]}
+        self.assertEqual(manifest_tag(manifest), tags[0])
+        validate_approval({**self.release, "tag_name": tags[0]}, manifest, self.workflow, None)
+        with patch("releases.api", side_effect=[None, [{"tag_name": tags[0]}]]):
+            self.assertEqual(
+                existing_candidate("1.0.2365", "b" * 64, "canary")["tag_name"], tags[0]
+            )
+        for version in ("20260230.120000", "20261025.250000"):
+            with self.assertRaises(ValueError):
+                release_tag("1.0.2365", "b" * 64, version=version)
+
     def test_date_tag_deduplication_searches_later_pages_and_drafts(self):
         candidate = {"tag_name": "v20261025.10203.0-canary." + "b" * 16, "draft": True}
         with patch(

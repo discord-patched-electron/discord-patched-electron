@@ -302,7 +302,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
         {
             "schema": 1,
             "signing_required": True,
-            "tag_schema": 2,
+            "tag_schema": 3,
             "version": version,
             "channel": build["channel"],
             "desktop_id": desktop_id(build["channel"]),

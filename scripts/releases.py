@@ -53,7 +53,7 @@ def api(endpoint, *, method="GET", data=None, missing=False, repository=PROJECT)
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
-def release_tag(client_version, key, channel="canary", version=None):
+def release_tag(client_version, key, channel="canary", version=None, *, tag_schema=3):
     if (
         channel not in DISCORD_CHANNELS
         or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", client_version)
@@ -63,17 +63,26 @@ def release_tag(client_version, key, channel="canary", version=None):
     if version is not None:
         if not re.fullmatch(r"[0-9]{8}\.[0-9]{6}", version):
             raise ValueError("Invalid release version")
-        date, time = map(int, version.split("."))
-        return f"v{date}.{time}.0-{channel}.{key[:16]}"
+        datetime.strptime(version, "%Y%m%d.%H%M%S")
+        if tag_schema == 3:
+            return f"v{version.replace('.', '')}.0.0-{channel}.{key[:16]}"
+        if tag_schema == 2:
+            date, time = map(int, version.split("."))
+            return f"v{date}.{time}.0-{channel}.{key[:16]}"
+        raise ValueError("Unsupported release tag schema")
     return f"{channel}-{client_version}-{key[:16]}"
 
 
 def manifest_tag(manifest):
+    schema = manifest.get("tag_schema", 1)
+    if schema not in (1, 2, 3):
+        raise ValueError("Unsupported release tag schema")
     return release_tag(
         manifest["client_version"],
         manifest["release_key"],
         manifest["channel"],
-        manifest["version"] if manifest.get("tag_schema") == 2 else None,
+        manifest["version"] if schema in (2, 3) else None,
+        tag_schema=schema,
     )
 
 
@@ -81,7 +90,7 @@ def existing_candidate(client_version, key, channel):
     legacy = api("releases/tags/" + release_tag(client_version, key, channel), missing=True)
     if legacy:
         return legacy
-    pattern = rf"v[0-9]+\.[0-9]+\.0-{channel}\.{key[:16]}"
+    pattern = rf"v(?:[0-9]{{14}}\.0|[0-9]{{8}}\.[0-9]{{1,6}})\.0-{channel}\.{key[:16]}"
     page = 1
     while releases := api(f"releases?per_page=100&page={page}"):
         for release in releases:
@@ -113,9 +122,8 @@ def prepare():
     now = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     if existing and existing["tag_name"].startswith("v"):
         date, time, _ = existing["tag_name"][1:].split(".", 2)
-        now = datetime.strptime(f"{int(date):08d}.{int(time):06d}", "%Y%m%d.%H%M%S").replace(
-            tzinfo=UTC
-        )
+        stamp = date if len(date) == 14 else f"{int(date):08d}{int(time):06d}"
+        now = datetime.strptime(stamp, "%Y%m%d%H%M%S").replace(tzinfo=UTC)
     version = now.strftime("%Y%m%d.%H%M%S")
     tag = (
         existing["tag_name"] if existing else release_tag(client["version"], key, channel, version)
@@ -414,7 +422,7 @@ def approval_path(manifest: dict) -> Path:
 
 def approve(tag: str, *, check_only=False):
     if not re.fullmatch(
-        r"(?:(?:canary|ptb|stable)-[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{16}|v[0-9]+\.[0-9]+\.0-(?:canary|ptb|stable)\.[a-f0-9]{16})",
+        r"(?:(?:canary|ptb|stable)-[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{16}|v(?:[0-9]{14}\.0|[0-9]{8}\.[0-9]{1,6})\.0-(?:canary|ptb|stable)\.[a-f0-9]{16})",
         tag,
     ):
         raise ValueError("Use a complete app release tag")

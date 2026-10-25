@@ -187,19 +187,22 @@ handle older archives with the previous desktop filename.
 
 ## Release tag ordering
 
-New manifests use `tag_schema: 2`. Tags start with the numeric build date and time,
-for example `v20261024.202623.0-canary.0127ebd36508aff4`. Numeric components sort
-before the content fingerprint, including multiple builds of the same client on
-one day. Hours with leading zeroes are normalized for semantic version syntax.
+New manifests use `tag_schema: 3`: for example,
+`v20261025010203.0.0-canary.0127ebd36508aff4`. The first numeric component is
+fixed-width UTC `YYYYMMDDHHMMSS`, so both lexical and semantic-version sorting
+preserve chronological order, including hours before 10:00. Schema 2 dropped
+leading zeroes from the time and therefore sorted incorrectly as text.
 Discovery searches all release pages for the existing fingerprint before creating
 another candidate. Draft retries retain the date and time encoded in their tag.
-Older manifests and their download URLs remain valid.
+Older signed manifests and their download URLs remain valid; published tags are
+never moved or renamed.
 
-On 24 October, the user requested one remaining release and authorized its
-approval. The two superseded app releases were deleted. Their Git tags remain for
-changelog links. The retained signed release `canary-1.0.2365-0127ebd36508aff4`
-was already approved and published to AUR. This does not change the manual
-approval policy for future builds or delete runtime cache releases.
+On 25 October, the user authorized removal of all full proprietary client blobs
+and approval of the latest client-free build. See the
+[cleanup audit](proprietary-payload-cleanup.md). The only retained app release is
+`v20261025.223908.0-canary.041bb4c70d3f760e`; it remains immutable for signature,
+AUR and download compatibility. Future releases use schema 3. Content-addressed
+open-source runtime cache tags are independent of app release versions.
 
 ## Arch package conflicts
 

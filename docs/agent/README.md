@@ -13,6 +13,7 @@ pacman packages. I test them before approving them through a manual action.
 - [Handoff and local build paths](handoff.md)
 - [Implementation history](status.md)
 - [Release packaging](releases.md)
+- [Proprietary payload cleanup](proprietary-payload-cleanup.md)
 - [Update discovery and scheduling](discovery.md)
 - [Original plan](plan.md)
 
