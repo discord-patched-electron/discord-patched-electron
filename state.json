@@ -326,6 +326,15 @@
       "run": "40115936374",
       "status": "failure"
     },
+    "af46fb8a3e7c9816c3b033f8a9a3bd0859b60e3140ebb846741a61778f97c696": {
+      "channel": "canary",
+      "client_digest": "9c2070de6ece7b41b81283b0413c00de59235018063800fd1e6f27277109fa5b",
+      "key": "af46fb8a3e7c9816c3b033f8a9a3bd0859b60e3140ebb846741a61778f97c696",
+      "reference_run": "40053107555",
+      "requested_at": "2026-10-26T00:29:18.879430+00:00",
+      "run": "40249493829",
+      "status": "queued"
+    },
     "b6972643416bbc974b1d28bc55c0f38bdbded19330270ff745754ba69379bd1c": {
       "channel": "ptb",
       "client_digest": "f05c31510c2cb2e942b02d492ddb059b904ad62fb3e4847fb8c326e6a2cb77ed",
