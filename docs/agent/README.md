@@ -33,6 +33,7 @@ pacman packages. I test them before approving them through a manual action.
 - [Camera startup](camera-startup.md)
 - [Launcher, codecs and shortcuts](linux-launcher.md)
 - [Previous Equicord loader](equicord.md) (historical)
+- [Vencord and Equicord update preservation](client-mods.md)
 - [Native runtime](linux-runtime.md)
 - [Runtime validation](runtime-validation.md)
 - [Saved test evidence](../evidence/)
