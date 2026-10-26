@@ -17,7 +17,7 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 - Faster camera startup and hardware video decoding where supported.
 - OpenAsar included by default, with custom themes and startup settings.
 - [Vencord and Equicord](docs/client-mods.md) support that persists across updates.
-- Automatic Discord and patched Electron updates after testing.
+- Automatic Discord and patched Electron updates.
 
 On first launch, the app downloads Discord's client files directly from Discord.
 Downloads are verified before use.
