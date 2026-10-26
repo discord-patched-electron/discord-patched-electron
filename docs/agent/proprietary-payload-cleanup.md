@@ -1,7 +1,8 @@
 # Proprietary payload cleanup — 25 October 2026
 
-The user authorized removal of full proprietary Discord client blobs from source,
-Git history, Actions artifacts and releases, plus approval of the latest build.
+This audit records the authorized cleanup on 25 October 2026. Older releases
+and artifacts containing full Discord client files were removed. The replacement
+release downloads those files from Discord on the user's machine.
 
 ## Results
 
@@ -22,7 +23,7 @@ Git history, Actions artifacts and releases, plus approval of the latest build.
 - Removed obsolete release and abandoned candidate tags. Kept the approved
   release tag immutable; future tags use fixed-width UTC schema 3.
 
-The client-free release `v20261025.223908.0-canary.041bb4c70d3f760e` is now
+The client-free release `v20261025.223908.0-canary.041bb4c70d3f760e` was
 approved, marked Latest and published to AUR by approval run `40243186523`.
 Its release qualification run `40241194140` passed. Existing package validation
 rejects client payloads in staging and in the generated release formats before

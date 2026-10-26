@@ -189,21 +189,22 @@ def install_notes(manifest: dict) -> str:
     downloads = f"{URL}/releases/download/{tag}"
     rows = []
     name = package_name(manifest["channel"], electron_channel(manifest["electron_version"]))
-    aur = f"[{name}](https://aur.archlinux.org/packages/{name}) (approved releases)"
+    aur = f"[{name}](https://aur.archlinux.org/packages/{name})"
     for distribution, extension in (
-        ("Arch Linux", ".pkg.tar.zst"),
         ("Debian / Ubuntu", ".deb"),
         ("Fedora", ".rpm"),
         ("Other distributions", ".tar.gz"),
+        ("Arch Linux (maintainer/testing install)", ".pkg.tar.zst"),
     ):
         name = next(name for name in manifest["assets"] if name.endswith(extension))
-        repository = aur if extension == ".pkg.tar.zst" else "—"
         download = f"[{extension}]({downloads}/{name})"
         if extension == ".pkg.tar.zst" and manifest.get("signing_required"):
             download += f" ([signature]({downloads}/{name}.sig))"
-        rows.append(f"| {distribution} | {download} | {repository} |")
+        rows.append(f"| {distribution} | {download} |")
     return (
-        "## Install\n\n| Distribution | Package | AUR/Repo |\n| --- | --- | --- |\n"
+        f"## Install\n\nOn Arch Linux, install {aur} from the AUR for the latest tested release.\n\n"
+        "For other distributions, or to test a build before it reaches the AUR, download a package:\n\n"
+        "| Distribution | Package |\n| --- | --- |\n"
         + "\n".join(rows)
         + f"\n\n[Checksums]({downloads}/SHA256SUMS) · "
         + f"[Installation and updates]({URL}/blob/main/docs/install.md)\n\n"

@@ -1,39 +1,47 @@
-# Agent docs
+# Contributor and agent docs
 
-These notes preserve implementation details and investigation history. They are
-useful to contributors and coding agents. The [main README](../../README.md) covers
-using the app. Older reports describe the code and inputs at the time they ran.
-Only **Canary + alpha/beta Electron** is enabled. Canary has better compatibility
-with newer Electron versions. [Channel switches](channels.md) retain the other
-Discord and Electron options without enabling them. Public test releases include
-pacman packages. I test them before approving them through a manual action.
+Use these pages to build, test and maintain the project. For installation and
+app settings, start with the [main README](../../README.md).
+
+Only Discord Canary with alpha/beta Electron is enabled. Check the current code
+and locks before acting on an older report; its versions and results belong to
+that test run.
 
 ## Start here
 
-- [Handoff and local build paths](handoff.md)
-- [Implementation history](status.md)
-- [Release packaging](releases.md)
-- [Proprietary payload cleanup](proprietary-payload-cleanup.md)
-- [Update discovery and scheduling](discovery.md)
-- [Original plan](plan.md)
+- [Handoff](handoff.md): current configuration, retained builds and open test gaps.
+- [Release packaging](releases.md): make, test and approve a release.
+- [Runtime validation](runtime-validation.md): test native video and Krisp.
+- [Channel switches](channels.md): enable or disable supported build tracks.
 
-## Building and packaging
+## Builds and updates
 
-- [CI and local runner setup](ci-setup.md)
-- [Build caching](build-caching.md)
+- [CI runners and budget](ci-setup.md)
+- [CPU target and build caching](build-caching.md)
 - [Source ports](source-ports.md)
-- [Arch packaging](packaging.md)
-- [Module-only client updates and bootstrap](client-updater.md)
-- [Build capacity investigation](build-capacity.md)
+- [Update discovery and scheduling](discovery.md)
+- [Client and Electron updater](client-updater.md)
+- [Vencord and Equicord preservation](client-mods.md)
 
 ## Linux integration
 
-- [Wayland audio implementation](wayland-audio.md)
-- [Audio investigation](audio-investigation.md)
+- [Wayland application audio](wayland-audio.md)
+- [Audio investigation and mixer fix](audio-investigation.md)
 - [Camera startup](camera-startup.md)
 - [Launcher, codecs and shortcuts](linux-launcher.md)
-- [Previous Equicord loader](equicord.md) (historical)
-- [Vencord and Equicord update preservation](client-mods.md)
-- [Native runtime](linux-runtime.md)
-- [Runtime validation](runtime-validation.md)
-- [Saved test evidence](../evidence/)
+- [Local runtime checks](linux-runtime.md)
+
+## History and evidence
+
+These pages explain past decisions and preserve test results. They are not
+current setup instructions or authorization to repeat earlier actions.
+
+- [Build and release history](handoff-history.md)
+- [Updater implementation history](updater-history.md)
+- [Early implementation milestones](status.md)
+- [Original plan](plan.md)
+- [Initial build capacity experiment](build-capacity.md)
+- [Older Arch packaging path](packaging.md)
+- [Previous Equicord loader](equicord.md)
+- [Proprietary payload cleanup](proprietary-payload-cleanup.md)
+- [Saved test reports](../evidence/)

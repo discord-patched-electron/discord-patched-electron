@@ -1,7 +1,9 @@
 # Release packaging
 
-Only Discord Canary and alpha/beta Electron are enabled. Other tracks remain
-available through the [CI channel switches](channels.md).
+Use this guide to package a verified runtime, test a candidate and approve it
+for users. Only Canary with alpha/beta Electron is enabled; see
+[channel switches](channels.md) for other tracks. Installing the app is covered
+in the [user guide](../install.md).
 
 ## Automatic candidates
 
@@ -17,11 +19,10 @@ Each candidate records an immutable client snapshot for native regression tests
 and release identity. The package itself contains no Discord client. First launch
 downloads the exact package-pinned modules; launch reports verify those pins and
 record the tested generation. See [the module updater](client-updater.md).
-The workflow verifies the compiler artifact, stages the bootstrap, moves the app directory, and checks plain
-launch and relaunch. It checks the official Vencord and Equicord installers across installation, an
-app upgrade, reinstallation, launch/relaunch and removal. Both must restore the
-current bootstrap before packaging.
-Parallel jobs check bundled/native video and Krisp, plus isolated X11/Wayland audio.
+Qualification checks the verified runtime, bootstrap and relocated app through
+launch and relaunch. Both official mod installers are tested across installation,
+updates and removal; uninstall must restore the current bootstrap. Parallel jobs
+check native video, offline Krisp and isolated X11/Wayland audio.
 
 nFPM makes `.pkg.tar.zst`, `.deb` and `.rpm` packages from the same app tree as the
 portable `.tar.gz`. Payload hashes are compared across all four formats. Ubuntu
@@ -34,7 +35,7 @@ test release. Release notes include upstream versions, a distribution/package ta
 a link to check results and commits since the preceding app release. Runtime
 cache tags are excluded from the changelog.
 
-Candidate tags include the client version and a content hash. A repeat of the same
+Candidate tags identify the channel, release time and content hash. A repeat of the same
 runtime/client/integration inputs skips packaging if that release is already
 public. Failed work remains visible and can be retried with GitHub's **Re-run all
 jobs**. A partial draft can be resumed. Public assets are never overwritten.
@@ -43,8 +44,9 @@ jobs**. A partial draft can be resumed. Public assets are never overwritten.
 
 1. Select **Watch → Custom → Releases** on the repository and enable your preferred
    notification delivery in GitHub settings.
-2. Open the new public test release. Download its `.pkg.tar.zst` and `SHA256SUMS` into
-   a new folder. Check the hashes and install it:
+2. Follow the one-time [signing-key setup](../install.md#arch-install-a-release-package-directly). Download
+   the test release's `.pkg.tar.zst`, matching `.sig` and `SHA256SUMS` into a new
+   folder. Check the hashes and install it:
 
    ```sh
    sha256sum --check --ignore-missing SHA256SUMS
@@ -53,7 +55,7 @@ jobs**. A partial draft can be resumed. Public assets are never overwritten.
 
 3. Launch **Discord Canary**. Test the features you use,
    including voice, camera startup, screen sharing with app audio, and Krisp.
-   Reinstall client mods after updating. Uninstalling first is unnecessary.
+   Check that any installed Vencord or Equicord still loads after updating.
 4. Run [**Approve tested release**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/approve-release.yml)
    on `main`, paste the exact release tag, and tick the local-testing confirmation.
 
@@ -73,9 +75,9 @@ paths require a public, non-prerelease GitHub release and an approval record for
 its exact manifest checksum. Changing the GitHub release label alone is insufficient.
 Local recipe generation remains available for candidate testing.
 
-The existing AUR version `20261024.162607-1` predates this policy. Leave it frozen
-until a release is explicitly approved. The package name's `prerelease` component
-refers to the Electron track, not permission to publish unapproved app builds.
+The package name's `prerelease` component identifies alpha/beta Electron.
+It does not bypass app-release approval. Earlier AUR policy changes are recorded
+in [the release history](handoff-history.md).
 
 Release asset names stay fixed. The AUR recipe uses a versioned local download
 alias (`$pkgname-$pkgver.tar.gz::...`) so `makepkg` cannot reuse another version's
@@ -91,10 +93,14 @@ artifacts only. No packaging job compiles Electron.
 
 After the [contributor setup](../../CONTRIBUTING.md), install `brotli`, a C compiler,
 `bsdtar`, `rpm` and the [prebuilt nFPM 2.48.0 binary](https://github.com/goreleaser/nfpm/releases/tag/v2.48.0).
-Put `nfpm` on `PATH`. No Go installation is needed. CI verifies the official archive's
-pinned checksum. Use fresh output directories:
+Put `nfpm` on `PATH`; no Go installation is needed. CI verifies its archive
+checksum. First choose a healthy, full 40-character `ci-state` commit, then fetch
+that snapshot and a verified runtime. Use fresh output directories:
 
 ```sh
+clients_state_commit=REPLACE_WITH_FULL_COMMIT
+GH_REPO=discord-patched-electron/discord-patched-electron \
+  uv run python scripts/fetch_client_snapshot.py "$clients_state_commit" --output out/clients.lock.json
 GH_REPO=discord-patched-electron/discord-patched-electron \
   uv run python scripts/fetch_reference.py 40053107555 --output out/release-runtime
 uv run python scripts/build_local_app.py --portable --discord canary \
@@ -108,8 +114,8 @@ uv run python scripts/package_release.py 'out/relocated app' \
 uv run python scripts/check_release_packages.py out/packages
 ```
 
-Fetch `out/clients.lock.json` with `scripts/fetch_client_snapshot.py` using a healthy
-immutable state commit first. Replace the example runtime and timestamp as needed.
+Set `clients_state_commit` to your chosen commit and replace the example runtime
+run and timestamps before running these commands.
 Local packaging needs a verified portable candidate and passing launch check;
 public release qualification adds the remaining CI checks.
 
@@ -152,7 +158,7 @@ those exact pins, with automatic updates disabled for the test. Packaging reject
 changed or untested module pins. The approval action binds its existing
 `manifest_sha256` record to both client and runtime metadata. Older release
 manifests without client pins cannot authorize automatic client updates.
-See [runtime activation](client-updater.md#patched-electron-updates).
+See [the updater](client-updater.md#patched-electron-updates).
 Package updates remain responsible for the bootstrap, integrations and system
 dependencies. Automatic runtime updates preserve the installed mod loader.
 
@@ -163,7 +169,9 @@ source caches. Older public assets remain immutable.
 Package post-install/upgrade hooks refresh `_app.asar` only when it exists and
 `app.asar` matches the newly installed checksum. This keeps official mod installers
 from restoring an old bootstrap, without touching a currently installed mod loader.
-Tarball users extract into a fresh directory and rerun their official installer.
+Tarball users extract into a fresh directory. Mods in the standard profile
+survive this update; directly modified old package copies may need their installer
+run again.
 
 ## Release signatures
 
@@ -197,12 +205,10 @@ another candidate. Draft retries retain the date and time encoded in their tag.
 Older signed manifests and their download URLs remain valid; published tags are
 never moved or renamed.
 
-On 25 October, the user authorized removal of all full proprietary client blobs
-and approval of the latest client-free build. See the
-[cleanup audit](proprietary-payload-cleanup.md). The only retained app release is
-`v20261025.223908.0-canary.041bb4c70d3f760e`; it remains immutable for signature,
-AUR and download compatibility. Future releases use schema 3. Content-addressed
-open-source runtime cache tags are independent of app release versions.
+The [25 October cleanup](proprietary-payload-cleanup.md) retained approved tag
+`v20261025.223908.0-canary.041bb4c70d3f760e` under its older schema. Its name and
+assets remain immutable. New releases use schema 3; runtime-cache tags are
+independent of app versions.
 
 ## Arch package conflicts
 
@@ -211,7 +217,7 @@ The AUR name/description and `provides` searches on 24 October 2026 found
 [discord-canary-electron-bin](https://aur.archlinux.org/packages/discord-canary-electron-bin).
 Both are explicit conflicts in generated Arch recipes and future Arch release
 packages. The generic `discord-canary` conflict also covers other providers.
-The official Arch repositories currently carry stable Discord, not Canary.
+At the time, the official Arch repositories carried stable Discord, not Canary.
 
 [moonlight-canary-bin](https://aur.archlinux.org/packages/moonlight-canary-bin)
 installs its own executable, desktop file and icons. It is not a conflicting

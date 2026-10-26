@@ -1,102 +1,95 @@
 # Linux launcher, codecs and shortcuts
 
-Use `~/.config/discord-canary-patched-electron.conf`, one launch flag per line.
-For Stable/PTB replace `canary` with `stable`/`ptb`. `XDG_CONFIG_HOME` is honored.
-Blank lines and comments beginning with `#` are ignored. This is a flag list,
-not a shell script: do not include shell quoting, assignments or commands.
+For user settings, see [launcher settings](../linux-launcher.md). This page explains
+flag precedence, the tested graphics behavior and native shortcut integration.
 
-The launcher applies defaults, the older package-specific `-flags.conf`, this
-channel-level file, then command-line arguments. Feature enable/disable lists
-merge by feature name; the last setting wins. Other Chromium switches keep
-their usual last-value precedence. `DPE_DEFAULT_FLAGS=0` disables our defaults.
+## OpenAsar version label
 
-Defaults in this build:
+The settings label uses `release_version` from the installed package's
+`runtime-update.json`: `OpenAsar (discord-patched-electron VERSION)`. Local builds
+without a release version show `development`. The renderer adapter supplies this
+label without changing the pinned OpenAsar source; its unstamped `nightly` string
+previously produced an empty version.
 
-```text
---ozone-platform=wayland                 # when WAYLAND_DISPLAY is present
---ozone-platform=x11                     # otherwise; only one is selected
---enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL
-```
+## Flag handling
 
-All of these are launcher settings, not changes to compiled Chromium defaults.
-Do not copy the inline comments above into the config. Example overrides:
+`integration/launcher/discord-launcher.sh` applies flags in this order:
 
-```text
-# Force Xwayland for troubleshooting:
---ozone-platform=x11
-# Disable the Linux GL decoding path:
---disable-features=AcceleratedVideoDecodeLinuxGL
-```
+1. Project defaults.
+2. The older package-specific `-flags.conf`.
+3. `~/.config/discord-canary-patched-electron.conf` (respecting `XDG_CONFIG_HOME`).
+4. Command-line arguments.
 
-On the local AMD RX 7900 GRE, synthetic playback used `VaapiVideoDecoder` with
-platform decoding, and WebGL used hardware ANGLE/OpenGL. H.264, VP8, VP9 and AV1
-software WebCodecs encoders each produced twelve frames. Forcing
-`AcceleratedVideoEncoder` caused a GPU-process CHECK failure in
-`CreateGpuMemoryBufferHandle` from the VA-API encoder's mappable shared-image
-path, including with native GPU buffers enabled. Therefore it is **not enabled
-by default**. It remains overridable using
-`--enable-features=AcceleratedVideoEncoder` for deliberate testing on another
-driver/runtime. The launcher does not override GPU blocklists, force Vulkan or
-disable the GPU sandbox. `--ozone-platform=auto` also crashed this runtime;
-explicit session selection avoids that path.
+Feature lists merge by feature name; the last setting wins. Other Chromium
+switches keep their normal last-value precedence. `DPE_DEFAULT_FLAGS=0` disables
+the project defaults. OpenAsar Focus presets yield to explicit launcher flags.
 
-Discord's native voice/video module has its own codec stack. Chromium WebCodecs
-results do not establish Discord-call hardware encoding. The native module
-reported VA-API support and initial decode capabilities for H.264/H.265/AV1,
-with VP8 encode/decode; that pre-call capability report is not a negotiated
-call or hardware-encoder test. No live Discord call was made.
+The launcher selects `--ozone-platform=wayland` when `WAYLAND_DISPLAY` is present,
+otherwise `--ozone-platform=x11`. It also enables `AcceleratedVideoDecoder` and
+`AcceleratedVideoDecodeLinuxGL`. These are launch settings, not compiler changes.
+
+## Graphics results and limits
+
+On the tested AMD RX 7900 GRE, synthetic playback used `VaapiVideoDecoder` and
+WebGL used hardware ANGLE/OpenGL. Software WebCodecs encoders for H.264, VP8, VP9
+and AV1 each produced twelve frames.
+
+Forcing `AcceleratedVideoEncoder` crashed the GPU process in
+`CreateGpuMemoryBufferHandle`, including with native GPU buffers enabled. It
+remains off by default. `--ozone-platform=auto` also crashed that runtime, which
+is why the launcher selects the session explicitly. GPU blocklists and the GPU
+sandbox remain enabled; Vulkan is not forced.
+
+Discord's voice/video module has a separate codec stack. Its pre-call report
+showed VA-API and H.264/H.265/AV1 decoding support, plus VP8 encode/decode.
+Neither that report nor WebCodecs tests establish hardware encoding in a call.
+See [desktop test evidence](../evidence/desktop-fixes-local.json).
 
 ## Wayland shortcuts
 
-The pinned `discord_utils` module implements the GlobalShortcuts portal itself,
-including both press and release events needed by push-to-talk. Its shortcut
-recording wrapper also handles Wayland keyboard events. Electron's
-`globalShortcut` is a separate API; adding an Electron feature flag alone would
-not repair Discord's native path.
+The pinned `discord_utils` module uses the GlobalShortcuts portal directly,
+including press/release events for push-to-talk and Wayland shortcut recording.
+Electron's `globalShortcut` is a separate API; its feature flag alone cannot
+repair Discord's native path.
 
-The package now installs a reverse-DNS desktop file and gives the same identity
-to the bootstrap, `DISCORD_PORTAL_APP_ID` and `CHROME_DESKTOP`:
+`scripts/desktop_identity.py` supplies the standard Canary identity:
+`discord-canary`. The desktop file is `discord-canary.desktop`, matching the
+bootstrap, `DISCORD_PORTAL_APP_ID` and `CHROME_DESKTOP` settings. Older local builds
+used a reverse-DNS identity; those entries may need removing if they shadow the
+system installation.
 
-```text
-io.github.discord_patched_electron.DiscordCanary.desktop
-```
+The local builder emits a desktop file beside `launch.sh`. For a non-portable
+local build, it can be copied to `~/.local/share/applications/` for portal discovery.
+A portable build's desktop entry targets the installed system command.
 
-Stable and PTB have separate identities. The local build emits the desktop file
-next to `launch.sh`; copy it to `~/.local/share/applications/` to make the local
-app resolvable by the portal. The prepared local Canary shortcut is installed
-there already. Remove that user-local entry when switching to the system AUR
-package, so it does not shadow the packaged entry.
-
-A private D-Bus fixture verified native registry registration, a Ctrl+Alt+F12
-preferred trigger, and `true`/`false` press/release callbacks. It does not bind a
-real desktop key, change permissions or intercept typing. Reproduce with system
-Python plus `dbus-python` and PyGObject in a Wayland session:
+A private D-Bus fixture checked registration, Ctrl+Alt+F12 and `true`/`false`
+press/release callbacks without grabbing desktop keys or changing permissions.
+To reproduce in a Wayland session, install system `dbus-python` and PyGObject:
 
 ```sh
-python scripts/check_shortcuts.py --runtime /path/to/runtime/electron \
+uv run --no-project --python /usr/bin/python3 python scripts/check_shortcuts.py \
+  --runtime /path/to/runtime/electron \
   --utils /path/to/modules/discord_utils/discord_utils.node \
   --output /path/to/fresh-shortcut-check
 ```
 
-The desktop's configured portal backend must implement GlobalShortcuts and the
-user must grant any requested permission. Availability on this niri session was
-confirmed; actual keyboard interaction on GNOME/KDE remains untested. Mouse
-buttons or arbitrary unsupported combinations are not made global through an
-X11 key-grabbing workaround.
+This command uses system Python so those bindings are available. The actual
+desktop still needs a GlobalShortcuts backend and any requested user permission.
+Real keyboard interaction on GNOME/KDE remains untested. Unsupported mouse buttons
+or key combinations do not gain an X11 fallback.
 
-References: [Electron's Linux shortcut identity requirements](https://www.electronjs.org/docs/latest/api/global-shortcut#usage-on-linux)
-and the [GlobalShortcuts portal's press/release protocol](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.GlobalShortcuts.html).
+References: [Electron's Linux shortcut identity](https://www.electronjs.org/docs/latest/api/global-shortcut#usage-on-linux),
+[portal press/release protocol](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.GlobalShortcuts.html).
 
 ## Storage compatibility
 
-Electron 46 removes the synchronous `safeStorage` methods used by the pinned
-desktop module. A small sidecar preserves Discord's synchronous renderer IPC
-while awaiting the new asynchronous main-process API, including the structured
-decrypt result. Locked/unavailable storage returns false/null; it never adds a
-plaintext fallback. Older Electron methods remain supported.
+Electron 46 removes synchronous `safeStorage` methods used by the pinned desktop
+module. A sidecar keeps Discord's synchronous renderer IPC while awaiting the new
+main-process API, including its structured decrypt result. Locked or unavailable
+storage returns false/null without adding a plaintext fallback. Older Electron
+methods remain supported.
 
-`scripts/check_safe_storage.py` verifies real Electron IPC, invalid ciphertext,
-null handling and decryption after relaunch. Only that isolated fixture selects
-the basic password store and uses a synthetic string; the app keeps its normal
-OS key store. Packaging rejects an unknown core IPC layout rather than silently
-shipping an unpatched module.
+`scripts/check_safe_storage.py` checks real IPC, invalid ciphertext, null values
+and decryption after relaunch. Only this isolated fixture uses the basic password
+store and a synthetic string; the app keeps its normal OS key store. Unknown
+core IPC layouts fail preparation for review.

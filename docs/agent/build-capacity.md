@@ -1,7 +1,9 @@
 # Build capacity measurements
 
-Initial experiment started 23 October 2026. **Reference build incomplete; capacity is not yet proven sufficient for a
-complete compile or the recurring release workload.**
+This record covers the initial attempts on 23 October 2026. At the time, no
+full build had completed. The reference and Electron 46 builds later succeeded;
+see [the handoff](handoff.md) for their evidence and [CI runners](ci-setup.md) for
+current limits. The one-shot workflows and live-build status below are historical.
 
 Workflow: [reference build 39997836372](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/39997836372).
 Build implementation: `d517391c3ebecfc11e5478ea67fa0c0aa0219e00`.
@@ -19,6 +21,8 @@ passed.
 | Job bounds             | Compile command interrupted after 21 hours; job limit 22 hours                |
 | Recovery               | Persistent source and object files keyed by exact build inputs                |
 | Hosted compiler cost   | None; PC electricity/storage use remains local                                |
+
+## Local preparation attempts
 
 Runner registration, checkout, Chromium 152 fetch, dependency installation and
 initial dependency patch application succeeded. Attempt 1 failed after 621 seconds
@@ -56,6 +60,8 @@ last metric marked `running`; the GitHub job conclusion is authoritative. Report
 last seven days, the reference binary artifact one day, and the local build cache
 persists. Record final measurements here after the experiment completes.
 
+## Hosted experiment
+
 Blacksmith subsequently unlocked the account. The maintainer reports the
 organization connected and 0/3,000 free minutes used. A separate, single-use
 Blacksmith experiment uses a 16-vCPU runner, at most 300 real minutes (2,400
@@ -86,6 +92,8 @@ further usage. Its command reported 1,202 seconds, minimum available RAM about 5
 and minimum free disk about 605 GiB. No reference binary was produced, and these
 preparation numbers do not establish linker capacity. The one-shot hosted guard
 remains in force; the local cache is used to qualify further build-stage fixes.
+
+## Return to local compilation
 
 The corrected [local run 40005436647](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/40005436647)
 at `ee31072` successfully completed GN generation and entered actual C++

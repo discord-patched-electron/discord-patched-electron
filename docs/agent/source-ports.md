@@ -1,10 +1,13 @@
 # Candidate source ports
 
-The pinned **Electron 46.0.0-alpha.1** port now compiles and opens Discord Canary
-on native Wayland. Native video, capture lifetime and offline Krisp tests pass
-against that runtime. See [the measured results](../evidence/prerelease-runtime-local.json).
-The historical 45/47 ports remain source-only and disabled. None of these ports
-is a published release; real-call and wider desktop qualification remain gates.
+The pinned **Electron 46.0.0-alpha.1** port compiles and opens Canary on native
+Wayland. Native video, capture lifetime and offline Krisp tests pass; see
+[the results](../evidence/prerelease-runtime-local.json). The 45/47 ports remain
+source-only and disabled. Use [release packaging](releases.md) for publication
+status and checks; live calls and wider desktop coverage remain separate work.
+
+This page explains the patch layers and the compatibility decisions to preserve
+when updating them.
 
 ## Structure
 

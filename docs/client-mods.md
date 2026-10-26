@@ -5,16 +5,14 @@ Launch Discord once, then close it and run the official
 [Equicord](https://docs.equicord.org/installing/) installer. Choose **Canary**
 from its detected installations. Install one mod at a time.
 
-The installation uses Discord's usual path:
-`~/.config/discordcanary/app-<version>/resources`. The launcher detects Vencord or
-Equicord there and preserves it across Discord, Electron and package updates.
-No reinstall or root access is needed.
+Discord, Electron and package updates preserve the installed mod and its settings.
+You don't need to reinstall the mod after updating or run its installer as root.
 
-Both mods keep their own updater. Client updates keep using your installed mod
-files, including newer versions downloaded by the mod, and preserve its settings.
+Both mods can still update themselves.
 
-If you override `XDG_CONFIG_HOME` or `DPE_PROFILE_DIR`, choose **Custom Location**
-and select that profile directory. Some installers only search `~/.config`.
+If Canary isn't detected, choose **Custom Location** and select your profile
+directory, normally `~/.config/discordcanary`. This may be needed with a
+[custom profile](linux-launcher.md#profiles).
 
 To remove a mod or switch between them, use its installer's **Uninstall** option.
 Your mod settings stay in place.

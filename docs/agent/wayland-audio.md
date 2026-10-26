@@ -1,28 +1,24 @@
 # Native Wayland application audio
 
-The module adapter keeps Discord's native screen capture and feeds its native
-PID-based audio input through private PipeWire/PulseAudio routes. It changes the installed
-`discord_voice` JavaScript wrapper, adds small sidecar files, and applies a
-validated native mixer-buffer reset to the private downloaded module. The helper
-uses Python's standard library and installed audio tools; no additional native
-addon or Electron rebuild is required for an audio-routing change. PipeWire
-must be available even when PulseAudio is the desktop's audio server. Its audio
-client tools (`pipewire-audio` on Arch) and a running PipeWire session manager
-such as WirePlumber are required for graph linking. The package does not replace
-PulseAudio with PipeWire-Pulse or enable/disable system services.
+The adapter keeps Discord's native video capture and sends selected application
+audio through its existing PID-based input. Routing changes live in the voice
+wrapper and helper, so they do not require an Electron rebuild.
 
-The adapter is enabled by default on Wayland. No environment variable is needed.
-`DPE_APP_AUDIO=0` explicitly restores upstream audio routing for troubleshooting;
-`DPE_APP_AUDIO=1` is still accepted and enables the optional X11 adapter.
-Close an existing instance before changing launcher environment variables.
-`DPE_APP_AUDIO_TRACE=1` enables bounded module diagnostics. To trace upstream
-behavior, combine it with `DPE_APP_AUDIO=0`.
-A missing dependency or unresolved automatic selection leaves share audio off.
+For desktop setup and use, see [screen-share audio](../wayland-audio.md).
+This page covers source selection, private routes, cleanup and isolated tests.
 
-The maintainer requested default enablement after local native verification;
-custom-runtime and real-call qualification remain release checks, not an opt-in
-requirement. Ordinary microphone/webcam transport updates pass through unchanged,
-and picker events do not start routes on idle voice connections.
+## Enablement and dependencies
+
+The adapter is on by default on Wayland. `DPE_APP_AUDIO=0` restores upstream
+routing; `DPE_APP_AUDIO=1` enables the optional X11 adapter too. Close an existing
+instance before changing environment variables. `DPE_APP_AUDIO_TRACE=1` enables
+bounded diagnostics, including when the adapter is disabled.
+
+PipeWire, its audio tools and a session manager such as WirePlumber are required,
+even with a real PulseAudio server. The app leaves audio services and default
+devices unchanged. Missing tools or unresolved selection leave share audio off.
+Ordinary microphone/webcam transport options pass through, and picker events do
+not start routes on idle connections.
 
 ## Source selection
 
@@ -33,18 +29,17 @@ that process's audio streams and descendants, checking UID and process start tim
 Several audio processes can therefore contribute to one application's mix.
 Selecting a monitor explicitly chooses system playback except Discord.
 
-This is an exact source relationship: the helper never uses the focused window,
-a window-title match, or the only currently active cast. A portal video node is
-not interpreted as a PID. Native Linux picker callbacks do not reliably expose
+Matching requires that source relationship. Focus, window titles and a lone
+active cast are insufficient. A portal video node is not interpreted as a PID.
+Native Linux picker callbacks do not reliably expose
 a selected application PID, and `screen:0:0` also represents selected windows.
 The portal broker can own the passed PipeWire FD; its security PID is not the
 native capture consumer's PID.
 
 Other compositors and older niri versions use an explicit **Screen-share audio**
 dialog after the native video picker. Choose the playing application, **Entire
-system (except Discord)**, or **No audio**. This follows the separate audio-source
-selection approach used by Vesktop without substituting its browser video path.
-The fallback is an audio selection UI, not a browser streaming fallback.
+system (except Discord)**, or **No audio**. Video stays on Discord's native path;
+the dialog selects only audio.
 Compositor-independent automatic window/PID discovery is not promised. The
 explicit picker lists audio-owning processes; separate siblings can appear as
 separate entries. Flatpak/PID namespace remapping is not yet qualified.
@@ -54,7 +49,6 @@ use the same automatic process matching as other applications; there is no
 extra browser prompt or individual-stream picker. All playback streams of the
 selected application and its descendants are included, including its other
 windows/tabs. Other applications and Discord playback remain excluded.
-The per-stream selection experiment was removed at the user's request.
 
 Window names in the picker are enriched using Hyprland `hyprctl`, Sway IPC,
 optional KDE `kdotool`, or GNOME's optional Window Calls extension. KDE/GNOME
@@ -116,6 +110,8 @@ portal selects real native Wayland GTK windows; Discord itself opens the portal
 and consumes actual PipeWire video frames. Xvfb supplies only niri's outer software
 rendering surface. Discord and the test applications have no X11 display.
 
+### Audio-control regression
+
 The fixture uses the shipped voice wrapper's audio-control defaults and records
 `offload_adm_controls` in its result. It previously forced that setting off, unlike
 the packaged app. In run `40100767363`, the native engine stalled in
@@ -126,6 +122,8 @@ unchanged. Keep the real device-enumeration, private-device positive control and
 audio-isolation assertions enabled; retries or longer timeouts would conceal the
 configuration mismatch.
 See the [local and CI results](../evidence/wayland-audio-defaults.json).
+
+### What the fixture measures
 
 Independent tones distinguish an application's parent and child process,
 another application's native PipeWire playback, and simulated received Discord
@@ -157,8 +155,8 @@ The fixture uses no account, remote Discord UI, network service, physical
 microphone or host display/audio socket. It proves the module's native capture
 and routing in that environment, not an end-to-end Discord call. Custom-runtime
 qualification, live UI arguments, microphone/Krisp during a real share, and actual
-GNOME/KDE sessions remain release checks. See [implementation status](status.md)
-for the latest completed checks and evidence.
+GNOME/KDE sessions remain release checks. See [the handoff](handoff.md)
+for retained runtime checks and open test gaps.
 
 ## Local interactive verification
 

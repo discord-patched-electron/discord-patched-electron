@@ -233,7 +233,7 @@ class ReleaseApproval(unittest.TestCase):
         for prefix in ("app-x86_64", "app-20261024.120000-x86_64"):
             manifest = {**self.manifest, "assets": {prefix + ext: "c" * 64 for ext in FORMATS}}
             body = install_notes(manifest)
-            self.assertIn("| Distribution | Package | AUR/Repo |", body)
+            self.assertIn("| Distribution | Package |", body)
             self.assertIn(
                 "https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin",
                 body,
