@@ -8,8 +8,6 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 
 <br />
 
----
-
 ## Features and patches
 
 - Updated Electron for newer Chromium features and Linux improvements.
