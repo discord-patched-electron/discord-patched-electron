@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkDialog" id="dialog">
+    <property name="title">Discord Patched Electron</property>
+    <property name="resizable">false</property>
+    <property name="default-width">420</property>
+    <property name="use-header-bar">0</property>
+    <child type="titlebar">
+      <object class="GtkHeaderBar">
+        <property name="title">Discord Patched Electron</property>
+        <property name="show-close-button">true</property>
+        <property name="decoration-layout">:close</property>
+      </object>
+    </child>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="border-width">24</property>
+        <property name="spacing">16</property>
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <property name="spacing">8</property>
+            <child>
+              <object class="GtkLabel" id="status">
+                <property name="label">Downloading Electron for the first time...</property>
+                <property name="justify">center</property>
+                <property name="wrap">true</property>
+                <property name="xalign">0.5</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkProgressBar" id="progress">
+                <property name="pulse-step">0.04</property>
+                <accessibility>
+                  <relation type="labelled-by" target="status"/>
+                </accessibility>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="no-show-all">true</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

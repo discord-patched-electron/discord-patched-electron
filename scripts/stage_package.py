@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import shutil
-import subprocess
 from pathlib import Path
 
 from common import read_json, sha256
@@ -19,17 +17,11 @@ def stage(inputs: dict, directory: Path, asar: str):
         raise ValueError("Staging directory already exists; use makepkg --cleanbuild")
     runtime = inputs["runtime"]
     client = inputs["client"]
-    archives = {"runtime.zip": runtime["sha256"]}
-    archives["libdpe-camera-probe.so"] = inputs["camera_support"]["sha256"]
+    archives = {"libdpe-camera-probe.so": inputs["camera_support"]["sha256"]}
     for name, expected in archives.items():
         if sha256(directory / name) != expected:
             raise ValueError(f"Source checksum mismatch: {name}")
     destination.mkdir()
-    (destination / "runtime").mkdir()
-    subprocess.run(
-        ["unzip", "-q", str(directory / "runtime.zip"), "-d", str(destination / "runtime")],
-        check=True,
-    )
     stage_updater(
         destination,
         client["channel"],
@@ -40,10 +32,6 @@ def stage(inputs: dict, directory: Path, asar: str):
         python_archives=directory,
         cdn_archive=directory / "openasar-cdn.tar.gz",
     )
-    resources = destination / "runtime/resources"
-    if resources.exists():
-        shutil.rmtree(resources)
-    resources.symlink_to("../resources")
     configure_runtime(
         destination,
         client["channel"],
@@ -51,18 +39,9 @@ def stage(inputs: dict, directory: Path, asar: str):
         runtime["version"],
         runtime["runtime_key"],
         runtime["sha256"],
+        runtime["url"],
     )
-    validate_distribution(destination)
-    for name in (
-        "electron",
-        "chrome-sandbox",
-        "resources.pak",
-        "icudtl.dat",
-        "LICENSE",
-        "LICENSES.chromium.html",
-    ):
-        if not (destination / "runtime" / name).is_file():
-            raise ValueError(f"Incomplete Electron distribution: {name}")
+    validate_distribution(destination, allow_runtime=False)
 
 
 def main():

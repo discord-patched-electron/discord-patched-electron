@@ -24,8 +24,11 @@ launch and relaunch. Both official mod installers are tested across installation
 updates and removal; uninstall must restore the current bootstrap. Parallel jobs
 check native video, offline Krisp and isolated X11/Wayland audio.
 
-nFPM makes `.pkg.tar.zst`, `.deb` and `.rpm` packages from the same app tree as the
-portable `.tar.gz`. Payload hashes are compared across all four formats. Ubuntu
+nFPM makes `.pkg.tar.zst`, `.deb` and `.rpm` packages from the same updater tree as
+the portable `.tar.gz`. Electron is excluded from all four formats; its exact
+archive hash and runtime identity remain in `runtime-update.json`. The verified
+full app used for qualification is retained unchanged. Payload hashes are compared
+across all four formats. Ubuntu
 checks Debian installation and GUI launch. Arch and Fedora containers install the
 packages and check file access and runtime loading as an ordinary user. Those
 containers don't verify a full desktop session or live call.
@@ -129,12 +132,21 @@ public release qualification adds the remaining CI checks.
 
 ## Runtime details
 
-All released packages install the portable tree under `/opt/<package>`. A tarball
+All released packages install the updater tree under `/opt/<package>`. A tarball
 can run anywhere. Bootstraps find resources through `DPE_APP_ROOT`, set by the
-launcher. `runtime/resources` points to `../resources`, matching the official mod
+launcher. Downloaded runtime generations link their resources to the package's
+bootstrap; the writable profile installation supplies the official mod
 installers' expected app layout. The older generated AUR recipe also uses the
 client-free layout under `/usr/lib/`; it is retained for validation, not published
-as the pacman test artifact.
+as the pacman test artifact. It also leaves Electron out of its sources/payload.
+
+Installed-package qualification seeds a fresh user's runtime cache from the
+already verified `runtime-dist.zip`, using the updater's checksum, extraction and
+version probe. This lets unpublished candidates run without waiting for a public
+cache tag. For example, pass `--runtime-archive out/release-runtime/binary/runtime-dist.zip`
+to `check_desktop_launch.py` when testing an extracted installer payload. Container
+checks also verify offline reuse of that cache. Public release publication retains
+the runtime cache before exposing the installer assets.
 
 The namespace sandbox stays enabled. Debian packages include a scoped AppArmor
 user-namespace rule for Ubuntu; `aa-exec` also applies it to verified per-user

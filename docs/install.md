@@ -10,7 +10,8 @@ You need:
 - A recent Linux distribution. Release notes list the minimum glibc version.
 - Internet access to **Discord and GitHub**.
 
-First launch downloads Discord's client files, so it may take longer than later launches.
+First launch downloads patched Electron and Discord's client files, so it may take
+longer than later launches.
 
 ## Arch Linux
 
@@ -77,6 +78,9 @@ use Discord's update button to restart.
 Downloads are verified before use; a failed update keeps the working version.
 Automatic updates need no administrator access and preserve your installed mod.
 
+Your package manager handles the launcher, updater and Linux integration files.
+Electron and Discord's client ASAR/modules live in your profile; package upgrades
+reuse a matching or newer verified Electron download.
 For launcher, bootstrap and Linux integration changes, close Discord and install
 the next package. Tarball users should extract the new version into a fresh folder.
 Mods installed in the [default location](client-mods.md) are preserved.
@@ -88,7 +92,9 @@ choose your delivery method in [notification settings](https://github.com/settin
 
 ## Startup problems
 
-The startup screen explains failures and offers **Retry now**. Connection errors
+The first Electron download shows a setup dialog before the startup screen.
+If it fails or is cancelled, launch the app again to retry.
+The startup screen explains later failures and offers **Retry now**. Connection errors
 retry after ten seconds; **Pause retries** stops the countdown. Use **Copy details**
 when reporting a problem. Your desktop's close-window shortcut cancels startup.
 

@@ -52,11 +52,9 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
             or info["version"] != inputs["client"]["version"]
         ):
             raise ValueError("Packaged client identity, updater or module path is incorrect")
-        resources = members[root + "/runtime/resources"]
-        if not resources.issym() or resources.linkname != "../resources":
-            raise ValueError("Electron and installers must share the packaged resources directory")
-        if members[root + "/runtime/chrome-sandbox"].mode != 0o4755:
-            raise ValueError("Missing sandbox executable permissions")
+        runtime = json.load(tar.extractfile(root + "/runtime-update.json"))
+        if runtime["archive_sha256"] != inputs["runtime"]["sha256"]:
+            raise ValueError("Runtime download pins differ from the recipe")
         if members[root + "/resources/build_info.json"].mode & 0o444 != 0o444:
             raise ValueError("Root-owned build info must be readable by ordinary users")
         policy = json.load(tar.extractfile(root + "/client-distribution.json"))
@@ -73,6 +71,7 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
                     filename.removeprefix(root + "/"),
                     is_dir=entry.isdir(),
                     link=entry.linkname if entry.issym() or entry.islnk() else None,
+                    allow_runtime=False,
                 )
         allowed_prefixes = (root + "/", f"usr/share/licenses/{name}/")
         allowed_files = {
@@ -91,8 +90,7 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
                 raise ValueError(f"Package writes outside its private layout: {entry.name}")
         for filename in (
             "package-inputs.json",
-            "runtime/LICENSE",
-            "runtime/LICENSES.chromium.html",
+            "runtime-update.json",
         ):
             if root + "/" + filename not in members:
                 raise ValueError(f"Missing runtime provenance/license: {filename}")
@@ -108,6 +106,7 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
         "package_sha256": sha256(archive),
         "package_bytes": archive.stat().st_size,
         "bundled_discord_client": False,
+        "bundled_electron": False,
         "camera_support_sha256": camera_hash,
         "runtime_is_test_fixture": True,
         "runtime_validated": False,
@@ -130,7 +129,6 @@ def package_one(
         runtime, client, electron, 1, directory, camera=read_json(downloads / "camera-support.json")
     )
     for filename in (
-        "runtime.zip",
         "openasar.tar.gz",
         "openasar-cdn.tar.gz",
         "libdpe-camera-probe.so",

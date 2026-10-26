@@ -5,10 +5,11 @@ import json
 import os
 import pwd
 import subprocess
+import tempfile
 from pathlib import Path
 
 
-def check(app: Path):
+def check(app: Path, archive: Path | None = None):
     # The container installs packages as root. Drop privileges before opening
     # app files, so root-only modes cannot make a broken package appear to pass.
     if os.geteuid() == 0:
@@ -30,17 +31,32 @@ def check(app: Path):
         if path.is_file():
             with path.open("rb") as stream:
                 stream.read(1)
-    runtime = app / "runtime/electron"
-    libraries = subprocess.check_output(["ldd", str(runtime)], text=True)
-    if "not found" in libraries:
-        raise ValueError(libraries)
-    versions = json.loads(
-        subprocess.check_output(
-            [str(runtime), "-p", "JSON.stringify(process.versions)"],
-            env={**os.environ, "ELECTRON_RUN_AS_NODE": "1"},
+    if (app / "runtime").exists():
+        raise ValueError("Installer package must not contain Electron")
+    with tempfile.TemporaryDirectory(prefix="installed-runtime-") as profile:
+        environment = {**os.environ, "DPE_RUNTIME_BUNDLED": "1", "PYTHONDONTWRITEBYTECODE": "1"}
+        command = ["python3", str(app / "integration/updater/runtime.py"), str(app), profile]
+        if archive:
+            command += ["--archive", str(archive), "--offline"]
+        runtime = subprocess.check_output(command, env=environment, text=True).strip()
+        # Exercise the same cache again, with network disabled and no archive.
+        cached = subprocess.check_output(
+            command[:4] + ["--offline"],
+            env=environment,
             text=True,
+        ).strip()
+        if cached != runtime:
+            raise ValueError("Installed updater did not reuse its verified runtime")
+        libraries = subprocess.check_output(["ldd", runtime], text=True)
+        if "not found" in libraries:
+            raise ValueError(libraries)
+        versions = json.loads(
+            subprocess.check_output(
+                [runtime, "-p", "JSON.stringify(process.versions)"],
+                env={**os.environ, "ELECTRON_RUN_AS_NODE": "1"},
+                text=True,
+            )
         )
-    )
     print(
         json.dumps(
             {
@@ -50,6 +66,8 @@ def check(app: Path):
                 "files_readable": True,
                 "desktop_and_icon_verified": True,
                 "runtime_libraries_found": True,
+                "bundled_electron": False,
+                "cached_runtime_reused_offline": True,
                 "gui_verified": False,
             },
             indent=2,
@@ -60,4 +78,6 @@ def check(app: Path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("app", type=Path)
-    check(parser.parse_args().app)
+    parser.add_argument("--runtime-archive", type=Path)
+    args = parser.parse_args()
+    check(args.app, args.runtime_archive)

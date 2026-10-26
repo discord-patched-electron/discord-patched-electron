@@ -171,8 +171,7 @@ def generate(
         "integration_key": integration_key(runtime["runtime_key"], client, channel, camera),
     }
     write_json(output / "package-inputs.json", inputs)
-    sources = [("runtime.zip::" + runtime["url"], runtime["sha256"])]
-    sources += [("libdpe-camera-probe.so::" + camera["url"], checksum)]
+    sources = [("libdpe-camera-probe.so::" + camera["url"], checksum)]
     bootstrap = read_json(ROOT / "config/openasar.lock.json")
     sources += [("openasar.tar.gz::" + bootstrap["url"], bootstrap["sha256"])]
     editor = read_json(ROOT / "integration/updater/openasar/source.json")["archive"]

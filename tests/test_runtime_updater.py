@@ -199,6 +199,115 @@ class RuntimeUpdates(unittest.TestCase):
     def clear_cooldown(self):
         (self.cache / "last-check.json").unlink(missing_ok=True)
 
+    def updater_only_package(self):
+        shutil.rmtree(self.app / "runtime")
+        self.policy.update(
+            electron_version=self.manifest["electron_version"],
+            runtime_key=self.manifest["runtime"]["runtime_key"],
+            archive_sha256=self.manifest["runtime"]["archive_sha256"],
+            release_version="20261026.120000",
+        )
+        write_json(self.app / "runtime-update.json", self.policy)
+
+    def test_updater_only_upgrade_reuses_auto_updated_runtime_even_when_package_catches_up(self):
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        before = (executable.stat().st_ino, executable.read_bytes())
+        self.updater_only_package()
+        (self.app / "resources/app.asar").write_bytes(b"new packaged bootstrap")
+        with patch.object(runtime, "download", side_effect=AssertionError("duplicate download")):
+            for options in ({}, {"offline": True}, {"bootstrap": True}):
+                self.assertEqual(
+                    runtime.ensure_runtime(self.app, self.profile, **options), executable
+                )
+            with patch.dict(os.environ, {"DPE_RUNTIME_BUNDLED": "1"}):
+                self.assertEqual(runtime.ensure_runtime(self.app, self.profile), executable)
+        # Exercise the next real signed release check too: reuse must not rely
+        # on the first installation's check still being inside the cooldown.
+        self.clear_cooldown()
+        self.downloads.clear()
+        self.assertEqual(runtime.ensure_runtime(self.app, self.profile), executable)
+        self.assertTrue(any(url.endswith("release.json") for url in self.downloads))
+        self.assertFalse(any(url.endswith(".zip") for url in self.downloads))
+        self.assertEqual((executable.stat().st_ino, executable.read_bytes()), before)
+        self.assertEqual(
+            (executable.parent / "resources/app.asar").read_bytes(), b"new packaged bootstrap"
+        )
+        self.assertFalse((self.app / "runtime").exists())
+
+    def test_bootstrap_reuses_newer_runtime_without_release_lookup(self):
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        shutil.rmtree(self.app / "runtime")
+        self.clear_cooldown()
+        with patch.object(runtime, "download", side_effect=AssertionError("startup network")):
+            self.assertEqual(
+                runtime.ensure_runtime(self.app, self.profile, bootstrap=True), executable
+            )
+
+    def test_first_install_downloads_pins_when_candidate_is_not_approved_and_reuses_offline(self):
+        self.updater_only_package()
+        self.github["prerelease"] = True
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        self.assertEqual(executable.parent.name, self.policy["archive_sha256"])
+        self.assertEqual(sum(url.endswith(".zip") for url in self.downloads), 1)
+        with patch.object(runtime, "download", side_effect=AssertionError("offline network")):
+            self.assertEqual(
+                runtime.ensure_runtime(self.app, self.profile, offline=True), executable
+            )
+
+    def test_first_install_with_updates_disabled_still_fetches_pinned_runtime(self):
+        self.updater_only_package()
+        with patch.dict(os.environ, {"DPE_RUNTIME_UPDATES": "0"}):
+            executable = runtime.ensure_runtime(self.app, self.profile)
+        self.assertTrue(executable.is_file())
+        self.assertEqual(len(self.downloads), 1)
+        self.assertTrue(self.downloads[0].endswith("runtime-dist.zip"))
+
+    def test_local_archive_seeds_exact_pins_without_network_and_rejects_changed_bytes(self):
+        self.updater_only_package()
+        with patch.object(runtime, "download", side_effect=AssertionError("local seed network")):
+            executable = runtime.ensure_runtime(
+                self.app, self.profile, offline=True, archive=self.archive
+            )
+            self.assertEqual(
+                runtime.ensure_runtime(self.app, self.profile, offline=True), executable
+            )
+            self.archive.write_bytes(b"wrong archive")
+            with self.assertRaisesRegex(ValueError, "checksum mismatch"):
+                runtime.ensure_runtime(
+                    self.app, self.root / "another profile", offline=True, archive=self.archive
+                )
+
+    def test_missing_or_damaged_runtime_without_bundle_fails_offline_and_repairs_online(self):
+        self.updater_only_package()
+        with self.assertRaisesRegex(ValueError, "No verified Electron"):
+            runtime.ensure_runtime(self.app, self.profile, offline=True)
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        (executable.parent / "resources.pak").write_bytes(b"damaged")
+        with self.assertRaisesRegex(ValueError, "No verified Electron"):
+            runtime.ensure_runtime(self.app, self.profile, offline=True)
+        # A first-run repair must bypass the successful check's cooldown.
+        self.downloads.clear()
+        self.assertEqual(runtime.ensure_runtime(self.app, self.profile), executable)
+        self.assertEqual(sum(url.endswith(".zip") for url in self.downloads), 1)
+
+    def test_first_download_failure_does_not_publish_or_return_a_missing_executable(self):
+        self.updater_only_package()
+        with patch.object(runtime, "download", side_effect=OSError("network unavailable")):
+            with self.assertRaisesRegex(OSError, "network unavailable"):
+                runtime.ensure_runtime(self.app, self.profile)
+        self.assertFalse((self.cache / "current.json").exists())
+
+    def test_package_pins_recover_a_lost_pointer_without_redownloading(self):
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        self.updater_only_package()
+        (self.cache / "current.json").write_text("{")
+        with patch.object(
+            runtime, "download", side_effect=AssertionError("cache recovery network")
+        ):
+            self.assertEqual(
+                runtime.ensure_runtime(self.app, self.profile, offline=True), executable
+            )
+
     def test_signed_install_preserves_package_mods_and_reuses_cache(self):
         executable = runtime.ensure_runtime(self.app, self.profile)
         self.assertNotEqual(executable, self.app / "runtime/electron")

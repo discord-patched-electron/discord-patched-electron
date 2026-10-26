@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import subprocess
@@ -9,7 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Launcher(unittest.TestCase):
-    def launch(self, config="", legacy="", args=(), env=None, details=False, cached=False):
+    def launch(
+        self, config="", legacy="", args=(), env=None, details=False, cached=False, unbundled=False
+    ):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "runtime").mkdir()
@@ -36,6 +39,43 @@ class Launcher(unittest.TestCase):
                 (root / "client-distribution.json").write_text("{}")
                 for source in (ROOT / "integration/updater").glob("*.py"):
                     (updater / source.name).write_bytes(source.read_bytes())
+                if unbundled:
+                    runtime.unlink()
+                    (root / "resources").mkdir()
+                    policy = {
+                        "channel": "canary",
+                        "electron_channel": "prerelease",
+                        "electron_version": "46.0.0-alpha.1",
+                        "runtime_key": "a" * 64,
+                        "archive_sha256": "b" * 64,
+                    }
+                    (root / "runtime-update.json").write_text(json.dumps(policy))
+                    identity = hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:16]
+                    cache = root / "discordcanary/dpe-runtime" / identity
+                    generation = cache / "generations" / ("b" * 64)
+                    generation.mkdir(parents=True)
+                    executable = generation / "electron"
+                    executable.write_bytes(selected.read_bytes())
+                    executable.chmod(0o700)
+                    for name in (
+                        "icudtl.dat",
+                        "resources.pak",
+                        "LICENSE",
+                        "LICENSES.chromium.html",
+                    ):
+                        (generation / name).write_bytes(b"fixture")
+                    (generation / "resources").symlink_to(root / "resources")
+                    (generation / "runtime.json").write_text(
+                        json.dumps(
+                            {
+                                **policy,
+                                "executable_sha256": hashlib.sha256(
+                                    executable.read_bytes()
+                                ).hexdigest(),
+                            }
+                        )
+                    )
+                    (cache / "current.json").write_text(json.dumps("b" * 64))
             name = "discord-canary-prerelease-patched-electron-bin"
             (root / f"{name}-flags.conf").write_text(legacy)
             (root / "discord-canary-patched-electron.conf").write_text(config)
@@ -120,6 +160,17 @@ class Launcher(unittest.TestCase):
 
     def test_second_instance_exits_successfully_without_starting_another_runtime(self):
         self.assertIsNone(self.launch(env={"DPE_FIXTURE_UI_STATUS": "2"}, cached=True))
+
+    def test_runtime_free_launcher_uses_cached_electron_for_startup_and_final_client(self):
+        result = self.launch(
+            args=["--example=with spaces"],
+            details=True,
+            cached=True,
+            unbundled=True,
+            env={"DPE_CLIENT_OFFLINE": "1"},
+        )
+        self.assertEqual(result["runtime"], result["app"] + "/cached runtime/electron")
+        self.assertIn("--example=with spaces", result["flags"])
 
     def test_no_shell_evaluation_and_disable_default(self):
         flags = self.launch(

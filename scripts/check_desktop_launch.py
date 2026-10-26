@@ -26,6 +26,7 @@ def check(
     profile: Path | None = None,
     equicord: bool = False,
     read_only_app: bool = False,
+    runtime_archive: Path | None = None,
 ):
     app, output = app.resolve(), output.resolve()
     if output.exists():
@@ -35,6 +36,20 @@ def check(
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
     profile = (profile or output / "profile").resolve()
+    if runtime_archive:
+        subprocess.run(
+            [
+                "python3",
+                str(app / "integration/updater/runtime.py"),
+                str(app),
+                str(profile),
+                "--offline",
+                "--archive",
+                str(runtime_archive.resolve()),
+            ],
+            env={**os.environ, "DPE_RUNTIME_BUNDLED": "1", "PYTHONDONTWRITEBYTECODE": "1"},
+            check=True,
+        )
     environment = {
         **os.environ,
         "DPE_PROFILE_DIR": str(profile),
@@ -229,6 +244,11 @@ if __name__ == "__main__":
     parser.add_argument("app", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
+        "--runtime-archive",
+        type=Path,
+        help="Reuse the verified compiler archive for a runtime-free package",
+    )
+    parser.add_argument(
         "--relaunch", action="store_true", help="Repeat with the same newly created fixture profile"
     )
     parser.add_argument(
@@ -240,7 +260,13 @@ if __name__ == "__main__":
         "--read-only-app", action="store_true", help="Do not update the installed build manifest"
     )
     args = parser.parse_args()
-    first = check(args.app, args.output, equicord=args.equicord, read_only_app=args.read_only_app)
+    first = check(
+        args.app,
+        args.output,
+        equicord=args.equicord,
+        read_only_app=args.read_only_app,
+        runtime_archive=args.runtime_archive,
+    )
     passed = first["passed"]
     if passed and args.relaunch:
         passed = check(

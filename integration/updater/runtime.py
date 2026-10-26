@@ -298,12 +298,97 @@ def validate_generation(root: Path, app: Path, policy: dict, digest: str) -> tup
 def selected(root: Path, app: Path, policy: dict) -> tuple[Path, dict]:
     bundled = app / "runtime/electron"
     pointer = root / "current.json"
-    if not pointer.exists():
+    pinned = os.environ.get("DPE_RUNTIME_BUNDLED") == "1"
+    previous = None
+    if bundled.is_file() and pinned:
         return bundled, policy
-    executable, info = validate_generation(root, app, policy, json.loads(pointer.read_text()))
-    if newer(info, policy):
-        return executable, info
-    return bundled, policy
+    if pointer.exists() and not pinned:
+        try:
+            executable, info = validate_generation(
+                root, app, policy, json.loads(pointer.read_text())
+            )
+            previous = executable, info
+            if same_runtime(info, policy) or newer(info, policy):
+                return executable, info
+        except FAILURES as error:
+            print(f"Runtime cache unavailable: {error}", file=sys.stderr)
+    if bundled.is_file():
+        return bundled, policy
+    # Package upgrades can catch up with an already downloaded runtime. Its
+    # archive identity, not the updater package's release date, controls reuse.
+    try:
+        executable, info = validate_generation(root, app, policy, policy["archive_sha256"])
+        if not same_runtime(info, policy):
+            raise ValueError("Cached runtime differs from the package pins")
+    except FAILURES:
+        if previous:
+            return previous
+        raise
+    return executable, policy
+
+
+def same_runtime(left: dict, right: dict) -> bool:
+    return all(
+        left.get(key) == right[key] for key in ("electron_version", "runtime_key", "archive_sha256")
+    )
+
+
+def pinned_runtime(policy: dict) -> dict:
+    electron_version(policy["electron_version"])
+    for key in ("runtime_key", "archive_sha256"):
+        if not re.fullmatch(r"[a-f0-9]{64}", policy[key]):
+            raise ValueError(f"Invalid pinned runtime {key}")
+    return {
+        **policy,
+        "url": policy.get("url")
+        or f"https://github.com/{CACHE_REPOSITORY}/releases/download/runtime-cache-{policy['runtime_key']}/runtime-dist.zip",
+    }
+
+
+def install_runtime(
+    root: Path, app: Path, policy: dict, incoming: dict, archive: Path | None = None
+) -> Path:
+    generations = root / "generations"
+    generations.mkdir(exist_ok=True)
+    destination = generations / incoming["archive_sha256"]
+    if destination.exists():
+        try:
+            executable, info = validate_generation(root, app, policy, incoming["archive_sha256"])
+            if not same_runtime(info, incoming):
+                raise ValueError("Cached runtime differs from the requested pins")
+            probe(executable, incoming["electron_version"])
+        except FAILURES as error:
+            print(f"Repairing damaged runtime cache: {error}", file=sys.stderr)
+        else:
+            write_json(root / "current.json", incoming["archive_sha256"])
+            return executable
+    with tempfile.TemporaryDirectory(prefix="download-", dir=root) as temporary:
+        directory = Path(temporary)
+        if archive is None:
+            print(
+                f"Downloading patched Electron {incoming['electron_version']} from GitHub",
+                file=sys.stderr,
+            )
+            archive = directory / "runtime.zip"
+            download(incoming["url"], archive, limit=512 * 1024 * 1024, label="Electron")
+        progress("install", "Electron")
+        if checksum(archive) != incoming["archive_sha256"]:
+            raise ValueError("Runtime archive checksum mismatch")
+        staged = directory / "runtime"
+        staged.mkdir()
+        extract(archive, staged)
+        (staged / "resources").symlink_to(app / "resources", target_is_directory=True)
+        probe(staged / "electron", incoming["electron_version"])
+        info = {
+            **incoming,
+            "executable_sha256": checksum(staged / "electron"),
+            "files": runtime_files(staged),
+        }
+        write_json(staged / "runtime.json", info)
+        replace_damaged(staged, destination)
+        write_json(root / "current.json", incoming["archive_sha256"])
+        progress("installed", "Electron")
+        return destination / "electron"
 
 
 def recently_checked(path: Path) -> bool:
@@ -321,13 +406,17 @@ def cache_root(profile: Path, app: Path) -> Path:
     return profile / "dpe-runtime" / identity
 
 
-def _ensure_runtime(app: Path, profile: Path, *, offline: bool) -> Path:
+def _ensure_runtime(
+    app: Path, profile: Path, *, offline: bool, bootstrap: bool, archive: Path | None
+) -> Path:
     app = app.resolve()
     profile = profile.resolve()
     bundled = app / "runtime/electron"
     policy_path = app / "runtime-update.json"
-    if not policy_path.is_file() or os.environ.get("DPE_RUNTIME_BUNDLED") == "1":
-        return bundled
+    if not policy_path.is_file():
+        if bundled.is_file():
+            return bundled
+        raise ValueError("The package is missing its runtime download pins; reinstall it")
     policy = read_object(policy_path)
     root = cache_root(profile, app)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -335,82 +424,65 @@ def _ensure_runtime(app: Path, profile: Path, *, offline: bool) -> Path:
         fcntl.flock(lock, fcntl.LOCK_EX)
         try:
             current, current_info = selected(root, app, policy)
-        except FAILURES as error:
-            print(
-                f"Runtime cache unavailable; using the packaged runtime: {error}", file=sys.stderr
-            )
-            current, current_info = bundled, policy
-        if offline or os.environ.get("DPE_RUNTIME_UPDATES") == "0":
+        except FAILURES:
+            current, current_info = None, policy
+        if current and (bootstrap or offline or os.environ.get("DPE_RUNTIME_BUNDLED") == "1"):
             return current
+        if archive is not None and not current:
+            return install_runtime(root, app, policy, pinned_runtime(policy), archive)
+        if offline:
+            raise ValueError(
+                "No verified Electron runtime is cached; launch once with internet access"
+            )
+        updates = (
+            os.environ.get("DPE_RUNTIME_UPDATES") != "0"
+            and os.environ.get("DPE_RUNTIME_BUNDLED") != "1"
+        )
         try:
             checked = root / "last-check.json"
-            if recently_checked(checked):
-                return current
             # Throttle failures as well as success; GitHub's anonymous API has a
             # shared IP rate limit. Checking again never delays module updates.
-            write_json(checked, time.time())
-            with tempfile.TemporaryDirectory(prefix="download-", dir=root) as temporary:
-                directory = Path(temporary)
-                incoming = latest(
-                    directory, policy, app / "integration/updater/release-signing-key.asc"
-                )
-                if not newer(incoming, current_info):
-                    return current
-                generations = root / "generations"
-                generations.mkdir(exist_ok=True)
-                destination = generations / incoming["archive_sha256"]
-                if destination.exists():
-                    # A crash after rename but before publishing current.json
-                    # leaves a complete generation. Verify and reuse it without
-                    # downloading or mutating files a process might be using.
-                    try:
-                        executable, info = validate_generation(
-                            root, app, policy, incoming["archive_sha256"]
-                        )
-                        if any(
-                            info.get(key) != incoming[key]
-                            for key in ("electron_version", "runtime_key", "archive_sha256")
-                        ):
-                            raise ValueError("Cached runtime differs from the signed release")
-                        probe(executable, incoming["electron_version"])
-                    except FAILURES as error:
-                        print(f"Repairing damaged runtime cache: {error}", file=sys.stderr)
-                    else:
-                        write_json(root / "current.json", incoming["archive_sha256"])
-                        return executable
+            if updates and not recently_checked(checked):
+                write_json(checked, time.time())
+                with tempfile.TemporaryDirectory(prefix="release-", dir=root) as temporary:
+                    incoming = latest(
+                        Path(temporary), policy, app / "integration/updater/release-signing-key.asc"
+                    )
+                if newer(incoming, current_info) and (
+                    same_runtime(incoming, policy) or newer(incoming, policy)
+                ):
+                    return install_runtime(root, app, policy, incoming)
+        except FAILURES as error:
+            print(f"Runtime update unavailable: {error}", file=sys.stderr)
+        # The installed package authorizes its exact baseline, including test
+        # candidates. A GitHub failure/cooldown must not prevent first setup.
+        if current and (same_runtime(current_info, policy) or newer(current_info, policy)):
+            return current
+        try:
+            return install_runtime(root, app, policy, pinned_runtime(policy))
+        except FAILURES as error:
+            if current:
                 print(
-                    f"Downloading patched Electron {incoming['electron_version']} from GitHub",
+                    f"Pinned runtime unavailable; retaining the verified runtime: {error}",
                     file=sys.stderr,
                 )
-                archive = directory / "runtime.zip"
-                download(incoming["url"], archive, limit=512 * 1024 * 1024, label="Electron")
-                progress("install", "Electron")
-                if checksum(archive) != incoming["archive_sha256"]:
-                    raise ValueError("Runtime archive checksum mismatch")
-                staged = directory / "runtime"
-                staged.mkdir()
-                extract(archive, staged)
-                (staged / "resources").symlink_to(app / "resources", target_is_directory=True)
-                probe(staged / "electron", incoming["electron_version"])
-                incoming["executable_sha256"] = checksum(staged / "electron")
-                incoming["files"] = runtime_files(staged)
-                write_json(staged / "runtime.json", incoming)
-                replace_damaged(staged, destination)
-                write_json(root / "current.json", incoming["archive_sha256"])
-                progress("installed", "Electron")
-                return destination / "electron"
-        except FAILURES as error:
-            print(
-                f"Runtime update unavailable; keeping the current runtime: {error}", file=sys.stderr
-            )
-            return current
+                return current
+            raise
 
 
-def ensure_runtime(app: Path, profile: Path, *, offline: bool = False) -> Path:
+def ensure_runtime(
+    app: Path,
+    profile: Path,
+    *,
+    offline: bool = False,
+    bootstrap: bool = False,
+    archive: Path | None = None,
+) -> Path:
     try:
-        return _ensure_runtime(app, profile, offline=offline)
+        return _ensure_runtime(app, profile, offline=offline, bootstrap=bootstrap, archive=archive)
     except FAILURES as error:
-        # Cache creation and policy parsing are optional to launching the app.
+        if not (app.resolve() / "runtime/electron").is_file():
+            raise
         print(f"Runtime updater unavailable; using the packaged runtime: {error}", file=sys.stderr)
         return app.resolve() / "runtime/electron"
 
@@ -420,8 +492,26 @@ def main():
     parser.add_argument("app", type=Path)
     parser.add_argument("profile", type=Path)
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument(
+        "--bootstrap", action="store_true", help="Reuse a runtime before opening the updater UI"
+    )
+    parser.add_argument(
+        "--archive", type=Path, help="Seed the pinned runtime from a verified local archive"
+    )
     args = parser.parse_args()
-    print(ensure_runtime(args.app, args.profile.resolve(), offline=args.offline))
+    try:
+        print(
+            ensure_runtime(
+                args.app,
+                args.profile.resolve(),
+                offline=args.offline or os.environ.get("DPE_CLIENT_OFFLINE") == "1",
+                bootstrap=args.bootstrap,
+                archive=args.archive,
+            )
+        )
+    except FAILURES as error:
+        print(f"Cannot prepare patched Electron: {error}", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

@@ -46,13 +46,13 @@ DPE_APP_AUDIO=0 discord-canary-prerelease-patched-electron-bin
 
 Other controls work the same way:
 
-| Variable                  | Effect                                                    |
-| ------------------------- | --------------------------------------------------------- |
-| `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                       |
-| `DPE_DEFAULT_FLAGS=0`     | Disables the default launch flags.                        |
-| `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                 |
-| `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime. |
-| `DPE_RUNTIME_BUNDLED=1`   | Uses the Electron version installed with the package.     |
+| Variable                  | Effect                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                                                                     |
+| `DPE_DEFAULT_FLAGS=0`     | Disables the default launch flags.                                                                      |
+| `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                                                               |
+| `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime.                                               |
+| `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use. |
 
 Offline mode needs an existing installation verified against the package or an
 approved release. If an older cache is rejected, launch online once to repair it.

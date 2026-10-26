@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
+const vm = require("node:vm");
 const { desktop, bootstrap } = require("../../integration/updater/patches.cjs");
 const desktopExec = require("../../integration/updater/desktop-exec.cjs");
 
@@ -56,6 +57,30 @@ test("bootstrap transforms restore settings through the renderer adapter and kee
   );
   assert.ok(autostart.includes("process.env.DPE_LAUNCHER"));
   assert.ok(autostart.includes('require("/desktop-exec.cjs")(exec)'));
+});
+
+test("first launch skips automatic OpenAsar settings while retaining manual access and preferences", () => {
+  for (const setup of [undefined, false, true]) {
+    const saved = { setup, css: "body { color: red; }" };
+    let opened = 0;
+    const context = {
+      global: {},
+      process: { env: { DPE_PROFILE_DIR: "/profile" } },
+      join: (...parts) => parts.join("/"),
+      require: () => ({ version: "1.0.123" }),
+      settings: { get: () => saved },
+      config: { open: () => opened++ },
+    };
+    const entry =
+      "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});";
+    vm.runInNewContext(bootstrap(entry, "index.js"), context);
+    vm.runInNewContext("if (global.oaConfig.setup !== true) config.open();", context);
+    assert.equal(opened, 0);
+    assert.equal(saved.setup, setup);
+    assert.equal(context.global.oaConfig.css, saved.css);
+    vm.runInNewContext("config.open();", context);
+    assert.equal(opened, 1);
+  }
 });
 
 test("missing or repeated bootstrap patch sites fail closed", () => {

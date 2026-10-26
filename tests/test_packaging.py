@@ -91,6 +91,10 @@ class Recipes(unittest.TestCase):
                     result = generate(
                         runtime(electron), client, electron, 1, directory, camera=CAMERA
                     )
+                    recipe = (directory / "PKGBUILD").read_text()
+                    self.assertNotIn("runtime.zip", recipe)
+                    self.assertNotIn(runtime(electron)["url"], recipe)
+                    self.assertNotIn("chrome-sandbox", recipe)
                     names.add(result["package"])
                     launcher = (directory / "discord-launcher.sh").read_text()
                     self.assertIn("root=/usr/lib/" + result["package"], launcher)
@@ -121,7 +125,7 @@ class Recipes(unittest.TestCase):
                         or "runtime.zip::" in line
                         or "libdpe-camera-probe.so::" in line
                     ]
-                    self.assertEqual(len(binary_lines), 2)
+                    self.assertEqual(len(binary_lines), 1)
                     self.assertNotIn("full.distro", metadata)
                     self.assertTrue(all(len(line.split()[0]) == 64 for line in binary_lines))
                     if shutil.which("makepkg"):

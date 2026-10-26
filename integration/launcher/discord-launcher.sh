@@ -72,6 +72,13 @@ if ((${#disabled[@]})); then flags+=("--disable-features=$(
 export DPE_PROFILE_DIR=${DPE_PROFILE_DIR:-"${DISCORD_USER_DATA_DIR:-$config_root}/@PROFILE_NAME@"}
 DPE_PROFILE_DIR=$(readlink -m -- "$DPE_PROFILE_DIR")
 export DPE_RUNTIME_EXECUTABLE="$root/runtime/electron"
+# Apply Ubuntu's installed sandbox rule to both the startup UI and the client.
+runtime_command=()
+if [[ -f "/etc/apparmor.d/$name" ]] && command -v aa-exec >/dev/null 2>&1; then
+  if aa-exec -p "$name" -- true 2>/dev/null; then
+    runtime_command=(aa-exec -p "$name" --)
+  fi
+fi
 if [[ -f "$root/client-distribution.json" ]]; then
   export PYTHONDONTWRITEBYTECODE=1
   export PYTHONNOUSERSITE=1
@@ -80,12 +87,12 @@ if [[ -f "$root/client-distribution.json" ]]; then
   export DPE_CLIENT_ROOT="$DPE_PROFILE_DIR/dpe-updater"
   export DPE_LAUNCHER
   DPE_LAUNCHER=$(readlink -f -- "${BASH_SOURCE[0]}")
-  # Show progress before starting Python or downloading anything. The UI commits
-  # complete updates, then this launcher starts the selected runtime with its
-  # camera preload and the user's existing mod loader.
+  # Packages contain only the updater. Reuse a verified runtime or prepare it
+  # with native progress before it can display the normal Electron startup UI.
+  DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/bootstrap.py" "$root" "$DPE_PROFILE_DIR")
   launch_result=$(mktemp)
   trap 'rm -f -- "$launch_result"' EXIT
-  if DPE_LAUNCH_RESULT="$launch_result" DPE_UPDATER_UI=1 "$root/runtime/electron" "${flags[@]}"; then
+  if DPE_LAUNCH_RESULT="$launch_result" DPE_UPDATER_UI=1 "${runtime_command[@]}" "$DPE_RUNTIME_EXECUTABLE" --disable-setuid-sandbox "${flags[@]}"; then
     :
   else
     status=$?
@@ -131,9 +138,4 @@ export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DPE_PROFILE_DIR/equico
 export DISABLE_UPDATER_AUTO_PATCHING=1
 # Ubuntu's installed profile grants the user-namespace sandbox to this app.
 # Enter that same profile when its verified runtime lives in the user cache.
-if [[ "$DPE_RUNTIME_EXECUTABLE" != "$root/runtime/electron" && -f "/etc/apparmor.d/$name" ]] && command -v aa-exec >/dev/null 2>&1; then
-  if aa-exec -p "$name" -- true 2>/dev/null; then
-    exec aa-exec -p "$name" -- "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"
-  fi
-fi
-exec "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"
+exec "${runtime_command[@]}" "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"

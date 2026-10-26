@@ -148,6 +148,7 @@ def configure_runtime(
     version: str,
     runtime_key: str,
     archive_sha256: str,
+    url: str | None = None,
 ):
     write_json(
         output / "runtime-update.json",
@@ -159,14 +160,19 @@ def configure_runtime(
             "runtime_key": runtime_key,
             "archive_sha256": archive_sha256,
             "release_version": None,
+            **({"url": url} if url else {}),
         },
     )
     (output / "runtime-update.json").chmod(0o644)
 
 
-def validate_payload_entry(relative: str, *, is_dir: bool, link: str | None = None):
+def validate_payload_entry(
+    relative: str, *, is_dir: bool, link: str | None = None, allow_runtime: bool = True
+):
     """Apply the same client-free layout rules to staging trees and archives."""
     path = Path(relative)
+    if not allow_runtime and path.parts and path.parts[0] == "runtime":
+        raise ValueError(f"Electron runtime cannot be shipped in the updater package: {relative}")
     if path.name == "__pycache__" or path.suffix == ".pyc":
         raise ValueError(f"Generated Python bytecode cannot be shipped: {relative}")
     if link is not None:
@@ -192,7 +198,7 @@ def validate_payload_entry(relative: str, *, is_dir: bool, link: str | None = No
         raise ValueError(f"Discord client data cannot be shipped: {relative}")
 
 
-def validate_distribution(app: Path):
+def validate_distribution(app: Path, *, allow_runtime: bool = True):
     """Fail closed if a staging tree contains an old bundled client or mod loader."""
     policy = read_json(app / "client-distribution.json")
     if policy.get("mode") != "module-only" or policy.get("bundled_discord_client") is not False:
@@ -204,4 +210,5 @@ def validate_distribution(app: Path):
             path.relative_to(app).as_posix(),
             is_dir=path.is_dir(),
             link=str(path.readlink()) if path.is_symlink() else None,
+            allow_runtime=allow_runtime,
         )

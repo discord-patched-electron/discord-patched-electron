@@ -8,14 +8,97 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from common import ROOT, sha256
+from common import ROOT, read_json, sha256, write_json
 from package_release import metadata, normalize_permissions, package, tarball
 from prepare_app import patch_bundle
 
 
 class PortableReleases(unittest.TestCase):
+    def test_release_packages_share_a_runtime_free_payload_and_retain_the_verified_app(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            app, output = root / "verified app", root / "packages"
+            (app / "runtime").mkdir(parents=True)
+            (app / "resources").mkdir()
+            (app / "runtime/electron").write_bytes(b"large verified runtime fixture")
+            (app / "runtime/resources").symlink_to("../resources")
+            (app / "resources/app.asar").write_bytes(b"project loader")
+            (app / "launch.sh").write_text("#!/bin/sh\n")
+            (app / "launch.sh").chmod(0o755)
+            (app / "discord-canary.desktop").write_text("[Desktop Entry]\n")
+            (app / "discord.png").write_bytes(b"icon")
+            write_json(app / "client-update.json", {"modules": {}})
+            write_json(
+                app / "client-distribution.json",
+                {
+                    "mode": "module-only",
+                    "bundled_discord_client": False,
+                    "loader_sha256": sha256(app / "resources/app.asar"),
+                },
+            )
+            capacity = {
+                "compiled_version": "46.0.0-alpha.1",
+                "runtime_key": "a" * 64,
+                "archive_sha256": "b" * 64,
+                "source": {"target": "prerelease"},
+            }
+            policy = {
+                "channel": "canary",
+                "electron_version": capacity["compiled_version"],
+                "runtime_key": capacity["runtime_key"],
+                "archive_sha256": capacity["archive_sha256"],
+                "release_version": None,
+            }
+            write_json(app / "runtime-update.json", policy)
+            write_json(
+                app / "local-build.json",
+                {
+                    "portable": True,
+                    "runtime_kind": "compiled",
+                    "launch_verified": True,
+                    "client_pins_verified": True,
+                    "client_manifest_sha256": sha256(app / "client-update.json"),
+                    "executable_sha256": sha256(app / "runtime/electron"),
+                    "capacity": capacity,
+                    "channel": "canary",
+                    "client_version": "1.0.123",
+                },
+            )
+
+            def nfpm(command, **_kwargs):
+                config = read_json(Path(command[command.index("--config") + 1]))
+                payload = Path(config["contents"][0]["src"])
+                self.assertFalse((payload / "runtime").exists())
+                self.assertTrue((payload / "resources/app.asar").is_file())
+                Path(command[command.index("--target") + 1]).write_bytes(b"package fixture")
+
+            with (
+                patch("package_release.validate_capacity"),
+                patch("package_release.subprocess.run", side_effect=nfpm) as packager,
+                patch(
+                    "package_release.subprocess.check_output",
+                    side_effect=["dirty", "fixture-commit"],
+                ),
+            ):
+                package(app, output, "20261026.120000", 1234567890, "nfpm")
+            self.assertEqual(packager.call_count, 3)
+            with tarfile.open(next(output.glob("*.tar.gz"))) as archive:
+                names = archive.getnames()
+                self.assertFalse(
+                    any("/runtime/" in name or name.endswith("/runtime") for name in names)
+                )
+                checksums = archive.extractfile(names[0] + "/SHA256SUMS").read().decode()
+                self.assertNotIn("runtime/", checksums)
+                self.assertIn("runtime-update.json", checksums)
+            self.assertFalse(read_json(output / "release.json")["bundled_electron"])
+            self.assertEqual(read_json(app / "runtime-update.json"), policy)
+            self.assertEqual(
+                (app / "runtime/electron").read_bytes(), b"large verified runtime fixture"
+            )
+
     def test_arch_conflicts_cover_canary_providers_without_blocking_other_clients(self):
         config = metadata(Path("/unused"), "20261024.202623", "canary", 0)
         self.assertEqual(

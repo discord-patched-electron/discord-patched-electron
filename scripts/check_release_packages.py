@@ -26,6 +26,7 @@ def check_client_free_archive(bundle, root):
                 entry.name.removeprefix(root + "/"),
                 is_dir=entry.isdir(),
                 link=entry.linkname if entry.issym() or entry.islnk() else None,
+                allow_runtime=False,
             )
 
 
@@ -53,9 +54,6 @@ def check(directory: Path):
             raise ValueError("Portable files must be readable after root-owned installation")
         if any(member.mode & 0o6000 for member in bundle.getmembers()):
             raise ValueError("Portable tarball has privileged file modes")
-        resources = bundle.getmember(root + "/runtime/resources")
-        if not resources.issym() or resources.linkname != "../resources":
-            raise ValueError("Tarball lost the packaged-app resource link")
     deb = next(directory.glob("*.deb"))
     rpm = next(directory.glob("*.rpm"))
     # dpkg-deb is available in release CI; bsdtar supplies the local Arch path.
@@ -83,30 +81,17 @@ def check(directory: Path):
                 or hashlib.sha256(package.extractfile(member).read()).hexdigest() != checksum
             ):
                 raise ValueError(f"Debian payload mismatch: {path}")
-        resources = next(
-            (
-                member
-                for member in package.getmembers()
-                if member.name.lstrip("./") == f"opt/{root}/runtime/resources"
-            ),
-            None,
-        )
-        if resources is None or not resources.issym() or resources.linkname != "../resources":
-            raise ValueError("Debian package lost the packaged-app resource link")
     arch = next(directory.glob("*.pkg.tar.zst"))
     for packaged in (rpm, arch):
         with tempfile.TemporaryDirectory(prefix="release-package-") as temporary:
             subprocess.run(["bsdtar", "-xf", str(packaged), "-C", temporary], check=True)
-            validate_distribution(Path(temporary) / "opt" / root)
+            validate_distribution(Path(temporary) / "opt" / root, allow_runtime=False)
             for path, checksum in expected.items():
                 installed = Path(temporary) / "opt" / root / path
                 if installed.stat().st_mode & 0o444 != 0o444:
                     raise ValueError(f"{packaged.name} payload is not readable: {path}")
                 if sha256(installed) != checksum:
                     raise ValueError(f"{packaged.name} payload mismatch: {path}")
-            resources = Path(temporary) / "opt" / root / "runtime/resources"
-            if not resources.is_symlink() or str(resources.readlink()) != "../resources":
-                raise ValueError(f"{packaged.name} lost the packaged-app resource link")
     arch_info = subprocess.check_output(["bsdtar", "-xOf", str(arch), ".PKGINFO"], text=True)
     for field in (
         f"pkgname = {root}",
@@ -125,6 +110,7 @@ def check(directory: Path):
         "assets": manifest["assets"],
         "same_app_payload_in_all_formats": True,
         "bundled_discord_client": False,
+        "bundled_electron": False,
         "payload_files": len(expected),
         "rpm_dependency_install_verified": False,
     }

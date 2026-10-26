@@ -10,7 +10,7 @@ options=('!strip')
 provides=('@DESKTOP_ID@')
 conflicts=(@CONFLICTS@)
 depends=('alsa-lib' 'gtk3' 'libcups' 'libxss' 'libxtst' 'nss' 'libdrm' 'mesa' 'libpulse' 'python>=3.11' 'brotli' 'ca-certificates' 'gnupg' 'pipewire' 'pipewire-audio' 'zenity')
-makedepends=('asar' 'unzip')
+makedepends=('asar')
 optdepends=('xdg-utils: open links and files'
             'kdotool: KDE Plasma window labels in the audio picker'
             'wireplumber: audio routing when no PipeWire session manager is running'
@@ -34,7 +34,6 @@ package() {
   local root="$pkgdir/usr/lib/$pkgname"
   install -d "$root"
   cp -a stage/. "$root/"
-  chmod 4755 "$root/runtime/chrome-sandbox"
   install -Dm755 discord-launcher.sh "$root/launch.sh"
   install -d "$pkgdir/usr/bin"
   ln -s "/usr/lib/$pkgname/launch.sh" "$pkgdir/usr/bin/$pkgname"

@@ -9,8 +9,9 @@ builds and release milestones are in [the history](handoff-history.md).
 - **Channels:** Canary and alpha/beta Electron, controlled by
   [`config/channels.json`](../../config/channels.json).
 - **CPU:** x86-64-v3, including AVX2; AVX-512 is not required.
-- **Client delivery:** packages contain patched Electron and an open-source
-  bootstrap. The [updater](client-updater.md) downloads approved Discord modules.
+- **Client delivery:** packages contain the updater and an open-source bootstrap.
+  The [updater](client-updater.md) manages patched Electron and Discord modules in
+  the user's profile; package upgrades reuse verified runtime downloads.
 - **Profiles and mods:** the standard `~/.config/discordcanary` profile is shared
   with Discord. Official Vencord and Equicord loaders survive updates.
 - **Releases:** CI publishes test packages. Manual approval promotes the tested

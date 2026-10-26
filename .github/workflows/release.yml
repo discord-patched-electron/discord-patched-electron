@@ -179,25 +179,26 @@ jobs:
         run: |
           sudo apt-get install -y ./out/packages/*.deb
           root="/opt/$PACKAGE"
-          if ldd "$root/runtime/electron" | grep -q 'not found'; then exit 1; fi
-          xvfb-run -a python scripts/check_desktop_launch.py "$root" --output out/deb-launch --relaunch --read-only-app
+          xvfb-run -a python scripts/check_desktop_launch.py "$root" --output out/deb-launch --relaunch --read-only-app --runtime-archive out/runtime/binary/runtime-dist.zip
       - name: Install the RPM on Fedora and check it as an ordinary user
         run: |
           docker run --rm \
             -v "$PWD/out/packages:/packages:ro" \
             -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
+            -v "$PWD/out/runtime/binary/runtime-dist.zip:/runtime.zip:ro" \
             -e PACKAGE \
             fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
-            bash -ec 'dnf install -y --setopt=install_weak_deps=False /packages/*.rpm; python3 /check.py "/opt/$PACKAGE"' \
+            bash -ec 'dnf install -y --setopt=install_weak_deps=False /packages/*.rpm; python3 /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip' \
             > out/rpm-install.log 2>&1
       - name: Install the Arch package and check it as an ordinary user
         run: |
           docker run --rm \
             -v "$PWD/out/packages:/packages:ro" \
             -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
+            -v "$PWD/out/runtime/binary/runtime-dist.zip:/runtime.zip:ro" \
             -e PACKAGE \
             archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 \
-            bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /packages/*.pkg.tar.zst; python /check.py "/opt/$PACKAGE"' \
+            bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /packages/*.pkg.tar.zst; python /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip' \
             > out/arch-install.log 2>&1
       - name: Build and install the AUR recipe from the verified portable archive
         run: |
@@ -205,6 +206,7 @@ jobs:
             -v "$PWD/out/aur-recipe:/recipe:ro" \
             -v "$PWD/out/packages:/packages:ro" \
             -v "$PWD/scripts/check_installed_package.py:/check.py:ro" \
+            -v "$PWD/out/runtime/binary/runtime-dist.zip:/runtime.zip:ro" \
             -e PACKAGE \
             archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 \
             bash -ec '
@@ -217,7 +219,7 @@ jobs:
               cd /build
               runuser -u builder -- makepkg --nodeps --noconfirm
               pacman -U --noconfirm ./*.pkg.tar.zst
-              python /check.py "/opt/$PACKAGE"
+              python /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip
             ' > out/aur-install.log 2>&1
       - name: Keep release packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

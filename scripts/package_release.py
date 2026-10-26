@@ -1,7 +1,7 @@
 """Package a tested, relocatable app without compiling Electron.
 
-All four formats contain the same app tree. nFPM creates distro metadata;
-no package format downloads or rebuilds upstream code at installation time.
+All four formats contain the same updater tree, without Electron. nFPM creates
+distro metadata; the launcher prepares the pinned runtime in the user's profile.
 """
 
 from __future__ import annotations
@@ -241,15 +241,27 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
         or policy["archive_sha256"] != build["capacity"]["archive_sha256"]
     ):
         raise ValueError("Runtime update policy differs from the packaged compiler artifact")
+    libc = required_glibc(app)
+    output.mkdir(parents=True)
+    source = app
+    app = output / "payload"
+    # Retain the verified full app for qualification/reuse. Only the installer
+    # payload excludes Electron; no package upgrade can download it indirectly.
+    shutil.copytree(
+        source,
+        app,
+        ignore=lambda directory, names: (
+            {"runtime", "SHA256SUMS"} if Path(directory) == source else set()
+        ),
+    )
     policy["release_version"] = version
     write_json(app / "runtime-update.json", policy)
     normalize_permissions(app)
+    validate_distribution(app, allow_runtime=False)
     config = metadata(app, version, build["channel"], epoch, build["capacity"]["source"]["target"])
-    libc = required_glibc(app)
     config["overrides"]["deb"]["depends"][0] = f"libc6 (>= {libc})"
     config["overrides"]["rpm"]["depends"][0] = f"glibc >= {libc}"
     config["overrides"]["archlinux"]["depends"][0] = f"glibc>={libc}"
-    output.mkdir(parents=True)
     name = config["name"]
     shutil.copyfile(ROOT / "packaging/linux/refresh-mod-backup.sh", app / "refresh-mod-backup.sh")
     (app / "refresh-mod-backup.sh").chmod(0o644)
@@ -257,8 +269,8 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     refresh.write_text(f"#!/bin/sh\nsh /opt/{name}/refresh-mod-backup.sh /opt/{name}\n")
     config["scripts"] = {"postinstall": str(refresh)}
     config["archlinux"]["scripts"] = {"postupgrade": str(refresh)}
-    # AppArmor's user-namespace rule is needed on Ubuntu 24.04 and newer.
-    # It applies only to this installed executable, never to all Chromium apps.
+    # The launcher explicitly enters this named profile for per-user runtimes
+    # on Ubuntu 24.04+. Retain the old attachment for upgrades from bundled apps.
     profile = output / "apparmor-profile"
     profile.write_text(
         f"abi <abi/4.0>,\ninclude <tunables/global>\n"
@@ -310,6 +322,8 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             "client": read_json(app / "client-update.json"),
             "client_distribution": "module-only",
             "bundled_discord_client": False,
+            "bundled_electron": False,
+            "runtime_distribution": "download",
             "electron_version": build["capacity"]["compiled_version"],
             "runtime_key": build["capacity"]["runtime_key"],
             "runtime": {

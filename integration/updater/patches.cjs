@@ -31,7 +31,7 @@ function bootstrap(source, filename, desktopExec) {
     );
     patch(
       "global.oaConfig = settings.get('openasar', {});",
-      "global.oaConfig = { ...settings.get('openasar', {}), autoupdate: false };",
+      "global.oaConfig = { ...settings.get('openasar', {}), setup: true, autoupdate: false };",
     );
   } else if (filename === "cmdSwitches.js") {
     patch(
