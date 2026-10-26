@@ -235,7 +235,8 @@ class ReleaseApproval(unittest.TestCase):
             body = install_notes(manifest)
             self.assertIn("| Distribution | Package |", body)
             self.assertIn(
-                "https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin",
+                "| Arch Linux | [AUR](https://aur.archlinux.org/packages/"
+                "discord-canary-prerelease-patched-electron-bin) |",
                 body,
             )
             for ext in FORMATS:

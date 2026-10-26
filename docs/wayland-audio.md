@@ -1,16 +1,16 @@
 # Screen-share audio
 
-On Wayland, share a window in Discord and enable audio. On supported niri versions,
-the app automatically selects that window's application audio. On other desktops, a
-**Screen-share audio** dialog lets you choose an application, the whole system
-(excluding Discord), or no audio.
+On Wayland, share a window in Discord and enable audio.
+
+| Desktop                 | Audio selection                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Supported niri versions | Automatically selects the shared window's application.                                                     |
+| Other Wayland desktops  | A **Screen-share audio** dialog offers an application, the whole system (excluding Discord), or no audio.  |
+| X11                     | Enable the same dialog with `DPE_APP_AUDIO=1`. See [launcher settings](linux-launcher.md#troubleshooting). |
 
 Sharing an application includes audio from all its windows and tabs. For example,
 sharing one Zen window also shares audio from its other windows. Browser audio
 cannot be separated by tab or window.
-
-For X11, enable the adapter with `DPE_APP_AUDIO=1` when launching. See
-[launcher settings](linux-launcher.md#troubleshooting) for how to set it.
 
 ## Requirements
 
@@ -21,9 +21,11 @@ available alongside it. Your desktop needs a working `xdg-desktop-portal` backen
 Native packages declare the required audio tools. For a portable tarball, install
 the packages for your distribution:
 
-- **Arch:** `pipewire`, `pipewire-audio`, `libpulse` and `zenity`.
-- **Debian/Ubuntu:** `pipewire-bin`, `pulseaudio-utils` and `zenity`.
-- **Fedora:** `pipewire-utils`, `pulseaudio-utils` and `zenity`.
+| Distribution    | Packages                                           |
+| --------------- | -------------------------------------------------- |
+| Arch Linux      | `pipewire`, `pipewire-audio`, `libpulse`, `zenity` |
+| Debian / Ubuntu | `pipewire-bin`, `pulseaudio-utils`, `zenity`       |
+| Fedora          | `pipewire-utils`, `pulseaudio-utils`, `zenity`     |
 
 The app does not configure your audio services or change your default devices.
 KDE's optional `kdotool` and GNOME's optional Window Calls extension improve window

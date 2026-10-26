@@ -1,13 +1,16 @@
 # Install
 
-On Arch Linux, install from the AUR. On Debian, Ubuntu or Fedora, download a
-package from [Releases](https://github.com/discord-patched-electron/discord-patched-electron/releases/latest).
-**Latest** is the newest tested release.
+Choose your distribution below. Downloads marked
+[Latest](https://github.com/discord-patched-electron/discord-patched-electron/releases/latest)
+are the newest tested release.
 
-You need an **x86-64-v3 CPU** (AVX2, such as Intel Haswell or AMD Ryzen), a recent
-Linux distribution, and internet access to **Discord and GitHub**. Release notes
-list the minimum glibc version. First launch downloads Discord's client files,
-so it may take longer than later launches.
+You need:
+
+- An **x86-64-v3 CPU** (AVX2, such as Intel Haswell or AMD Ryzen).
+- A recent Linux distribution. Release notes list the minimum glibc version.
+- Internet access to **Discord and GitHub**.
+
+First launch downloads Discord's client files, so it may take longer than later launches.
 
 ## Arch Linux
 

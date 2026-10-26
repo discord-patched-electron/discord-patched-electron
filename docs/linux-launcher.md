@@ -5,10 +5,13 @@ decoding is enabled when your driver supports it. Most users can keep the defaul
 
 ## Appearance and startup
 
-Open **User Settings → OpenAsar** for custom CSS, splash theme colors and
-Quickstart. Splash Theming is enabled by default and uses your Discord or custom
-theme colors. Quickstart opens an existing installation sooner and checks for
-updates in the background.
+Open **User Settings → OpenAsar**:
+
+| Setting        | What it does                                                                    |
+| -------------- | ------------------------------------------------------------------------------- |
+| Custom CSS     | Changes Discord's appearance with your own CSS.                                 |
+| Splash Theming | Uses your Discord or custom theme colors during startup. Enabled by default.    |
+| Quickstart     | Opens an existing installation sooner and checks for updates in the background. |
 
 ## Global shortcuts
 
@@ -43,13 +46,16 @@ DPE_APP_AUDIO=0 discord-canary-prerelease-patched-electron-bin
 
 Other controls work the same way:
 
-- `DPE_CAMERA_FAST_PROBE=0` disables the camera startup helper.
-- `DPE_DEFAULT_FLAGS=0` disables the default launch flags.
-- `DPE_CLIENT_OFFLINE=1` skips both client and Electron update checks. You need
-  an existing installation verified against the package or an approved release.
-  If an older cache is rejected, launch online once to repair it.
-- `DPE_RUNTIME_UPDATES=0` skips Electron checks while keeping the selected runtime.
-- `DPE_RUNTIME_BUNDLED=1` uses the Electron version installed with the package.
+| Variable                  | Effect                                                    |
+| ------------------------- | --------------------------------------------------------- |
+| `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                       |
+| `DPE_DEFAULT_FLAGS=0`     | Disables the default launch flags.                        |
+| `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                 |
+| `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime. |
+| `DPE_RUNTIME_BUNDLED=1`   | Uses the Electron version installed with the package.     |
+
+Offline mode needs an existing installation verified against the package or an
+approved release. If an older cache is rejected, launch online once to repair it.
 
 For tarball installations, replace the command with `./launch.sh`.
 To remove Vencord or Equicord for troubleshooting, use its [installer](client-mods.md).

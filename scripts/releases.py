@@ -187,9 +187,8 @@ def verify_assets(directory: Path, manifest: dict):
 def install_notes(manifest: dict) -> str:
     tag = manifest_tag(manifest)
     downloads = f"{URL}/releases/download/{tag}"
-    rows = []
     name = package_name(manifest["channel"], electron_channel(manifest["electron_version"]))
-    aur = f"[{name}](https://aur.archlinux.org/packages/{name})"
+    rows = [f"| Arch Linux | [AUR](https://aur.archlinux.org/packages/{name}) |"]
     for distribution, extension in (
         ("Debian / Ubuntu", ".deb"),
         ("Fedora", ".rpm"),
@@ -202,8 +201,7 @@ def install_notes(manifest: dict) -> str:
             download += f" ([signature]({downloads}/{name}.sig))"
         rows.append(f"| {distribution} | {download} |")
     return (
-        f"## Install\n\nOn Arch Linux, install {aur} from the AUR for the latest tested release.\n\n"
-        "For other distributions, or to test a build before it reaches the AUR, download a package:\n\n"
+        "## Install\n\n"
         "| Distribution | Package |\n| --- | --- |\n"
         + "\n".join(rows)
         + f"\n\n[Checksums]({downloads}/SHA256SUMS) · "
