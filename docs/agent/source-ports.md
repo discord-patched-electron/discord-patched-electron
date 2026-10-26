@@ -77,14 +77,17 @@ applied after the original import and Electron API port. It refreshes dependency
 patches against Chromium 158 / its current FFmpeg. Fresh assembly checks the final
 Git tree. Cached source checkouts must match that tree with no unrecorded edits.
 
-Most changes refresh surrounding context. The substantive adaptations preserve
-upstream OpenH264 NULL cleanup, failed-reinitialization protection and its flush
-callback; retain Discord's packet-to-frame metadata matching; resolve all pending
-restriction-target promises; and preserve frame-scoped audio authorization.
-Upstream already carries the WebNN lock annotation, so that redundant patch is
-explicitly removed from the dependency series. Upstream's macOS locale resolver
-is retained alongside Discord's empty-localization guard. Exact reasons are
-recorded in `ports.46.dependency_notes`.
+Most changes refresh surrounding context. The substantive adaptations:
+
+- Preserve upstream OpenH264 NULL cleanup, failed-reinitialization protection
+  and its flush callback.
+- Retain Discord's packet-to-frame metadata matching.
+- Resolve all pending restriction-target promises.
+- Preserve frame-scoped audio authorization.
+- Remove the redundant WebNN lock annotation patch, already present upstream.
+- Retain upstream's macOS locale resolver alongside Discord's empty-localization guard.
+
+Exact reasons are recorded in `ports.46.dependency_notes`.
 
 The stale generated FFmpeg roll is replaced by `roll_ffmpeg_linux_x64.patch`.
 It was generated using the patched `media/ffmpeg/scripts/build_ffmpeg.py linux

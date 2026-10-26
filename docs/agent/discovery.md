@@ -105,20 +105,27 @@ The four-day cooldown and rolling 2,400-minute Blacksmith budget are independent
 An exhausted budget defers source preparation without consuming the candidate.
 The compiler still makes its own reservation before allocation.
 
-Read usage without allocating a compiler:
+Read usage without allocating a compiler.
+
+### GitHub usage
 
 ```sh
 uv run python scripts/ci_usage.py
-uv run python scripts/ci_usage.py --blacksmith
 ```
 
-The first uses existing `gh` authentication. The organization
+This uses existing `gh` authentication. The organization
 [billing API](https://docs.github.com/en/rest/billing/usage) requires Administration
 read permission. Standard GitHub-hosted compute for public repositories is
 [free](https://docs.github.com/en/billing/concepts/product-billing/github-actions);
 storage and Blacksmith are separate. Failed queries report unavailable, not zero.
 
-The second also needs the official
+### Blacksmith usage
+
+```sh
+uv run python scripts/ci_usage.py --blacksmith
+```
+
+This also needs the official
 [Blacksmith CLI](https://docs.blacksmith.sh/blacksmith-cli/overview) authenticated
 for `discord-patched-electron`. For automation, create an organization token in
 your own terminal with `blacksmith org-token create --label ci-usage` and follow

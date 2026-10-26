@@ -28,18 +28,21 @@ compatibility with newer Electron versions.
 
 ## Install
 
-On Arch Linux, install
-[`discord-canary-prerelease-patched-electron-bin`](https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin)
-from the AUR. For Debian, Ubuntu and Fedora, download your package from
-[Releases](https://github.com/discord-patched-electron/discord-patched-electron/releases/latest).
+| Distribution        | Package                                                                                                                                                                     |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Arch Linux          | [AUR](https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin)                                                                                    |
+| Debian / Ubuntu     | [.deb](https://github.com/discord-patched-electron/discord-patched-electron/releases/latest/download/discord-canary-prerelease-patched-electron-bin-x86_64.deb)             |
+| Fedora              | [.rpm](https://github.com/discord-patched-electron/discord-patched-electron/releases/latest/download/discord-canary-prerelease-patched-electron-bin-x86_64.rpm)             |
+| Other distributions | [.tar.gz](https://github.com/discord-patched-electron/discord-patched-electron/releases/latest/download/discord-canary-prerelease-patched-electron-bin-linux-x86_64.tar.gz) |
 
 Requires an **x86-64-v3 CPU** (AVX2, such as Intel Haswell or AMD Ryzen), a recent
 Linux distribution, network access to **Discord and GitHub** for downloads and
 update checks, and PipeWire for screen-share audio. See the
 [installation guide](docs/install.md) for setup and updates.
 
-Choose **Latest** for the newest tested release.
-Builds labelled **Pre-release** are available for testing.
+These links install the latest tested release.
+[Pre-release builds](https://github.com/discord-patched-electron/discord-patched-electron/releases)
+are available for testing.
 
 ## Guides
 

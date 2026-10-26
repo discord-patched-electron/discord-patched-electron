@@ -9,12 +9,16 @@ been removed; retained local sources and objects remain available for investigat
 Before allocating a runner, a GitHub-hosted job reserves the full job allowance
 in `ci-state/state.json`. Settings live in `scripts/blacksmith_budget.py`:
 
-- Runner: 16 vCPUs, 64 GB RAM and 750 GB disk.
-- Job limit: **120 minutes**, with compilation stopped at **105 minutes** to
-  leave time for logs, artifacts and cache upload.
-- Reservation: **960 allowance minutes** per attempt, using the 8× billing rate.
-- Budget: **2,400 allowance minutes** in a rolling **31-day** window. This permits
-  two attempts and leaves 600 of the reported 3,000 free minutes outside this workflow.
+| Setting                 | Limit                                                 |
+| ----------------------- | ----------------------------------------------------- |
+| Runner                  | 16 vCPUs, 64 GB RAM, 750 GB disk                      |
+| Job                     | **120 minutes**; compilation stops at **105 minutes** |
+| Reservation per attempt | **960 allowance minutes**, using the 8× billing rate  |
+| Rolling budget          | **2,400 allowance minutes** over **31 days**          |
+
+Stopping compilation early leaves time for logs, artifacts and cache upload.
+The budget permits two attempts and leaves 600 of the reported 3,000 free minutes
+outside this workflow.
 
 Failed and cancelled jobs keep their reservation. Deleting runs or resetting the
 ledger must not recover allowance. A concurrent state write fails before runner
@@ -113,12 +117,14 @@ Recreating a runner does not restore the removed capacity workflow.
 
 ## Publishing credentials
 
-- `AUR_SSH_PRIVATE_KEY` authenticates AUR account `he3als`. Only the publication
-  job receives it. The pinned `packaging/aur-known-hosts` file enables strict
-  host-key checking; the temporary private-key file is deleted afterward.
-- `CACHE_TOKEN` has Contents read/write access only to `discord-patched-electron/cache`
-  and is used for runtime-cache uploads.
-- `GITHUB_TOKEN` publishes app releases.
+| Credential            | Used for                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `AUR_SSH_PRIVATE_KEY` | Publishing as AUR account `he3als`; only the publication job receives it.                   |
+| `CACHE_TOKEN`         | Runtime-cache uploads; Contents read/write access only to `discord-patched-electron/cache`. |
+| `GITHUB_TOKEN`        | Publishing app releases.                                                                    |
+
+AUR publication uses the pinned `packaging/aur-known-hosts` file for strict
+host-key checking and deletes its temporary private-key file afterward.
 
 See [release packaging](releases.md) for approval and key maintenance. The initial
 Blacksmith experiment, including its 168-minute charge, is recorded in

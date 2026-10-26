@@ -12,8 +12,28 @@ bootstrap or use an account. Synthetic results do not establish live-call qualit
 ## Reproduction
 
 Run `uv sync --locked` and `bun install --frozen-lockfile --ignore-scripts`. Install a C++ compiler,
-Node development headers at `/usr/include/node`, Xvfb and `xauth`. Use an extracted
-distribution and staged, patched modules from the same locked Discord channel:
+Node development headers at `/usr/include/node`, Xvfb and `xauth`.
+Run the bundled Canary baseline with a fresh output directory:
+
+```sh
+uv run python scripts/check_runtime_clients.py --output out/native-check
+```
+
+This downloads the locked core/voice/Krisp payloads, verifies their channel identity,
+patches Krisp and runs the native video and offline audio checks. Stable and PTB
+are disabled. To reuse a compiled runtime:
+
+```sh
+uv run python scripts/check_runtime_clients.py \
+  --runtime /path/to/extracted-runtime \
+  --provenance /path/to/artifact-provenance.json \
+  --output out/custom-runtime-check
+```
+
+### Test manually staged modules
+
+For direct control of each check, use an extracted distribution and staged,
+patched modules from the same locked Discord channel:
 
 ```sh
 uv run python scripts/check_krisp_audio.py generate out/audio-fixture
@@ -36,10 +56,9 @@ real Discord streams, microphone noise suppression, hardware/GPU paths, X11 and
 Wayland capture, and two-application screen-share audio isolation. The reports
 explicitly leave those claims false and are not publication authorization.
 
-`scripts/check_runtime_clients.py --output <fresh-directory>` downloads the locked
-core/voice/Krisp payloads, verifies their channel identity, patches Krisp and runs
-both checks for Canary. Pass `--runtime <extracted-custom-runtime>` to
-reuse a compiled runtime. Stable and PTB are disabled. The `native-baselines` job
+### CI environment
+
+The `native-baselines` job
 in the Checks workflow runs the bundled baseline on standard GitHub runners,
 without spending Blacksmith compiler minutes. Failures retain diagnostics.
 Ubuntu's CI image requires an AppArmor user-namespace exception for these copied
@@ -77,9 +96,16 @@ and real-call checks above.
 
 ## Frame-capture lifetime
 
-`scripts/check_frame_capture.py RUNTIME --provenance ARTIFACT_PROVENANCE --output
-FRESH_DIRECTORY` exercises Discord's main-process capture API with two synthetic
-local windows. It checks wrapper creation, started/stopped events, constraint
+Run the capture check with the runtime executable and a fresh output directory:
+
+```sh
+uv run python scripts/check_frame_capture.py /path/to/runtime/electron \
+  --provenance /path/to/artifact-provenance.json \
+  --output out/frame-capture-check
+```
+
+This exercises Discord's main-process capture API with two synthetic local
+windows. It checks wrapper creation, started/stopped events, constraint
 changes, repeated stops, immediate stop, and target/consumer destruction after
 forced garbage collection. Active captures must remain alive until stopped;
 each stopped event must arrive exactly once. The test denies device permissions

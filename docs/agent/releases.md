@@ -42,9 +42,7 @@ jobs**. A partial draft can be resumed. Public assets are never overwritten.
 
 ## Test and approve
 
-1. Select **Watch → Custom → Releases** on the repository and enable your preferred
-   notification delivery in GitHub settings.
-2. Follow the one-time [signing-key setup](../install.md#arch-install-a-release-package-directly). Download
+1. Follow the one-time [signing-key setup](../install.md#arch-install-a-release-package-directly). Download
    the test release's `.pkg.tar.zst`, matching `.sig` and `SHA256SUMS` into a new
    folder. Check the hashes and install it:
 
@@ -53,11 +51,14 @@ jobs**. A partial draft can be resumed. Public assets are never overwritten.
    sudo pacman -U ./discord-canary-prerelease-patched-electron-bin-*.pkg.tar.zst
    ```
 
-3. Launch **Discord Canary**. Test the features you use,
+2. Launch **Discord Canary**. Test the features you use,
    including voice, camera startup, screen sharing with app audio, and Krisp.
    Check that any installed Vencord or Equicord still loads after updating.
-4. Run [**Approve tested release**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/approve-release.yml)
+3. Run [**Approve tested release**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/approve-release.yml)
    on `main`, paste the exact release tag, and tick the local-testing confirmation.
+
+To hear about new candidates, select **Watch → Custom → Releases** on the
+repository and choose your delivery method in GitHub's notification settings.
 
 Approval checks the successful main-branch workflow, all package hashes and the
 retained runtime. It records the approved version, updates the runtime used for
@@ -86,10 +87,17 @@ cached archive.
 ## Manual candidates and local packaging
 
 Run [**Release Linux packages**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/release.yml)
-with **publish** enabled to create a public candidate. Leave the snapshot blank to
-use the latest discovered Canary, or provide a full `ci-state` commit. Leave the
-compiler run blank to reuse the approved runtime. Turn **publish** off for Actions
-artifacts only. No packaging job compiles Electron.
+with these inputs:
+
+| Input           | Use                                                                                |
+| --------------- | ---------------------------------------------------------------------------------- |
+| `publish`       | Enable for a public candidate; disable for Actions artifacts only.                 |
+| `clients_state` | Leave blank for the latest discovered Canary, or provide a full `ci-state` commit. |
+| `reference_run` | Leave blank to reuse the approved runtime, or provide a successful compiler run.   |
+
+No packaging job compiles Electron.
+
+### Package locally
 
 After the [contributor setup](../../CONTRIBUTING.md), install `brotli`, a C compiler,
 `bsdtar`, `rpm` and the [prebuilt nFPM 2.48.0 binary](https://github.com/goreleaser/nfpm/releases/tag/v2.48.0).
