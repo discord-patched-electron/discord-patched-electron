@@ -1,4 +1,10 @@
-# Upstream sources
+# Third-party software and sources
+
+This project's code is [MIT licensed](LICENSE). Bundled components keep their
+own licenses and notices. Discord's client files download separately from Discord;
+they are not included in release packages.
+
+## Electron and packaging
 
 `packaging/upstream/` is an unmodified snapshot of the AUR
 `discord_arch_electron` package at the commit recorded in `provenance.json`.
@@ -12,6 +18,8 @@ It includes public Electron/Chromium/Node/FFmpeg changes under their respective
 upstream licenses. The Electron license is retained alongside the patch. The
 assembled distribution must retain all its upstream licenses and notices.
 
+## Discord client files
+
 Discord client and native module binaries are proprietary. They are fetched from
 Discord with verified checksums for local tests or into the user's profile at
 runtime. They are not committed to this repository or included in release
@@ -20,13 +28,13 @@ Compatibility patchers contain small Discord JavaScript excerpts as match
 patterns for modifying downloaded modules; the package is not entirely free of
 Discord source excerpts.
 
+## OpenAsar and startup assets
+
 The replacement bootstrap uses [OpenAsar](https://github.com/GooseMod/OpenAsar),
 under AGPL-3.0. Its source commit and archive checksum are pinned in
 `config/openasar.lock.json`. Packages include its complete `src/` tree and license
-under `bootstrap/`, alongside this project's readable integration source. The
-adapter supplies module-only updates using Discord's distribution manifests;
-it replaces OpenAsar's updater while retaining its settings and renderer customization. The packaged
-`resources/app.asar` is a small project-owned entry point, not Discord's ASAR.
+under `bootstrap/`, alongside this project's readable integration source.
+The project supplies the updater and the small `resources/app.asar` entry point.
 
 The unmodified MIT-licensed `splash/index.html` and `config.html` from
 [OpenAsar/cdn](https://github.com/OpenAsar/cdn) are retained with their license and
@@ -39,9 +47,13 @@ The pinned CDN archive also supplies the settings screen's MIT-licensed Monaco
 editor. Its license and third-party notices ship under `bootstrap/cdn/monaco-editor/`.
 The original settings page loads Roboto through Google Fonts when available.
 
+## Python dependencies
+
 The updater bundles Capstone and pyelftools from the wheels pinned in `uv.lock`.
 Their Python sources, Capstone's native library and upstream license notices
 are retained under `python/`, including each wheel's `.dist-info` directory.
+
+## Test fixtures and Linux helpers
 
 `tests/audio/speech.wav` is synthesized test speech generated with eSpeak NG
 1.52.0, then resampled with FFmpeg. Its phrase and generation metadata are recorded
@@ -59,5 +71,5 @@ native addons are not bundled by this audio adapter.
 
 `integration/camera/v4l2-probe.c` is project-owned MIT-licensed compatibility
 code, using Linux's public V4L2 userspace API. It does not include WebRTC source
-or modify Discord's proprietary camera binary. See `docs/agent/camera-startup.md`
+or modify Discord's proprietary camera binary. See [camera startup](https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/agent/camera-startup.md)
 for the upstream algorithm and kernel API references.

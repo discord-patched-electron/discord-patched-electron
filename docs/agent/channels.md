@@ -1,8 +1,8 @@
 # CI channel switches
 
-The two lists in [`config/channels.json`](../../config/channels.json) are the
-feature switches. Including a channel enables it. Leaving it out disables it.
-Keep these defaults until support is deliberately expanded:
+Edit the two channel lists in
+[`config/channels.json`](../../config/channels.json) to choose what discovery,
+builds and packaging support. A listed channel is enabled. Current defaults are:
 
 ```json
 {

@@ -1,9 +1,9 @@
 # Native application-audio investigation
 
-**Wayland is the primary target; X11 is additional support.** The maintainer
-clarified this on 23 October 2026. The initial X11 experiment below established the native audio boundary. The
-subsequent [Wayland implementation](../wayland-audio.md) now covers native portal
-video, application routing, multi-process mixing and teardown in private fixtures.
+This record starts with the 23 October native-audio investigation and ends with
+the 25 October mixer-buffer fix. Wayland is the primary target; the initial X11
+experiment established the native input boundary. Use [the implementation guide](wayland-audio.md)
+for current routing, source selection and test coverage.
 
 Static inspection on 23 October 2026 found an existing Linux application-audio
 path in all three locked `discord_voice.node` binaries. No module was loaded,
@@ -35,14 +35,13 @@ this API restricts recording to a specific playback stream when connected to a
 monitor source. [PulseAudio API](https://www.freedesktop.org/software/pulseaudio/doxygen/stream_8h.html)
 
 This initial static evidence supported testing the existing native path first.
-It did **not**
-prove that the UI supplies a usable PID, that loopback is disabled for window
+It did not prove that the UI supplies a usable PID, that loopback is disabled for window
 sharing, that PID namespaces or child processes match, or that the server honors
 the requested stream isolation. The `SetGoLiveDevices` device fields are another
 possible boundary; their interaction with video and microphone capture remains
 unverified. The runtime experiments below were required before installing the opt-in helper.
 
-## Next experiment
+## Original test plan
 
 Use an isolated test client to record only the source selector and the allowlisted
 soundshare fields at those wrapper boundaries. Compare window and monitor sharing,
@@ -60,7 +59,7 @@ and never silently substitute system audio when application identity is unknown.
 To reproduce the static report from a checksum-verified extracted module:
 
 ```sh
-.venv/bin/python scripts/inspect_voice.py /path/to/discord_voice.node \
+uv run python scripts/inspect_voice.py /path/to/discord_voice.node \
   --report out/voice-interface.json
 ```
 
@@ -70,7 +69,7 @@ validation false. Missing or changed symbols remain visible in the report.
 
 ## Implemented module adapter and isolated audio tests
 
-The opt-in adapter in `integration/audio/app-audio.cjs` corrects the existing
+The initial opt-in adapter in `integration/audio/app-audio.cjs` corrected the
 native capture options. `scripts/patch_app_audio.py` inserts one call at the
 voice module's connection-wrapper boundary and refuses an unfamiliar layout.
 This initial implementation left the compiled voice binary unchanged; the later
@@ -122,7 +121,7 @@ The follow-up implementation now resolves the exact native PipeWire video link
 through niri's cast/window IPC and mixes the application's audio subprocesses.
 Other compositors have an explicit audio-app selector. Both PipeWire-Pulse and
 PulseAudio server configurations use a private PipeWire mix and retain native
-Discord video. See [Wayland implementation and validation](../wayland-audio.md) for
+Discord video. See [Wayland implementation and validation](wayland-audio.md) for
 the route, lifecycle, test fixture and remaining live-call/custom-runtime checks.
 
 The key observation was the module-level native picker API:
@@ -139,22 +138,21 @@ provide the exact relation for automatic selection. Vesktop's
 [separate audio-source picker](https://github.com/Vencord/Vesktop/blob/da2121d7dc9d13fd58cdb4df4013b23027ee0d5b/src/renderer/components/ScreenSharePicker.tsx)
 provided the reference for the explicit selection path on other compositors.
 
-### Collecting the module trace when a real test package is ready
+### Collect a module trace
 
-The packaged wrapper now supports `DPE_APP_AUDIO_TRACE=1` independently of
-`DPE_APP_AUDIO=1`. To observe the original client arguments, explicitly set `DPE_APP_AUDIO=0`. After closing that same package's existing instance, launch it from a
-terminal, for example **once that package exists**:
+The wrapper supports `DPE_APP_AUDIO_TRACE=1` with or without the adapter. To trace
+Discord's original arguments, disable routing as well. Close the existing Canary
+instance, then launch from a terminal:
 
 ```sh
 DPE_APP_AUDIO=0 DPE_APP_AUDIO_TRACE=1 \
-  discord-stable-stable-patched-electron-bin 2>&1 \
+  discord-canary-prerelease-patched-electron-bin 2>&1 \
   | rg --line-buffered '^\[dpe-app-audio-trace\]' \
   | tee wayland-audio-trace.log
 ```
 
-No installable custom runtime is available yet; this is a resume procedure, not
-a claim that the command can run today. A separately prepared disposable test
-client with the wrapper installed can use the same environment switch.
+Use a fresh test profile for automated checks. A disposable test client can use
+the same environment variables.
 The trace uses connection-local sequence numbers, numeric source/PID fields,
 known source types and audio-enabled/loopback values. Unknown strings, device
 names, titles and arbitrary objects are omitted or redacted. Callback values

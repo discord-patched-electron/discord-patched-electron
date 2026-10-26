@@ -22,7 +22,7 @@ function bootstrap(source, filename, desktopExec) {
     if (finish <= start) throw new Error("Unsupported pinned OpenAsar bootstrap order");
     source =
       source.slice(0, start) +
-      "  require(process.env.DPE_APP_ROOT + '/integration/updater/renderer.cjs')(app, splash, oaConfig, oaVersion);\n" +
+      "  require(process.env.DPE_APP_ROOT + '/integration/updater/renderer.cjs')(app, splash, oaConfig);\n" +
       source.slice(finish);
   } else if (filename === "index.js") {
     patch(

@@ -1,45 +1,29 @@
 # Install
 
-Choose a Canary runtime package on the [Releases page](https://github.com/discord-patched-electron/discord-patched-electron/releases).
-Builds labelled **Pre-release** are public test packages I haven't approved as stable yet.
-**Latest** identifies the newest package I've tested and approved. All packages
-require **x86-64-v3** (AVX2).
+On Arch Linux, install from the AUR. On Debian, Ubuntu or Fedora, download a
+package from [Releases](https://github.com/discord-patched-electron/discord-patched-electron/releases/latest).
+**Latest** is the newest tested release.
 
-First launch needs an internet connection to download Discord's client modules.
-Downloads and approved update checks require HTTPS access to **Discord and GitHub**.
-Packages include patched Electron and a pinned open-source bootstrap; they do not
-include Discord's proprietary ASARs or download Discord's stock Electron runtime.
-
-Download one package and `SHA256SUMS` into a new folder, then verify it:
-
-```sh
-sha256sum --check --ignore-missing SHA256SUMS
-```
+You need an **x86-64-v3 CPU** (AVX2, such as Intel Haswell or AMD Ryzen), a recent
+Linux distribution, and internet access to **Discord and GitHub**. Release notes
+list the minimum glibc version. First launch downloads Discord's client files,
+so it may take longer than later launches.
 
 ## Arch Linux
 
-Import the [release signing key](../packaging/release-signing-key.asc) once. Its fingerprint is
-`6FC3C7F7D254C749E308113D89013A5DF4E2436C`.
-
-```sh
-curl -fLO https://raw.githubusercontent.com/discord-patched-electron/discord-patched-electron/main/packaging/release-signing-key.asc
-sudo pacman-key --add release-signing-key.asc
-sudo pacman-key --lsign-key 6FC3C7F7D254C749E308113D89013A5DF4E2436C
-```
-
-Download the package and its matching `.sig` into the same folder, then install:
-
-```sh
-sudo pacman -U ./discord-canary-prerelease-patched-electron-bin-*.pkg.tar.zst
-```
-
-This works for test releases too. After importing the key, `pacman -U` also accepts
-the package download URL directly. Install the next package with the same command.
-For package-manager updates, install
+Install
 [`discord-canary-prerelease-patched-electron-bin`](https://aur.archlinux.org/packages/discord-canary-prerelease-patched-electron-bin)
-from the AUR. Public test builds are also available directly from Releases.
+with your AUR helper. For example, with `yay`:
+
+```sh
+yay -S discord-canary-prerelease-patched-electron-bin
+```
+
+Your AUR helper also handles package updates.
 
 ## Debian and Ubuntu
+
+Download the `.deb` from **Latest**, then open a terminal in your downloads folder:
 
 ```sh
 sudo apt install ./discord-canary-prerelease-patched-electron-bin-*.deb
@@ -47,107 +31,115 @@ sudo apt install ./discord-canary-prerelease-patched-electron-bin-*.deb
 
 ## Fedora
 
+Download the `.rpm` from **Latest**, then open a terminal in your downloads folder:
+
 ```sh
 sudo dnf install ./discord-canary-prerelease-patched-electron-bin-*.rpm
 ```
 
-Packages add **Discord Canary** to your app menu and replace the stock Canary
-package if it is installed.
-Check the release notes for the minimum glibc version. Other RPM distributions
-may need different dependencies.
-
 ## Other distributions
 
-Extract the `.tar.gz`, open its folder and run `./launch.sh`. Keep all the files
-together. The folder can be moved. Install GTK 3, NSS, ALSA, libpulse, GBM, libdrm,
-CUPS, Xss, Xtst, libatomic, Python 3.11 or newer, Brotli, CA
-certificates, GnuPG (`gpg` and `gpgv`), Bash and coreutils through your package manager.
-Screen-share audio also needs PipeWire tools, PulseAudio tools, a session manager
-such as WirePlumber, and Zenity.
+Download the `.tar.gz` from **Latest**, extract it, open its folder and run
+`./launch.sh`. Keep all the files together; you can move the folder.
 
-If the tarball fails with a sandbox error, use the native package for your
-distribution where available.
+Install these dependencies through your package manager:
 
-## Dependencies and startup errors
+- GTK 3, NSS, ALSA, libpulse, GBM, libdrm, CUPS, Xss, Xtst and libatomic.
+- Python **3.11 or newer**, Brotli, CA certificates, GnuPG (`gpg` and `gpgv`),
+  Bash and coreutils.
+- For screen-share audio, the [audio tools and services](wayland-audio.md#requirements).
 
-The native packages declare their system dependencies. Installing with the
-`pacman -U`, `apt install` or `dnf install` commands above resolves them through
-your distribution's repositories. The AUR package uses the same Arch dependency
-list. A portable `.tar.gz` cannot install dependencies; use the list above.
+If the tarball fails with a sandbox error, use your distribution's native
+package where available.
 
-The updater needs system Python **3.11 or newer**, Brotli, CA certificates,
-GnuPG (`gpg` and `gpgv`), Bash and coreutils. Capstone and pyelftools, including
-Capstone's native library, are bundled. Running the app does not require pip,
-uv, Bun, a separate Node.js installation or a compiler.
+## First launch
 
-Allow HTTPS access to `github.com`, `api.github.com`, `raw.githubusercontent.com`
-and GitHub's release asset download hosts. GitHub supplies release metadata,
-approval records, signatures and patched Electron downloads. If GitHub is blocked,
-new updates cannot be verified; the updater retains usable package-pinned or
-previously approved versions.
+Native packages add **Discord Canary** to your app menu and replace the stock
+Canary package if installed. Close any running Canary instance before launching.
+The install commands above also install the required dependencies.
 
-- **Python or Brotli is missing:** install the named tool through your package
-  manager, then choose **Retry now**. Python is packaged as `python` on Arch and
-  `python3` on Debian/Ubuntu and Fedora; Brotli is `brotli` on all three.
-- **Bundled update libraries are missing:** reinstall the complete native package
-  or extract the entire tarball again. Keep its `python/` folder beside
-  `launch.sh`; installing Python modules globally is unnecessary.
+Your settings, login and cache use Discord's usual `~/.config/discordcanary`
+folder, or the equivalent under `XDG_CONFIG_HOME`. Updates preserve them.
+The app shares this profile with stock Canary, so avoid running both at once.
 
-For Wayland screen sharing, your desktop also needs a working
-`xdg-desktop-portal` backend. [Screen-share audio](wayland-audio.md) needs a running
-PipeWire session manager such as WirePlumber. Packages include or declare the
-audio tools, but do not configure your desktop's services.
+For Wayland screen sharing, your desktop needs a working `xdg-desktop-portal`
+backend. See [screen-share audio](wayland-audio.md) for audio setup and limitations.
+To add Vencord or Equicord, follow the [mod guide](client-mods.md).
 
 ## Updates
 
-On GitHub, select **Watch → Custom → Releases** to get notifications of new builds.
-Choose email or inbox delivery in your [notification settings](https://github.com/settings/notifications).
-Release notes list the Discord and Electron versions, changes and test results.
+New versions reach automatic updates after testing. The app checks for Discord
+and Electron updates on launch and every 15 minutes. When an update is ready,
+use Discord's update button to restart.
+Downloads are verified before use; a failed update keeps the working version.
+Automatic updates need no administrator access and preserve your installed mod.
 
-Discord's desktop ASAR, native modules and patched Electron update only after
-manual release approval. Checks run on launch and every 15 minutes while running.
-Use Discord's update button to restart when an approved update is ready.
-Module downloads come from Discord at the exact versions and checksums in the
-signed release; they never follow Discord's live latest manifest. This also covers
-module changes that keep the same Discord version number.
-Downloads and compatibility checks finish before activation. A failed download
-keeps the current approved installation. Explicitly installing a test package
-uses its pinned candidate modules. Discord's hosted web interface remains served
-by Discord and is outside this desktop release approval.
-The startup screen follows Discord's layout with one progress bar. If startup
-fails, it shows recovery steps and **Retry now**. Connection failures retry after
-10 seconds; **Pause retries** stops the countdown. **Copy details** copies the
-error for troubleshooting. Your desktop's close-window shortcut quits and cancels
-preparation.
-OpenAsar's settings and CSS editor are included. Splash Theming is enabled by default and uses Discord or custom
-theme colors cached from your client; Quickstart uses a prepared installation and checks updates in the background.
+For launcher, bootstrap and Linux integration changes, close Discord and install
+the next package. Tarball users should extract the new version into a fresh folder.
+Mods installed in the [default location](client-mods.md) are preserved.
 
-Electron updates live in your profile and need no administrator access. Your
-installed mod loader stays in place. For bootstrap and Linux integration updates,
-close Discord, then install the next package or replace the extracted folder.
-Mods installed through the [default installer location](client-mods.md) are preserved
-when the underlying bootstrap is replaced.
+Discord's hosted web interface updates independently of these desktop releases.
 
-Settings, login sessions and cache use the standard `~/.config/discordcanary`
-folder (or under `XDG_CONFIG_HOME` if set). Updates preserve them and your
-[launcher settings](linux-launcher.md). Close any running Canary instance first.
-The fork shares Discord's `app-<version>/`, versioned module directories and
-`installer.db`. Replaced stock files are backed up under `dpe-updater/backups/`.
-Preparation caches remain under `dpe-updater/` and `dpe-runtime/`.
-The stock updater can replace a shared installation; this package's launcher
-restores the fork from verified sources on its next launch.
-`DISCORD_USER_DATA_DIR` changes the parent folder (Canary adds `discordcanary/`);
-`DPE_PROFILE_DIR` selects an exact profile path. `DPE_CLIENT_OFFLINE=1` skips both update checks.
-`DPE_RUNTIME_UPDATES=0` skips only Electron update checks while retaining an already updated
-runtime; `DPE_RUNTIME_BUNDLED=1` uses the runtime installed with the package.
-Offline mode and Quickstart also require package-pinned or approved modules.
-If an older updater cached an unapproved client, launch online once to repair it.
+To hear about new builds, select **Watch → Custom → Releases** on GitHub and
+choose your delivery method in [notification settings](https://github.com/settings/notifications).
 
-Older builds used `~/.config/discord-canary-prerelease-patched-electron-bin`.
-That folder is left untouched. To keep using it, set `DPE_PROFILE_DIR`
-to its full path when launching.
+## Startup problems
 
-Discord module releases can reuse the existing Electron build. Routine Electron
-builds are spaced at least four days apart, with an exception for identified
-high or critical security fixes. Both require manual approval before automatic
-delivery. Unchanged inputs don't produce another build.
+The startup screen explains failures and offers **Retry now**. Connection errors
+retry after ten seconds; **Pause retries** stops the countdown. Use **Copy details**
+when reporting a problem. Your desktop's close-window shortcut cancels startup.
+
+- **Python or Brotli is missing:** install it through your package manager, then
+  retry. Python is `python` on Arch and `python3` on Debian/Ubuntu and Fedora.
+  Brotli is `brotli` on all three.
+- **Bundled update libraries are missing:** reinstall the complete package or
+  extract the whole tarball again. Keep its `python/` folder beside `launch.sh`.
+  You don't need to install Python modules yourself.
+- **Downloads cannot connect:** allow HTTPS access to Discord and GitHub,
+  including `github.com`, `api.github.com`, `raw.githubusercontent.com` and GitHub's
+  release download hosts. A first installation needs network access; an existing
+  verified installation can keep working when update checks fail.
+
+For appearance, custom profiles, offline mode and graphics troubleshooting,
+see [launcher settings](linux-launcher.md).
+
+## Verify a download
+
+To check a package downloaded from GitHub, put it and the release's `SHA256SUMS`
+in a new folder, then run:
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+AUR installations check the download automatically.
+
+## Maintainer and testing installs
+
+Builds labelled **Pre-release** on
+[Releases](https://github.com/discord-patched-electron/discord-patched-electron/releases)
+are for testing. Download the package for your distribution and install it using
+the commands above. Installing a test package selects that build's Discord version.
+
+### Arch: install a release package directly
+
+For testing a build before it reaches the AUR, import the
+[release signing key](../packaging/release-signing-key.asc) once:
+
+```sh
+curl -fLO https://raw.githubusercontent.com/discord-patched-electron/discord-patched-electron/main/packaging/release-signing-key.asc
+sudo pacman-key --add release-signing-key.asc
+sudo pacman-key --lsign-key 6FC3C7F7D254C749E308113D89013A5DF4E2436C
+```
+
+The key fingerprint is `6FC3C7F7D254C749E308113D89013A5DF4E2436C`.
+Download the `.pkg.tar.zst`, its matching `.sig` and `SHA256SUMS` into a new folder.
+Check the download and install it:
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS
+sudo pacman -U ./discord-canary-prerelease-patched-electron-bin-*.pkg.tar.zst
+```
+
+Use the same steps for later test builds. See the
+[release guide](agent/releases.md#test-and-approve) for testing and approval.

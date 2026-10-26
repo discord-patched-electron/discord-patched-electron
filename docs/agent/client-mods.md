@@ -1,5 +1,11 @@
 # Vencord and Equicord update preservation
 
+Client, Electron and package updates preserve official mod loaders and their
+settings. Mods can also update themselves. This page explains that behavior and
+its tests; use [the mod guide](../client-mods.md) for installation.
+
+## Detecting and preserving a loader
+
 The module-only updater publishes the running app under
 `<profile>/app-<version>`. Official installers patch that directory's
 `resources/app.asar` and keep the project's bootstrap in `_app.asar`.

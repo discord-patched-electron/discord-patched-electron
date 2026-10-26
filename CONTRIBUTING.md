@@ -8,9 +8,7 @@ starting a larger change so we can agree on its scope.
 Install Git, [Bun](https://bun.sh/docs/installation),
 [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 24 on Linux.
 Native tests also need a C/C++ compiler; updater tests need `brotli` and GnuPG
-(`gpg` and `gpgv`). uv manages Python and the development
-tools. Bun manages JavaScript dependencies. Node is used by Electron's ASAR tools
-and the JavaScript test suite.
+(`gpg` and `gpgv`). Install those system tools through your package manager.
 
 ```sh
 git clone https://github.com/discord-patched-electron/discord-patched-electron.git
@@ -31,17 +29,13 @@ bun run lint
 bun run test
 ```
 
-`format` fixes style. `lint` checks it and reports code and workflow problems.
-Ruff handles Python, and Oxlint/Oxfmt handle JavaScript and repository text.
-The same commands also check shell scripts, native code and GitHub workflows.
-The setup commands install the language tools; install the compiler, Brotli and GnuPG
-with your system package manager.
+`format` fixes style; `lint` checks formatting, code and workflows. Both preserve
+the pinned upstream files and patches.
 
 Use `bun run test:python` or `bun run test:js` to run one suite while iterating.
 These tests need no Discord account or Electron build. Arch-specific assertions
 are skipped when `vercmp` is unavailable. CI also checks generated Arch packages.
-For documentation-only changes, run formatting and linting and check the links
-and instructions you changed.
+For documentation changes, also check the links and instructions you changed.
 
 ## Repository layout
 
@@ -54,7 +48,7 @@ and instructions you changed.
 | `patches/`     | Discord's Electron changes and compatibility patches   |
 | `packaging/`   | Package templates and upstream reference files         |
 | `.github/`     | CI workflows                                           |
-| `docs/`        | User guides and implementation notes in `docs/agent/`  |
+| `docs/`        | User guides; contributor notes live in `docs/agent/`   |
 
 Generated files belong in `out/`. Don't commit downloaded clients, compiler
 workspaces or test profiles. Don't edit `packaging/upstream/` or reformat

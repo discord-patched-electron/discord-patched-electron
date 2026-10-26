@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -71,7 +72,7 @@ test("custom CSS cannot become template-literal JavaScript", (t) => {
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(
     path.join(directory, "mainWindow.js"),
-    "let lastBgPrimary = '';\noldCollector();\n// Settings injection\nresult = `<css>`;",
+    "let lastBgPrimary = '';\noldCollector();\n// Settings injection\nlabel = 'OpenAsar <channel> (<hash>)';\nresult = `<css>`;",
   );
   const css = 'body::before {content:"${globalThis.executed=true} `$& \\"}';
   const context = { result: "" };
@@ -79,6 +80,36 @@ test("custom CSS cannot become template-literal JavaScript", (t) => {
   assert.equal(context.result, css);
   assert.equal(context.executed, undefined);
 });
+
+for (const version of ["20261026.123456", null]) {
+  test(`OpenAsar settings identify the ${version ? "packaged release" : "development build"}`, (t) => {
+    const root = fixture(t);
+    fs.mkdirSync(path.join(root, "bootstrap/src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "bootstrap/src/mainWindow.js"),
+      "let lastBgPrimary = '';\noldCollector();\n// Settings injection\nlabel = 'OpenAsar <channel> (<hash>)';",
+    );
+    fs.writeFileSync(
+      path.join(root, "runtime-update.json"),
+      JSON.stringify({ release_version: version }),
+    );
+    const previous = process.env.DPE_APP_ROOT;
+    process.env.DPE_APP_ROOT = root;
+    t.after(() => {
+      if (previous === undefined) delete process.env.DPE_APP_ROOT;
+      else process.env.DPE_APP_ROOT = previous;
+    });
+    const app = new EventEmitter();
+    const webContents = new EventEmitter();
+    const context = {};
+    webContents.getURL = () => "https://canary.discord.com/channels/@me";
+    webContents.executeJavaScript = async (script) => vm.runInNewContext(script, context);
+    renderer(app, { pageReady() {} }, {});
+    app.emit("browser-window-created", {}, { webContents });
+    webContents.emit("did-finish-load");
+    assert.equal(context.label, `OpenAsar (discord-patched-electron ${version || "development"})`);
+  });
+}
 
 test("current and legacy theme tokens update the cache without losing other user data", async () => {
   const body = { parentElement: null };

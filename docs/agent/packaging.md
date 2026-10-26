@@ -1,15 +1,17 @@
 # Historical binary package candidates
 
-The published AUR package now uses the complete CI-built tarball; see
-[release packaging](releases.md). This document describes the older source-staging
-recipe retained for regression tests. Stable and PTB are disabled.
+Use [release packaging](releases.md) for current AUR and binary releases.
+This page describes the older source-staging recipe retained for regression
+tests. Its dummy-runtime packages are not releases. Stable and PTB are disabled.
+
+## Generate a test recipe
 
 `scripts/generate_package.py` generates one AUR recipe from client identity metadata,
 immutable runtime/camera-helper asset descriptors and a package revision. The shared
-template derives from the imported `discord_arch_electron` package. The three
-Discord clients on prerelease Electron have distinct executable names, desktop files,
-installation directories and default profiles. They do not provide or conflict
-with system Electron or the official Discord package.
+template derives from the imported `discord_arch_electron` package. It keeps
+channel-specific executable names and installation directories. The maintained
+Canary recipe uses Discord's standard desktop identity and profile, and conflicts
+with stock Canary packages. It does not replace system Electron.
 
 A runtime descriptor contains `version`, `runtime_key`, `url` and `sha256`.
 The URL must name a fixed ZIP asset in this repository's GitHub Releases.
@@ -61,7 +63,8 @@ standard GitHub Actions checks, separately from the Electron compiler. Its small
 x86-64-v3 library and compiler/source manifest are retained as `camera-support`.
 The publisher must upload `libdpe-camera-probe.so` at the manifest's immutable
 `camera-<binary-sha256>` release before using that manifest for an AUR update.
-This publication step remains part of the unfinished release coordinator.
+This separate-asset path belongs to the older recipe. Current release packages
+bundle the helper in the portable app tree.
 
 `makepkg` downloads and verifies the precompiled helper; it does not invoke a C
 compiler. Module preparation at launch identifies the capability-probing function

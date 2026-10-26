@@ -1,5 +1,11 @@
 # Native webcam startup
 
+Two changes reduce camera startup delays: skip unsupported format probes and
+initialize the camera asynchronously. Both reuse the existing Electron runtime.
+For timing results and a controlled reproduction, see [physical measurements](#physical-measurements).
+
+## Format probing
+
 The delay reproduced with the physical Logitech UVC webcam and the installed
 Canary 1.0.2360 native voice module. Discord's log spent 4.96–5.39 seconds in
 `DeviceInfoV4l2::FillCapabilities` before capture started. Its legacy WebRTC loop
@@ -46,7 +52,7 @@ To reproduce with an explicitly selected camera, supply an installed Discord
 executable and its voice module:
 
 ```sh
-.venv/bin/python scripts/check_camera_startup.py \
+uv run python scripts/check_camera_startup.py \
   --runtime /path/to/DiscordCanary \
   --voice /path/to/discord_voice/discord_voice.node \
   --device 'UVC Camera (046d:0825)' \
@@ -92,8 +98,8 @@ See [measurement metadata](../evidence/desktop-fixes-local.json).
 
 ## Build and packaging
 
-The standard GitHub checks compile this small x86-64-v3 library and retain it with
-`camera-support.json`. AUR downloads the precompiled, checksum-pinned binary.
-The helper's source/build identity belongs to package integration, separate from
-Electron's compiler key. A helper fix therefore reuses the existing Electron
-runtime and objects. See [packaging](packaging.md#independent-camera-support-binary).
+The standard checks compile the x86-64-v3 helper and retain `camera-support.json`.
+Release packages include the compiled helper; the older source-staging recipe
+uses a separate pinned asset. Its identity belongs to package integration, so a
+helper fix can reuse Electron. See [release packaging](releases.md) and the
+[older helper path](packaging.md#independent-camera-support-binary).

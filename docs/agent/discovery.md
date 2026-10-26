@@ -1,173 +1,143 @@
-# Update ownership and scheduling
+# Update discovery and scheduling
 
-The package owns the local Discord host ASAR, `discord_desktop_core/core.asar`
-and native module files. Their built-in host/module updater is disabled so it
-cannot replace the patches or mix module revisions. Discord's HTTPS web UI still
-updates independently. Install test Arch packages with `pacman -U`. AUR updates
-are published after approval as stable. A CI release does not modify a running installation.
+Discovery checks for new Discord modules and Electron releases. Client changes
+reuse the approved Electron runtime; only native source changes need a compiler.
+Passing candidates become public test releases. Manual approval is required for
+automatic delivery and AUR publication.
 
-## Independent update paths
+This page covers scheduling and durable state. See [release packaging](releases.md)
+for publication and [the updater](client-updater.md) for updates on users' machines.
 
-`update.yml` polls hourly at minute 22 (GitHub schedules can be late). It compares Canary's official distribution manifest, including every
-module revision and SHA-256.
-A module-only update counts even if the host version is unchanged. Stable and PTB
-are disabled. An Electron API outage leaves Discord discovery operational.
+## Discord updates
 
-Each changed client/integration identity immediately qualifies on the pinned
-last-good compiled runtime through `release.yml`: bundled baseline,
-custom native video and offline Krisp, Wayland/X11 application audio, packaging,
-and actual login-form launch/relaunch with and without optional Equicord. These
-jobs never compile Electron. Each job consumes the same immutable `ci-state`
-commit. A failing gate keeps the previous qualified installation usable and
-retains diagnostics.
+`update.yml` polls hourly at minute 22. GitHub schedules can be delayed; manual
+**Discover upstream releases** is also available. Only enabled channels are fetched.
+Currently that means Canary.
 
-When a **Discord host archive** changes, `inspect_bundled_runtime.py` reads the
-checksum-verified archive without executing it. It hashes the Electron executable
-and the native runtime payload separately from ASARs. It also records the embedded
-Electron version when unambiguous. It does **not** poll Discord fork commits.
-The source fork is consulted only when a shipped binary change or failed native
-compatibility test calls for a port review. A changed executable alone does not
-force a rebuild: branding/build changes can leave the existing bridge compatible.
+Discovery compares the official distribution manifest, including every module
+revision and SHA-256. A changed module counts even when the host version stays
+the same. An Electron API outage does not stop Discord discovery.
 
-Example verified on 24 October: Canary 1.0.2357 -> 1.0.2365 changed client files,
-but both the bundled executable and native runtime payload remained identical,
-reporting Electron 44.9.3. The custom runtime remains Electron 46 alpha 1.
+Each changed client/integration identity starts `release.yml` on the last-good
+runtime. Jobs consume the same immutable `ci-state` commit and check native
+video/Krisp, application audio, packaging, login/relaunch and official mod installers.
+They do not compile Electron. Failed checks retain diagnostics and leave the
+previous qualified release available.
 
-Upstream Electron alpha/beta releases are retained in the audit ledger, but older
-pending prereleases are coalesced into the newest. Routine source advancement is
-eligible **96 hours after the last compiler attempt** (initially the pinned good
-build's completion). No new eligible input means no compilation. Official Electron
-high/critical security advisories bypass the wait only when their comparator range
-includes our current version and explicitly identifies a fixed candidate on that
-major. Unknown ranges and cross-major backport assumptions are not guessed.
-`urgent_versions` in `config/update-policy.json` allows a manual override for
-embargoed fixes/Chromium advisories that lack machine-readable data.
-This is not a guarantee that every urgent Chromium fix will be labeled publicly.
+When a host archive changes, `inspect_bundled_runtime.py` reads the verified archive
+without executing it. It hashes the executable and native runtime payload separately
+from ASARs and records an unambiguous embedded Electron version. This detects
+shipped binary changes; ordinary Discord fork commits do not schedule compilation.
+A changed executable alone does not prove that the bridge needs rebuilding.
 
-`advance_electron.py` first applies the existing patch queue in a disposable source
-checkout. An incompatible patch fails visibly without touching the retained PC
-build or the last-good runtime. A successful application advances only the source
-lock by a fast-forward main push and explicitly dispatches `build.yml`, with an
-expected native-input key. The compiler checks that identity before starting.
-Compilation uses Blacksmith with a durable allowance reservation before allocation.
-A healthy compiler is never cancelled or duplicated. Reviewed major-specific ports remain necessary when
-upstream APIs change: avoiding merges does not remove compatibility work.
+For example, the 24 October check found identical bundled Electron 44.9.3 bytes
+in Canary 1.0.2357 and 1.0.2365 despite changed client files. The custom runtime
+could remain Electron 46.0.0-alpha.1.
+
+## Electron updates
+
+The ledger retains discovered alpha/beta releases, but pending versions are
+coalesced into the newest eligible candidate. Routine source advancement waits
+**96 hours after the last compiler attempt**, initially measured from the pinned
+successful build. No new eligible input means no compilation.
+
+An official high/critical advisory bypasses the wait only when its version range
+includes the installed runtime and identifies a fixed candidate on that major.
+Unknown ranges and cross-major backports are not guessed. Maintainers can use
+`urgent_versions` in `config/update-policy.json` for fixes without suitable public
+advisory data.
+
+`advance_electron.py` applies the patch queue in a disposable checkout first.
+Failure leaves retained builds and the last-good runtime untouched. Success
+advances the source lock with a fast-forward push and dispatches `build.yml`
+with the expected native-input key. The compiler verifies that key and reserves
+[Blacksmith allowance](ci-setup.md#blacksmith-compilation) before runner allocation.
+A healthy compiler is never cancelled or duplicated.
+
+Upstream API changes still need reviewed ports. Source assembly passing does
+not establish compilation or runtime compatibility.
 
 ## Durable state and artifacts
 
-`ci-state` contains generated JSON only and is never merged into main. Content
-keys reserve client and Electron work before jobs start; completed/failed attempts
-remain in the ledger. Repeated polls do not restart failed identical work. Use
-Actions **Re-run all jobs** for client jobs after resolving an infrastructure issue.
-Compiler retries require a fresh dispatch and allowance reservation. A source
-or client fix generates a new integration key. State writers share one concurrency
-group and use normal fast-forward pushes, never forced JSON merges.
+`ci-state` holds generated JSON and is never merged into `main`. Content keys
+reserve work before jobs start, and the ledger retains completed and failed
+attempts. Repeated polls do not restart identical failures.
 
-The reviewed last-good runtime is pinned by compiler run, source commit, complete
-capacity-report digest and archive checksum in `config/update-policy.json`. It is
-retained in a public **runtime-only prerelease** so Actions artifact expiry
-cannot force a recompile. Newly compiled Actions artifacts/reports retain 90 days.
-Fetch verifies both the report and archive hashes. A newer source lock does not
-invalidate the exact older pinned runtime used by immediate client checks.
+Use Actions **Re-run all jobs** for client work after fixing an infrastructure
+problem. Compiler retries need a fresh dispatch and reservation. Source or client
+fixes create new integration keys. State writers share a concurrency group and
+use fast-forward pushes; do not force-merge JSON state.
 
-Source/state advancement, release publication and manual approval jobs have
-scoped contents-write permission. Compilation and client tests remain read-only. Native build fingerprints exclude ASAR,
-launcher, Equicord and application-audio sidecars, so their updates reuse C++.
+`config/update-policy.json` identifies the last-good runtime by compiler run,
+source commit, capacity-report digest and archive checksum. A public runtime-cache
+release preserves it beyond Actions artifact expiry. Fetching checks both report
+and archive hashes. A newer source lock does not invalidate the exact older
+runtime used for client checks. New compiler reports/artifacts retain 90 days.
 
-## Qualification and publication
+Compilation and client checks have read-only repository access. Source/state
+updates, publication and approval receive scoped write permissions. Native keys
+exclude launcher, ASAR, mod and audio sidecars, allowing those changes to reuse C++.
 
-A passing candidate is now published automatically as a **public prerelease**,
-including a pacman-installable `.pkg.tar.zst`. I test that package,
-then run **Approve tested release** to promote those exact files and update the
-runtime used by future client updates. Approval is never automatic. See
-[release packaging](releases.md) for the full workflow and checks.
+## Validate a discovered client without compiling
 
-AUR publication remains disabled pending its credentials. Before enabling it,
-ship the tested files with fixed hashes, push PKGBUILD and `.SRCINFO` together,
-and retain a retryable publication record when a push fails.
+`native-runtime.yml` and `package-check.yml` accept `clients_state`: a full
+40-character `ci-state` commit. Branch names are rejected. Use `canary` for
+`discord_channels`; `all` also selects only enabled clients. Omitting the snapshot
+uses the reviewed bootstrap locks.
 
-## Earlier evidence and manual checks
+The native workflow can use an existing successful compiler run through
+`reference_run`. Without one, it tests the client's bundled runtime as a baseline.
+Each selected channel gets its own report. All selected checks run, and any failure
+fails the job. Passing an old lock does not clear a new discovery error.
 
-The first two CI runs succeeded. The second reported no input change and left
-the remote `ci-state` commit exactly unchanged, with no compiler job allocated.
-The activation baseline is **2026-10-23 19:59:51 UTC**. Both runs discovered
-Stable 1.0.166, PTB 1.0.224 and Canary 1.0.2357; the new PTB/Canary revisions
-subsequently passed the selected-channel checks described below.
-See [CI evidence](../evidence/discovery-ci.json). The accompanying source, unit,
-native-baseline and nine-package checks passed at `c006ba1`.
-
-API references: [release pagination](https://docs.github.com/en/rest/releases/releases#list-releases),
-[Git references](https://docs.github.com/en/rest/git/refs#get-a-reference),
-[annotated tags](https://docs.github.com/en/rest/git/tags#get-a-tag).
-
-## Validate a discovered client update without compiling
-
-`native-runtime.yml` and `package-check.yml` accept `clients_state`, the immutable
-40-character commit of `ci-state`. Use `canary` for `discord_channels`; the default
-`all` also selects only Canary. Both fetch and retain exactly that snapshot and
-its provenance. A branch name is rejected. Omitting the commit uses
-the reviewed bootstrap locks. Discovery errors remain in the provenance; passing
-a retained older lock does not authorize advancing an affected client channel.
-
-The native workflow accepts an existing successful compiler run through
-`reference_run`. It checks the selected clients against that downloaded runtime;
-without it, it checks their official bundled runtimes as a baseline. Neither
-workflow compiles Electron. Each selected channel receives a separate report,
-and a failure does not prevent the remaining channels from being tested. The
-job still fails if any selected check fails. A subset pass never implies that
-unselected clients passed.
-
-The Arch workflow shares the same packaging implementation as the main Checks
-workflow. It builds the prerelease-Electron recipe for each selected client
-with an explicitly unusable dummy runtime. This verifies private installation
-paths, native library dependencies, preserved Krisp patch bytes, metadata and
-sandbox permissions, but cannot qualify a real runtime. Staging trees and dummy
-package archives are removed after each attempt, including failures; recipes,
-logs and reports are retained.
-
-Local validation of the exact discovered PTB 1.0.224 and Canary 1.0.2357 snapshot
-passed all six then-enabled packaging combinations. The current scope has one
-Canary/prerelease-Electron package. Both clients also passed native frame
-handoff/teardown and offline Krisp processing using their bundled Electron
-44.9.3, with 53.6 dB synthetic noise reduction. These are baseline results, not
-custom-runtime, live-call or per-application audio qualification. The existing
-narrow dispatch-library exception required no change. See
-[local evidence](../evidence/client-updates-local.json). The CI snapshot checks subsequently passed;
-[CI evidence](../evidence/client-updates-ci.json) records both runs. The bootstrap
-locks now include those exact PTB/Canary snapshots.
+The Arch check builds the generated recipe with an intentionally unusable runtime.
+It checks files, dependencies, Krisp patch bytes, metadata and sandbox permissions.
+It cannot qualify a runtime for release. Staging trees and dummy packages are
+removed; logs, recipes and reports remain.
 
 ## Usage and limits
 
-Hourly discovery means 24 scheduled checks per day rather than 96. It uses the
-runner's Python and uploads diagnostics only for new work or failures. Manual
-**Discover upstream releases** remains available for urgent client updates.
-Temporary release-package artifacts expire after seven days instead of 30. Public
-release downloads and compiler recovery artifacts keep their existing retention.
-The four-day Electron cooldown remains separate from the 2,400-minute rolling
-Blacksmith reservation cap. An exhausted cap defers source preparation without
-consuming the candidate, so discovery can reconsider it after reservations expire.
-The compiler still performs its own authoritative reservation before allocation.
+Hourly polling makes 24 scheduled checks per day. Routine unchanged checks do not
+upload diagnostics. Temporary release-package artifacts expire after seven days;
+public release assets and compiler recovery artifacts have separate retention.
 
-Read current usage without allocating a runner:
+The four-day cooldown and rolling 2,400-minute Blacksmith budget are independent.
+An exhausted budget defers source preparation without consuming the candidate.
+The compiler still makes its own reservation before allocation.
+
+Read usage without allocating a compiler:
 
 ```sh
 uv run python scripts/ci_usage.py
 uv run python scripts/ci_usage.py --blacksmith
 ```
 
-The first command uses your existing `gh` authentication. GitHub's organization
-[billing API](https://docs.github.com/en/rest/billing/usage) requires organization
-Administration read permission. Public repositories on standard GitHub-hosted
-runners have [free compute minutes](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
-Storage and Blacksmith usage are separate. Failed API queries report unavailable,
-not zero usage. Billing reports are observations, not guaranteed real-time balances.
+The first uses existing `gh` authentication. The organization
+[billing API](https://docs.github.com/en/rest/billing/usage) requires Administration
+read permission. Standard GitHub-hosted compute for public repositories is
+[free](https://docs.github.com/en/billing/concepts/product-billing/github-actions);
+storage and Blacksmith are separate. Failed queries report unavailable, not zero.
 
-The second command also needs the official
-[Blacksmith CLI](https://docs.blacksmith.sh/blacksmith-cli/overview) and authentication
-for `discord-patched-electron`. For CI or agents, create an organization token with
-`blacksmith org-token create --label ci-usage` in your own terminal and pass it through
-the CLI's documented stdin authentication flow. Never paste it into chat or commit it.
-[Usage reporting](https://docs.blacksmith.sh/blacksmith-cli/usage) returns organization
-usage and estimated costs as JSON. The rolling 30-day report is not a billing-cycle
-remaining balance. Do not use it to refund reservations automatically. The current
-report is on demand, so it adds no scheduled runner or billing-token secret to CI.
+The second also needs the official
+[Blacksmith CLI](https://docs.blacksmith.sh/blacksmith-cli/overview) authenticated
+for `discord-patched-electron`. For automation, create an organization token in
+your own terminal with `blacksmith org-token create --label ci-usage` and follow
+the CLI's stdin authentication flow. Never paste it into chat or commit it.
+
+[Usage reports](https://docs.blacksmith.sh/blacksmith-cli/usage) are observations,
+not guaranteed remaining balances. Do not use them to refund reservations.
+Usage reporting is on demand and adds no scheduled billing-token secret to CI.
+
+## Earlier evidence
+
+- [Initial discovery](../evidence/discovery-ci.json): two successful polls from
+  the 23 October baseline; the unchanged second poll left state untouched and
+  allocated no compiler.
+- [Local client checks](../evidence/client-updates-local.json) and
+  [CI checks](../evidence/client-updates-ci.json): the then-enabled PTB 1.0.224 and
+  Canary 1.0.2357 snapshots passed packaging and bundled native/Krisp baselines.
+  These do not establish a live call or enable PTB today.
+
+API references: [release pagination](https://docs.github.com/en/rest/releases/releases#list-releases),
+[Git refs](https://docs.github.com/en/rest/git/refs#get-a-reference),
+[annotated tags](https://docs.github.com/en/rest/git/tags#get-a-tag).
