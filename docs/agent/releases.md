@@ -35,13 +35,33 @@ containers don't verify a full desktop session or live call.
 
 After all checks pass, CI uploads every asset before publishing a public GitHub
 test release. Release notes include upstream versions, a distribution/package table,
-a link to check results and commits since the preceding app release. Runtime
-cache tags are excluded from the changelog.
+a link to check results and at most five relevant project commits since the
+preceding release for the same channel and Electron track. All supported tag
+formats are recognized; ordering uses build versions rather than publication
+time. Notes show Discord/Electron version changes and same-version module or
+runtime changes. Approval commits, proposal records and documentation-only
+commits stay out of the short list. The full comparison remains linked.
+
+Before packaging a public candidate, CI commits its exact client pins, runtime
+identity, source commit and discovery snapshot to
+`config/update-proposals/<channel>-<track>.json` on `main`. The commit is named
+**Propose Discord … / Electron …** and linked from the release notes; its SHA
+is included in the signed manifest. This records a proposal, not approval.
+Qualification continues on the original workflow source commit; the metadata
+write does not alter tested code. Retries reuse the proposal commit, and an older
+retry cannot replace a newer record. Tag reservation precedes the metadata commit
+so the workflow token can reserve tags for workflow-changing commits.
 
 Candidate tags identify the channel, release time and content hash. A repeat of the same
 runtime/client/integration inputs skips packaging if that release is already
 public. Failed work remains visible and can be retried with GitHub's **Re-run all
 jobs**. A partial draft can be resumed. Public assets are never overwritten.
+
+To repair historical descriptions, run `uv run python scripts/releases.py
+refresh-notes` to preview all published app notes under `out/release-notes/`.
+An optional release tag limits the selection. After reviewing the files, add
+`--apply` with the normal project/main release environment. Only release bodies
+change; package assets, tags, titles, approval status and Latest remain intact.
 
 ## Test and approve
 

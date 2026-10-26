@@ -61,6 +61,7 @@ jobs:
       key: ${{ steps.inputs.outputs.key }}
       tag: ${{ steps.inputs.outputs.tag }}
       needed: ${{ steps.inputs.outputs.needed }}
+      proposal_commit: ${{ steps.inputs.outputs.proposal_commit }}
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -112,6 +113,7 @@ jobs:
       RUNTIME: ${{ needs.inputs.outputs.runtime }}
       VERSION: ${{ needs.inputs.outputs.version }}
       RELEASE_KEY: ${{ needs.inputs.outputs.key }}
+      PROPOSAL_COMMIT: ${{ needs.inputs.outputs.proposal_commit }}
       SOURCE_DATE_EPOCH: ${{ needs.inputs.outputs.epoch }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

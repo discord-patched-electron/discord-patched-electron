@@ -195,11 +195,18 @@ class ReleaseApproval(unittest.TestCase):
                     patch("releases.ROOT", directory),
                     patch("releases.fetch_clients", side_effect=snapshot),
                     patch(
-                        "releases.fetch_runtime", return_value={"source": {"target": "prerelease"}}
+                        "releases.fetch_runtime",
+                        return_value={
+                            "source": {"target": "prerelease"},
+                            "compiled_version": "46.0.0-alpha.1",
+                            "runtime_key": "e" * 64,
+                            "archive_sha256": "f" * 64,
+                        },
                     ),
                     patch("releases.integration_key", return_value=key),
                     patch("releases.api", side_effect=api),
                     patch("releases.reserve_tag") as reserve,
+                    patch("releases.record_proposal", return_value="9" * 40) as proposal,
                     patch.dict(
                         os.environ,
                         {
@@ -225,9 +232,12 @@ class ReleaseApproval(unittest.TestCase):
                 if kind in ("new", "draft"):
                     self.assertEqual(output["needed"], "true")
                     reserve.assert_called_once_with(dated, "a" * 40)
+                    self.assertEqual(output["proposal_commit"], "9" * 40)
+                    self.assertEqual(proposal.call_args.args[0]["client"], client)
                 else:
                     self.assertEqual(output["needed"], "false")
                     reserve.assert_not_called()
+                    proposal.assert_not_called()
 
     def test_release_table_links_to_exact_assets_including_older_versioned_names(self):
         for prefix in ("app-x86_64", "app-20261024.120000-x86_64"):

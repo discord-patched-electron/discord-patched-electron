@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -28,6 +29,7 @@ from fetch_client_snapshot import fetch as fetch_clients
 from fetch_reference import CACHE_REPOSITORY
 from fetch_reference import fetch as fetch_runtime
 from fingerprints import integration_key
+from release_proposals import record_proposal
 from release_signing import signature_files
 from release_signing import verify as verify_signatures
 
@@ -140,6 +142,28 @@ def prepare():
     }
     if values["needed"] == "true" and os.environ.get("PUBLISH") == "true":
         reserve_tag(tag, os.environ["GITHUB_SHA"])
+        # Reserve the tag before advancing main: GITHUB_TOKEN cannot create a
+        # tag for an older workflow-changing commit. This separate metadata
+        # commit leaves every qualification job on its original workflow SHA.
+        values["proposal_commit"] = record_proposal(
+            {
+                "schema": 1,
+                "tag": tag,
+                "version": version,
+                "channel": channel,
+                "client_version": client["version"],
+                "client": client,
+                "clients_state": state,
+                "source_commit": os.environ["GITHUB_SHA"],
+                "electron_version": capacity["compiled_version"],
+                "runtime": {
+                    "run": runtime,
+                    "runtime_key": capacity["runtime_key"],
+                    "archive_sha256": capacity["archive_sha256"],
+                },
+            },
+            api,
+        )
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
         for name, value in values.items():
             output.write(f"{name}={value}\n")
@@ -209,34 +233,198 @@ def install_notes(manifest: dict) -> str:
     )
 
 
-def notes(manifest: dict, previous: str | None):
-    commit = manifest["source_commit"]
-    revision = f"{previous}..{commit}" if previous else commit
-    log = subprocess.check_output(
-        ["git", "log", "--format=%H%x09%s", "--max-count=60", revision], cwd=ROOT, text=True
+def app_release_channel(tag: str) -> str | None:
+    match = re.fullmatch(
+        r"(?:(canary|ptb|stable)-[0-9]+\.[0-9]+\.[0-9]+-|"
+        r"v(?:[0-9]{14}\.0|[0-9]{8}\.[0-9]{1,6})\.0-(canary|ptb|stable)\.)"
+        r"[a-f0-9]{16}",
+        tag,
     )
+    return next((group for group in match.groups() if group), None) if match else None
+
+
+def published_releases() -> list[dict]:
+    result = []
+    page = 1
+    while entries := api(f"releases?per_page=100&page={page}"):
+        result.extend(
+            entry
+            for entry in entries
+            if not entry["draft"] and app_release_channel(entry["tag_name"])
+        )
+        page += 1
+    return result
+
+
+def published_manifest(release: dict) -> dict:
+    tag = release["tag_name"]
+    if not app_release_channel(tag):
+        raise ValueError("Not an app release tag")
+    with tempfile.TemporaryDirectory(prefix="release-notes-") as temporary:
+        path = Path(temporary)
+        run(
+            "gh",
+            "release",
+            "download",
+            tag,
+            "--repo",
+            PROJECT,
+            "--pattern",
+            "release.json",
+            "--dir",
+            path,
+        )
+        manifest = read_json(path / "release.json")
+        asset = next(asset for asset in release["assets"] if asset["name"] == "release.json")
+        if asset.get("digest") != "sha256:" + sha256(path / "release.json"):
+            raise ValueError("Published release manifest checksum mismatch")
+    if manifest_tag(manifest) != tag or not re.fullmatch(
+        r"[a-f0-9]{40}", manifest["source_commit"]
+    ):
+        raise ValueError("Published release manifest identity mismatch")
+    return manifest
+
+
+def previous_release(manifest: dict, releases: list[dict], fetch=published_manifest) -> dict | None:
+    candidates = []
+    for release in releases:
+        if (
+            release["draft"]
+            or app_release_channel(release["tag_name"]) != manifest["channel"]
+            or release["tag_name"] == manifest_tag(manifest)
+        ):
+            continue
+        candidate = fetch(release)
+        # Build versions establish order even when a delayed job publishes late.
+        # Never compare a historical release against a newer candidate.
+        if candidate["version"] < manifest["version"] and electron_channel(
+            candidate["electron_version"]
+        ) == electron_channel(manifest["electron_version"]):
+            candidates.append(candidate)
+    return max(candidates, key=lambda item: item["version"]) if candidates else None
+
+
+def input_changes(manifest: dict, previous: dict | None) -> list[str]:
     changes = []
+    for field, label in (("client_version", "Discord"), ("electron_version", "Electron")):
+        current = manifest[field]
+        if previous is None:
+            changes.append(f"- {label} **{current}**.")
+        elif previous[field] != current:
+            changes.append(f"- {label} **{previous[field]} → {current}**.")
+        elif field == "electron_version" and previous.get("runtime", {}).get(
+            "archive_sha256"
+        ) != manifest.get("runtime", {}).get("archive_sha256"):
+            changes.append(f"- Electron **{current}** rebuilt; runtime archive changed.")
+        else:
+            changes.append(f"- {label} **{current}** (unchanged).")
+    if previous and previous["client_version"] == manifest["client_version"]:
+        before, after = previous.get("client", {}), manifest.get("client", {})
+        old, new = before.get("modules", {}), after.get("modules", {})
+        changed = sorted(name for name in old.keys() | new.keys() if old.get(name) != new.get(name))
+        if changed:
+            names = ", ".join(f"`{name}`" for name in changed[:3])
+            more = f" (+{len(changed) - 3} more)" if len(changed) > 3 else ""
+            changes.append(f"- Discord modules updated: {names}{more}.")
+        elif before != after:
+            changes.append("- Discord client pins or required modules updated.")
+    return changes
+
+
+def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
+    commit = manifest["source_commit"]
+    log = ""
+    if previous and previous["source_commit"] != commit:
+        log = subprocess.check_output(
+            [
+                "git",
+                "log",
+                "--first-parent",
+                "--format=%H%x09%s",
+                "--max-count=30",
+                f"{previous['source_commit']}..{commit}",
+                "--",
+                "integration",
+                "scripts",
+                "packaging",
+                "patches",
+                "config",
+                ".github",
+                "pyproject.toml",
+                "uv.lock",
+                "package.json",
+                "bun.lock",
+                ":(exclude)config/update-proposals/**",
+                ":(exclude)config/approved*.json",
+            ],
+            cwd=ROOT,
+            text=True,
+        )
+    changes = input_changes(manifest, previous)
+    project_changes = []
     for entry in log.splitlines():
         sha, subject = entry.split("\t", 1)
+        if subject.startswith(
+            ("Approve tested ", "Propose Discord ", "Update release discovery state")
+        ):
+            continue
         subject = re.sub(r"([\\`*_\[\]<>])", r"\\\1", subject).replace("@", "＠")
-        changes.append(f"- {subject} ([{sha[:7]}]({URL}/commit/{sha}))")
+        project_changes.append(f"- {subject} ([{sha[:7]}]({URL}/commit/{sha}))")
+    changes.extend(project_changes[:5])
+    if len(project_changes) > 5:
+        changes.append("- Additional project changes are in the full changelog.")
+    if previous is None:
+        changes.append("- No earlier published baseline is available for comparison.")
     comparison = (
-        f"\n\n[Full changelog]({URL}/compare/{previous}...{commit})"
+        f"\n\n[Full changelog]({URL}/compare/{manifest_tag(previous)}...{manifest_tag(manifest)})"
         if previous
         else f"\n\n[Full changelog]({URL}/commits/{commit})"
     )
+    proposal = manifest.get("proposal_commit")
+    snapshot = manifest.get("clients_state")
+    provenance = ""
+    if proposal and re.fullmatch(r"[a-f0-9]{40}", proposal):
+        provenance = f" · [Update proposal]({URL}/commit/{proposal})"
+    elif snapshot and re.fullmatch(r"[a-f0-9]{40}", snapshot):
+        provenance = f" · [Client snapshot]({URL}/commit/{snapshot})"
     return (
-        f"{PENDING}\n\n"
-        f"- Discord {manifest['channel'].title()} **{manifest['client_version']}**\n"
-        f"- Electron **{manifest['electron_version']}**\n"
-        f"- Requires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
+        ("**This build has been approved as stable.**" if approved else PENDING)
+        + f"\n\nRequires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
         + install_notes(manifest)
         + "## Changes\n\n"
-        + ("\n".join(changes) or "Discord or Electron inputs updated. No project commits changed.")
+        + "\n".join(changes)
         + comparison
+        + provenance
         + f" · [✅ Test results]({URL}/actions/runs/{manifest['workflow_run']})"
         + "\n"
     )
+
+
+def refresh_notes(tag: str | None, *, apply: bool = False):
+    releases = published_releases()
+    manifests = {}
+
+    def fetch(release):
+        key = release["tag_name"]
+        if key not in manifests:
+            manifests[key] = published_manifest(release)
+        return manifests[key]
+
+    targets = [release for release in releases if tag is None or release["tag_name"] == tag]
+    if not targets:
+        raise ValueError("No matching published app releases")
+    output = ROOT / "out/release-notes"
+    output.mkdir(parents=True, exist_ok=True)
+    for release in targets:
+        manifest = fetch(release)
+        previous = previous_release(manifest, releases, fetch)
+        current = api("releases/" + str(release["id"])) if apply else release
+        body = notes(manifest, previous, approved=not current["prerelease"])
+        (output / (release["tag_name"] + ".before.md")).write_text(current.get("body") or "")
+        (output / (release["tag_name"] + ".md")).write_text(body)
+        if apply and body != current.get("body"):
+            api("releases/" + str(release["id"]), method="PATCH", data={"body": body})
+        print(("Updated" if apply else "Previewed") + " notes: " + release["tag_name"])
 
 
 def cache_runtime(manifest: dict):
@@ -314,18 +502,7 @@ def publish(directory: Path):
     if existing and not existing["draft"]:
         return
     cache_runtime(manifest)
-    previous_releases = [
-        release
-        for release in api("releases?per_page=100")
-        if not release["draft"]
-        and release["tag_name"].startswith(manifest["channel"] + "-")
-        and release["tag_name"] != tag
-    ]
-    previous = (
-        max(previous_releases, key=lambda release: release["published_at"])["tag_name"]
-        if previous_releases
-        else None
-    )
+    previous = previous_release(manifest, published_releases())
     body = directory.parent / "release-notes.md"
     body.write_text(notes(manifest, previous))
     title = f"Discord {manifest['channel'].title()} {manifest['client_version']} / Electron {manifest['electron_version']} ({manifest['version']})"
@@ -536,15 +713,27 @@ def approve(tag: str, *, check_only=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["prepare", "publish", "verify", "approve"])
+    parser.add_argument(
+        "action", choices=["prepare", "publish", "verify", "approve", "refresh-notes"]
+    )
     parser.add_argument("value", nargs="?")
+    parser.add_argument(
+        "--apply", action="store_true", help="Publish refreshed release descriptions"
+    )
     args = parser.parse_args()
+    if args.apply and args.action != "refresh-notes":
+        parser.error("--apply is only supported for refresh-notes")
+    if args.action == "refresh-notes" and not args.apply:
+        refresh_notes(args.value)
+        return
     if (
         os.environ.get("GITHUB_REPOSITORY") != PROJECT
         or os.environ.get("GITHUB_REF") != "refs/heads/main"
     ):
         raise ValueError("Release writes are restricted to the project main branch")
-    if args.action == "prepare":
+    if args.action == "refresh-notes":
+        refresh_notes(args.value, apply=args.apply)
+    elif args.action == "prepare":
         prepare()
     elif args.action == "publish":
         publish(Path(args.value))

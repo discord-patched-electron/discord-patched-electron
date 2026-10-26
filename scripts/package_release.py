@@ -339,6 +339,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             },
             "workflow_run": os.environ.get("GITHUB_RUN_ID"),
             "clients_state": os.environ.get("CLIENTS_STATE"),
+            "proposal_commit": os.environ.get("PROPOSAL_COMMIT"),
             "release_key": os.environ.get("RELEASE_KEY"),
             "minimum_cpu": "x86-64-v3",
             "minimum_glibc": libc,

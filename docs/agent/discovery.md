@@ -24,6 +24,12 @@ video/Krisp, application audio, packaging, login/relaunch and official mod insta
 They do not compile Electron. Failed checks retain diagnostics and leave the
 previous qualified release available.
 
+Candidate preparation commits a descriptive **Propose Discord … / Electron …**
+record on `main` before packaging. It pins the client modules, retained runtime
+and discovery snapshot, and its commit is linked from the release notes.
+Routine discovery and queue changes remain on `ci-state`; a proposal does not
+approve an update or change the runtime used by installed clients.
+
 When a host archive changes, `inspect_bundled_runtime.py` reads the verified archive
 without executing it. It hashes the executable and native runtime payload separately
 from ASARs and records an unambiguous embedded Electron version. This detects
