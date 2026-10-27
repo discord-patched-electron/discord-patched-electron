@@ -26,6 +26,7 @@ from channels import enabled_discord_channels
 from check_app_audio import validate_phases
 from client_inputs import load_clients, validate_channel
 from common import ROOT, digest, download, read_json, sha256, write_json
+from desktop_identity import desktop_id
 from patch_app_audio import patch
 
 
@@ -99,6 +100,7 @@ def session(output, pulse, selection):
     children, logs = [], []
     selector_stop = threading.Event()
     selector_errors = []
+    identity = desktop_id(read_json(output / "identity.json")["channel"])
     with tempfile.TemporaryDirectory(prefix="dpe-wl-") as temporary:
         run = Path(temporary)
         for name in ("home", "config", "state", "data", "cache"):
@@ -121,6 +123,7 @@ def session(output, pulse, selection):
             "LIBGL_ALWAYS_SOFTWARE": "1",
             "DPE_AUDIO_OUTPUT": str(output),
             "DPE_APP_AUDIO_TRACE": "1",
+            "CHROME_DESKTOP": identity + ".desktop",
         }
 
         def spawn(args, name, custom_env=None):
@@ -156,8 +159,11 @@ def session(output, pulse, selection):
                         if window.get("title") != "Screen-share audio" or pid in handled:
                             continue
                         args = Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0")
-                        if Path(args[0]).name != "zenity":
+                        # argv[0] carries Discord's identity, not the binary name.
+                        if Path(f"/proc/{pid}/exe").resolve() != Path("/usr/bin/zenity").resolve():
                             continue
+                        if window.get("app_id") != identity:
+                            raise ValueError("Audio picker desktop identity does not match Discord")
                         rows = args[args.index("--") + 1 :]
                         choices = rows[::2]
                         selected = read_json(output / "selection.json")

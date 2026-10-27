@@ -174,6 +174,17 @@ case passed with real PulseAudio plus PipeWire. See
 [local evidence](../evidence/camera-wayland-local.json). These are native module tests
 with a controlled portal, not an account-connected Discord call.
 
+On 27 October, the audio picker was checked independently on Arch/niri Wayland.
+Its Zenity process now uses the launcher's `CHROME_DESKTOP` identity as `argv[0]`
+and receives the packaged icon, matching the updater dialogs. The real window
+reported `discord-canary`, matching the installed desktop entry and logo.
+Closing it returned cancellation without reopening or starting audio capture.
+The report is retained at `out/desktop-identity/audio-picker/wayland-report.json`.
+Regression tests cover application selection, system audio and cancellation;
+the isolated audio fixture now checks the picker identity and identifies Zenity
+by its executable rather than `argv[0]`. This check used no account, call,
+microphone, camera or screenshots.
+
 ## Compiled prerelease result
 
 Electron 46.0.0-alpha.1 from compiler run `40053107555` passes all seven native

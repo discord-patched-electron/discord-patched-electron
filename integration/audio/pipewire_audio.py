@@ -541,9 +541,17 @@ class Controller:
                     else (f" — {len(titles)} windows" if titles else "")
                 )
                 rows.extend([str(pid), label + " (all audio)" + detail])
+            identity = (os.environ.get("CHROME_DESKTOP") or "discord-canary.desktop").removesuffix(
+                ".desktop"
+            )
+            root = os.environ.get("DPE_APP_ROOT")
+            icon = str(Path(root) / "discord.png") if root else identity
             self.chooser = sp.Popen(
                 [
-                    "/usr/bin/zenity",
+                    # GTK uses argv[0] for the Wayland app_id. GTK4 removed
+                    # --name/--class; keep the executable separate instead.
+                    identity,
+                    "--window-icon=" + icon,
                     "--list",
                     "--title=Screen-share audio",
                     "--text=Choose an application for this share. Audio from its other windows is included."
@@ -559,6 +567,7 @@ class Controller:
                     "--",
                     *rows,
                 ],
+                executable="/usr/bin/zenity",
                 stdout=sp.PIPE,
                 stderr=sp.DEVNULL,
                 preexec_fn=partial(child_guard, os.getpid()),
