@@ -72,7 +72,9 @@ test("upstream settings and its local editor work without remote executable code
   assert.equal(config.status, 200);
   const adapted = await config.text();
   assert.match(adapted, /id="t_flags" role="tab"/);
-  assert.equal((adapted.match(/<textarea/g) || []).length, 1);
+  assert.equal((adapted.match(/<textarea/g) || []).length, 2);
+  assert.match(adapted, /id="essential-section"/);
+  assert.doesNotMatch(adapted, /id="preset"/);
   assert.ok(!adapted.includes("[ 'Focus',"));
   assert.equal(
     createHash("sha256")

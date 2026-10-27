@@ -343,3 +343,25 @@ the working generation. The installed code remains stdlib-only, now about 21 KB.
 fresh-profile signed upgrade that reached Discord's login form before and after
 activation, kept the original code unchanged and reused Electron without another
 download. No account login, call, physical camera test or new compilation was performed.
+
+### Temporary-profile quota failure, 27 October
+
+A fresh `/tmp/discord-test.G3QKG4` profile failed with `EDQUOT` while Krisp's
+atomic patch step copied its binary. `/tmp` is a 16 GiB tmpfs mounted with
+`usrquota`; `quotactl_fd(Q_GETQUOTA)` reported a 13,041,660 KiB user limit and
+13,154,164,736 bytes used after failure cleanup (12.44 GiB limit, 12.25 GiB used).
+The disk-backed home filesystem still had about 31 GiB free. This is quota
+exhaustion on a separate filesystem, not a full SSD. The
+[kernel tmpfs documentation](https://docs.kernel.org/filesystems/tmpfs.html)
+describes these independent user quotas.
+
+The startup UI now distinguishes quota exhaustion from `ENOSPC`, with regression
+coverage for Python's errno text and `EDQUOT`. The portable test app was refreshed.
+The documented fresh-profile command puts the profile and `TMPDIR` under
+`~/.cache/dpe-tests`. A fresh native Xvfb/X11 launch there reached the login form
+and verified client pins, reusing the retained runtime. No account interaction
+was performed. An initial fixture attempt used a long repository path for
+`TMPDIR` and hit Chromium's Unix socket path limit; the short home-cache path
+avoids that as well. Reports and logs are in `out/tmp-quota/`, with the successful
+fixture location recorded in `smoke-dir.txt`. All 318 Python tests, 75 JavaScript
+tests and `bun run lint` passed.

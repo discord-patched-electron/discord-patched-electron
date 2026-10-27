@@ -176,8 +176,9 @@ class Launcher(unittest.TestCase):
             },
         )
         self.assertFalse(any(f.startswith("--disable-features=") for f in flags))
-        self.assertGreater(
-            flags.index("--ozone-platform=x11"), flags.index("--ozone-platform=wayland")
+        self.assertEqual(
+            [flag for flag in flags if flag.startswith("--ozone-platform=")][-1],
+            "--ozone-platform=x11",
         )
 
     def test_prepared_launch_preserves_app_root_arguments_and_runtime_selection(self):

@@ -26,6 +26,9 @@
     const current = state(text);
     return [...state(flags.join("\n"))].every(([key, value]) => current.get(key) === value);
   }
+  function selected(text, item) {
+    return has(text, item.flags) && !(item.blockedBy || []).some((flag) => has(text, [flag]));
+  }
   function replace(text, remove, add) {
     const keys = new Set(state([...remove, ...add].join("\n")).keys());
     for (const flag of add) {
@@ -48,7 +51,7 @@
     return [...result.filter((line) => line.trim()), ...add].join("\n");
   }
   function edit(config, text, preservedExtra = config.extra) {
-    // The box owns the complete saved list. Absorb outside-file overrides into
+    // The box owns user overrides. Absorb outside-file overrides into
     // each preset before clearing them, preserving inactive presets' behavior.
     for (const [name, profile] of Object.entries(config.profiles)) {
       if (name !== config.active && config.extra)
@@ -57,12 +60,12 @@
     config.extra = "";
     Object.assign(config.profiles[config.active], {
       flags: text,
-      replaceDefaults: true,
       decode: false,
       encode: false,
       backend: "auto",
       experiments: [],
     });
+    delete config.profiles[config.active].replaceDefaults;
   }
   function configure(config, catalog, remove, add, preservedExtra = config.extra) {
     const profile = config.profiles[config.active];
@@ -74,11 +77,11 @@
       preservedExtra,
     ];
     // Convenience controls edit only optional flags. Automatic display and
-    // codec paths keep following the session/profile until the box is edited.
+    // codec paths always keep following the session/profile.
     edit(config, replace(options.filter(Boolean).join("\n"), remove, add), preservedExtra);
     delete profile.replaceDefaults;
   }
-  const api = { has, replace, edit, configure, state };
+  const api = { has, selected, replace, edit, configure, state };
   if (typeof module !== "undefined") module.exports = api;
   else root.FlagEditor = api;
 })(globalThis);

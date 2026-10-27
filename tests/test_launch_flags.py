@@ -52,11 +52,15 @@ class LaunchFlags(unittest.TestCase):
             self.assertEqual(preset["experiments"], [])
             self.assertEqual(preset["backend"], "auto")
 
-    def test_complete_manual_list_can_remove_defaults_without_reappearing_on_reload(self):
+    def test_manual_list_keeps_required_defaults_outside_the_editor(self):
         self.config["profiles"]["balanced"].update(flags="--only=this", replaceDefaults=True)
         self.config["extra"] = "--external=kept"
         saved = self.save()
-        self.assertEqual(saved["effective"], ["--only=this", "--external=kept"])
+        self.assertIn("--only=this", saved["effective"])
+        self.assertIn("--external=kept", saved["effective"])
+        self.assertIn("--enable-libopenh264", saved["effective"])
+        self.assertNotIn("replaceDefaults", saved["config"]["profiles"]["balanced"])
+        self.config["profiles"]["balanced"].pop("replaceDefaults")
         self.assertEqual(self.read()["effective"], saved["effective"])
         self.assertEqual(
             self.read(["--cli=temporary"])["editableFlags"], "--only=this\n--external=kept"
@@ -64,6 +68,130 @@ class LaunchFlags(unittest.TestCase):
         self.assertIn("--cli=temporary", self.read(["--cli=temporary"])["normalEffective"])
         self.env["DPE_IGNORE_FLAGS"] = "1"
         self.assertEqual(self.read()["effective"], [])
+
+    def test_empty_overrides_keep_dynamic_codec_and_identity_defaults(self):
+        result = self.resolve()
+        self.assertEqual(result["editableFlags"], "")
+        self.assertFalse(any(v.startswith("--autoplay-policy=") for v in result["effective"]))
+        self.assertIn("--class=discord-canary", result["effective"])
+        self.assertIn("--enable-libopenh264", result["effective"])
+        codec = "--openh264-library-path=" + str(
+            self.profile / "discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+        )
+        self.assertIn(codec, result["effective"])
+        self.config["profiles"]["balanced"]["flags"] = "--custom=value"
+        self.save()
+        self.config["profiles"]["balanced"]["flags"] = ""
+        self.save()
+        self.assertEqual(self.read()["editableFlags"], "")
+        self.assertIn(codec, self.read()["effective"])
+        self.assertNotIn("--custom=value", self.read()["effective"])
+        disabled = self.resolve(settings={"openH264Enabled": False})
+        self.assertNotIn("--enable-libopenh264", disabled["effective"])
+        self.assertFalse(
+            any(v.startswith("--openh264-library-path=") for v in disabled["effective"])
+        )
+
+    def test_explicit_codec_override_remains_visible_and_takes_precedence(self):
+        self.config["extra"] = "--openh264-library-path=/custom/codec.so"
+        result = self.resolve()
+        self.assertEqual(result["editableFlags"], self.config["extra"])
+        self.assertEqual(result["effective"][-1], self.config["extra"])
+
+    def test_essential_templates_expand_per_profile_and_can_be_edited_or_removed(self):
+        self.assertIn(
+            "{OPENH264_LIBRARY_PATH}", self.config["profiles"]["balanced"]["essentialFlags"]
+        )
+        self.config["profiles"]["balanced"]["essentialFlags"] = (
+            "--class={DESKTOP_ID}\n--openh264-library-path={PROFILE_DIR}/custom codec.so"
+        )
+        saved = self.save()
+        self.assertIn("{PROFILE_DIR}", self.file.read_text())
+        self.assertNotIn(str(self.profile), self.file.read_text())
+        self.assertIn(
+            "--openh264-library-path=" + str(self.profile / "custom codec.so"), saved["effective"]
+        )
+        self.assertNotIn("--enable-libopenh264", saved["effective"])
+        other = flags.resolve(
+            self.root / "other profile",
+            "discord-canary-prerelease-patched-electron-bin",
+            "discord-canary",
+            [],
+            self.env,
+        )
+        self.assertIn(
+            "--openh264-library-path=" + str(self.root / "other profile/custom codec.so"),
+            other["effective"],
+        )
+        self.config["profiles"]["balanced"]["essentialFlags"] = ""
+        self.save()
+        self.assertEqual(self.read()["effective"], [])
+        self.config["active"] = "performance"
+        self.assertIn("--enable-libopenh264", self.resolve()["effective"])
+
+    def test_unknown_variables_fail_without_writing_and_recovery_can_repair_them(self):
+        self.save()
+        before = self.file.read_bytes()
+        self.config["profiles"]["balanced"]["essentialFlags"] = "--path={MISSING}"
+        with self.assertRaises(flags.InvalidFlags) as error:
+            self.save()
+        self.assertEqual(error.exception.field, "essential-flags")
+        self.assertEqual(self.file.read_bytes(), before)
+        self.file.write_text(flags.render_file(self.config, self.data))
+        broken = self.read(recoverInvalid=True, tolerateFileErrors=True)
+        self.assertEqual(broken["fileErrorField"], "essential-flags")
+        self.assertTrue(broken["fileErrors"])
+        self.assertEqual(
+            broken["config"]["profiles"]["balanced"]["essentialFlags"], "--path={MISSING}"
+        )
+        self.config["profiles"]["balanced"]["essentialFlags"] = flags.ESSENTIAL_FLAGS
+        self.config["extra"] = "--path={MISSING}"
+        with self.assertRaises(flags.InvalidFlags):
+            self.save()
+        self.file.write_text(flags.render_file(self.config, self.data))
+        broken = self.read(recoverInvalid=True, tolerateFileErrors=True)
+        self.assertEqual(broken["preservedExtra"], "")
+        self.config["extra"] = "# --path={MISSING}\n--path={PROFILE_DIR}"
+        self.assertIn("--path=" + str(self.profile), self.save()["effective"])
+
+    def test_inactive_legacy_text_does_not_block_current_edits(self):
+        self.config["profiles"]["performance"]["flags"] = "--example={MISSING}"
+        self.config["profiles"]["performance"]["essentialFlags"] = "invalid archived flag"
+        result = self.save()
+        self.assertEqual(
+            result["config"]["profiles"]["performance"], self.config["profiles"]["performance"]
+        )
+        self.config["active"] = "performance"
+        with self.assertRaises(flags.InvalidFlags):
+            self.save()
+
+    def test_automatic_display_only_overrides_ambiguous_xwayland_selection(self):
+        for environment, expected in (
+            ({"WAYLAND_DISPLAY": "wayland-1", "DISPLAY": ":0", "XDG_SESSION_TYPE": "wayland"}, []),
+            ({"WAYLAND_DISPLAY": "wayland-1"}, []),
+            ({"DISPLAY": ":0", "XDG_SESSION_TYPE": "x11"}, []),
+            ({"DISPLAY": ":0", "XDG_SESSION_TYPE": "wayland"}, []),
+            ({"WAYLAND_DISPLAY": "wayland-1", "DISPLAY": ":0"}, ["--ozone-platform=wayland"]),
+            ({"WAYLAND_SOCKET": "5", "DISPLAY": ":0"}, ["--ozone-platform=wayland"]),
+            ({"WAYLAND_SOCKET": "", "WAYLAND_DISPLAY": "wayland-1", "DISPLAY": ":0"}, []),
+            ({"WAYLAND_DISPLAY": "", "DISPLAY": ":0"}, []),
+        ):
+            with self.subTest(environment=environment):
+                self.assertEqual(flags.automatic_display_flags(environment, []), expected)
+        self.assertEqual(
+            flags.automatic_display_flags({"WAYLAND_DISPLAY": "wayland-1"}, ["--display=:7"]),
+            ["--ozone-platform=wayland"],
+        )
+        (self.root / "wayland-0").touch()
+        self.assertEqual(
+            flags.automatic_display_flags({"XDG_RUNTIME_DIR": str(self.root), "DISPLAY": ":0"}, []),
+            ["--ozone-platform=wayland"],
+        )
+        for display in ("wayland", "x11"):
+            self.config["display"] = display
+            result = self.resolve()
+            self.assertIn("--ozone-platform=" + display, result["effective"])
+            self.assertEqual(result["editableFlags"], "")
 
     def test_old_stock_presets_and_redundant_options_retire_without_losing_edits(self):
         old = copy.deepcopy(self.data)
@@ -190,6 +318,15 @@ class LaunchFlags(unittest.TestCase):
         self.assertTrue(any("AcceleratedVideoEncoder" in v for v in self.resolve()["effective"]))
         self.config["active"] = "performance"
         self.assertNotIn("--ignore-gpu-blocklist", self.resolve()["effective"])
+
+    def test_nvidia_vaapi_is_independent_and_retained_in_saved_profiles(self):
+        self.config["profiles"]["balanced"]["experiments"] = ["nvidiaVaapi"]
+        self.file.write_text(flags.render_file(self.config, self.data))
+        result = self.read()
+        self.assertIn("--enable-features=VaapiOnNvidiaGPUs", result["effective"])
+        self.assertEqual(result["config"]["profiles"]["balanced"]["experiments"], ["nvidiaVaapi"])
+        self.assertNotIn("--ignore-gpu-blocklist", result["effective"])
+        self.assertFalse(any("AcceleratedVideoEncoder" in flag for flag in result["effective"]))
 
     def test_wip_options_reach_preview_and_launch_without_old_graphite_migration(self):
         selected = self.config["profiles"]["balanced"]

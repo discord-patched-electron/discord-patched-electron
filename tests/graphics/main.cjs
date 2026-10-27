@@ -100,7 +100,9 @@ app
       finish({ passed: false, error: detail.reason }),
     );
     const clip = JSON.parse(fs.readFileSync(path.join(__dirname, "clip.json"), "utf8"));
-    await window.loadFile(path.join(__dirname, "index.html"), { query: { clip: clip.file } });
+    await window.loadFile(path.join(__dirname, "index.html"), {
+      query: { clip: clip.file, roundTrips: String(clip.roundTrips !== false) },
+    });
     const status = fs.readFileSync(`/proc/${window.webContents.getOSProcessId()}/status`, "utf8");
     rendererSandbox = {
       configured: window.webContents.getLastWebPreferences().sandbox,
@@ -135,11 +137,14 @@ app
         rendering.playbackEnded &&
         rendering.seekPassed &&
         !gpuExits.length &&
-        rendering.encoders.some((e) => e.chunks === 12) &&
-        rendering.encoders.every((e) => e.supported === false || (!e.error && e.chunks === 12)) &&
-        rendering.decoders.some((d) => d.required && d.passed) &&
-        rendering.decoders.every((d) => !d.required || d.passed),
-      codecPreferencesPassed: !codecPreferenceFailures.length,
+        (clip.roundTrips === false ||
+          (rendering.encoders.some((e) => e.chunks === 12) &&
+            rendering.encoders.every(
+              (e) => e.supported === false || (!e.error && e.chunks === 12),
+            ) &&
+            rendering.decoders.some((d) => d.required && d.passed) &&
+            rendering.decoders.every((d) => !d.required || d.passed))),
+      codecPreferencesPassed: clip.roundTrips === false ? null : !codecPreferenceFailures.length,
       codecPreferenceFailures,
       rendering,
       gpuFeatures: app.getGPUFeatureStatus(),

@@ -18,6 +18,13 @@ It includes public Electron/Chromium/Node/FFmpeg changes under their respective
 upstream licenses. The Electron license is retained alongside the patch. The
 assembled distribution must retain all its upstream licenses and notices.
 
+The current runtime uses FFmpeg's LGPL build, dav1d for software AV1 and libvpx
+for software VP8/VP9; their notices are in `LICENSES.chromium.html`. HEVC playback
+uses platform hardware decoding. No software HEVC decoder or system-libde265
+adapter is included. Open-source licences and codec patent rights are separate;
+see the [codec licensing investigation](docs/agent/codec-support.md#software-hevc-and-licensing-review)
+before changing or redistributing codec components.
+
 ## Discord client files
 
 Discord client and native module binaries are proprietary. They are fetched from

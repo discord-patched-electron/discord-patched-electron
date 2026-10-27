@@ -46,12 +46,34 @@ sudo dnf install ./discord-canary-prerelease-patched-electron-bin-*.rpm
 Download the `.tar.gz` from **Latest**, extract it, open its folder and run
 `./launch.sh`. Keep all the files together; you can move the folder.
 
-Install these dependencies through your package manager:
+Known dependencies:
 
-- GTK 3, NSS, ALSA, libpulse, GBM, libdrm, CUPS, Xss, Xtst and libatomic.
-- Python **3.11 or newer**, Brotli, CA certificates, GnuPG (`gpg` and `gpgv`),
-  Bash and coreutils.
-- For screen-share audio, the [audio tools and services](wayland-audio.md#requirements).
+```
+glibc
+gcc-libs
+alsa-lib
+gtk3
+libcups
+libxss
+libxtst
+nss
+libdrm
+mesa
+libpulse
+python
+ca-certificates
+gnupg
+brotli
+bash
+coreutils
+pipewire
+pipewire-audio
+zenity
+```
+
+These use Arch package names; install your distribution's equivalents. Python
+3.11 or newer is required. See [screen-share audio](wayland-audio.md#requirements)
+for the audio tools and services.
 
 If the tarball fails with a sandbox error, use your distribution's native
 package where available.

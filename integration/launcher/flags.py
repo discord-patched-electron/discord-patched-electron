@@ -17,6 +17,15 @@ MAX_FILE = 1024 * 1024
 BEGIN = "# >>> OpenAsar launch presets v1"
 END = "# <<< OpenAsar launch presets v1"
 META = "# presets: "
+ESSENTIAL_FLAGS = "\n".join(
+    (
+        "--class={DESKTOP_ID}",
+        "--enable-libopenh264",
+        "--openh264-library-path={OPENH264_LIBRARY_PATH}",
+    )
+)
+VARIABLE = re.compile(r"\{([A-Z][A-Z0-9_]*)\}")
+VARIABLE_NAMES = {"DESKTOP_ID", "PROFILE_DIR", "OPENH264_LIBRARY_PATH"}
 
 
 class InvalidFlags(ValueError):
@@ -75,6 +84,7 @@ def defaults(data):
         "profiles": {
             key: {
                 "flags": item["flags"],
+                "essentialFlags": ESSENTIAL_FLAGS,
                 "decode": False,
                 "encode": False,
                 "backend": "auto",
@@ -141,6 +151,7 @@ def validate(config, data, *, check_text=True):
     if check_text:
         try:
             lines(config.get("extra"), "Additional flags")
+            check_variables(config["extra"])
         except ValueError as error:
             raise InvalidFlags(error, "extra-flags") from error
     for key, profile in profiles.items():
@@ -149,11 +160,22 @@ def validate(config, data, *, check_text=True):
             raise ValueError(f"{label}: invalid preset settings.")
         if not isinstance(profile.get("flags"), str):
             raise InvalidFlags(f"{label} flags must be text.", "preset-flags", key)
-        if check_text:
+        essentials = profile.get("essentialFlags", ESSENTIAL_FLAGS)
+        if not isinstance(essentials, str):
+            raise InvalidFlags(f"{label} essential flags must be text.", "essential-flags", key)
+        # Inactive legacy profiles remain in the file for compatibility, but
+        # have no selector in the editor and cannot affect the current launch.
+        if check_text and key == config["active"]:
             try:
                 lines(profile.get("flags"), f"{label} flags")
+                check_variables(profile["flags"])
             except ValueError as error:
                 raise InvalidFlags(error, "preset-flags", key) from error
+            try:
+                lines(essentials, f"{label} essential flags")
+                check_variables(essentials)
+            except ValueError as error:
+                raise InvalidFlags(error, "essential-flags", key) from error
         if any(type(profile.get(name)) is not bool for name in ("decode", "encode")):
             raise ValueError(f"{label}: video options must be checked or unchecked.")
         if type(profile.get("replaceDefaults", False)) is not bool:
@@ -393,6 +415,48 @@ def read_settings(profile):
         ) from error
 
 
+def check_variables(text):
+    active = "\n".join(row for row in text.splitlines() if not row.lstrip().startswith("#"))
+    unknown = set(VARIABLE.findall(active)) - VARIABLE_NAMES
+    if unknown:
+        raise ValueError("Unknown flag variable: " + ", ".join(sorted(unknown)))
+
+
+def expand_variables(flag, profile, desktop):
+    check_variables(flag)
+    values = {
+        "DESKTOP_ID": desktop,
+        "PROFILE_DIR": str(profile),
+        "OPENH264_LIBRARY_PATH": str(
+            profile / "discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+        ),
+    }
+    result = VARIABLE.sub(lambda match: values[match[1]], flag)
+    if any(char in result for char in ("\0", "\r", "\n")):
+        raise ValueError("Flag variables cannot contain newlines or NUL characters.")
+    return result
+
+
+def automatic_display_flags(env, args):
+    # Electron 46 uses Chromium's display-server detection. When both servers
+    # are available, missing/stale session metadata would select Xwayland.
+    if "WAYLAND_SOCKET" in env:
+        wayland = bool(env["WAYLAND_SOCKET"])
+    elif "WAYLAND_DISPLAY" in env:
+        wayland = bool(env["WAYLAND_DISPLAY"])
+    else:
+        wayland = (
+            bool(env.get("XDG_RUNTIME_DIR"))
+            and (Path(env["XDG_RUNTIME_DIR"]) / "wayland-0").exists()
+        )
+    x11 = bool(env.get("DISPLAY")) or any(
+        arg == "--display" or arg.startswith("--display=") for arg in args
+    )
+    if wayland and x11 and env.get("XDG_SESSION_TYPE") != "wayland":
+        return ["--ozone-platform=wayland"]
+    return []
+
+
 def resolve(profile, package, desktop, args, env=None, request=None):
     env = os.environ if env is None else env
     request = request or {}
@@ -429,37 +493,54 @@ def resolve(profile, package, desktop, args, env=None, request=None):
         selected["experiments"] = [
             name for name in selected["experiments"] if name in data["experiments"]
         ]
+        # Older editors captured app defaults into the manual list. Keep any
+        # explicit overrides, but editing flags must no longer disable setup.
+        selected.pop("replaceDefaults", None)
+        selected.setdefault("essentialFlags", ESSENTIAL_FLAGS)
     layers = []
 
     def add(name, flags):
         layers.append({"name": name, "flags": flags})
 
     selected = config["profiles"][config["active"]]
-    manual = selected.get("replaceDefaults", False) and env.get("DPE_DEFAULT_FLAGS") != "0"
-    if not manual:
-        add("Application identity", ["--class=" + desktop])
+    file_errors = []
+    file_error_field = None
     if env.get("DPE_DEFAULT_FLAGS") != "0":
         display = config["display"]
-        if display == "auto":
-            display = "wayland" if env.get("WAYLAND_DISPLAY") else "x11"
-        common = ["--ozone-platform=" + display, "--autoplay-policy=no-user-gesture-required"]
-        if settings.get("openH264Enabled", True):
-            common += [
-                "--enable-libopenh264",
-                "--openh264-library-path="
-                + str(profile / "discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"),
-            ]
-        if not manual:
-            add("Application defaults", common)
+        common = (
+            automatic_display_flags(env, args)
+            if display == "auto"
+            else ["--ozone-platform=" + display]
+        )
+        add("Application defaults", common)
+        try:
+            essentials = lines(
+                selected["essentialFlags"], "Essential flags", editable="config" in request
+            )
+            for flag in essentials:
+                expand_variables(flag, profile, desktop)
+            if not settings.get("openH264Enabled", True):
+                essentials = [
+                    flag
+                    for flag in essentials
+                    if flag.partition("=")[0]
+                    not in ("--enable-libopenh264", "--openh264-library-path")
+                ]
+            add("Essential flags", essentials)
+        except ValueError as error:
+            if not request.get("tolerateFileErrors"):
+                raise InvalidFlags(error, "essential-flags", config["active"]) from error
+            file_errors.append(str(error))
+            file_error_field = "essential-flags"
         active = config["active"]
         # Preset text is the final word within the preset; explicit feature
         # disables can override a convenience checkbox without duplicate switches.
         add("Preset options", options(config, data))
     else:
+        add("Application identity", ["--class=" + desktop])
         warnings.append(
             "DPE_DEFAULT_FLAGS=0 skips application defaults and all saved presets/options."
         )
-    file_errors = []
     # Additional flags are the plain lines outside the managed preset section.
     # File edits remain literal, including explicitly requested unsafe flags.
     texts = [("Additional flags", config["extra"], "extra-flags", None)]
@@ -476,12 +557,22 @@ def resolve(profile, package, desktop, args, env=None, request=None):
         )
     for label, content, field, preset in texts:
         try:
-            add(label, lines(content, label, editable="config" in request))
+            parsed = lines(content, label, editable="config" in request)
+            for flag in parsed:
+                expand_variables(flag, profile, desktop)
+            add(label, parsed)
         except ValueError as error:
             if not request.get("tolerateFileErrors"):
                 raise InvalidFlags(error, field, preset) from error
             file_errors.append(f"Fix {file} before restarting: {error}")
-    editable = merge(layers)
+    editable = merge(
+        [
+            layer
+            for layer in layers
+            if layer["name"]
+            not in ("Application identity", "Application defaults", "Essential flags")
+        ]
+    )
     # Retain malformed raw lines for repair in the single flags editor.
     editor_text = "\n".join(editable)
     if file_errors:
@@ -490,6 +581,7 @@ def resolve(profile, package, desktop, args, env=None, request=None):
     for row in config["extra"].splitlines():
         try:
             lines(row)
+            check_variables(row)
             preserved_extra.append(row)
         except ValueError:
             # Repairing one box must not propagate its old invalid global lines
@@ -497,6 +589,17 @@ def resolve(profile, package, desktop, args, env=None, request=None):
             pass
     add("Command line", args)
     recovery = env.get("DPE_IGNORE_FLAGS") == "1" or "--ignore-flags" in args
+    effective = merge(
+        [
+            {
+                **layer,
+                "flags": [expand_variables(flag, profile, desktop) for flag in layer["flags"]],
+            }
+            if layer["name"] != "Command line"
+            else layer
+            for layer in layers
+        ]
+    )
     return {
         "flagsFile": str(file),
         "fileRevision": state["revision"],
@@ -507,9 +610,10 @@ def resolve(profile, package, desktop, args, env=None, request=None):
         "defaults": defaults(data),
         "warnings": warnings,
         "fileErrors": file_errors,
+        "fileErrorField": file_error_field,
         "layers": layers,
-        "effective": [] if recovery else merge(layers),
-        "normalEffective": merge(layers),
+        "effective": [] if recovery else effective,
+        "normalEffective": effective,
         "editableFlags": editor_text,
         "preservedExtra": "\n".join(preserved_extra),
         "recovery": recovery,

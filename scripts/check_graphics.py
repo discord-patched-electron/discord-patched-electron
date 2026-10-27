@@ -39,6 +39,8 @@ def check(
     preset: str = "perf",
     video_codec: str = "h264",
     launcher_codecs: bool = False,
+    pixel_format: str = "yuv420p",
+    playback_only: bool = False,
 ):
     runtime, output = runtime.resolve(), output.resolve()
     if output.exists() or output.is_relative_to(runtime.parent):
@@ -55,7 +57,7 @@ def check(
             shutil.copy2(ROOT / "integration/updater" / name, adapters / name)
     extension, codec_flags = VIDEO_CODECS[video_codec]
     clip = "clip." + extension
-    write_json(fixture / "clip.json", {"file": clip})
+    write_json(fixture / "clip.json", {"file": clip, "roundTrips": not playback_only})
     run(
         "ffmpeg",
         "-hide_banner",
@@ -71,9 +73,15 @@ def check(
         "-threads",
         "2",
         "-pix_fmt",
-        "yuv420p",
+        pixel_format,
         fixture / clip,
     )
+    # Preserve the encoded profile/bit depth, not just the requested encoder flags.
+    probe = subprocess.check_output(
+        ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(fixture / clip)],
+        text=True,
+    )
+    (output / "clip-probe.json").write_text(probe)
     run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
     env = {
         **os.environ,
@@ -109,6 +117,8 @@ def check(
         additional_flags=extra,
         video_codec=video_codec,
         launcher_codecs=launcher_codecs,
+        pixel_format=pixel_format,
+        playback_only=playback_only,
     )
     if openasar_source:
         report.update(openasar_source_sha256=sha256(openasar_source), openasar_preset=preset)
@@ -135,6 +145,12 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--flag", action="append", default=[])
     parser.add_argument("--video-codec", choices=VIDEO_CODECS, default="h264")
+    parser.add_argument("--pixel-format", choices=("yuv420p", "yuv420p10le"), default="yuv420p")
+    parser.add_argument(
+        "--playback-only",
+        action="store_true",
+        help="Test clip playback and seeking without initializing video encoders",
+    )
     parser.add_argument(
         "--launcher-codecs",
         action="store_true",
@@ -154,6 +170,8 @@ def main():
     args = parser.parse_args()
     if args.preset != "perf" and not args.openasar_source:
         parser.error("--preset requires --openasar-source")
+    if args.playback_only and args.strict_codecs:
+        parser.error("--strict-codecs needs the encode/decode round trips")
     report = check(
         args.runtime,
         args.output,
@@ -162,6 +180,8 @@ def main():
         args.preset,
         args.video_codec,
         launcher_codecs=args.launcher_codecs,
+        pixel_format=args.pixel_format,
+        playback_only=args.playback_only,
     )
     if not report["passed"] or (args.strict_codecs and not report["codecPreferencesPassed"]):
         raise SystemExit(1)

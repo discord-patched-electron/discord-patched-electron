@@ -140,9 +140,14 @@ test("quickstart falls back to online preparation once when its cache is incompl
   assert.deepEqual(f.exits, [0]);
 });
 
-test("failure guidance distinguishes space, permissions, offline setup and verification", () => {
+test("failure guidance distinguishes quotas, space, permissions, offline setup and verification", () => {
   for (const [details, message] of [
     ["[Errno 28] No space left on device", /Free up space/],
+    [
+      "[Errno 122] Disk quota exceeded: '/tmp/profile/discord_krisp.node'",
+      /quota.*Free drive space may still be available/,
+    ],
+    ["EDQUOT: write failed", /quota.*profile location with more quota/],
     ["Permission denied: profile", /writable/],
     ["First launch requires an internet connection", /DPE_CLIENT_OFFLINE/],
     ["Unsupported Discord client layout", /latest package/],

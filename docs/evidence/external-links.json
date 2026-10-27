@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-27",
+  "cause": "An isolated XDG_CONFIG_HOME hid the user MIME/browser associations; xdg-open selected dms-open.desktop instead of zen.desktop. DMS was not running.",
+  "controls": [
+    {
+      "case": "terminal",
+      "browser_requested_page": true,
+      "opener_exit": 0
+    },
+    {
+      "case": "isolated-profile",
+      "browser_requested_page": false,
+      "opener_exit": 0
+    }
+  ],
+  "failed_handler": {
+    "desktop": "dms-open.desktop",
+    "exec": "dms open %u",
+    "message": "DMS is not running. Please start DMS first."
+  },
+  "working_handler": {
+    "desktop": "zen.desktop",
+    "exec": "/opt/zen-browser-bin/zen-bin %u"
+  },
+  "fix": "Keep desktop XDG_CONFIG_HOME unchanged when selecting a fresh DPE_PROFILE_DIR. Use Electron shell.openExternal; no custom browser launcher or Zen-specific patch.",
+  "end_to_end": {
+    "passed": true,
+    "results": [
+      {
+        "case": "settings-github",
+        "url": "https://github.com/discord-patched-electron/discord-patched-electron",
+        "browser": {
+          "app_id": "zen",
+          "title": "discord-patched-electron/discord-patched-electron: Discord Canary with the latest Electron for better Linux support, plus QoL patches! \u2014 Zen Browser"
+        }
+      },
+      {
+        "case": "settings-nvidia",
+        "url": "https://github.com/elFarto/nvidia-vaapi-driver",
+        "browser": {
+          "app_id": "zen",
+          "title": "elFarto/nvidia-vaapi-driver: A VA-API implemention using NVIDIA's NVDEC \u2014 Zen Browser"
+        }
+      },
+      {
+        "case": "discord-main-window-external-navigation",
+        "trigger": "window.open through Discord native window-open handler",
+        "url": "https://discord.com/terms",
+        "browser": {
+          "app_id": "zen",
+          "title": "Terms of Service | Discord \u2014 Zen Browser"
+        }
+      }
+    ],
+    "login_only": true,
+    "account_login": false,
+    "user_confirmed_normal_window_links": true
+  },
+  "runtime_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+  "native_ui_checks": 17,
+  "python_tests": 319,
+  "javascript_tests": 75,
+  "lint_passed": true,
+  "runtime_rebuilt": false
+}
