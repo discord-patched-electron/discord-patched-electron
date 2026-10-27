@@ -106,6 +106,7 @@ def integration_key(
                     "scripts/release_proposals.py",
                     "scripts/release_signing.py",
                     "packaging/release-signing-key.asc",
+                    "packaging/discord-canary.png",
                     "scripts/publish_aur.py",
                     "scripts/channels.py",
                     "config/channels.json",

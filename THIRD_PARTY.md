@@ -1,7 +1,7 @@
 # Third-party software and sources
 
 This project's code is [MIT licensed](LICENSE). Bundled components keep their
-own licenses and notices. Discord's client files download separately from Discord;
+own licenses and notices. Discord's executable and module files download separately from Discord;
 they are not included in release packages.
 
 ## Electron and packaging
@@ -34,6 +34,12 @@ packages. This project's code does not grant rights to those binaries.
 Compatibility patchers contain small Discord JavaScript excerpts as match
 patterns for modifying downloaded modules; the package is not entirely free of
 Discord source excerpts.
+
+The application icon, `packaging/discord-canary.png`, is Discord's Canary branding,
+not covered by this project's MIT license. It is the unmodified 256×256
+`files/discord.png` from the [official Canary 1.0.2381 archive](https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2381/full.distro).
+Archive SHA-256: `e8129d0a369ee632e36521fbae2629476a0c0d186a0347880f39fc6d5d5a466d`;
+icon SHA-256: `8e056efd24189d2713bc91564e4a90ccff7f056d65ea56b50ad2dd62112865b9`.
 
 ## OpenAsar and startup assets
 

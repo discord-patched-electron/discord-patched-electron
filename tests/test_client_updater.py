@@ -433,7 +433,7 @@ class DistributionBoundary(unittest.TestCase):
             )
             self.assertEqual(
                 (app / "discord.png").read_bytes(),
-                (ROOT / "discord-patched-electron.png").read_bytes(),
+                (ROOT / "packaging/discord-canary.png").read_bytes(),
             )
             self.assertEqual(
                 (unpacked / "main.cjs").read_text(),

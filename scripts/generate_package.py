@@ -51,7 +51,7 @@ SUPPORT = [
     "packaging/upstream/provenance.json",
     "packaging/release-signing-key.asc",
     "config/openasar.lock.json",
-    "discord-patched-electron.png",
+    "packaging/discord-canary.png",
     "THIRD_PARTY.md",
     "LICENSE",
 ]

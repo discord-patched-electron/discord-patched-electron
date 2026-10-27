@@ -118,7 +118,7 @@ def stage(
     for name in ("krisp-patcher.py", "provenance.json"):
         shutil.copy2(ROOT / "packaging/upstream" / name, upstream)
     write_json(output / "openasar-source.json", lock)
-    shutil.copy2(ROOT / "discord-patched-electron.png", output / "discord.png")
+    shutil.copy2(ROOT / "packaging/discord-canary.png", output / "discord.png")
     stage_python(output, python_archives)
     stage_editor(output, cdn_archive)
     write_json(
