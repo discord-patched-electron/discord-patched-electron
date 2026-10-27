@@ -428,6 +428,14 @@ class DistributionBoundary(unittest.TestCase):
             )
             self.assertEqual({p.name for p in unpacked.iterdir()}, {"package.json", "main.cjs"})
             self.assertEqual(
+                json.loads((unpacked / "package.json").read_text())["desktopName"],
+                "discord-canary.desktop",
+            )
+            self.assertEqual(
+                (app / "discord.png").read_bytes(),
+                (ROOT / "discord-patched-electron.png").read_bytes(),
+            )
+            self.assertEqual(
                 (unpacked / "main.cjs").read_text(),
                 'require(process.env.DPE_APP_ROOT + "/integration/updater/entry.cjs");\n',
             )
