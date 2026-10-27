@@ -12,6 +12,8 @@ from pathlib import Path
 from bootstrap_dialog import zenity_command
 from runtime import FAILURES, ensure_runtime
 
+DIALOG_DELAY_SECONDS = 2.0
+
 
 def prepare(app: Path, profile: Path) -> str:
     try:
@@ -19,8 +21,8 @@ def prepare(app: Path, profile: Path) -> str:
     except FAILURES:
         if os.environ.get("DPE_CLIENT_OFFLINE") == "1":
             raise
-    # Most launches return above. Only the initial runtime download needs a
-    # native dialog; the normal Electron window handles subsequent updates.
+    # Most launches return above. Give uncached setup a short quiet period too;
+    # only show progress if the helper is still working after that delay.
     dialog = None
     command = [
         sys.executable,
@@ -32,20 +34,23 @@ def prepare(app: Path, profile: Path) -> str:
     with tempfile.TemporaryFile(mode="w+") as errors, tempfile.TemporaryFile(mode="w+") as result:
         task = subprocess.Popen(command, stdout=result, stderr=errors, start_new_session=True)
         try:
-            if os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"):
-                try:
-                    dialog = subprocess.Popen(
-                        [
-                            sys.executable,
-                            str(app / "integration/updater/bootstrap_dialog.py"),
-                        ],
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                except OSError:
-                    pass
+            show_at = time.monotonic() + DIALOG_DELAY_SECONDS
+            dialog_pending = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
             while task.poll() is None:
+                if dialog_pending and time.monotonic() >= show_at:
+                    dialog_pending = False
+                    try:
+                        dialog = subprocess.Popen(
+                            [
+                                sys.executable,
+                                str(app / "integration/updater/bootstrap_dialog.py"),
+                            ],
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                    except OSError:
+                        pass
                 if dialog and dialog.poll() == 1:
                     raise InterruptedError("Electron setup cancelled")
                 time.sleep(0.1)

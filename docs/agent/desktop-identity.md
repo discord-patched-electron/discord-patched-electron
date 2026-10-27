@@ -28,7 +28,9 @@ Electron modification time, confirming reuse rather than another binary download
 Offline setup now checks the existing reuse path before failing. It still
 verifies cached files, checks the runtime version and creates a separate resource
 link. Missing or damaged files cannot trigger a download in offline mode. The
-native dialog says “Preparing Electron...” when setup is actually needed.
+native dialog says “Preparing Electron...” when setup is actually needed. It
+opens only if the setup helper is still running after two seconds, so quick
+setup finishes without flashing a window. Cancellation still stops the helper.
 
 ## Verification
 
@@ -39,7 +41,9 @@ native dialog says “Preparing Electron...” when setup is actually needed.
 - The runtime regression test exercises bootstrap across application generations,
   forbids downloads and the native setup helper, and checks that both versions
   retain their own resources links. A damaged shared cache is rejected offline.
-- `bun run test`: 320 Python and 75 JavaScript tests passed.
+- Quick setup, delayed progress, completion cleanup and cancellation are covered
+  by bootstrap regression tests.
+- `bun run test`: 322 Python and 75 JavaScript tests passed.
 - `bun run lint`: passed.
 
 Local fixture output and logs are in `out/desktop-identity/`.

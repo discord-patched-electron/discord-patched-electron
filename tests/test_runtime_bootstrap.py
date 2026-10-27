@@ -3,6 +3,7 @@
 import os
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -115,6 +116,57 @@ class RuntimeBootstrap(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "verification failed"):
                     bootstrap.prepare(app, app / "profile")
 
+    def test_quick_setup_with_a_display_does_not_open_the_native_dialog(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary)
+            helper = app / "integration/updater/runtime.py"
+            helper.parent.mkdir(parents=True)
+            helper.write_text("print('/cached/electron')\n")
+            with (
+                patch.object(bootstrap, "ensure_runtime", side_effect=ValueError("no cache")),
+                patch.dict(os.environ, {"DPE_CLIENT_OFFLINE": "0", "DISPLAY": ":fixture"}),
+                patch.object(bootstrap.time, "monotonic", return_value=0),
+                patch.object(
+                    bootstrap.subprocess, "Popen", wraps=bootstrap.subprocess.Popen
+                ) as launch,
+            ):
+                self.assertEqual(bootstrap.prepare(app, app / "profile"), "/cached/electron")
+            self.assertEqual(launch.call_count, 1)
+            self.assertIn(str(helper), launch.call_args.args[0])
+
+    def test_slow_setup_opens_progress_after_the_delay_and_closes_it_on_completion(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary)
+            helper = app / "integration/updater/runtime.py"
+            helper.parent.mkdir(parents=True)
+            helper.write_text(
+                "import pathlib, sys, time\n"
+                "marker = pathlib.Path(sys.argv[1], 'dialog.json')\n"
+                "for _ in range(100):\n"
+                " if marker.exists(): break\n"
+                " time.sleep(.01)\n"
+                "print('/cached/electron')\n"
+            )
+            helper.with_name("bootstrap_dialog.py").write_text(
+                "import json, os, pathlib, sys, time\n"
+                "pathlib.Path(__file__).parents[2].joinpath('dialog.json').write_text("
+                "json.dumps({'time': time.monotonic(), 'pid': os.getpid()}))\n"
+                "sys.stdin.read()\n"
+            )
+            with (
+                patch.object(bootstrap, "ensure_runtime", side_effect=ValueError("no cache")),
+                patch.dict(os.environ, {"DPE_CLIENT_OFFLINE": "0", "DISPLAY": ":fixture"}),
+                patch.object(bootstrap, "DIALOG_DELAY_SECONDS", 0.1),
+            ):
+                started = time.monotonic()
+                self.assertEqual(bootstrap.prepare(app, app / "profile"), "/cached/electron")
+            import json
+
+            dialog = json.loads((app / "dialog.json").read_text())
+            self.assertGreaterEqual(dialog["time"] - started, 0.1)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(dialog["pid"], 0)
+
     def test_cancelled_native_dialog_terminates_and_reaps_the_runtime_helper(self):
         with tempfile.TemporaryDirectory() as temporary:
             app = Path(temporary)
@@ -129,6 +181,7 @@ class RuntimeBootstrap(unittest.TestCase):
             )
             with (
                 patch.object(bootstrap, "ensure_runtime", side_effect=ValueError("no cache")),
+                patch.object(bootstrap, "DIALOG_DELAY_SECONDS", 0.1),
                 patch.dict(
                     os.environ,
                     {
