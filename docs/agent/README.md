@@ -29,6 +29,7 @@ that test run.
 - [Audio investigation and mixer fix](audio-investigation.md)
 - [Camera startup](camera-startup.md)
 - [Launcher, codecs and shortcuts](linux-launcher.md)
+- [OpenAsar playback crash and flag audit](video-playback.md)
 - [Local runtime checks](linux-runtime.md)
 
 ## History and evidence

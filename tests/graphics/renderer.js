@@ -25,7 +25,10 @@
     video.requestVideoFrameCallback(frame);
   });
   video.src = "clip.mp4";
-  await video.play();
+  await video.play().catch((error) => {
+    // DOMException loses its message across executeJavaScript's IPC boundary.
+    throw new Error(`${error.name}: ${error.message}; ${video.error?.message || "no media error"}`);
+  });
   await delivered;
   // Chromium batches Media-domain diagnostics; keep playback alive long enough
   // to report the actual decoder, rather than infer it from GPU capabilities.

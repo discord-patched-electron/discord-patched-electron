@@ -1,5 +1,8 @@
 // Keep OpenAsar's presets while letting explicit launcher flags take precedence.
 module.exports = function append(commandLine, name, value) {
+  // Presets must not bypass Chromium's driver blocklist. Deliberate launcher
+  // overrides remain untouched, including when troubleshooting a blocked GPU.
+  if (name === "ignore-gpu-blocklist") return;
   if (name === "enable-features" || name === "disable-features") {
     const key = (feature) => feature.split(/[:<]/, 1)[0];
     const explicit = new Set(
@@ -8,7 +11,14 @@ module.exports = function append(commandLine, name, value) {
       ),
     );
     const combined = commandLine.getSwitchValue(name).split(",").filter(Boolean);
-    combined.push(...value.split(",").filter((feature) => !explicit.has(key(feature))));
+    combined.push(
+      ...value.split(",").filter((feature) => {
+        // OpenAsar's default Performance preset enables DrDc, which Chromium
+        // explicitly does not support on Linux and which crashes the GPU.
+        if (name === "enable-features" && key(feature) === "EnableDrDc") return false;
+        return !explicit.has(key(feature));
+      }),
+    );
     if (combined.length) commandLine.appendSwitch(name, combined.join(","));
   } else if (!commandLine.hasSwitch(name)) commandLine.appendSwitch(name, value);
 };

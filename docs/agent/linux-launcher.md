@@ -23,12 +23,20 @@ previously produced an empty version.
 Feature lists merge by feature name; the last setting wins. Other Chromium
 switches keep their normal last-value precedence. `DPE_DEFAULT_FLAGS=0` disables
 the project defaults. OpenAsar Focus presets yield to explicit launcher flags.
+The compatibility adapter drops OpenAsar's `EnableDrDc` feature and
+`--ignore-gpu-blocklist` switch. It preserves deliberate overrides supplied through
+the launcher. Other preset settings remain available.
 
 The launcher selects `--ozone-platform=wayland` when `WAYLAND_DISPLAY` is present,
 otherwise `--ozone-platform=x11`. It also enables `AcceleratedVideoDecoder` and
 `AcceleratedVideoDecodeLinuxGL`. These are launch settings, not compiler changes.
 
 ## Graphics results and limits
+
+The [OpenAsar playback investigation](video-playback.md) reproduced GPU crashes
+with the default Performance preset on Electron 46. Removing `EnableDrDc`, which
+Chromium explicitly does not support on Linux, restored playback on Wayland and
+Xwayland. The adapter also keeps driver blocklists enabled by default.
 
 On the tested AMD RX 7900 GRE, synthetic playback used `VaapiVideoDecoder` and
 WebGL used hardware ANGLE/OpenGL. Software WebCodecs encoders for H.264, VP8, VP9

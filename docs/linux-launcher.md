@@ -13,6 +13,9 @@ Open **User Settings → OpenAsar**:
 | Splash Theming | Uses your Discord or custom theme colors during startup. Enabled by default.    |
 | Quickstart     | Opens an existing installation sooner and checks for updates in the background. |
 
+Focus presets retain the GPU driver blocklist and omit `EnableDrDc`, which is
+unsupported on Linux and can crash video rendering.
+
 ## Global shortcuts
 
 Wayland shortcuts, including push-to-talk, need a desktop portal that supports
