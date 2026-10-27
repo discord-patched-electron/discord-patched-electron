@@ -121,7 +121,9 @@ def verify_signature(directory: Path, key: Path):
         raise ValueError("Release manifest checksum mismatch")
 
 
-def approved_release(directory: Path, policy: dict, key: Path, *, fetch=False) -> dict:
+def approved_release(
+    directory: Path, policy: dict, key: Path, *, fetch=False, application_update=False
+) -> dict:
     """Verify a signed release and the exact record written by manual approval.
 
     Retained copies can authorize offline use, but a signed prerelease alone or
@@ -165,6 +167,14 @@ def approved_release(directory: Path, policy: dict, key: Path, *, fetch=False) -
     ):
         raise ValueError("Release does not match this patched Electron installation")
     release_version(manifest["version"])
+    running_application = os.environ.get("DPE_APPLICATION_VERSION")
+    if (
+        not application_update
+        and running_application
+        and manifest.get("application")
+        and release_version(manifest["version"]) > release_version(running_application)
+    ):
+        raise ValueError("Install the application update before its Electron or Discord modules")
     approval_name = (
         "approved-release.json"
         if (channel, track) == ("canary", "prerelease")
@@ -362,6 +372,32 @@ def install_runtime(
         else:
             write_json(root / "current.json", incoming["archive_sha256"])
             return executable
+    # Payload generations have different immutable resource paths. Reuse the
+    # verified binary bytes while giving each app its own resource link; never
+    # redirect a runtime that a running process may still be using.
+    for cached in sorted(root.parent.glob("*/generations/" + incoming["archive_sha256"])):
+        if cached == destination:
+            continue
+        try:
+            previous_app = (cached / "resources").resolve().parent
+            executable, info = validate_generation(
+                cached.parent.parent, previous_app, policy, incoming["archive_sha256"]
+            )
+            if not same_runtime(info, incoming):
+                continue
+            with tempfile.TemporaryDirectory(prefix="reuse-", dir=root) as temporary:
+                staged = Path(temporary) / "runtime"
+                subprocess.run(
+                    ["cp", "-a", "--reflink=auto", "--", str(cached), str(staged)], check=True
+                )
+                (staged / "resources").unlink()
+                (staged / "resources").symlink_to(app / "resources", target_is_directory=True)
+                probe(staged / "electron", incoming["electron_version"])
+                replace_damaged(staged, destination)
+                write_json(root / "current.json", incoming["archive_sha256"])
+                return destination / "electron"
+        except FAILURES as error:
+            print(f"Cached runtime cannot be reused: {error}", file=sys.stderr)
     with tempfile.TemporaryDirectory(prefix="download-", dir=root) as temporary:
         directory = Path(temporary)
         if archive is None:

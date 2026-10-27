@@ -24,11 +24,14 @@ launch and relaunch. Both official mod installers are tested across installation
 updates and removal; uninstall must restore the current bootstrap. Parallel jobs
 check native video, offline Krisp and isolated X11/Wayland audio.
 
-nFPM makes `.pkg.tar.zst`, `.deb` and `.rpm` packages from the same updater tree as
-the portable `.tar.gz`. Electron is excluded from all four formats; its exact
-archive hash and runtime identity remain in `runtime-update.json`. The verified
-full app used for qualification is retained unchanged. Payload hashes are compared
-across all four formats. Ubuntu
+nFPM makes `.pkg.tar.zst`, `.deb` and `.rpm` packages from the same minimal
+bootstrap tree as the portable `.tar.gz`. All four contain only the standard-library
+loader, application download pins, trusted key, icon, desktop entry and notices.
+OpenAsar, patch code, updater libraries and Linux adapters are in the separately
+signed `application.zip`; neither archive bundles Electron. The application
+contains its exact archive hash and runtime identity in `runtime-update.json`. The verified
+full app used for qualification is retained unchanged. Bootstrap hashes are compared across all four formats, and the application index
+and client pins are verified separately. Ubuntu
 checks Debian installation and GUI launch. Arch and Fedora containers install the
 packages and check file access and runtime loading as an ordinary user. Those
 containers don't verify a full desktop session or live call.
@@ -152,19 +155,20 @@ public release qualification adds the remaining CI checks.
 
 ## Runtime details
 
-All released packages install the updater tree under `/opt/<package>`. A tarball
+All released packages install the minimal bootstrap under `/opt/<package>`. A tarball
 can run anywhere. Bootstraps find resources through `DPE_APP_ROOT`, set by the
-launcher. Downloaded runtime generations link their resources to the package's
-bootstrap; the writable profile installation supplies the official mod
+launcher. Downloaded runtime generations link their resources to their immutable application
+payload; the writable profile installation supplies the official mod
 installers' expected app layout. The older generated AUR recipe also uses the
 client-free layout under `/usr/lib/`; it is retained for validation, not published
-as the pacman test artifact. It also leaves Electron out of its sources/payload.
+as the pacman test artifact. It produces `application.zip` separately and installs
+only its small bootstrap. Neither installer includes Electron.
 
-Installed-package qualification seeds a fresh user's runtime cache from the
-already verified `runtime-dist.zip`, using the updater's checksum, extraction and
+Installed-package qualification seeds a fresh user's application cache from
+`application.zip` and its runtime cache from the already verified `runtime-dist.zip`, using the updater's checksum, extraction and
 version probe. This lets unpublished candidates run without waiting for a public
-cache tag. For example, pass `--runtime-archive out/release-runtime/binary/runtime-dist.zip`
-to `check_desktop_launch.py` when testing an extracted installer payload. Container
+cache tag. For example, pass `--application-archive out/packages/application.zip` and
+`--runtime-archive out/release-runtime/binary/runtime-dist.zip` to `check_desktop_launch.py` when testing an extracted installer payload. Container
 checks also verify offline reuse of that cache. Public release publication retains
 the runtime cache before exposing the installer assets.
 
@@ -174,8 +178,9 @@ runtime updates. No package enables audio services or overwrites
 user config. No runtime source flags change during packaging.
 
 Release CI also grants user namespaces to executables under its private
-`out/**/profile/app-*/electron` test paths. The client-free launcher copies the
-verified runtime there before opening Discord; allowing only the bundled
+`out/**/profile/app-*/electron` test paths. The launcher copies the verified runtime there before opening Discord;
+qualification also grants namespaces to the private `profile/dpe-runtime/**/electron`
+cache paths used before that copy. Allowing only the bundled
 executable covers the splash but not the final client. Launch console logs are
 retained with the reports to diagnose sandbox and startup failures.
 
@@ -192,26 +197,25 @@ The signed manifest includes exact Discord module URLs, revisions and checksums
 under `client`, alongside Electron's runtime-cache reference. Module-only updates
 reuse the compiler output but still wait for manual approval.
 
-Packages ship their baseline module pins in `client-update.json`, runtime identity
-in `runtime-update.json` and the pinned public key. Launch qualification verifies
-those exact pins, with automatic updates disabled for the test. Packaging rejects
-changed or untested module pins. The approval action binds its existing
-`manifest_sha256` record to both client and runtime metadata. Older release
-manifests without client pins cannot authorize automatic client updates.
-See [the updater](client-updater.md#patched-electron-updates).
-Package updates remain responsible for the bootstrap, integrations and system
-dependencies. Automatic runtime updates preserve the installed mod loader.
+Packages pin `application.zip` and its file index in `bootstrap.json`. The signed
+release manifest includes that application's archive hash, index hash, version
+and bootstrap API. Application payloads contain the baseline module and runtime
+pins. Tests seed unpublished archives through explicit `--application-archive`
+and `--runtime-archive` options; both still require the pinned hashes.
+The approval action binds the application, client and runtime to the same
+`manifest_sha256`. Once the new bootstrap is installed, OpenAsar, ASAR patches,
+launcher behavior and the Python updater can all update without a package upgrade.
+Only the stable loader, trust key, desktop integration and system dependencies
+remain package-managed. See [application activation](client-updater.md#application-downloads-and-activation).
 
 Release filenames are fixed. Versions remain in package metadata, release tags
 and manifests. AUR download aliases include the version to avoid stale local
 source caches. Older public assets remain immutable.
 
-Package post-install/upgrade hooks refresh `_app.asar` only when it exists and
-`app.asar` matches the newly installed checksum. This keeps official mod installers
-from restoring an old bootstrap, without touching a currently installed mod loader.
-Tarball users extract into a fresh directory. Mods in the standard profile
-survive this update; directly modified old package copies may need their installer
-run again.
+Minimal packages have no ASAR patching or mod-backup hook. The downloaded
+application refreshes the writable profile installation while preserving mods.
+Legacy release recipes retain their original backup hook for compatibility.
+Tarball users extract into a fresh directory; mods in the standard profile survive.
 
 ## Release signatures
 

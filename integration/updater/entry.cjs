@@ -67,6 +67,7 @@ function start() {
     return compile.call(this, source, filename);
   };
 
+  require("./application-ready.cjs")(app, process.env.DPE_APPLICATION_READY, info.releaseChannel);
   require(bootstrap);
   if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)
     app.whenReady().then(() => setTimeout(() => updater.checkForUpdates(), 1000).unref());

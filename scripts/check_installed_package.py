@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 
 
-def check(app: Path, archive: Path | None = None):
+def check(app: Path, archive: Path | None = None, application_archive: Path | None = None):
     # The container installs packages as root. Drop privileges before opening
     # app files, so root-only modes cannot make a broken package appear to pass.
     if os.geteuid() == 0:
@@ -35,7 +35,30 @@ def check(app: Path, archive: Path | None = None):
         raise ValueError("Installer package must not contain Electron")
     with tempfile.TemporaryDirectory(prefix="installed-runtime-") as profile:
         environment = {**os.environ, "DPE_RUNTIME_BUNDLED": "1", "PYTHONDONTWRITEBYTECODE": "1"}
-        command = ["python3", str(app / "integration/updater/runtime.py"), str(app), profile]
+        bootstrap_command = [
+            "python3",
+            "-I",
+            str(app / "loader.py"),
+            "--profile",
+            profile,
+            "--resolve",
+        ]
+        if application_archive:
+            bootstrap_command += ["--archive", str(application_archive)]
+        payload = Path(
+            subprocess.check_output(bootstrap_command, env=environment, text=True).strip()
+        )
+        cached_payload = subprocess.check_output(
+            bootstrap_command[:6], env={**environment, "DPE_CLIENT_OFFLINE": "1"}, text=True
+        ).strip()
+        if cached_payload != str(payload):
+            raise ValueError("Bootstrap did not reuse its verified application offline")
+        command = [
+            "python3",
+            str(payload / "integration/updater/runtime.py"),
+            str(payload),
+            profile,
+        ]
         if archive:
             command += ["--archive", str(archive), "--offline"]
         runtime = subprocess.check_output(command, env=environment, text=True).strip()
@@ -79,5 +102,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("app", type=Path)
     parser.add_argument("--runtime-archive", type=Path)
+    parser.add_argument("--application-archive", type=Path)
     args = parser.parse_args()
-    check(args.app, args.runtime_archive)
+    check(args.app, args.runtime_archive, args.application_archive)

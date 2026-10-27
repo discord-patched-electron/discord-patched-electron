@@ -162,6 +162,33 @@ class ReleaseApproval(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "checksum"):
                 verify_assets(directory, manifest)
 
+    def test_application_asset_is_required_and_hash_bound_to_the_signed_manifest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            assets = {}
+            for name in [*("app" + ext for ext in FORMATS), "application.zip"]:
+                (directory / name).write_bytes(b"tested bytes")
+                assets[name] = hashlib.sha256(b"tested bytes").hexdigest()
+            application = {
+                "bootstrap_api": 1,
+                "asset": "application.zip",
+                "version": self.manifest["version"],
+                "archive_sha256": assets["application.zip"],
+                "index_sha256": "f" * 64,
+            }
+            manifest = {**self.manifest, "assets": assets, "application": application}
+            verify_assets(directory, manifest)
+            for change in (
+                {"asset": "other.zip"},
+                {"archive_sha256": "a" * 64},
+                {"bootstrap_api": 2},
+            ):
+                with self.subTest(change=change), self.assertRaises(ValueError):
+                    verify_assets(directory, {**manifest, "application": {**application, **change}})
+            (directory / "application.zip").write_bytes(b"corrupt bytes")
+            with self.assertRaisesRegex(ValueError, "checksum"):
+                verify_assets(directory, manifest)
+
     def test_prepare_retries_reuse_identity_and_only_reserve_unpublished_tags(self):
         client = read_json(ROOT / "config/clients.lock.json")["clients"]["canary"]
         key = "b" * 64

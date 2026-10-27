@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 from pathlib import Path
 
+from application_payload import bootstrap, bundle
 from common import read_json, sha256
 from stage_updater import configure_runtime, validate_distribution
 from stage_updater import stage as stage_updater
 
 
 def stage(inputs: dict, directory: Path, asar: str):
-    destination = directory / "stage"
+    destination = directory / "application"
     # All destinations are generated inside makepkg's source directory.
     if destination.exists():
         raise ValueError("Staging directory already exists; use makepkg --cleanbuild")
@@ -41,7 +43,30 @@ def stage(inputs: dict, directory: Path, asar: str):
         runtime["sha256"],
         runtime["url"],
     )
+    shutil.copy2(directory / "libdpe-camera-probe.so", destination)
+    launcher = (
+        (directory / "discord-launcher.sh")
+        .read_text()
+        .replace(
+            "root=/usr/lib/" + inputs["package"],
+            'root=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")',
+        )
+    )
+    (destination / "launch.sh").write_text(launcher)
+    (destination / "launch.sh").chmod(0o755)
+    shutil.copy2(directory / "discord.desktop", destination / "discord.desktop")
     validate_distribution(destination, allow_runtime=False)
+    # This developer recipe produces two artifacts, just like release packaging.
+    # Only stage/ is installed; application.zip can seed an unpublished fixture.
+    application = bundle(destination, directory / "application.zip", "20260101.000000", 1767225600)
+    bootstrap(
+        destination,
+        directory / "stage",
+        application,
+        "local-" + application["archive_sha256"],
+        client["channel"],
+        inputs["electron_channel"],
+    )
 
 
 def main():

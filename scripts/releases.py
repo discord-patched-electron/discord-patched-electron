@@ -191,10 +191,19 @@ def reserve_tag(tag: str, commit: str):
 
 def verify_assets(directory: Path, manifest: dict):
     assets = manifest.get("assets", {})
-    if len(assets) != len(FORMATS) or any(
+    application = manifest.get("application")
+    if len(assets) != len(FORMATS) + bool(application) or any(
         sum(name.endswith(ext) for name in assets) != 1 for ext in FORMATS
     ):
         raise ValueError("Expected exactly four app package formats")
+    if application and (
+        application.get("bootstrap_api") != 1
+        or application.get("asset") != "application.zip"
+        or application.get("archive_sha256") != assets.get("application.zip")
+        or application.get("version") != manifest["version"]
+        or not re.fullmatch(r"[a-f0-9]{64}", application.get("index_sha256", ""))
+    ):
+        raise ValueError("Invalid application update asset")
     for name, expected in assets.items():
         if Path(name).name != name or not re.fullmatch(r"[a-f0-9]{64}", expected):
             raise ValueError("Invalid asset name or checksum")

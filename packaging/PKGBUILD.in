@@ -34,7 +34,6 @@ package() {
   local root="$pkgdir/usr/lib/$pkgname"
   install -d "$root"
   cp -a stage/. "$root/"
-  install -Dm755 discord-launcher.sh "$root/launch.sh"
   install -d "$pkgdir/usr/bin"
   ln -s "/usr/lib/$pkgname/launch.sh" "$pkgdir/usr/bin/$pkgname"
   ln -s "$pkgname" "$pkgdir/usr/bin/@DESKTOP_ID@"
@@ -42,7 +41,5 @@ package() {
   install -Dm644 stage/discord.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/@DESKTOP_ID@.png"
   install -Dm644 support/THIRD_PARTY.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY.md"
   install -Dm644 support/LICENSE "$pkgdir/usr/share/licenses/$pkgname/PROJECT-LICENSE"
-  install -Dm644 stage/bootstrap/LICENSE "$pkgdir/usr/share/licenses/$pkgname/OPENASAR-LICENSE"
-  install -Dm644 package-inputs.json "$root/package-inputs.json"
-  install -Dm755 libdpe-camera-probe.so "$root/libdpe-camera-probe.so"
+  install -Dm644 application/bootstrap/LICENSE "$pkgdir/usr/share/licenses/$pkgname/OPENASAR-LICENSE"
 }
