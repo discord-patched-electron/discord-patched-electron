@@ -14,6 +14,8 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.error
 import urllib.request
 import uuid
 import zipfile
@@ -33,7 +35,10 @@ FAILURES = (
 
 
 def read(path):
-    return json.loads(path.read_text())
+    value = json.loads(path.read_text())
+    if not isinstance(value, dict):
+        raise ValueError(f"{path.name} must be a JSON object")
+    return value
 
 
 def checksum(path):
@@ -55,7 +60,8 @@ def write(path, value):
 
 def descriptor(value):
     if (
-        value.get("bootstrap_api") != API
+        not isinstance(value, dict)
+        or value.get("bootstrap_api") != API
         or value.get("asset") != "application.zip"
         or not re.fullmatch(r"\d{8}\.\d{6}", value["version"])
         or any(
@@ -172,6 +178,8 @@ def validate(directory, candidate):
                 raise ValueError("Application files are damaged: " + name)
     if actual != set(index) or "launch.sh" not in index:
         raise ValueError("Incomplete application download")
+    if not os.access(app / "launch.sh", os.X_OK):
+        raise ValueError("Application launcher is not executable")
     return app
 
 
@@ -234,13 +242,40 @@ def download(url, target):
     if not url.startswith(f"https://github.com/{REPOSITORY}/releases/download/"):
         raise ValueError("Unexpected application download URL")
     opener = urllib.request.build_opener(HTTPSRedirect())
-    with opener.open(url, timeout=20) as response, target.open("wb") as output:
-        total = 0
-        while block := response.read(1024 * 1024):
-            total += len(block)
-            if total > 64 * 1024 * 1024:
-                raise ValueError("Application download exceeds size limit")
-            output.write(block)
+    for attempt in range(3):
+        complete = False
+        try:
+            with opener.open(url, timeout=20) as response, target.open("wb") as output:
+                length = response.headers.get("Content-Length")
+                expected = int(length) if length is not None else None
+                if expected is not None and not 0 <= expected <= 64 * 1024 * 1024:
+                    raise ValueError("Application download exceeds size limit")
+                total = 0
+                while block := response.read(1024 * 1024):
+                    total += len(block)
+                    if total > 64 * 1024 * 1024:
+                        raise ValueError("Application download exceeds size limit")
+                    output.write(block)
+                if expected is not None and total < expected:
+                    raise http.client.IncompleteRead(b"", expected - total)
+            complete = True
+            return
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            ConnectionError,
+            http.client.HTTPException,
+        ) as error:
+            if attempt == 2 or (
+                isinstance(error, urllib.error.HTTPError)
+                and error.code not in (408, 429, 500, 502, 503, 504)
+            ):
+                raise
+            print(f"Application download interrupted; retrying: {error}", file=sys.stderr)
+        finally:
+            if not complete:
+                target.unlink(missing_ok=True)
+        time.sleep(attempt + 1)
 
 
 def cache_root(package, profile):
@@ -260,14 +295,52 @@ def generation(root, digest, package, policy):
 
 def process_identity(pid):
     try:
-        return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
+        fields = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
+        return None if fields[0] in ("Z", "X") else fields[19]
     except (OSError, IndexError):
         return None
 
 
+def read_state(root):
+    path = root / "state.json"
+    try:
+        state = read(path)
+        references = [state.get(key) for key in ("current", "previous", "pending")]
+        rejected = state.get("rejected", [])
+        if not isinstance(rejected, list):
+            raise ValueError("Invalid rejected application list")
+        references.extend(rejected)
+        for key in ("running", "trial"):
+            if key not in state:
+                continue
+            process = state[key]
+            if (
+                not isinstance(process, dict)
+                or type(process["pid"]) is not int
+                or process["pid"] <= 0
+                or (process["process"] is not None and not re.fullmatch(r"\d+", process["process"]))
+                or (key == "trial" and not re.fullmatch(r"[a-f0-9]{32}", process["token"]))
+            ):
+                raise ValueError("Invalid application process record")
+            references.append(process["digest"])
+        if any(
+            value is not None and not re.fullmatch(r"[a-f0-9]{64}", value) for value in references
+        ):
+            raise ValueError("Invalid application state reference")
+        return state
+    except FileNotFoundError:
+        return {}
+    except (ValueError, TypeError, KeyError) as error:
+        # State is a hint, not authority to execute code. Recover using package
+        # pins and full file verification; retain the damaged metadata for diagnosis.
+        path.rename(root / ("state.damaged-" + uuid.uuid4().hex + ".json"))
+        print(f"Recovering damaged application state: {error}", file=sys.stderr)
+        return {}
+
+
 def select(root, package, policy, *, archive=None, launch=False):
     state_file = root / "state.json"
-    state = read(state_file) if state_file.exists() else {}
+    state = read_state(root)
     trial = state.get("trial")
     if trial:
         if (root / ("ready-" + trial["token"])).is_file():
@@ -313,6 +386,16 @@ def select(root, package, policy, *, archive=None, launch=False):
             valid.append((incoming["version"], digest, app))
         except FAILURES as error:
             print(f"Application cache unavailable: {error}", file=sys.stderr)
+    if not valid and baseline["archive_sha256"] in state.get("rejected", []):
+        # Closing the first-run UI (or launching offline before setup finishes)
+        # is not evidence of bad code. With no working fallback, retry verified
+        # package-pinned bytes rather than redownloading the same application.
+        try:
+            app, incoming = generation(root, baseline["archive_sha256"], package, policy)
+            valid.append((incoming["version"], baseline["archive_sha256"], app))
+            state["rejected"].remove(baseline["archive_sha256"])
+        except FAILURES:
+            pass
     # Explicit local archives still have to match the installed package's pins.
     if not valid or (
         baseline["version"] > max(item[0] for item in valid)
@@ -389,7 +472,7 @@ def main():
             incoming = descriptor(manifest["application"])
             app, _ = select(root, package, policy)
             current = read(app.parent / "application.json")
-            state = read(root / "state.json") if (root / "state.json").exists() else {}
+            state = read_state(root)
             if incoming["version"] <= max(
                 current["version"], policy["application"]["version"]
             ) or incoming["archive_sha256"] in state.get("rejected", []):

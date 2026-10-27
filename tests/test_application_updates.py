@@ -1,7 +1,9 @@
 """Signed application generations update all executable code without package writes."""
 
 import copy
+import errno
 import importlib.util
+import io
 import os
 import shutil
 import stat
@@ -9,9 +11,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.error
 import zipfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -103,7 +106,7 @@ class ApplicationUpdates(unittest.TestCase):
         script = (
             "#!/bin/sh\nexit 1\n"
             if broken
-            else '#!/bin/sh\nif [ -n "${DPE_APPLICATION_READY:-}" ]; then printf ready > "$DPE_APPLICATION_READY"; fi\nprintf "%s\\n" '
+            else '#!/bin/sh\nif [ "${1:-}" = cancel ]; then exit 1; fi\nif [ -n "${DPE_APPLICATION_READY:-}" ]; then printf ready > "$DPE_APPLICATION_READY"; fi\nprintf "%s\\n" '
             + label
             + "\n"
         )
@@ -212,6 +215,100 @@ class ApplicationUpdates(unittest.TestCase):
         validate_bootstrap(self.package)
         self.assertFalse((self.package / "updater.py").exists())
         self.assertFalse((self.package / "app.asar").exists())
+
+    def test_cancelled_first_launch_retries_the_verified_cache_offline(self):
+        self.assertEqual(self.run_loader("--launch", "--", "cancel", check=False).returncode, 1)
+        result = self.run_loader("--launch", check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "first")
+        self.run_loader("--resolve")
+        state = read_json(self.root / "state.json")
+        self.assertEqual(state["current"], self.first["archive_sha256"])
+        self.assertNotIn(self.first["archive_sha256"], state.get("rejected", []))
+
+    def test_damaged_activation_state_recovers_the_pinned_cache_offline(self):
+        for contents in (
+            '{"trial":',
+            "null",
+            "[]",
+            '{"current": []}',
+            '{"rejected": null}',
+            '{"running": {"pid": 1}}',
+            '{"trial": {"token": "../../escape"}}',
+        ):
+            with self.subTest(contents=contents):
+                (self.root / "state.json").write_text(contents)
+                result = self.run_loader("--launch", check=False)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), "first")
+        self.assertEqual(len(list(self.root.glob("state.damaged-*.json"))), 7)
+
+    def test_malformed_generation_metadata_can_be_repaired_from_verified_archive(self):
+        (self.first_app.parent / "application.json").write_text("null")
+        result = self.run_loader("--resolve", "--archive", str(self.archive), check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "first")
+
+    def test_missing_launcher_permission_is_repaired_before_execution(self):
+        (self.first_app / "launch.sh").chmod(0o600)
+        with self.assertRaisesRegex(ValueError, "executable"):
+            loader.validate(self.first_app.parent, self.first)
+        self.run_loader("--resolve", "--archive", str(self.archive))
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "first")
+
+    def test_interrupted_extraction_leaves_the_working_generation_untouched(self):
+        self.run_loader("--launch")
+        second, archive = self.payload("second", "20261027.130000")
+        proof = self.approve(second)
+        state = (self.root / "state.json").read_bytes()
+        with patch.object(
+            loader.shutil, "copyfileobj", side_effect=OSError(errno.ENOSPC, "No space left")
+        ):
+            with self.assertRaises(OSError):
+                loader.install(self.root, self.package, self.policy, second, archive, proof)
+        self.assertFalse((self.root / "generations" / second["archive_sha256"]).exists())
+        self.assertFalse(list(self.root.glob("prepare-*")))
+        self.assertEqual((self.root / "state.json").read_bytes(), state)
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "first")
+
+    def test_simultaneous_fresh_resolves_publish_one_complete_generation(self):
+        shutil.rmtree(self.root)
+        command = [*self.command, "--resolve", "--archive", str(self.archive)]
+        with (
+            subprocess.Popen(
+                command, env=self.environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ) as first,
+            subprocess.Popen(
+                command, env=self.environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ) as second,
+        ):
+            for task in (first, second):
+                stdout, stderr = task.communicate(timeout=10)
+                self.assertEqual(task.returncode, 0, stderr.decode())
+                self.assertEqual(Path(stdout.decode().strip()), self.first_app)
+        self.assertEqual(len(list((self.root / "generations").iterdir())), 1)
+        self.assertFalse(list(self.root.glob("prepare-*")))
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "first")
+
+    def test_exited_unreaped_trial_does_not_steal_the_next_launch_confirmation(self):
+        with subprocess.Popen(
+            [*self.command, "--launch", "--", "cancel"],
+            env=self.environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ) as task:
+            # Observe exit without reaping it: /proc still exposes its start time.
+            os.waitid(os.P_PID, task.pid, os.WEXITED | os.WNOWAIT)
+            result = self.run_loader("--launch", check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "first")
+            state = read_json(self.root / "state.json")
+            self.assertNotEqual(state["trial"]["pid"], task.pid)
+            self.assertTrue((self.root / ("ready-" + state["trial"]["token"])).is_file())
+        self.run_loader("--resolve")
+        self.assertEqual(
+            read_json(self.root / "state.json")["current"], self.first["archive_sha256"]
+        )
 
     def test_signed_same_runtime_application_upgrade_changes_python_asar_and_patches(self):
         self.run_loader("--launch")
@@ -344,7 +441,7 @@ class ApplicationUpdates(unittest.TestCase):
             "pid": os.getpid(),
             "process": loader.process_identity(os.getpid()),
             "digest": self.first["archive_sha256"],
-            "token": "fixture",
+            "token": "a" * 32,
         }
         write_json(self.root / "state.json", state)
         selected, token = loader.select(self.root, self.package, self.policy, launch=True)
@@ -434,3 +531,74 @@ class ApplicationUpdates(unittest.TestCase):
         updated["application"] = middle
         write_json(self.package / "bootstrap.json", updated)
         self.assertEqual(self.run_loader("--launch").stdout.strip(), "second")
+
+
+class BootstrapDownloads(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.target = Path(temporary.name) / "application.zip"
+        self.url = (
+            f"https://github.com/{loader.REPOSITORY}/releases/download/fixture/application.zip"
+        )
+
+    def response(self, data, length=None):
+        response = io.BytesIO(data)
+        response.headers = {"Content-Length": str(len(data) if length is None else length)}
+        return response
+
+    def test_transient_connection_and_http_errors_retry_before_succeeding(self):
+        opener = Mock()
+        opener.open.side_effect = [
+            urllib.error.URLError("connection reset"),
+            urllib.error.HTTPError(self.url, 503, "temporarily unavailable", {}, None),
+            self.response(b"verified separately"),
+        ]
+        with (
+            patch.object(loader.urllib.request, "build_opener", return_value=opener),
+            patch.object(loader.time, "sleep"),
+        ):
+            loader.download(self.url, self.target)
+        self.assertEqual(self.target.read_bytes(), b"verified separately")
+        self.assertEqual(opener.open.call_count, 3)
+
+    def test_truncated_response_is_retried_without_concatenating_partial_bytes(self):
+        opener = Mock()
+        opener.open.side_effect = [self.response(b"partial", 20), self.response(b"complete")]
+        with (
+            patch.object(loader.urllib.request, "build_opener", return_value=opener),
+            patch.object(loader.time, "sleep"),
+        ):
+            loader.download(self.url, self.target)
+        self.assertEqual(self.target.read_bytes(), b"complete")
+        self.assertEqual(opener.open.call_count, 2)
+
+    def test_retries_are_bounded_and_failed_downloads_are_removed(self):
+        opener = Mock()
+        opener.open.side_effect = [self.response(b"partial", 20) for _ in range(3)]
+        with (
+            patch.object(loader.urllib.request, "build_opener", return_value=opener),
+            patch.object(loader.time, "sleep"),
+        ):
+            with self.assertRaises(loader.http.client.IncompleteRead):
+                loader.download(self.url, self.target)
+        self.assertFalse(self.target.exists())
+        self.assertEqual(opener.open.call_count, 3)
+
+    def test_permanent_http_failure_and_oversize_response_are_not_retried(self):
+        for failure in (
+            urllib.error.HTTPError(self.url, 404, "missing", {}, None),
+            self.response(b"", 64 * 1024 * 1024 + 1),
+        ):
+            with self.subTest(failure=failure):
+                opener = Mock()
+                opener.open.side_effect = [failure]
+                with (
+                    patch.object(loader.urllib.request, "build_opener", return_value=opener),
+                    patch.object(loader.time, "sleep") as sleep,
+                ):
+                    with self.assertRaises((urllib.error.HTTPError, ValueError)):
+                        loader.download(self.url, self.target)
+                sleep.assert_not_called()
+                self.assertEqual(opener.open.call_count, 1)
+                self.assertFalse(self.target.exists())

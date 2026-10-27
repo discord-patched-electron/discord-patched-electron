@@ -40,6 +40,13 @@ verifies every extracted file against a checksum-pinned index. It performs no
 ASAR patching or Electron/client update work. Normal cached launches need no
 network access before handing over to the application.
 
+Initial downloads retry transient connection failures, incomplete responses and
+temporary HTTP errors up to three attempts, discarding each partial file. Closing
+setup before its first successful launch does not require downloading the verified
+application again. If no working fallback exists, the package-pinned cache can be
+retried offline. Malformed activation state is retained for diagnosis and rebuilt
+from the verified package baseline; invalid application files still require repair.
+
 Application generations live under `<profile>/dpe-application/<installation-id>/`.
 The application checks for signed, approved releases in the OpenAsar startup
 screen and during background checks. It stages a new generation through the
@@ -54,7 +61,8 @@ restart notification. At startup, the launcher hands off to the new application
 before preparing its Electron or Discord modules. The client/runtime updaters
 cannot advance past the selected application release. A trial becomes current
 after the matching Discord HTTPS window finishes loading; a process that exits first causes
-the next launch to fall back to the previous generation. Second launches retain
+the next launch to fall back to the previous generation. Exited processes awaiting
+reaping do not count as running instances. Second launches retain
 the running generation so they cannot activate an update underneath it.
 
 Package upgrades retain a newer approved application. The archive hash identifies
@@ -292,3 +300,16 @@ compilation, account login, call or camera capture was performed.
 - `bun run test` passed 253 Python and 58 JavaScript tests; `bun run lint` passed.
   These checks do not establish live-call behavior or a complete Ubuntu desktop
   under AppArmor. The release workflow retains its Debian GUI check.
+
+The subsequent bootstrap reliability pass adds recovery for cancelled initial
+launches, malformed state or generation metadata, missing launcher permissions,
+and exited but unreaped trial processes. Downloads retry transient failures up to
+three times and discard partial files. Eleven regression tests cover these cases,
+actual concurrent first resolves and disk-full extraction failure without changing
+the working generation. The installed code remains stdlib-only, now about 21 KB.
+
+`bun run test` passed 264 Python and 58 JavaScript tests; `bun run lint` passed.
+`out/bootstrap-reliability/` retains all four matching installer payloads and a
+fresh-profile signed upgrade that reached Discord's login form before and after
+activation, kept the original code unchanged and reused Electron without another
+download. No account login, call, physical camera test or new compilation was performed.
