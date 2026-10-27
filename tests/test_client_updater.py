@@ -448,6 +448,10 @@ class DistributionBoundary(unittest.TestCase):
                 "client-distribution.json",
                 "scripts/patch_pulse_audio.py",
                 "client-update.json",
+                "integration/launcher/flags.py",
+                "integration/launcher/presets.json",
+                "integration/launcher/codec-preload.sh",
+                "integration/updater/launch-settings.html",
             ):
                 self.assertEqual((app / name).stat().st_mode & 0o444, 0o444)
             with patch("stage_updater.read_json", return_value={**lock, "sha256": "b" * 64}):

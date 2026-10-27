@@ -13,22 +13,36 @@ previously produced an empty version.
 
 ## Flag handling
 
-`integration/launcher/discord-launcher.sh` applies flags in this order:
+`integration/launcher/flags.py` resolves flags before Electron starts, in this order:
 
-1. Project defaults.
-2. The older package-specific `-flags.conf`.
-3. `~/.config/discord-canary-patched-electron.conf` (respecting `XDG_CONFIG_HOME`).
-4. Command-line arguments.
+1. Application identity and defaults.
+2. Selected preset's optional controls, then its editable flags, read from
+   `~/.config/discord-canary-patched-electron.conf` (respecting `XDG_CONFIG_HOME`).
+3. Additional flags: the lines outside that file's managed preset section.
+4. Original command-line arguments.
+
+Migration imports saved OpenAsar preferences and the older package-specific
+`-flags.conf` once, preserving their previous precedence below existing channel
+file overrides. See [file storage and automated codec checks](flags-file.md).
 
 Feature lists merge by feature name; the last setting wins. Other Chromium
-switches keep their normal last-value precedence. `DPE_DEFAULT_FLAGS=0` disables
-the project defaults. OpenAsar Focus presets yield to explicit launcher flags.
+switches keep their normal last-value precedence. `DPE_DEFAULT_FLAGS=0` skips
+application defaults and all saved presets/options. The managed launcher suppresses
+OpenAsar's subsequent flag injection entirely. The direct legacy compatibility
+adapter still drops its automatic `EnableDrDc` and `--ignore-gpu-blocklist` settings.
 
 The launcher selects `--ozone-platform=wayland` when `WAYLAND_DISPLAY` is present,
-otherwise `--ozone-platform=x11`. It also enables `AcceleratedVideoDecoder` and
-`AcceleratedVideoDecodeLinuxGL`. These are launch settings, not compiler changes.
+otherwise `--ozone-platform=x11`. Hardware decode follows Chromium's defaults;
+there are separate optional decode/encode overrides. `--ignore-flags` or
+`DPE_IGNORE_FLAGS=1` skips every user flag source before parsing it. See the
+[preset design, research and current results](launch-presets.md).
 
 ## Graphics results and limits
+
+The [OpenAsar playback investigation](video-playback.md) reproduced GPU crashes
+with the default Performance preset on Electron 46. Removing `EnableDrDc`, which
+Chromium explicitly does not support on Linux, restored playback on Wayland and
+Xwayland. The adapter also keeps driver blocklists enabled by default.
 
 On the tested AMD RX 7900 GRE, synthetic playback used `VaapiVideoDecoder` and
 WebGL used hardware ANGLE/OpenGL. Software WebCodecs encoders for H.264, VP8, VP9
@@ -36,8 +50,9 @@ and AV1 each produced twelve frames.
 
 Forcing `AcceleratedVideoEncoder` crashed the GPU process in
 `CreateGpuMemoryBufferHandle`, including with native GPU buffers enabled. It
-remains off by default. `--ozone-platform=auto` also crashed that runtime, which
-is why the launcher selects the session explicitly. GPU blocklists and the GPU
+remains off by default. An earlier `--ozone-platform=auto` run failed; the current
+flags-free recovery check succeeds with native Wayland selected by Electron.
+Normal launches retain explicit session selection. GPU blocklists and the GPU
 sandbox remain enabled; Vulkan is not forced.
 
 Discord's voice/video module has a separate codec stack. Its pre-call report

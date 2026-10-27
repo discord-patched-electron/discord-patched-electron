@@ -93,6 +93,7 @@ test("first launch skips automatic OpenAsar settings while retaining manual acce
 
 test("missing or repeated bootstrap patch sites fail closed", () => {
   for (const [filename, source] of [
+    ["cmdSwitches.js", "app.commandLine.appendSwitch(k.replace('--', ''), c[k].join(','));"],
     ["index.js", "global.oaConfig = settings.get('openasar', {});"],
     ["autoStart.js", autostartSource],
     [

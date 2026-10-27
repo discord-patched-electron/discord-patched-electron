@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -11,10 +12,29 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class Launcher(unittest.TestCase):
     def launch(
-        self, config="", legacy="", args=(), env=None, details=False, cached=False, unbundled=False
+        self,
+        config="",
+        legacy="",
+        args=(),
+        env=None,
+        details=False,
+        cached=False,
+        unbundled=False,
+        settings=None,
+        broken_resolver=False,
     ):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
+            shutil.copytree(ROOT / "integration/launcher", root / "integration/launcher")
+            if broken_resolver:
+                (root / "integration/launcher/flags.py").write_text(
+                    "raise RuntimeError('must not run')"
+                )
+            if settings is not None:
+                (root / "discordcanary").mkdir()
+                (root / "discordcanary/settings.json").write_text(
+                    settings if isinstance(settings, str) else json.dumps(settings)
+                )
             (root / "runtime").mkdir()
             runtime = root / "runtime/electron"
             runtime.write_text(
@@ -26,7 +46,7 @@ class Launcher(unittest.TestCase):
                 "    root = Path(os.environ['DPE_APP_ROOT'])\n"
                 "    Path(os.environ['DPE_LAUNCH_RESULT']).write_text(json.dumps({'runtime': str(root / 'cached runtime/electron'), 'installed_runtime': str(root / 'cached runtime/electron'), 'host': str(root / 'prepared'), 'voice': '/fixture/voice'}))\n"
                 "    sys.exit(int(os.environ.get('DPE_FIXTURE_UI_STATUS', '0')))\n"
-                'print(json.dumps({"flags":sys.argv[1:], "profile":os.environ["DPE_PROFILE_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"]}))\n'
+                'print(json.dumps({"flags":sys.argv[1:], "originalArgs":json.loads(os.environ["DPE_LAUNCH_ARGS"]), "managed":os.environ["DPE_FLAGS_MANAGED"], "profile":os.environ["DPE_PROFILE_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"]}))\n'
             )
             runtime.chmod(0o755)
             if cached:
@@ -110,6 +130,10 @@ class Launcher(unittest.TestCase):
             if not result:
                 return None
             result = json.loads(result)
+            if details:
+                result["flagsFileContent"] = (
+                    root / "discord-canary-patched-electron.conf"
+                ).read_text()
             return result if details else result["flags"]
 
     def test_standard_canary_profile_and_explicit_override(self):
@@ -135,8 +159,6 @@ class Launcher(unittest.TestCase):
             set(enabled),
             {
                 "AcceleratedVideoEncoder",
-                "AcceleratedVideoDecoder",
-                "AcceleratedVideoDecodeLinuxGL",
                 "Extra",
                 "Legacy",
             },
@@ -157,6 +179,54 @@ class Launcher(unittest.TestCase):
         self.assertIn("--example=with spaces", result["flags"])
         self.assertIn("--ozone-platform=x11", result["flags"])
         self.assertTrue(result["profile"].endswith("/discordcanary"))
+        self.assertEqual(result["originalArgs"], ["--ozone-platform=x11", "--example=with spaces"])
+        self.assertEqual(result["managed"], "1")
+
+    def test_recovery_bypasses_even_broken_resolver_settings_files_and_cli(self):
+        for env, args in [
+            ({}, ["--ignore-flags", "--enable-features=EnableDrDc"]),
+            ({"DPE_IGNORE_FLAGS": "1"}, ["--use-angle=broken"]),
+        ]:
+            with self.subTest(env=env, args=args):
+                result = self.launch(
+                    "not valid flags",
+                    legacy="also invalid",
+                    settings="{broken json",
+                    broken_resolver=True,
+                    args=args,
+                    env=env,
+                    details=True,
+                    cached=True,
+                )
+                self.assertEqual(result["flags"], [])
+                self.assertEqual(result["originalArgs"], ["--ignore-flags"])
+                self.assertEqual(result["flagsFileContent"], "not valid flags")
+
+    def test_saved_presets_are_resolved_before_launch(self):
+        result = self.launch(
+            settings={
+                "openasar": {
+                    "cmdPreset": "perf",
+                    "customFlags": "--enable-features=Custom:Param/value",
+                }
+            },
+            details=True,
+        )
+        self.assertNotIn("--disable-renderer-backgrounding", result["flags"])
+        self.assertIn("--enable-features=Custom:Param/value", result["flags"])
+        self.assertEqual(result["originalArgs"], [])
+        self.assertNotIn("--ignore-gpu-blocklist", result["flags"])
+        self.assertIn("# >>> OpenAsar launch presets v1", result["flagsFileContent"])
+        self.assertNotIn("--disable-renderer-backgrounding", result["flagsFileContent"])
+        relaunched = self.launch(
+            config=result["flagsFileContent"],
+            legacy="--stale-package-flag",
+            settings={"openasar": {"cmdPreset": "battery", "customFlags": "--stale-setting"}},
+        )
+        self.assertNotIn("--disable-renderer-backgrounding", relaunched)
+        self.assertIn("--enable-features=Custom:Param/value", relaunched)
+        self.assertNotIn("--stale-package-flag", relaunched)
+        self.assertNotIn("--stale-setting", relaunched)
 
     def test_second_instance_exits_successfully_without_starting_another_runtime(self):
         self.assertIsNone(self.launch(env={"DPE_FIXTURE_UI_STATUS": "2"}, cached=True))

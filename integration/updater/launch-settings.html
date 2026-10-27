@@ -1,0 +1,60 @@
+<section id="flags-panel" role="tabpanel" aria-labelledby="t_flags" hidden>
+  <p id="recovery" class="hint" hidden>Recovery mode. Saved flags are off.</p>
+  <p id="warnings" class="hint" hidden></p>
+  <p id="error" role="alert" hidden></p>
+  <p id="loading" role="status">Loading…</p>
+  <form id="settings" hidden>
+    <div class="flag-row">
+      <div>
+        <label for="preset">Preset</label>
+        <p class="hint">Keep separate launch options.</p>
+      </div>
+      <select id="preset" name="preset"></select>
+    </div>
+    <div class="flag-row">
+      <div>
+        <label for="display">Display</label>
+        <p class="hint">Choose Wayland or X11.</p>
+      </div>
+      <select id="display" name="display">
+        <option value="auto">Automatic</option>
+        <option value="wayland">Wayland</option>
+        <option value="x11">X11</option>
+      </select>
+    </div>
+    <details id="breaking">
+      <summary>Breaking</summary>
+      <p class="hint">These options may crash Discord.</p>
+      <div class="flag-row">
+        <div>
+          <label for="backend"
+            ><span class="risk-icon" role="img" aria-label="May break Discord"></span
+            >Renderer</label
+          >
+          <p class="hint">Choose how the GPU draws the app.</p>
+        </div>
+        <select id="backend" name="backend"></select>
+      </div>
+      <div id="breaking-options"></div>
+      <p class="hint recovery-help">
+        Won’t start? Run <code>discord-canary-prerelease-patched-electron-bin --ignore-flags</code>
+      </p>
+    </details>
+    <label for="flags" class="flags-label">Flags</label>
+    <p id="flags-help" class="hint">One flag per line. Restart to apply.</p>
+    <textarea
+      id="flags"
+      name="flags"
+      rows="6"
+      spellcheck="false"
+      autocapitalize="off"
+      aria-describedby="flags-help"
+    ></textarea>
+    <div class="flag-actions">
+      <button id="reset-preset" type="button">Reset</button>
+      <button id="discard" type="button">Reload</button>
+      <button id="save" type="submit">Save</button>
+    </div>
+    <p id="status" role="status"></p>
+  </form>
+</section>

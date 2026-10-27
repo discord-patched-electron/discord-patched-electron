@@ -56,6 +56,24 @@ module.exports = function assetHandler(
     const name = parsed.pathname.slice(1);
     try {
       if (
+        ["launch-settings.js", "launch-settings.css", "config-tabs.js", "flag-editor.js"].includes(
+          name,
+        )
+      ) {
+        const contents = await fs.readFile(path.join(__dirname, name));
+        return new Response(contents, {
+          headers: {
+            "content-type": {
+              ".html": "text/html; charset=utf-8",
+              ".js": "text/javascript",
+              ".css": "text/css",
+            }[path.extname(name)],
+            "content-security-policy":
+              "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'",
+          },
+        });
+      }
+      if (
         name === "config.html" ||
         (/^monaco-editor\/min\/[A-Za-z0-9_./-]+$/.test(name) && !name.split("/").includes(".."))
       ) {
@@ -71,9 +89,10 @@ module.exports = function assetHandler(
             ".json": "application/json",
             ".ttf": "font/ttf",
           }[path.extname(file)] || "application/octet-stream";
-        const contents = await fs.readFile(file);
+        let contents = await fs.readFile(file);
         if (name === "config.html" && checksum(contents) !== source.config_sha256)
           throw new Error("OpenAsar settings checksum mismatch");
+        if (name === "config.html") contents = require("./config-html.cjs")(contents.toString());
         return new Response(contents, {
           headers: {
             "content-type": mime,

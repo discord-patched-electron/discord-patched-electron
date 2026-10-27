@@ -1,0 +1,2548 @@
+{
+  "date": "2026-10-27",
+  "branch": "fix/video-playback-gpu-flags",
+  "base_commit": "7a9c38d",
+  "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+  "openh264_sha256": "d828a944d4d2bb64195ada89cf2cde9bc41733b1547d0788ef49fb8cb231b76f",
+  "versions": {
+    "electron": "46.0.0-alpha.1",
+    "chrome": "158.0.8114.0",
+    "node": "24.22.1"
+  },
+  "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+  "automated_only": true,
+  "checks": {
+    "python_tests": 269,
+    "javascript_tests": 64,
+    "lint": "passed",
+    "settings_ui": true,
+    "required_native_matrix": true,
+    "required_cases": 11,
+    "total_cases": 14,
+    "passed_cases": 12,
+    "strict_codec_exit": 1,
+    "strict_codec_preferences_passed": false
+  },
+  "settings_checks": [
+    "Balanced defaults, independent codec controls and sandboxed preload",
+    "Unsupported flag rejected without saving; error labels and focus reach the field",
+    "Per-preset edits survive selection, save and real resolver preview",
+    "Reopening persists edits; stale OpenAsar settings cannot overwrite launch settings",
+    "External edits block stale saves; reload and Additional flags share the canonical file",
+    "Acceleration bypass and WIP controls remain independent, persist per preset, and support reset/discard",
+    "Accessibility tree exposes names and native roles for all editor controls",
+    "320px, RTL and 200% zoom have no horizontal overflow; keyboard navigation works",
+    "Recovery ignores saved acceleration and WIP flags while retaining them for repair",
+    "Recovery repairs invalid presets and explicitly returns to normal launch"
+  ],
+  "results": [
+    {
+      "case": "balanced-wayland",
+      "required": true,
+      "passed": true,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "balanced-x11",
+      "required": true,
+      "passed": true,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=x11",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "performance-wayland",
+      "required": true,
+      "passed": true,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "performance-x11",
+      "required": true,
+      "passed": true,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=x11",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "efficiency-wayland",
+      "required": true,
+      "passed": true,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--enable-features=IntensiveWakeUpThrottling"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "efficiency-x11",
+      "required": true,
+      "passed": true,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=x11",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--enable-features=IntensiveWakeUpThrottling"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "video-decode",
+      "required": false,
+      "passed": true,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "video-encode",
+      "required": false,
+      "passed": false,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--enable-features=AcceleratedVideoEncoder"
+      ],
+      "gpu_exits": [
+        "crashed"
+      ],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VaapiVideoEncodeAccelerator",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "chunks": 0,
+          "codec": "avc1.42001f",
+          "error": "OperationError: Encoding error.",
+          "preference": "prefer-hardware"
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "video-both",
+      "required": false,
+      "passed": false,
+      "video_codec": "h264",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,AcceleratedVideoEncoder"
+      ],
+      "gpu_exits": [
+        "crashed"
+      ],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VaapiVideoEncodeAccelerator",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "chunks": 0,
+          "codec": "avc1.42001f",
+          "error": "OperationError: Encoding error.",
+          "preference": "prefer-hardware"
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "ignore-flags",
+      "required": true,
+      "passed": true,
+      "video_codec": "h264",
+      "flags": [],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "codec-vp8",
+      "required": true,
+      "passed": true,
+      "video_codec": "vp8",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "codec-vp9",
+      "required": true,
+      "passed": true,
+      "video_codec": "vp9",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "codec-av1",
+      "required": true,
+      "passed": true,
+      "video_codec": "av1",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    },
+    {
+      "case": "codec-hevc",
+      "required": true,
+      "passed": true,
+      "video_codec": "hevc",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/file-backed-flags/codecs-2/preferences/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+      ],
+      "gpu_exits": [],
+      "decoder_implementations": [
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "encoder_implementations": [
+        "OpenH264VideoEncoder",
+        "VpxVideoEncoder"
+      ],
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "codec_preferences_passed": false
+    }
+  ],
+  "strict_codec_failures": [
+    {
+      "codec": "avc1.42001f",
+      "encodedWith": "prefer-software",
+      "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+      "frames": 0,
+      "passed": false,
+      "preference": "prefer-software",
+      "required": false
+    }
+  ],
+  "limits": [
+    "Synthetic clips and WebCodecs on this AMD GPU only; no Discord account, uploaded-media UI, calls, streams or physical camera.",
+    "All default preset/session cases, recovery, decode-only and all five clip codecs passed. Opt-in encode-only and combined encode/decode still crash the GPU.",
+    "Software H.264 decoding advertises support but fails initialization. Default/hardware H.264 round trips pass. Strict codec mode exits 1 for this unresolved runtime limitation.",
+    "Hardware VP8 decoding is reported unsupported. Hardware encoding is unsupported without the opt-in override; unsupported is never counted as a successful hardware operation.",
+    "Round-trip pixels use a grayscale ramp to isolate delivery from lossy color-space conversions. This is not a color-fidelity or performance benchmark."
+  ],
+  "local_artifacts": "out/file-backed-flags/{codecs-2,settings-final,strict-codecs}"
+}

@@ -1,0 +1,754 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "branch": "fix/video-playback-gpu-flags",
+  "base_commit": "803ecce",
+  "runtime": {
+    "electron": "46.0.0-alpha.1",
+    "chromium": "158.0.8114.0",
+    "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+    "source": "retained verified prerelease artifact 40053107555; no compilation"
+  },
+  "host": {
+    "os": "Arch Linux",
+    "compositor": "niri 26.04-214-ge9804c1c",
+    "gpu": "AMD Radeon RX 7900 GRE",
+    "mesa": "26.2.4",
+    "libva": "2.24.1",
+    "kernel": "7.2.11-1-cachyos"
+  },
+  "source": {
+    "assembled_head": "b12138756573818940df44df8f8aba7b4238f7d8",
+    "sha256": {
+      "media/base/media_switches.cc": "0cf695386ffb702503709c74b24ba125eaa7c7011e5103e9c7d5933254a4bbfa",
+      "media/mojo/services/gpu_mojo_media_client_linux.cc": "e5c95e17dcc6ad942e84a42f587d6dda8ee83e41995bd538a2a1bbb4d36b3ad2",
+      "media/gpu/vaapi/vaapi_wrapper.cc": "c4ed394b3e670ef7f699810b2dae10dc55a8ab870c4dcdd4e085b8b55710460f",
+      "content/renderer/render_thread_impl.cc": "62d3c1f18689403cd6a4e4ee7a24f70c9a9ba893d976334282078c61c11a623d",
+      "content/public/browser/gpu_utils.cc": "375ceacf1f645160d2a114f3ca4c197a7d1d53b20bf07b0768da050a4f57f932",
+      "gpu/config/gpu_util.cc": "5428377bec45edb67669a9a0e09cbde7af54d123f7e2858864177a760afd29c0",
+      "cc/trees/layer_tree_host_impl.cc": "5a2a3a87a0e30c86571839d21763e1a744642bc77edd320441afcd2ae5ec6a0d",
+      "content/browser/gpu/compositor_util.cc": "20119211fb66b881db02be0c6661b670adf139eb96b61de2654411f06a1c325a",
+      "ui/gfx/linux/client_native_pixmap_dmabuf.cc": "25e2fc439d0d599e4f9b4bda3990e4db47f981defe62da480c4f23b5003bff11",
+      "ui/gl/gl_switches.cc": "e472f2a53280c591d6b03f3c8f44c88f23401d81181a5506fd81d03aca7b4f88",
+      "ui/gl/gl_utils.cc": "34a877218ca1f874a17597ec790a1cd2ef0fb0163b8eb0e3d34675fe56da26fa",
+      "components/viz/host/renderer_settings_creation.cc": "6f3b5d41f8b4627efb881fdb55b1b368b2ba606c1423bfa167fbcabf9a6fb7fe",
+      "components/viz/service/display_embedder/skia_output_device_buffer_queue.cc": "a1422c294b471bb53bbf0bde343ea69fb05867f95da5e77ea6b484324089e87e",
+      "components/viz/common/switches.cc": "07966a4e7039031a8385cdc5d9975904f0cc3cb22f0f5aa37029ecfc1c181364",
+      "gpu/config/gpu_finch_features.cc": "83ac546f5c60e6770dfcc4d2016c93872565b4852960975b537af923424dfa3a",
+      "ui/ozone/platform/wayland/host/wayland_connection.cc": "4c46e40f55d9d77a096e6cf21adc90c73cd9a2feac032f2b05c7070e05740380",
+      "ui/ozone/platform/wayland/ozone_platform_wayland.cc": "7069aed4c4e4df90e0394677625a6ba98fbbe021d1a6923887eede87622b4808",
+      "content/public/browser/desktop_capture.cc": "3c7ce22707b6569b0a0c3454941c16650da26c065bb52d2447960c69faa9ca24",
+      "media/capture/capture_switches.cc": "47d4b2b6f8ddb421476f70785435eeb4c68096aaf8fac934667a79fba57206e4",
+      "content/public/common/content_features.cc": "9b745b164cb366271ffc68ce671fad51719299876d4ea33b3ef4f4d7e32fbcd8",
+      "content/browser/media/capture/desktop_capture_device.cc": "35ad34e9c8348472b9ecdbed28f82ac185256bef9de8fd6e2c73a77993092ff8",
+      "content/browser/web_contents/web_contents_impl.cc": "68dae35bb1a143fe8a229770b57c11692928a2e194e7b109f174a4c89a844851",
+      "ui/base/ui_base_features.cc": "09e70d9fa9b80c780864aec92db4323ebd82264a26a8f58277a9cedf117a7a97",
+      "out/Release/args.gn": "e10ee6b89eb52bbe4b2504574e01997c076c44f04a3f3431b3a8f89be6d5a8fc",
+      "out/Release/gen/media/media_buildflags.h": "798ed96b7ed0a154521aff97afa9f3cf0d3bd7e91c4f20052310c97945947080",
+      "out/Release/gen/media/gpu/buildflags.h": "ea56fca6ec3f08e4f5061381e40b79590d914d6053838c78314b022bfa6ce416",
+      "out/Release/gen/gpu/vulkan/buildflags.h": "4fc3d7406e534a4d2b500b41fee2c28c49de8864ebc76f8276b8d289eae0d64a",
+      "out/Release/gen/skia/buildflags.h": "3011fb7abdc9f58d36abd36e5f90a0ec115b7d4bf8faf55ca666834ed54ac4e7",
+      "out/Release/gen/ui/gl/buildflags.h": "66fcfd32e2d4e3664a50d193e45c3c332183871a1c2e3913a1dd9e301464ccf4",
+      "ui/ozone/common/features.cc": "e29e579fe03cf34e456c0eb238770a8cf1d1422c65b167c3df1e72018d113c1a"
+    }
+  },
+  "inputs_sha256": {
+    "integration/launcher/flags.py": "e521ca23839251e02aa88bbdc1b722355d933f693a12b0eb03f551f517f8fef7",
+    "integration/launcher/presets.json": "d943ed9b4ee823298d228a2b1ccf5eb66f7757094616dffba9e382fd11ed79e6",
+    "scripts/check_graphics.py": "9aacf092a9edc407e85d7778a2a7d8f1169d1bd60771c68bd98359733f5ab490",
+    "tests/graphics/main.cjs": "823b10b3de3db340b2ac4b9212c2b4cbd2d911e37846d152a3824baa1445550e",
+    "tests/graphics/renderer.js": "e576f4069194b8e3f4ccbe4f5390113f4e8d8cf35c7ad10f6a330b642041cd87",
+    "tests/test_launch_flags.py": "22c3cf5b0805f7607fef80dbc37bc09c87b08143c5341b24a3db6c65f3860812"
+  },
+  "graphics": {
+    "cases": 11,
+    "passed": 9,
+    "results": [
+      {
+        "case": "codec-av1",
+        "report": "out/flags-deep-research/codec-av1/graphics.json",
+        "report_sha256": "d59e24e146c53a056687776f0b09121d7d5bdb81b9c7594936b526b84170e14d",
+        "console_sha256": "4afac4b3929b2db529da39ae3ebbf9a9b5bc28dd8ca385765837f96b8c9b5316",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "av1",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 51,
+        "release_point_requests": 51,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "823b10b3de3db340b2ac4b9212c2b4cbd2d911e37846d152a3824baa1445550e",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "e576f4069194b8e3f4ccbe4f5390113f4e8d8cf35c7ad10f6a330b642041cd87",
+          "clip.json": "0b7d0c107e0cde936951dbbb9828f61be368a845a3e75244ff194ffe0bcd0b51"
+        }
+      },
+      {
+        "case": "codec-h264",
+        "report": "out/flags-deep-research/codec-h264/graphics.json",
+        "report_sha256": "5e79bac995d0d92df0a0521d765bd2cbf4ed8fc03f049c8e7d92d9a0439b3735",
+        "console_sha256": "7c4fde6d2023d015dc0723ffa22da2194bee5308300dc2d0f969094c3ba0515a",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "h264",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 51,
+        "release_point_requests": 51,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "823b10b3de3db340b2ac4b9212c2b4cbd2d911e37846d152a3824baa1445550e",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "e576f4069194b8e3f4ccbe4f5390113f4e8d8cf35c7ad10f6a330b642041cd87",
+          "clip.json": "7f110a29344095197a297002af88d2e3380ab32e1d9a93e48fca15f5177b4016"
+        }
+      },
+      {
+        "case": "codec-hevc",
+        "report": "out/flags-deep-research/codec-hevc/graphics.json",
+        "report_sha256": "6045a32bb5ce4563b5a533a0cc7accee31c0df75ea36dfb2928e1ef2c004c1ea",
+        "console_sha256": "f29d0919878c314d3451ac184c1aaf9558516ba99fb0c3fd122872bac5d27903",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "hevc",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 52,
+        "release_point_requests": 52,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "823b10b3de3db340b2ac4b9212c2b4cbd2d911e37846d152a3824baa1445550e",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "e576f4069194b8e3f4ccbe4f5390113f4e8d8cf35c7ad10f6a330b642041cd87",
+          "clip.json": "7f110a29344095197a297002af88d2e3380ab32e1d9a93e48fca15f5177b4016"
+        }
+      },
+      {
+        "case": "codec-vp8",
+        "report": "out/flags-deep-research/codec-vp8/graphics.json",
+        "report_sha256": "ef333cf21326f4f21fa7359b9abefa108cfb79906072a65aec1461412e70e5f4",
+        "console_sha256": "dde49aa04779691b15f65f35fe45c368195827e9868235838f16f64c45254bc8",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "vp8",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VpxVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 51,
+        "release_point_requests": 51,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "823b10b3de3db340b2ac4b9212c2b4cbd2d911e37846d152a3824baa1445550e",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "e576f4069194b8e3f4ccbe4f5390113f4e8d8cf35c7ad10f6a330b642041cd87",
+          "clip.json": "0b7d0c107e0cde936951dbbb9828f61be368a845a3e75244ff194ffe0bcd0b51"
+        }
+      },
+      {
+        "case": "codec-vp9",
+        "report": "out/flags-deep-research/codec-vp9/graphics.json",
+        "report_sha256": "d82dc893848862c8e7098e3bca0d40545d4f36b5c557b3dcd19bb97f8c5e2384",
+        "console_sha256": "2d9f4de1466330d953da11cbba7e4a4b535cb81890f449f01d6eeac062519dc3",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "vp9",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 51,
+        "release_point_requests": 51,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "823b10b3de3db340b2ac4b9212c2b4cbd2d911e37846d152a3824baa1445550e",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "e576f4069194b8e3f4ccbe4f5390113f4e8d8cf35c7ad10f6a330b642041cd87",
+          "clip.json": "0b7d0c107e0cde936951dbbb9828f61be368a845a3e75244ff194ffe0bcd0b51"
+        }
+      },
+      {
+        "case": "double-buffer",
+        "report": "out/flags-deep-research/double-buffer/graphics.json",
+        "report_sha256": "43f7f44c029a07dda241481b51d986fc4133e5d69c50f0f12a9b323df1cfc80e",
+        "console_sha256": "1f8c76fad245f6bfa234e051e39c51007478f824bd4dabb241f62f6ce7e7a76e",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--double-buffer-compositing",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "h264",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 51,
+        "release_point_requests": 51,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "85842f43d6beff200e9a8d5c6ce9ab1b300ee07de3b51599c84b8ebdc1419c2b",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "a6a7930ce4001416979236aad9be79c06df6f3ad30735f7a4d8c0597d8b9d95d"
+        }
+      },
+      {
+        "case": "encode-no-video-buffers",
+        "report": "out/flags-deep-research/encode-no-video-buffers/graphics.json",
+        "report_sha256": "9fdca82b0e9fa0f14d83b46d9f12491695e6f0baa47086746d3c1ee23c7925c6",
+        "console_sha256": "690063bc95d2080e0fd28d5be8ec6a87a90d8999a62c4ecd2d69c654fab74dd8",
+        "passed": false,
+        "process_exit": 1,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--enable-features=AcceleratedVideoEncoder",
+          "--disable-gpu-memory-buffer-video-frames",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "h264",
+        "gpu_exits": [
+          "crashed"
+        ],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "OperationError: Encoding error.",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 53,
+        "release_point_requests": 53,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "85842f43d6beff200e9a8d5c6ce9ab1b300ee07de3b51599c84b8ebdc1419c2b",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "a6a7930ce4001416979236aad9be79c06df6f3ad30735f7a4d8c0597d8b9d95d"
+        }
+      },
+      {
+        "case": "graphite-force",
+        "report": "out/flags-deep-research/graphite-force/graphics.json",
+        "report_sha256": "e653d87e6afabe50bf4fbb17412419463fd958cf0db7f4f938f3ed5d0c2f1059",
+        "console_sha256": "7c52687ff8eaee6b245521decc8d3e990abe4c4db3b894182252c5c50ad269f2",
+        "passed": false,
+        "process_exit": 1,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--enable-skia-graphite",
+          "--skia-graphite-dawn-backend=vulkan"
+        ],
+        "video_codec": "h264",
+        "gpu_exits": [
+          "crashed"
+        ],
+        "error": "Error: No WebGL context\n    at <anonymous>:4:18\n    at <anonymous>:99:3",
+        "native_wayland": true,
+        "renderer": null,
+        "video_frames": null,
+        "decoders": [],
+        "encoders": {},
+        "gpu_features": null,
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 0,
+        "release_point_requests": 0,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "85842f43d6beff200e9a8d5c6ce9ab1b300ee07de3b51599c84b8ebdc1419c2b",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "a6a7930ce4001416979236aad9be79c06df6f3ad30735f7a4d8c0597d8b9d95d"
+        }
+      },
+      {
+        "case": "overlays-fractional",
+        "report": "out/flags-deep-research/overlays-fractional/graphics.json",
+        "report_sha256": "14ef3a232bf433eecd3ce4855dcf47159157aee88412c36cf447e2edcdb12bda",
+        "console_sha256": "63c81e21eb180c1fc7c6d1d45bd203846e5e081bd3d41e340d8df48d0f026e74",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--enable-features=WaylandOverlayDelegation",
+          "--enable-hardware-overlays=single-fullscreen,single-on-top,underlay",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "h264",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 51,
+        "release_point_requests": 51,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "85842f43d6beff200e9a8d5c6ce9ab1b300ee07de3b51599c84b8ebdc1419c2b",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "a6a7930ce4001416979236aad9be79c06df6f3ad30735f7a4d8c0597d8b9d95d"
+        }
+      },
+      {
+        "case": "overlays-no-fractional",
+        "report": "out/flags-deep-research/overlays-no-fractional/graphics.json",
+        "report_sha256": "62bf37fffa28a304e236d063f8fc989145bd9a1bf35f4d3f16e94071e131a878",
+        "console_sha256": "b72f99f29996cdba580c9456d3c12487374f655774059b31ab4985793f3e129d",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--enable-features=WaylandOverlayDelegation",
+          "--enable-hardware-overlays=single-fullscreen,single-on-top,underlay",
+          "--disable-features=OpenH264SoftwareEncoder,WaylandFractionalScaleV1"
+        ],
+        "video_codec": "h264",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 51,
+        "release_point_requests": 51,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "85842f43d6beff200e9a8d5c6ce9ab1b300ee07de3b51599c84b8ebdc1419c2b",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "a6a7930ce4001416979236aad9be79c06df6f3ad30735f7a4d8c0597d8b9d95d"
+        }
+      },
+      {
+        "case": "vulkan-vaapi-bypass",
+        "report": "out/flags-deep-research/vulkan-vaapi-bypass/graphics.json",
+        "report_sha256": "67d394e74dd8de1a75608ab9bb9c46006fb113a7e417d34f8f098e78884dcd54",
+        "console_sha256": "cf2eb2f098506e0712d550a3798788d6366e027ec23eabae1cb4a0f4a91fc2d0",
+        "passed": true,
+        "process_exit": 0,
+        "flags": [
+          "--ozone-platform=wayland",
+          "--use-gl=angle",
+          "--use-angle=vulkan",
+          "--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE,VaapiIgnoreDriverChecks",
+          "--disable-features=OpenH264SoftwareEncoder"
+        ],
+        "video_codec": "h264",
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "renderer": "ANGLE (AMD, Vulkan 1.4.354 (AMD Radeon RX 7900 GRE (RADV NAVI31) (0x0000744C)), radv)",
+        "video_frames": 5,
+        "decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "encoders": {
+          "avc1.42001f/prefer-hardware": "unsupported",
+          "vp8/prefer-hardware": "unsupported",
+          "vp09.00.10.08/prefer-hardware": "unsupported",
+          "av01.0.04M.08/prefer-hardware": "unsupported",
+          "avc1.42001f/prefer-software": "unsupported",
+          "vp8/prefer-software": 12,
+          "vp09.00.10.08/prefer-software": 12,
+          "av01.0.04M.08/prefer-software": 12
+        },
+        "gpu_features": {
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "rasterization": "enabled",
+          "skia_graphite": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "enabled_on"
+        },
+        "protocols": {
+          "advertised": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ],
+          "bound": [
+            "wp_fractional_scale_manager_v1",
+            "wp_viewporter",
+            "wp_linux_drm_syncobj_manager_v1"
+          ]
+        },
+        "subsurface_requests": 0,
+        "acquire_point_requests": 51,
+        "release_point_requests": 51,
+        "fixture_sha256": {
+          "index.html": "e57f3116b1d5aa80c13a488364dfae5bbe7a0ac562bb09f2b634cab6d161099b",
+          "main.cjs": "85842f43d6beff200e9a8d5c6ce9ab1b300ee07de3b51599c84b8ebdc1419c2b",
+          "package.json": "0e9a3ce834e24bc85bc35328d95072a7b6188481fbc0b3022cb17c20efa34927",
+          "renderer.js": "a6a7930ce4001416979236aad9be79c06df6f3ad30735f7a4d8c0597d8b9d95d"
+        }
+      }
+    ]
+  },
+  "native_editor": {
+    "report": "out/flags-deep-research/native-settings/settings.json",
+    "sha256": "cdbc4a0c06cace9be68e492f4b169e88215c060e466ea247c939003f995b13fd",
+    "passed": true
+  },
+  "validation": {
+    "python_tests": 254,
+    "javascript_tests": 64,
+    "lint": "passed",
+    "tests_log_sha256": "99b8fccff9eddf5f18a9a094672c5627e3b2ba5b2c43728e2087b4618deb9996",
+    "lint_log_sha256": "d122b19908b6bbe96359e5bbc7a508c13001721b6c7278c5ba1b6cda27602503",
+    "tests_log": "out/flags-deep-research/tests.log",
+    "lint_log": "out/flags-deep-research/lint-final.log",
+    "research_links_checked": 29,
+    "research_links_passed": true
+  },
+  "limits": [
+    "One AMD GPU and one compositor, no Intel/NVIDIA/hybrid/ARM/VM hardware testing.",
+    "Two-second 720p30 8-bit synthetic clips and WebGL/WebCodecs probes, not performance, power, long playback, HDR or VRR benchmarks.",
+    "No Discord account, messages, calls, desktop recording or physical camera use.",
+    "Most follow-up probes disable optional OpenH264SoftwareEncoder; earlier evidence tested its verified library separately.",
+    "Overlay runs did not activate subsurfaces; a passing process is not proof an option took effect."
+  ]
+}

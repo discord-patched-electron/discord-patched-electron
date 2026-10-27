@@ -1,21 +1,28 @@
-// Keep the upstream settings HTML/preload; constrain IPC to this local window.
+// Extend the pinned settings page; constrain IPC to this local window.
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const path = require("node:path");
 const preferences = require("./profile.cjs");
 let window;
 
-function open() {
-  if (window && !window.isDestroyed()) return window.show();
+function open(tab = "settings") {
+  if (window && !window.isDestroyed()) {
+    window.show();
+    window.focus();
+    window.webContents.send("dpe-config-tab", tab);
+    return window;
+  }
   require("./window.cjs").register();
   window = new BrowserWindow({
     width: 500,
     height: 650,
     frame: false,
     resizable: false,
+    minWidth: 320,
+    minHeight: 360,
     center: true,
     backgroundColor: "#2f3136",
     webPreferences: {
-      preload: path.join(process.env.DPE_APP_ROOT, "bootstrap/src/config/preload.js"),
+      preload: path.join(__dirname, "config-preload.cjs"),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -32,14 +39,21 @@ function open() {
     cs(_event, config) {
       // Bootstrap/channel self-replacement would remove the fork integration.
       if (!config || typeof config !== "object" || Array.isArray(config)) return;
+      // The launch editor saves independently; the older page holds a snapshot.
+      // Preserve its latest launch settings when another OpenAsar option changes.
+      const current = settings.get("openasar", {});
+      config = { ...config };
+      for (const key of ["launchFlags", "cmdPreset", "customFlags"]) {
+        delete config[key];
+        if (Object.hasOwn(current, key)) config[key] = current[key];
+      }
       settings.set("openasar", config);
       settings.save();
       global.oaConfig = { ...config, autoupdate: false };
     },
     cr() {
       settings.save();
-      app.relaunch();
-      app.quit();
+      require("./relaunch.cjs").restart(app);
     },
     of() {
       void shell.openPath(path.join(process.env.DPE_PROFILE_DIR, "settings.json"));
@@ -61,9 +75,12 @@ function open() {
     window = null;
   });
   window.webContents.once("dom-ready", () => preferences.theme(window));
+  require("./launch-settings.cjs").attach(window);
+  window.webContents.once("did-finish-load", () => window.webContents.send("dpe-config-tab", tab));
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   void window.loadURL("dpe-splash://app/config.html").catch(console.error);
+  return window;
 }
 
 ipcMain.on("DISCORD_UPDATED_QUOTES", (event, value) => {

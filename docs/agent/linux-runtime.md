@@ -25,6 +25,21 @@ The probe shows a generated video pattern and records GPU/decoder metadata.
 It does not open a camera or microphone. Browser codec results do not prove
 hardware encoding in Discord's separate native voice/video stack.
 
+For strict software playback/encode/decode checks, use
+`scripts/check_software_codecs.py` with `--openh264` pointing to an existing
+trusted codec library. It exercises the launcher's pre-sandbox loading, full
+playback, seeking, round trips and renderer sandbox state. See the
+[software codec investigation](software-codecs.md).
+
+To include OpenAsar's actual startup flags, pass
+`--openasar-source /path/to/package/bootstrap/src/cmdSwitches.js` and
+`--preset perf` (or `battery` / `balanced`). Use the source matching
+`config/openasar.lock.json`. This runs the pinned module through the current
+compatibility adapter before Electron is ready and records the effective switches.
+Pass launcher flags explicitly, for example `--flag=--ozone-platform=wayland` and
+`--flag=--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL`.
+See the [playback investigation](video-playback.md) for the full preset matrix.
+
 ## Direct local Canary build
 
 After `fetch_reference.py` retrieves and verifies a successful compiler artifact:
