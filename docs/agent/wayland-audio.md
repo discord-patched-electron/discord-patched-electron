@@ -185,6 +185,20 @@ the isolated audio fixture now checks the picker identity and identifies Zenity
 by its executable rather than `argv[0]`. This check used no account, call,
 microphone, camera or screenshots.
 
+The subsequent PR run exposed a fixture startup gap: Electron replaced the
+shell's `CHROME_DESKTOP` with `discord-application-audio-fixture.desktop` because
+the test ASAR lacked `desktopName`. The manual selector rejected that identity,
+but its error was hidden behind the renderer's 90-second timeout. The fixture
+now packs the channel's desktop metadata into a temporary ASAR and reports
+selector errors directly. A packing regression test covers all channel IDs.
+
+The failure was reproduced in the isolated audio container using its retained,
+checksum-verified niri binary. After the correction, the same manual-selection
+fixture passed all nine audio cases and helper-crash cleanup, with no leftover
+capture streams, private nodes or sinks. Reports are in
+`out/audio-picker-ci/{reproduce,fixed}/`. `bun run test` passed 243 Python and
+55 JavaScript tests; `bun run lint` passed.
+
 ## Compiled prerelease result
 
 Electron 46.0.0-alpha.1 from compiler run `40053107555` passes all seven native

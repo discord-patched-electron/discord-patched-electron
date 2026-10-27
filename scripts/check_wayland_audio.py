@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import resource
+import shutil
 import signal
 import socket
 import subprocess as sp
@@ -163,7 +164,9 @@ def session(output, pulse, selection):
                         if Path(f"/proc/{pid}/exe").resolve() != Path("/usr/bin/zenity").resolve():
                             continue
                         if window.get("app_id") != identity:
-                            raise ValueError("Audio picker desktop identity does not match Discord")
+                            raise ValueError(
+                                f"Audio picker desktop identity {window.get('app_id')!r} does not match {identity!r}"
+                            )
                         rows = args[args.index("--") + 1 :]
                         choices = rows[::2]
                         selected = read_json(output / "selection.json")
@@ -211,6 +214,7 @@ def session(output, pulse, selection):
                         handled.add(pid)
             except Exception as error:
                 selector_errors.append(str(error))
+                print(f"Fixture audio selector failed: {error}", file=sys.stderr, flush=True)
 
         try:
             spawn(
@@ -346,11 +350,11 @@ def session(output, pulse, selection):
                 client_env,
             )
             child.wait(timeout=610 if selection == "interactive" else 100)
+            if selector_errors:
+                raise ValueError("Fixture audio selector failed: " + repr(selector_errors))
             if child.returncode:
                 raise ValueError("Native Wayland fixture failed; inspect fixture.json/native.log")
             command(["pactl", "unload-module", control_module])
-            if selector_errors:
-                raise ValueError("Fixture audio selector failed: " + repr(selector_errors))
             # Exercise an uncatchable helper crash as well as normal teardown.
             crash_ready = output / "crash-ready.json"
             crash = spawn(
@@ -432,6 +436,21 @@ def session(output, pulse, selection):
                 log.close()
 
 
+def pack_fixture(archive: Path, channel: str):
+    # Electron sets CHROME_DESKTOP from package.json before loading main.cjs.
+    # Give this fixture the same desktop metadata as the packaged client so its
+    # Python/Zenity children inherit the channel identity, not the fixture name.
+    with tempfile.TemporaryDirectory(prefix="dpe-wayland-app-") as temporary:
+        fixture = Path(temporary) / "app"
+        shutil.copytree(ROOT / "tests/wayland", fixture)
+        metadata = read_json(fixture / "package.json")
+        metadata["desktopName"] = desktop_id(channel) + ".desktop"
+        write_json(fixture / "package.json", metadata)
+        sp.run(
+            [str(ROOT / "node_modules/.bin/asar"), "pack", str(fixture), str(archive)], check=True
+        )
+
+
 def check(
     output,
     clients,
@@ -506,15 +525,7 @@ def check(
             "adapter_patch": adapter_patch,
         },
     )
-    sp.run(
-        [
-            str(ROOT / "node_modules/.bin/asar"),
-            "pack",
-            str(ROOT / "tests/wayland"),
-            str(output / "runtime/resources/app.asar"),
-        ],
-        check=True,
-    )
+    pack_fixture(output / "runtime/resources/app.asar", channel)
     flags = sp.check_output(
         ["pkg-config", "--cflags", "--libs", "gtk+-3.0", "libpulse-simple"], text=True
     ).split()
