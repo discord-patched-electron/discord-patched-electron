@@ -5,13 +5,71 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "integration/updater"))
 import bootstrap
+import bootstrap_dialog
 
 
 class RuntimeBootstrap(unittest.TestCase):
+    def test_native_dialog_sets_desktop_identity_before_creating_windows(self):
+        calls = Mock()
+        libraries = {name: Mock() for name in ("gtk", "gdk", "gdk_pixbuf", "glib", "gobject")}
+        for name, library in libraries.items():
+            calls.attach_mock(library, name)
+        libraries["gtk"].gtk_dialog_run.return_value = 0
+        with (
+            patch.object(
+                bootstrap_dialog.c,
+                "CDLL",
+                side_effect=lambda name: libraries[name.removeprefix("lib").split("-")[0]],
+            ),
+            patch.dict(
+                os.environ,
+                {"CHROME_DESKTOP": "discord-canary.desktop", "DPE_APP_ROOT": "/portable app"},
+            ),
+        ):
+            self.assertEqual(bootstrap_dialog.show(preview=True), 0)
+        names = [call[0] for call in calls.mock_calls]
+        self.assertLess(names.index("glib.g_set_prgname"), names.index("gtk.gtk_init_check"))
+        self.assertLess(names.index("gtk.gtk_init_check"), names.index("gdk.gdk_set_program_class"))
+        self.assertLess(
+            names.index("gdk.gdk_set_program_class"), names.index("gtk.gtk_builder_new")
+        )
+        libraries["glib"].g_set_prgname.assert_called_once_with(b"discord-canary")
+        libraries["gdk"].gdk_set_program_class.assert_called_once_with(b"discord-canary")
+        libraries["gtk"].gtk_window_set_default_icon_name.assert_called_once_with(b"discord-canary")
+        libraries["gdk_pixbuf"].gdk_pixbuf_new_from_file_at_scale.assert_called_once_with(
+            b"/portable app/discord.png", 128, 128, 1, None
+        )
+        icon = libraries["gdk_pixbuf"].gdk_pixbuf_new_from_file_at_scale.return_value
+        libraries["gtk"].gtk_window_set_default_icon.assert_called_once_with(icon)
+        libraries["gobject"].g_object_unref.assert_any_call(icon)
+
+    def test_zenity_fallback_and_error_use_the_launcher_identity(self):
+        for identity in ("discord", "discord-ptb", "discord-canary"):
+            with patch.dict(
+                os.environ,
+                {"CHROME_DESKTOP": identity + ".desktop", "DPE_APP_ROOT": "/portable app"},
+            ):
+                command = bootstrap_dialog.zenity_command("--progress", "--pulsate")
+                self.assertEqual(command[0], identity)
+                self.assertIn("--window-icon=/portable app/discord.png", command)
+                with (
+                    patch.object(bootstrap, "prepare", side_effect=ValueError("setup failed")),
+                    patch.object(bootstrap.signal, "signal"),
+                    patch.object(sys, "argv", ["bootstrap", "/app", "/profile"]),
+                    patch.object(bootstrap.shutil, "which", return_value="/usr/bin/zenity"),
+                    patch.dict(os.environ, {"WAYLAND_DISPLAY": "wayland-fixture"}),
+                    patch.object(bootstrap.subprocess, "run") as run,
+                    self.assertRaises(SystemExit),
+                ):
+                    bootstrap.main()
+                self.assertEqual(run.call_args.args[0][0], identity)
+                self.assertIn("--error", run.call_args.args[0])
+                self.assertEqual(run.call_args.kwargs["executable"], "zenity")
+
     def test_cached_runtime_starts_without_a_dialog_or_network_helper(self):
         with (
             patch.object(

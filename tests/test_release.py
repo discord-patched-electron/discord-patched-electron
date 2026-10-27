@@ -107,6 +107,18 @@ class PortableReleases(unittest.TestCase):
         )
         self.assertEqual(config["conflicts"], ["discord-canary"])
 
+    def test_release_installers_register_the_same_desktop_entry_and_icon(self):
+        config = metadata(Path("/app"), "20261024.202623", "canary", 0)
+        contents = {entry["dst"]: entry["src"] for entry in config["contents"]}
+        self.assertEqual(
+            contents["/usr/share/applications/discord-canary.desktop"],
+            "/app/discord-canary.desktop",
+        )
+        self.assertEqual(
+            contents["/usr/share/icons/hicolor/256x256/apps/discord-canary.png"],
+            "/app/discord.png",
+        )
+
     def test_bootstrap_uses_launch_root_even_for_equicord_copies(self):
         source = (
             'resourcesPath=path_1.default.join(require.main.filename,"..",".."),'

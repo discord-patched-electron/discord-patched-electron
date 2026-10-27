@@ -41,6 +41,10 @@ function bootstrap(source, filename, desktopExec) {
   } else if (filename === "autoStart.js") {
     patch("const exec = app.getPath('exe');", "const exec = process.env.DPE_LAUNCHER;");
     patch("Exec=${exec}", "Exec=${require(" + JSON.stringify(desktopExec) + ")(exec)}");
+    patch(
+      "Icon=${join(global.systemElectron ? '/usr/share/pixmaps' : dirname(exec), 'discord.png')}",
+      "Icon=${process.env.CHROME_DESKTOP.replace(/\\.desktop$/, '')}\nStartupWMClass=${process.env.CHROME_DESKTOP.replace(/\\.desktop$/, '')}",
+    );
   }
   return source;
 }

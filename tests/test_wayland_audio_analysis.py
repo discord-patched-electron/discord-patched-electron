@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -6,7 +7,42 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from check_wayland_audio import analyze
+from check_wayland_audio import analyze, pack_fixture
+from common import ROOT, read_json
+
+
+class AudioFixtureIdentity(unittest.TestCase):
+    def test_packed_fixture_supplies_channel_identity_without_changing_source(self):
+        source = ROOT / "tests/wayland/package.json"
+        before = source.read_bytes()
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            for channel, identity in (
+                ("stable", "discord"),
+                ("ptb", "discord-ptb"),
+                ("canary", "discord-canary"),
+            ):
+                with self.subTest(channel=channel):
+                    archive = directory / (channel + ".asar")
+                    pack_fixture(archive, channel)
+                    extracted = directory / channel
+                    subprocess.run(
+                        [
+                            str(ROOT / "node_modules/.bin/asar"),
+                            "extract",
+                            str(archive),
+                            str(extracted),
+                        ],
+                        check=True,
+                    )
+                    metadata = read_json(extracted / "package.json")
+                    self.assertEqual(metadata["desktopName"], identity + ".desktop")
+                    self.assertEqual(metadata["name"], "discord-application-audio-fixture")
+                    self.assertEqual(
+                        (extracted / metadata["main"]).read_bytes(),
+                        (ROOT / "tests/wayland/main.cjs").read_bytes(),
+                    )
+            self.assertEqual(source.read_bytes(), before)
 
 
 class AudioEvidence(unittest.TestCase):

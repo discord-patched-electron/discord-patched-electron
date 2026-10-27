@@ -7,9 +7,29 @@ import sys
 from pathlib import Path
 
 
+def desktop_id() -> str:
+    return (os.environ.get("CHROME_DESKTOP") or "discord-canary.desktop").removesuffix(".desktop")
+
+
+def icon_path() -> Path:
+    return (
+        Path(os.environ.get("DPE_APP_ROOT") or Path(__file__).resolve().parents[2]) / "discord.png"
+    )
+
+
+def zenity_command(*arguments: str) -> list[str]:
+    # GTK uses argv[0] as its program name / Wayland app_id. Unlike --name and
+    # --class, this works with both GTK3 and GTK4 Zenity. Execute "zenity" while
+    # retaining our identity as argv[0]. GTK4 accepts but ignores --window-icon;
+    # Wayland resolves the icon from the matching installed desktop entry.
+    return [desktop_id(), "--window-icon=" + str(icon_path()), *arguments]
+
+
 def show(*, preview: bool = False) -> int:
     # ctypes is part of Python; this needs neither Tkinter nor PyGObject.
     gtk = c.CDLL("libgtk-3.so.0")
+    gdk = c.CDLL("libgdk-3.so.0")
+    pixbuf = c.CDLL("libgdk_pixbuf-2.0.so.0")
     glib = c.CDLL("libglib-2.0.so.0")
     gobject = c.CDLL("libgobject-2.0.so.0")
     pointer, integer = c.c_void_p, c.c_int
@@ -19,9 +39,32 @@ def show(*, preview: bool = False) -> int:
         function.restype, function.argtypes = result, list(arguments)
         return function
 
+    # Set the Wayland app_id and both X11 WM_CLASS components before GTK creates
+    # any windows. A window icon alone cannot identify an app on Wayland.
+    identity = desktop_id().encode()
+    bind(glib, "g_set_prgname", None, c.c_char_p)(identity)
+    bind(glib, "g_set_application_name", None, c.c_char_p)(b"Discord Patched Electron")
     init = bind(gtk, "gtk_init_check", integer, pointer, pointer)
     if not init(None, None):
         raise RuntimeError("Cannot open a GTK display")
+    # GTK initialization capitalizes its fallback class; override it afterward.
+    bind(gdk, "gdk_set_program_class", None, c.c_char_p)(identity)
+    bind(gtk, "gtk_window_set_default_icon_name", None, c.c_char_p)(identity)
+    # GDK silently discards icons exceeding the X11 selection size limit. The
+    # packaged artwork is 1024px; load a small copy without changing that asset.
+    icon = bind(
+        pixbuf,
+        "gdk_pixbuf_new_from_file_at_scale",
+        pointer,
+        c.c_char_p,
+        integer,
+        integer,
+        integer,
+        pointer,
+    )(os.fsencode(icon_path()), 128, 128, 1, None)
+    if icon:
+        bind(gtk, "gtk_window_set_default_icon", None, pointer)(icon)
+        bind(gobject, "g_object_unref", None, pointer)(icon)
     builder_new = bind(gtk, "gtk_builder_new", pointer)
     builder_add = bind(
         gtk, "gtk_builder_add_from_string", c.c_uint, pointer, c.c_char_p, c.c_ssize_t, pointer
@@ -74,15 +117,14 @@ if __name__ == "__main__":
         try:
             os.execvp(
                 "zenity",
-                [
-                    "zenity",
+                zenity_command(
                     "--progress",
                     "--pulsate",
                     "--auto-close",
                     "--width=420",
                     "--title=Discord Patched Electron",
                     "--text=Downloading Electron for the first time...",
-                ],
+                ),
             )
         except OSError:
             raise SystemExit(2) from None
