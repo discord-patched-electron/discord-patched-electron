@@ -97,7 +97,7 @@
     "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f"
   },
   "schema": 1,
-  "source_commit": "de09457402e96b72ccdc0dc02305cfa8c5b63090",
-  "tag": "v20261027132150.0.0-canary.fd0617c27211910d",
-  "version": "20261027.132150"
+  "source_commit": "37d073c8e2c5261c61747e9ce44cf53306ffa304",
+  "tag": "v20261027181742.0.0-canary.b381958a958aef30",
+  "version": "20261027.181742"
 }
