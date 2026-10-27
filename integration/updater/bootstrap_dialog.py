@@ -1,4 +1,4 @@
-"""Native first-download dialog using the package's existing GTK3 dependency."""
+"""Native runtime setup dialog using the package's existing GTK3 dependency."""
 
 import ctypes as c
 import os
@@ -123,7 +123,7 @@ if __name__ == "__main__":
                     "--auto-close",
                     "--width=420",
                     "--title=Discord Patched Electron",
-                    "--text=Downloading Electron for the first time...",
+                    "--text=Preparing Electron...",
                 ),
             )
         except OSError:

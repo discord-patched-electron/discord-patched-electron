@@ -74,7 +74,12 @@ function start() {
 }
 
 try {
-  require("./desktop.cjs")(app, process.env.DPE_APP_ROOT, process.env.CHROME_DESKTOP);
+  // Electron overwrites CHROME_DESKTOP from the outer loader's package.json
+  // before this entry runs. Mod loaders commonly call themselves "discord".
+  const desktopName = process.env.DPE_DESKTOP_ID
+    ? process.env.DPE_DESKTOP_ID + ".desktop"
+    : process.env.CHROME_DESKTOP;
+  require("./desktop.cjs")(app, process.env.DPE_APP_ROOT, desktopName);
   if (process.env.DPE_UPDATER_UI === "1") require("./startup.cjs");
   else start();
 } catch (error) {

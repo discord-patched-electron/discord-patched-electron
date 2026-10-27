@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "integration/updater"))
+import bootstrap
 import runtime
 import support
 from test_client_updater import client, manifest
@@ -189,8 +190,12 @@ class RuntimeUpdates(unittest.TestCase):
             patch.object(
                 runtime, "download", side_effect=AssertionError("Electron must not download again")
             ),
+            patch.object(bootstrap, "subprocess", wraps=subprocess) as processes,
         ):
-            reused = runtime.ensure_runtime(application, self.profile)
+            reused = Path(bootstrap.prepare(application, self.profile))
+            # The runtime's version probe is allowed; bootstrap must not launch
+            # the network helper or its native download dialog after an update.
+            processes.Popen.assert_not_called()
             self.assertNotEqual(reused, executable)
             self.assertEqual(reused.read_bytes(), executable.read_bytes())
             self.assertEqual((reused.parent / "resources").resolve(), application / "resources")
@@ -198,6 +203,21 @@ class RuntimeUpdates(unittest.TestCase):
             self.assertEqual(
                 runtime.ensure_runtime(application, self.profile, offline=True), reused
             )
+
+    def test_application_update_rejects_damaged_shared_runtime_offline(self):
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        application = self.root / "next application"
+        (application / "resources").mkdir(parents=True)
+        write_json(
+            application / "runtime-update.json",
+            runtime.read_object(executable.parent / "runtime.json"),
+        )
+        (executable.parent / "resources.pak").write_bytes(b"damaged")
+        with patch.object(runtime, "download") as download:
+            with self.assertRaisesRegex(ValueError, "No verified Electron runtime"):
+                runtime.ensure_runtime(application, self.profile, offline=True)
+            download.assert_not_called()
+        self.assertFalse((runtime.cache_root(self.profile, application) / "current.json").exists())
 
     def download(self, url, target, **_options):
         self.downloads.append(url)

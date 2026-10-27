@@ -17,7 +17,10 @@ test("desktop identity is set before startup and icons cover every Electron wind
       process: {
         env: {
           DPE_APP_ROOT: "/portable app",
-          CHROME_DESKTOP: "discord-canary.desktop",
+          DPE_DESKTOP_ID: "discord-canary",
+          // Electron derives this from Equicord/Vencord's outer loader before
+          // our entry point runs, replacing the launcher's original value.
+          CHROME_DESKTOP: "discord.desktop",
           DPE_UPDATER_UI: "1",
         },
       },

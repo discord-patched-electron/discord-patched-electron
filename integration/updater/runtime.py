@@ -356,7 +356,13 @@ def pinned_runtime(policy: dict) -> dict:
 
 
 def install_runtime(
-    root: Path, app: Path, policy: dict, incoming: dict, archive: Path | None = None
+    root: Path,
+    app: Path,
+    policy: dict,
+    incoming: dict,
+    archive: Path | None = None,
+    *,
+    offline: bool = False,
 ) -> Path:
     generations = root / "generations"
     generations.mkdir(exist_ok=True)
@@ -398,6 +404,8 @@ def install_runtime(
                 return destination / "electron"
         except FAILURES as error:
             print(f"Cached runtime cannot be reused: {error}", file=sys.stderr)
+    if offline and archive is None:
+        raise ValueError("No verified Electron runtime is cached; launch once with internet access")
     with tempfile.TemporaryDirectory(prefix="download-", dir=root) as temporary:
         directory = Path(temporary)
         if archive is None:
@@ -467,9 +475,9 @@ def _ensure_runtime(
         if archive is not None and not current:
             return install_runtime(root, app, policy, pinned_runtime(policy), archive)
         if offline:
-            raise ValueError(
-                "No verified Electron runtime is cached; launch once with internet access"
-            )
+            # A new application payload has a new resource path, but may pin
+            # the same Electron. Reuse it before bootstrap opens a download UI.
+            return install_runtime(root, app, policy, pinned_runtime(policy), offline=True)
         updates = (
             os.environ.get("DPE_RUNTIME_UPDATES") != "0"
             and os.environ.get("DPE_RUNTIME_BUNDLED") != "1"

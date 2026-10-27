@@ -36,6 +36,7 @@ that test run.
 - [Software codec initialization and sandbox fix](software-codecs.md)
 - [Codec playback verification and NVIDIA HEVC flags](codec-support.md)
 - [External links, test-profile isolation and Zen verification](external-links.md)
+- [Canary window identity and runtime reuse after updates](desktop-identity.md)
 - [Local runtime checks](linux-runtime.md)
 
 ## History and evidence
