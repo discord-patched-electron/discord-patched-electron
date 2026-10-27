@@ -172,11 +172,15 @@ summary {
 }
 .notice,
 #error {
+  overflow-wrap: anywhere;
   padding: 14px;
   border: 1px solid var(--border);
   border-inline-start: 3px solid var(--warning);
   border-radius: 6px;
   white-space: pre-line;
+}
+#flags-file {
+  overflow-wrap: anywhere;
 }
 #error {
   border-inline-start-color: #ff9a9a;

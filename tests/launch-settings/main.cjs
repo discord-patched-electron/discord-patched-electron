@@ -11,7 +11,12 @@ app.setPath("userData", profile);
 require(path.join(root, "integration/updater/window.cjs"));
 const editor = require(path.join(root, "integration/updater/launch-settings.cjs"));
 const settingsPage = require(path.join(root, "integration/updater/config.cjs"));
-let values = { openasar: { css: "/* preserve me */", themeSync: false }, unrelated: true };
+let values = {
+  openasar: { css: "/* preserve me */", themeSync: false, customFlags: "--legacy-ui=kept" },
+  unrelated: true,
+};
+const flagsFile = path.join(process.env.XDG_CONFIG_HOME, "discord-canary-patched-electron.conf");
+const savedConfig = async () => (await editor.resolve()).config;
 global.settings = {
   get: (key, fallback) => values[key] ?? fallback,
   set: (key, value) => {
@@ -96,23 +101,51 @@ app
     assert.match(await get('$("preset-flags").value'), /custom-value=one=two/);
     await evaluate('document.getElementById("settings").requestSubmit()');
     await until(() => get('$("status").textContent.startsWith("Saved.")'));
-    assert.equal(values.openasar.launchFlags.profiles.balanced.decode, true);
-    assert.equal(values.openasar.launchFlags.profiles.balanced.encode, false);
+    assert.equal((await savedConfig()).profiles.balanced.decode, true);
+    assert.equal((await savedConfig()).profiles.balanced.encode, false);
+    assert.equal(values.openasar.launchFlags, undefined);
+    assert.equal(values.openasar.customFlags, undefined);
+    assert.match(fs.readFileSync(flagsFile, "utf8"), /--legacy-ui=kept/);
+    assert.equal(await get('$("flags-file").textContent'), flagsFile);
     assert.equal(values.unrelated, true);
     assert.match(await get('$("effective").value'), /AcceleratedVideoDecodeLinuxGL/);
     assert.match(await get('$("effective").value'), /--disable-features=AcceleratedVideoEncoder/);
     checks.push("Per-preset edits survive selection, save and real resolver preview");
 
+    const beforeOldPageSave = fs.readFileSync(flagsFile, "utf8");
     await oldWindow.webContents.executeJavaScript(
-      'window.Native.set({css:"updated", themeSync:false})',
+      'window.Native.set({css:"updated", themeSync:false, launchFlags:{schema:999}, customFlags:"--stale"})',
     );
     await until(() => values.openasar.css === "updated");
-    assert.equal(values.openasar.launchFlags.profiles.balanced.decode, true);
+    assert.equal(fs.readFileSync(flagsFile, "utf8"), beforeOldPageSave);
+    assert.equal(values.openasar.launchFlags, undefined);
+    assert.equal(values.openasar.customFlags, undefined);
+    assert.equal((await savedConfig()).profiles.balanced.decode, true);
     window.destroy();
     await open();
     assert.match(await get('$("preset-flags").value'), /custom-value=one=two/);
     checks.push(
       "Reopening persists edits; stale OpenAsar settings cannot overwrite launch settings",
+    );
+
+    const external =
+      fs.readFileSync(flagsFile, "utf8") + "# edited outside app\n--external=value\n";
+    fs.writeFileSync(flagsFile, external);
+    await change("extra-flags", "--draft=stale");
+    await evaluate('document.getElementById("settings").requestSubmit()');
+    await until(() => get('$("error").textContent.includes("changed on disk")'));
+    assert.equal(fs.readFileSync(flagsFile, "utf8"), external);
+    await evaluate('document.getElementById("discard").click()');
+    await until(() => get('$("extra-flags").value.includes("--external=value")'));
+    assert.match(await get('$("effective").value'), /--external=value/);
+    await change("extra-flags", "# edited in app\n--external=replaced\n");
+    await evaluate('document.getElementById("settings").requestSubmit()');
+    await until(() => get('$("status").textContent.startsWith("Saved.")'));
+    assert.ok(
+      fs.readFileSync(flagsFile, "utf8").endsWith("# edited in app\n--external=replaced\n"),
+    );
+    checks.push(
+      "External edits block stale saves; reload and Additional flags share the canonical file",
     );
 
     await evaluate('document.getElementById("wip-details").open = true');
@@ -141,7 +174,7 @@ app
     await evaluate('document.getElementById("forceAcceleration").click()');
     await evaluate('document.getElementById("settings").requestSubmit()');
     await until(() => get('$("status").textContent.startsWith("Saved.")'));
-    assert.deepEqual([...values.openasar.launchFlags.profiles.balanced.experiments].sort(), [
+    assert.deepEqual([...(await savedConfig()).profiles.balanced.experiments].sort(), [
       "compositorBuffers",
       "forceAcceleration",
       "graphiteForce",
@@ -220,22 +253,28 @@ app
     global.settings.save();
     process.env.DPE_IGNORE_FLAGS = "1";
     process.env.DPE_LAUNCH_ARGS = '["--ignore-flags"]';
-    const brokenFile = path.join(
-      process.env.XDG_CONFIG_HOME,
-      "discord-canary-patched-electron.conf",
-    );
-    fs.writeFileSync(brokenFile, "invalid flag");
+    const broken =
+      "# >>> OpenAsar launch presets v1\n# presets: {broken}\n--recoverable\n# <<< OpenAsar launch presets v1\ninvalid flag\n";
+    fs.writeFileSync(flagsFile, broken);
     await open();
     assert.equal(await get('$("recovery").hidden'), false);
-    assert.match(await get('$("warnings").textContent'), /Showing defaults/);
+    assert.match(await get('$("warnings").textContent'), /Invalid preset metadata/);
     assert.equal(await get('$("restart").textContent'), "Restart with saved flags");
+    assert.match(await get('$("extra-flags").value'), /--recoverable/);
     await evaluate('document.getElementById("settings").requestSubmit()');
-    await until(() => values.openasar.launchFlags.schema === 1);
+    await until(() => get('$("extra-flags").getAttribute("aria-invalid") === "true"'));
     assert.equal(await get('$("restart").disabled'), true);
-    assert.match(await get('$("error").textContent'), /Fix .*discord-canary-patched-electron.conf/);
-    fs.unlinkSync(brokenFile);
-    await change("preset-flags", "");
-    await until(() => get('$("error").hidden && !$("restart").disabled'));
+    assert.equal(fs.readFileSync(flagsFile, "utf8"), broken);
+    await change("extra-flags", "# repaired\n--recoverable\n");
+    await evaluate('document.getElementById("settings").requestSubmit()');
+    await until(() => get('$("status").textContent.startsWith("Saved.")'));
+    assert.equal((await editor.resolve()).fileManaged, true);
+    assert.equal(await get('$("restart").disabled'), false);
+    assert.equal(await get('$("error").hidden'), true);
+    const backup = fs
+      .readdirSync(path.dirname(flagsFile))
+      .find((name) => name.includes(".backup-"));
+    assert.equal(fs.readFileSync(path.join(path.dirname(flagsFile), backup), "utf8"), broken);
     let restart,
       quit = false;
     app.relaunch = (options) => {

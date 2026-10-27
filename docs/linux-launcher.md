@@ -20,6 +20,11 @@ for Chromium's defaults, **Responsive** to keep background work active, or
 **Efficiency** to explicitly retain background timer throttling. Each preset has
 an editable flags box and its own optional controls. Save, then restart to apply.
 
+Presets are stored in `~/.config/discord-canary-patched-electron.conf` (or
+`XDG_CONFIG_HOME`). Existing OpenAsar settings and flags are imported automatically;
+the original file is backed up. **Reload from file** discards your draft and reads
+external edits. Save refuses to overwrite a file changed since you loaded it.
+
 Hardware decoding and encoding have separate checkboxes. Unchecked means use
 the runtime's defaults. Rendering backends, driver overrides and other experiments
 are optional and off by default. Forced encoding currently crashes on the tested
@@ -56,9 +61,12 @@ Close Discord completely, then reopen it to apply changes.
 --disable-features=AcceleratedVideoDecodeLinuxGL
 ```
 
-Blank lines and `#` comments are ignored. Don't add shell quotes or assignments.
-Flags in this file override defaults and saved presets.
-Command-line flags take precedence over the file.
+Put global overrides outside the marked OpenAsar preset section; they appear in
+**Additional flags**. Active preset flags are visible inside that section, with
+other presets remembered in comments. Editing the active lines directly loads
+them as preset text and resets that preset's option controls. Keep the section
+markers and metadata comment intact. Don't add shell quotes or assignments.
+Global overrides win over preset flags; command-line flags take final precedence.
 
 ## Troubleshooting
 
@@ -85,7 +93,7 @@ Other controls work the same way:
 | Variable                  | Effect                                                                                                  |
 | ------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                                                                     |
-| `DPE_DEFAULT_FLAGS=0`     | Skips application defaults and saved presets/options; files and command-line flags still apply.         |
+| `DPE_DEFAULT_FLAGS=0`     | Skips application defaults and the preset section; Additional flags and command-line flags still apply. |
 | `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                                                               |
 | `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime.                                               |
 | `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use. |

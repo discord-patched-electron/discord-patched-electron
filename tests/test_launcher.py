@@ -130,6 +130,10 @@ class Launcher(unittest.TestCase):
             if not result:
                 return None
             result = json.loads(result)
+            if details:
+                result["flagsFileContent"] = (
+                    root / "discord-canary-patched-electron.conf"
+                ).read_text()
             return result if details else result["flags"]
 
     def test_standard_canary_profile_and_explicit_override(self):
@@ -196,6 +200,7 @@ class Launcher(unittest.TestCase):
                 )
                 self.assertEqual(result["flags"], [])
                 self.assertEqual(result["originalArgs"], ["--ignore-flags"])
+                self.assertEqual(result["flagsFileContent"], "not valid flags")
 
     def test_saved_presets_are_resolved_before_launch(self):
         result = self.launch(
@@ -211,6 +216,17 @@ class Launcher(unittest.TestCase):
         self.assertIn("--enable-features=Custom:Param/value", result["flags"])
         self.assertEqual(result["originalArgs"], [])
         self.assertNotIn("--ignore-gpu-blocklist", result["flags"])
+        self.assertIn("# >>> OpenAsar launch presets v1", result["flagsFileContent"])
+        self.assertIn("--disable-renderer-backgrounding", result["flagsFileContent"])
+        relaunched = self.launch(
+            config=result["flagsFileContent"],
+            legacy="--stale-package-flag",
+            settings={"openasar": {"cmdPreset": "battery", "customFlags": "--stale-setting"}},
+        )
+        self.assertIn("--disable-renderer-backgrounding", relaunched)
+        self.assertIn("--enable-features=Custom:Param/value", relaunched)
+        self.assertNotIn("--stale-package-flag", relaunched)
+        self.assertNotIn("--stale-setting", relaunched)
 
     def test_second_instance_exits_successfully_without_starting_another_runtime(self):
         self.assertIsNone(self.launch(env={"DPE_FIXTURE_UI_STATUS": "2"}, cached=True))

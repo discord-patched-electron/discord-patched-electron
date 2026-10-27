@@ -69,14 +69,15 @@ There is no cross-GPU benchmark or claim of improved energy consumption.
 
 `integration/launcher/presets.json` is the catalog. The standard-library Python
 resolver runs before Electron and also powers the native editor's preview. Saved
-settings live in `settings.json` under `openasar.launchFlags` (schema 1); each preset
+settings now live in the channel flags file (see [file storage](flags-file.md)); each preset
 retains its own text, codec options, backend and experiments. Legacy `perf`/`battery`
 selections map to the new Responsive/Efficiency definitions. Missing selections
 start Balanced. Explicit legacy custom flags migrate into Additional flags, with
 `EnableDrDc` removed and a review notice. Old automatic GPU overrides do not migrate.
 
 Precedence, low to high: application identity/defaults → selected options → preset
-text → Additional flags → legacy package file → channel file → original CLI.
+text → Additional flags outside the managed section → original CLI.
+Legacy settings and file overrides migrate into the canonical file once.
 Feature lists merge by normalized feature name across enable/disable switches;
 parameters and trial syntax survive, and the final occurrence wins. Ordinary
 switches retain Chromium's last-value handling. Text is never evaluated by a shell.
@@ -90,9 +91,9 @@ OpenAsar from injecting its flags afterward. Essential internal bootstrap/sandbo
 plumbing remains; recovery does not disable the GPU or sandbox and does not delete
 preferences. It cannot repair an unrelated runtime/driver failure.
 
-The editor can repair invalid preset data in recovery. Invalid external files are
-identified by path while preset editing/saving remains available; restart is blocked
-until the file error clears. External files must be repaired in a text editor.
+The editor can repair invalid preset metadata and Additional flags in recovery.
+Invalid flags are identified by field/path; restart is blocked until they are
+repaired and saved. Damaged metadata is backed up before replacement.
 `DPE_DEFAULT_FLAGS=0` is a narrower advanced control: identity, external files and
 explicit CLI arguments still apply, and preferences still have to parse.
 
@@ -145,17 +146,23 @@ Run with fresh output directories and an already verified runtime:
 uv run python scripts/check_launch_settings.py /path/to/runtime/electron \
   --output out/settings-check
 uv run python scripts/check_launch_presets.py /path/to/runtime/electron \
-  --output out/preset-check --full \
+  --output out/preset-check --full --codecs \
   --openh264 /path/to/libopenh264-2.5.1-linux64.7.so
 bun run test
 bun run lint
 ```
 
 Without `--openh264`, the graphics fixture disables that optional dynamically
-loaded codec. `--full` also probes each experimental option independently; failures
+loaded codec. The matrix always probes independent decode/encode options, both
+together and flags-free recovery. `--codecs` adds VP8/VP9/AV1/HEVC playback;
+`--full` also probes each experimental option independently. Experimental failures
 are recorded without treating experiments as required defaults. Both Wayland and
 Xwayland must be available for the six-preset matrix. Reports retain resolved
 arguments, GPU exits, decoder/encoder details and executable hashes.
+Encoded bytes are decoded again with frame/timestamp/pixel checks. The ordinary
+decoder path must pass; preferred hardware/software paths have separate results.
+`check_graphics.py --strict-codecs` also fails on errors in those preference probes.
+The current software H.264 decoder still fails despite advertising support.
 
 Results are indexed in [preset evidence](../evidence/launch-presets.json):
 

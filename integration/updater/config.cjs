@@ -34,8 +34,12 @@ function open() {
       if (!config || typeof config !== "object" || Array.isArray(config)) return;
       // The launch editor saves independently; the older page holds a snapshot.
       // Preserve its latest launch settings when another OpenAsar option changes.
-      const launchFlags = settings.get("openasar", {}).launchFlags;
-      config = { ...config, ...(launchFlags ? { launchFlags } : {}) };
+      const current = settings.get("openasar", {});
+      config = { ...config };
+      for (const key of ["launchFlags", "cmdPreset", "customFlags"]) {
+        delete config[key];
+        if (Object.hasOwn(current, key)) config[key] = current[key];
+      }
       settings.set("openasar", config);
       settings.save();
       global.oaConfig = { ...config, autoupdate: false };

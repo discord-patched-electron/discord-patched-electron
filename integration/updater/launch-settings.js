@@ -3,8 +3,10 @@
   let data,
     config,
     saved,
+    fileRevision,
     dirty = false,
     saving = false,
+    loading = false,
     fileError = false,
     generation = 0,
     previewTimer;
@@ -39,7 +41,6 @@
       ? "Unsaved changes. Save, then restart to apply."
       : "No unsaved changes.";
     $("restart").disabled = dirty || fileError;
-    $("discard").disabled = !dirty;
     clearTimeout(previewTimer);
     // Invalidate pending results immediately, before the next debounce fires.
     generation++;
@@ -110,8 +111,13 @@
     updateCount();
   }
   function renderPreview(result) {
-    fileError = Boolean(result.fileErrors?.length);
-    if (fileError) result = { ...result, error: result.fileErrors.join("\n") };
+    if (result.fileErrors?.length) result = { ...result, error: result.fileErrors.join("\n") };
+    if (result.fileRevision && result.fileRevision !== fileRevision)
+      result = {
+        ...result,
+        error: "Flags file changed on disk. Reload from file to review it before saving.",
+      };
+    fileError = Boolean(result.error);
     $("restart").disabled = dirty || fileError;
     validation(result);
     if (result.error) {
@@ -134,21 +140,28 @@
     return true;
   }
   async function preview() {
+    if (saving || loading) return;
     const ticket = ++generation;
     try {
       const result = await window.LaunchSettings.preview(clone(config));
-      if (ticket === generation) renderPreview(result);
+      if (ticket === generation && !saving && !loading) renderPreview(result);
     } catch (failure) {
       if (ticket === generation) error(failure.message);
     }
   }
   async function load() {
+    if (loading || saving) return;
+    loading = true;
+    clearTimeout(previewTimer);
+    generation++;
+    $("settings").inert = true;
     try {
       if (!window.LaunchSettings)
         throw new Error("Open this editor from Discord's OpenAsar settings.");
       data = await window.LaunchSettings.load();
       if (data.error) throw new Error(data.error);
       config = clone(data.config);
+      fileRevision = data.fileRevision;
       saved = JSON.stringify(config);
       dirty = false;
       $("preset").replaceChildren();
@@ -159,12 +172,13 @@
         $("backend").add(new Option(item.label, key));
       $("display").value = config.display;
       $("extra-flags").value = config.extra;
+      $("flags-file").textContent = data.flagsFile;
       $("warnings").textContent = data.warnings.join("\n");
       $("warnings").hidden = !data.warnings.length;
       $("recovery").hidden = !data.recovery;
       $("restart").textContent = data.recovery ? "Restart with saved flags" : "Restart Discord";
       $("restart").disabled = false;
-      $("discard").disabled = true;
+      $("discard").disabled = false;
       $("settings").hidden = false;
       $("loading").hidden = true;
       renderPreset();
@@ -172,7 +186,12 @@
       $("status").textContent = "Changes apply after restarting Discord.";
     } catch (failure) {
       $("loading").hidden = true;
+      fileError = true;
+      $("restart").disabled = true;
       error(failure.message);
+    } finally {
+      loading = false;
+      $("settings").inert = false;
     }
   }
   $("preset").addEventListener("change", () => {
@@ -202,39 +221,48 @@
     markDirty();
   });
   $("discard").addEventListener("click", () => {
+    if (saving || loading) return;
     clearTimeout(previewTimer);
     generation++;
     void load();
   });
   $("settings").addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (saving) return;
+    if (saving || loading) return;
     saving = true;
     clearTimeout(previewTimer);
     const ticket = ++generation;
     const submitted = clone(config);
     $("save").setAttribute("aria-disabled", "true");
     $("save").textContent = "Saving…";
+    $("discard").disabled = true;
     try {
-      const result = await window.LaunchSettings.save(submitted);
+      const result = await window.LaunchSettings.save(submitted, fileRevision);
       if (result.error) {
+        fileError = true;
+        $("restart").disabled = true;
         validation(result, true);
         return;
       }
+      fileRevision = result.fileRevision;
+      $("warnings").textContent = result.warnings.join("\n");
+      $("warnings").hidden = !result.warnings.length;
       saved = JSON.stringify(submitted);
       dirty = JSON.stringify(config) !== saved;
       if (ticket === generation) renderPreview(result);
+      else previewTimer = setTimeout(preview, 0);
+      generation++;
       $("status").textContent = dirty
         ? "Saved. You have additional unsaved changes."
         : "Saved. Restart Discord to apply.";
       $("restart").disabled = dirty || fileError;
-      $("discard").disabled = !dirty;
     } catch (failure) {
       error(failure.message);
     } finally {
       saving = false;
       $("save").removeAttribute("aria-disabled");
       $("save").textContent = "Save changes";
+      $("discard").disabled = false;
     }
   });
   $("restart").addEventListener("click", async () => {

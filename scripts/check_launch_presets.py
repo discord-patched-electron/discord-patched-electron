@@ -6,7 +6,7 @@ import os
 import shutil
 from pathlib import Path
 
-from check_graphics import check
+from check_graphics import VIDEO_CODECS, check
 from common import ROOT, read_json, sha256, write_json
 
 
@@ -19,6 +19,9 @@ def main():
     )
     parser.add_argument(
         "--full", action="store_true", help="Also exercise each experimental option separately"
+    )
+    parser.add_argument(
+        "--codecs", action="store_true", help="Also play VP8, VP9, AV1 and HEVC clips"
     )
     args = parser.parse_args()
     output = args.output.resolve()
@@ -47,11 +50,27 @@ def main():
         for display in ("wayland", "x11"):
             config = resolver.defaults(data)
             config.update(active=preset, display=display)
-            cases.append((preset + "-" + display, config, True))
-    cases.append(("ignore-flags", None, True))
+            cases.append((preset + "-" + display, config, True, "h264"))
+    for decode, encode in ((True, False), (False, True), (True, True)):
+        config = resolver.defaults(data)
+        config["display"] = "wayland"
+        config["profiles"]["balanced"].update(decode=decode, encode=encode)
+        name = "video-" + ("both" if decode and encode else "decode" if decode else "encode")
+        cases.append((name, config, False, "h264"))
+    recovery_config = resolver.defaults(data)
+    recovery_config["profiles"]["balanced"].update(
+        decode=True, encode=True, experiments=["graphiteForce"]
+    )
+    cases.append(("ignore-flags", recovery_config, True, "h264"))
+    if args.codecs:
+        for codec in VIDEO_CODECS:
+            if codec == "h264":
+                continue
+            config = resolver.defaults(data)
+            config["display"] = "wayland"
+            cases.append(("codec-" + codec, config, True, codec))
     if args.full:
         for group, keys in (
-            ("video", data["video"]),
             ("backends", ["gl", "vulkan"]),
             ("experiments", data["experiments"]),
         ):
@@ -59,30 +78,34 @@ def main():
                 config = resolver.defaults(data)
                 config["display"] = "wayland"
                 selected = config["profiles"]["balanced"]
-                if group == "video":
-                    selected[key] = True
-                elif group == "backends":
+                if group == "backends":
                     selected["backend"] = key
                 else:
                     selected["experiments"] = [key]
-                cases.append((group + "-" + key, config, False))
+                cases.append((group + "-" + key, config, False, "h264"))
     results = []
-    for name, config, required in cases:
-        resolved = (
-            resolver.resolve(
-                profile,
-                "discord-canary-prerelease-patched-electron-bin",
-                "discord-canary",
-                [],
-                env=env,
-                request={"settings": settings, "config": config},
-            )
-            if config
-            else None
+    for name, config, required, codec in cases:
+        draft = resolver.resolve(
+            profile,
+            "discord-canary-prerelease-patched-electron-bin",
+            "discord-canary",
+            [],
+            env=env,
+            request={"settings": settings, "config": config},
         )
-        flags = resolved["effective"] if resolved else []
+        resolver.save_file(draft, draft["fileRevision"])
+        # Test the launcher's actual file reader, not just the in-memory draft.
+        resolved = resolver.resolve(
+            profile,
+            "discord-canary-prerelease-patched-electron-bin",
+            "discord-canary",
+            [],
+            env={**env, "DPE_IGNORE_FLAGS": "1" if name == "ignore-flags" else "0"},
+            request={"settings": settings},
+        )
+        flags = resolved["effective"]
         try:
-            report = check(args.runtime, output / name, flags)
+            report = check(args.runtime, output / name, flags, video_codec=codec)
         except Exception as error:
             report_path = output / name / "graphics.json"
             report = read_json(report_path) if report_path.exists() else {}
@@ -96,6 +119,13 @@ def main():
                 "error": report.get("error"),
                 "flags": flags,
                 "config": config,
+                "video_codec": codec,
+                "file_revision": resolved["fileRevision"],
+                "players": report.get("players"),
+                "encoders": report.get("rendering", {}).get("encoders"),
+                "decoders": report.get("rendering", {}).get("decoders"),
+                "codecPreferencesPassed": report.get("codecPreferencesPassed"),
+                "codecPreferenceFailures": report.get("codecPreferenceFailures"),
             }
         )
         print(name, results[-1]["passed"], flush=True)

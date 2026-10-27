@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
@@ -76,7 +77,10 @@ class LaunchFlags(unittest.TestCase):
         (self.root / "discord-canary-patched-electron.conf").write_text(
             "--enable-features=Keep<Trial,Final"
         )
-        result = self.resolve(["--enable-features=Extra", "--disable-features=Final"])["effective"]
+        result = self.read(
+            ["--enable-features=Extra", "--disable-features=Final"],
+            settings={"openasar": {"launchFlags": self.config}},
+        )["effective"]
         enabled = next(v for v in result if v.startswith("--enable-features="))
         self.assertIn("Keep<Trial", enabled)
         self.assertNotIn("Keep:Param", enabled)
@@ -250,10 +254,14 @@ class LaunchFlags(unittest.TestCase):
     def test_bad_external_files_fail_launch_but_do_not_prevent_editing_presets(self):
         (self.root / "discord-canary-patched-electron.conf").write_text("not a flag")
         with self.assertRaisesRegex(ValueError, "one --name"):
-            self.resolve()
-        result = self.resolve(tolerateFileErrors=True)
-        self.assertEqual(result["config"], self.config)
+            self.read()
+        result = self.read(tolerateFileErrors=True)
+        self.assertEqual(result["config"]["extra"], "not a flag")
         self.assertIn("Fix", result["fileErrors"][0])
+        self.config = result["config"]
+        self.config["extra"] = "--repaired"
+        self.save()
+        self.assertIn("--repaired", self.read()["effective"])
 
     def test_default_flags_opt_out_still_allows_files_and_command_line(self):
         self.env["DPE_DEFAULT_FLAGS"] = "0"
@@ -276,3 +284,200 @@ class LaunchFlags(unittest.TestCase):
         )
         result = flags.resolve(self.profile, "package", "discord-canary", [], self.env)
         self.assertEqual(result["config"], self.config)
+
+    def read(self, args=(), **request):
+        return flags.resolve(
+            self.profile,
+            "discord-canary-prerelease-patched-electron-bin",
+            "discord-canary",
+            list(args),
+            self.env,
+            request,
+        )
+
+    def save(self):
+        result = self.resolve()
+        return flags.save_file(result, result["fileRevision"])
+
+    @property
+    def file(self):
+        return self.root / "discord-canary-patched-electron.conf"
+
+    def test_file_roundtrip_preserves_all_presets_and_independent_codec_controls(self):
+        for decode, encode in ((False, False), (True, False), (False, True), (True, True)):
+            with self.subTest(decode=decode, encode=encode):
+                self.config["profiles"]["balanced"].update(decode=decode, encode=encode)
+                self.config["profiles"]["efficiency"]["flags"] = "# inactive\n--example=kept"
+                self.config["extra"] = "# 手動 flags\n--extra=value\n\n"
+                saved = self.save()
+                result = self.read()
+                self.assertEqual(result["config"], self.config)
+                self.assertEqual(saved["fileRevision"], result["fileRevision"])
+                self.assertEqual(saved["effective"], result["effective"])
+                self.assertEqual(
+                    any("AcceleratedVideoDecoder" in v for v in result["effective"]), decode
+                )
+                self.assertEqual(
+                    any("AcceleratedVideoEncoder" in v for v in result["effective"]), encode
+                )
+                self.assertEqual(self.file.stat().st_mode & 0o777, 0o600)
+                # A plain flags-file reader can also see the active options.
+                raw = flags.lines(self.file.read_text())
+                self.assertEqual(any("AcceleratedVideoDecoder" in v for v in raw), decode)
+                self.assertEqual(any("AcceleratedVideoEncoder" in v for v in raw), encode)
+
+    def test_migration_preserves_precedence_and_backs_up_existing_plain_file(self):
+        self.config["extra"] = "--example=settings"
+        self.config["profiles"]["balanced"].update(decode=True)
+        legacy = self.root / "discord-canary-prerelease-patched-electron-bin-flags.conf"
+        legacy.write_text("# older file\n--example=legacy")
+        original = "# hand written\n--example=canonical\n"
+        self.file.write_text(original)
+        self.file.chmod(0o640)
+        (self.profile / "settings.json").write_text(
+            json.dumps({"openasar": {"launchFlags": self.config}})
+        )
+        loaded = self.read()
+        before = loaded["effective"]
+        self.assertEqual(
+            [f for f in before if f.startswith("--example=")],
+            ["--example=settings", "--example=legacy", "--example=canonical"],
+        )
+        flags.save_file(loaded, loaded["fileRevision"])
+        self.assertEqual(self.read()["effective"], before)
+        self.assertEqual(next(self.root.glob("*.backup-*")).read_text(), original)
+        self.assertEqual(self.file.stat().st_mode & 0o777, 0o640)
+        legacy.write_text("--example=stale")
+        (self.profile / "settings.json").write_text(
+            json.dumps({"openasar": {"launchFlags": {"schema": 999}}})
+        )
+        self.assertEqual(self.read()["effective"], before)
+
+    def test_manual_active_edits_win_without_losing_other_presets(self):
+        self.config["profiles"]["balanced"].update(decode=True, experiments=["forceAcceleration"])
+        self.config["profiles"]["performance"]["flags"] = "--keep=inactive"
+        self.save()
+        text = self.file.read_text()
+        a = text.index("\n", text.index(flags.META)) + 1
+        b = text.index(flags.END)
+        self.file.write_text(text[:a] + "# edited active body\n--disable-gpu\n" + text[b:])
+        result = self.read()
+        self.assertIn("--disable-gpu", result["effective"])
+        self.assertNotIn("--ignore-gpu-blocklist", result["effective"])
+        selected = result["config"]["profiles"]["balanced"]
+        self.assertFalse(selected["decode"])
+        self.assertEqual(selected["experiments"], [])
+        self.assertEqual(result["config"]["profiles"]["performance"]["flags"], "--keep=inactive")
+        self.assertIn("edited in the file", result["warnings"][0])
+        self.config = result["config"]
+        self.save()
+        self.assertEqual(self.read()["config"], self.config)
+
+    def test_outside_edits_are_additional_flags_and_override_checkboxes(self):
+        self.config["profiles"]["balanced"]["decode"] = True
+        self.save()
+        outside = "# manual override\n--disable-features=AcceleratedVideoDecoder\n"
+        with self.file.open("a") as stream:
+            stream.write(outside)
+        result = self.read()
+        self.assertTrue(result["config"]["profiles"]["balanced"]["decode"])
+        self.assertEqual(result["config"]["extra"], outside)
+        self.assertIn("--disable-features=AcceleratedVideoDecoder", result["effective"])
+        self.env["DPE_DEFAULT_FLAGS"] = "0"
+        self.assertEqual(
+            self.read()["effective"],
+            ["--class=discord-canary", "--disable-features=AcceleratedVideoDecoder"],
+        )
+
+    def test_stale_save_is_rejected_without_overwriting_external_edits(self):
+        self.save()
+        draft = self.resolve()
+        external = self.file.read_text() + "--external=new\n"
+        self.file.write_text(external)
+        with self.assertRaisesRegex(ValueError, "changed on disk"):
+            flags.save_file(draft, draft["fileRevision"])
+        self.assertEqual(self.file.read_text(), external)
+        self.assertEqual(list(self.root.glob("*.tmp-*")), [])
+
+    def test_symlink_preserved_and_retarget_detected(self):
+        target = self.root / "shared.conf"
+        target.write_text("--existing\n")
+        self.file.symlink_to(target.name)
+        self.config = self.read()["config"]
+        self.save()
+        self.assertTrue(self.file.is_symlink())
+        self.assertIn(flags.BEGIN, target.read_text())
+        draft = self.resolve()
+        other = self.root / "other.conf"
+        other.write_bytes(target.read_bytes())
+        self.file.unlink()
+        self.file.symlink_to(other.name)
+        with self.assertRaisesRegex(ValueError, "changed on disk"):
+            flags.save_file(draft, draft["fileRevision"])
+
+    def test_atomic_save_failure_preserves_file_and_cleans_temporary(self):
+        self.save()
+        original = self.file.read_bytes()
+        self.config["extra"] = "--new"
+        draft = self.resolve()
+        with mock.patch.object(flags.os, "replace", side_effect=OSError("disk error")):
+            with self.assertRaisesRegex(OSError, "disk error"):
+                flags.save_file(draft, draft["fileRevision"])
+        self.assertEqual(self.file.read_bytes(), original)
+        self.assertEqual(list(self.root.glob("*.tmp-*")), [])
+
+    def test_corrupt_metadata_can_be_repaired_without_losing_manual_flags(self):
+        original = (
+            flags.BEGIN
+            + "\n"
+            + flags.META
+            + "{bad}\n--active\n"
+            + flags.END
+            + "\n# manual\n--outside\n"
+        )
+        self.file.write_text(original)
+        with self.assertRaisesRegex(ValueError, "ignore-flags"):
+            self.read()
+        self.env["DPE_IGNORE_FLAGS"] = "1"
+        result = self.read(recoverInvalid=True)
+        self.assertEqual(result["effective"], [])
+        self.assertIn("--outside", result["normalEffective"])
+        self.assertIn("--active", result["normalEffective"])
+        self.config = result["config"]
+        self.save()
+        self.assertEqual(next(self.root.glob("*.backup-*")).read_text(), original)
+        self.assertTrue(self.read()["fileManaged"])
+
+    def test_reserved_markers_cannot_corrupt_saved_section(self):
+        self.save()
+        original = self.file.read_bytes()
+        self.config["extra"] = flags.BEGIN
+        with self.assertRaisesRegex(ValueError, "reserved"):
+            self.save()
+        self.assertEqual(self.file.read_bytes(), original)
+
+    def test_missing_metadata_preserves_active_and_outside_flags_for_repair(self):
+        self.file.write_text(flags.BEGIN + "\n--inside\n" + flags.END + "\n--outside\n")
+        result = self.read(recoverInvalid=True)
+        self.assertIn("--inside", result["effective"])
+        self.assertIn("--outside", result["effective"])
+
+    def test_save_revision_describes_our_write_even_if_an_editor_writes_immediately_after(self):
+        self.save()
+        draft = self.resolve()
+        replace = flags.os.replace
+
+        def external_edit(source, target):
+            replace(source, target)
+            with self.file.open("a") as stream:
+                stream.write("--external\n")
+
+        with mock.patch.object(flags.os, "replace", side_effect=external_edit):
+            saved = flags.save_file(draft, draft["fileRevision"])
+        self.assertNotEqual(saved["fileRevision"], self.read()["fileRevision"])
+        with self.assertRaisesRegex(ValueError, "changed on disk"):
+            flags.save_file(saved, saved["fileRevision"])
+
+    def test_manual_crash_reproduction_flags_still_load_literally(self):
+        self.file.write_text("--enable-features=EnableDrDc\n")
+        self.assertIn("--enable-features=EnableDrDc", self.read()["effective"])

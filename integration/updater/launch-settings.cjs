@@ -5,14 +5,14 @@ const preferences = require("./profile.cjs");
 const relaunch = require("./relaunch.cjs");
 let window;
 
-function resolve(config, { recoverInvalid = false } = {}) {
+function resolve(config, { recoverInvalid = false, save = false, fileRevision } = {}) {
   return new Promise((resolve, reject) => {
     const child = execFile(
       "python3",
       [
         "-I",
         path.join(process.env.DPE_APP_ROOT, "integration/launcher/flags.py"),
-        "preview",
+        save ? "save" : "preview",
         process.env.DPE_PROFILE_DIR,
         process.env.DPE_PACKAGE_NAME || "discord-canary-prerelease-patched-electron-bin",
         process.env.DPE_DESKTOP_ID || "discord-canary",
@@ -41,6 +41,7 @@ function resolve(config, { recoverInvalid = false } = {}) {
         ...(config === undefined ? {} : { config }),
         args: relaunch.arguments().filter((arg) => arg !== "--ignore-flags"),
         recoverInvalid,
+        fileRevision,
       }),
     );
   });
@@ -84,15 +85,21 @@ function open() {
     });
   handle("dpe-launch-load", () => resolve(undefined, { recoverInvalid: true }));
   handle("dpe-launch-preview", (config) => resolve(config));
-  handle("dpe-launch-save", async (config) => {
-    const result = await resolve(config);
-    if (result.error) return result;
+  handle("dpe-launch-save", async (config, fileRevision) => {
     const settings = global.settings;
     if (!settings)
       throw new Error("Discord settings are not ready. Reopen the editor after startup.");
-    const oa = { ...settings.get("openasar", {}), launchFlags: result.config };
+    const result = await resolve(config, { save: true, fileRevision });
+    if (result.error) return result;
+    const oa = { ...settings.get("openasar", {}) };
+    for (const key of ["launchFlags", "customFlags", "cmdPreset"]) delete oa[key];
     settings.set("openasar", oa);
-    settings.save();
+    try {
+      settings.save();
+    } catch (error) {
+      // The canonical file is already saved; don't report that write as failed.
+      result.warnings.push(`Flags saved, but legacy settings cleanup failed: ${error.message}`);
+    }
     global.oaConfig = { ...oa, autoupdate: false };
     return result;
   });

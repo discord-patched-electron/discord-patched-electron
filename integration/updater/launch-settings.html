@@ -25,6 +25,7 @@
       <p id="error" role="alert" hidden></p>
       <p id="loading" role="status">Loading your launch settings…</p>
       <form id="settings" hidden>
+        <p class="hint">Presets and flags are saved in <code id="flags-file"></code>.</p>
         <section aria-labelledby="preset-heading">
           <h2 id="preset-heading">Your preset</h2>
           <div class="selectors">
@@ -106,9 +107,8 @@
           <h2 id="extra-heading">Additional flags</h2>
           <label for="extra-flags">Apply to every preset</label>
           <p id="extra-help" class="hint">
-            Legacy OpenAsar custom flags appear here. These override preset options and text.
-            Configuration files and command-line arguments take precedence over everything saved
-            here.
+            These are the lines outside the preset section in your flags file. They apply to every
+            preset and override its options and text. Command-line arguments take precedence.
           </p>
           <textarea
             id="extra-flags"
@@ -151,7 +151,13 @@
         <footer>
           <p id="status" role="status"></p>
           <div class="actions">
-            <button id="discard" type="button">Discard changes</button>
+            <button
+              id="discard"
+              type="button"
+              title="Discard this draft and read the current flags file"
+            >
+              Reload from file
+            </button>
             <button id="restart" type="button">Restart Discord</button>
             <button id="save" class="primary" type="submit">Save changes</button>
           </div>

@@ -101,13 +101,20 @@ app
     stage = "gpu-info";
     const gpu = await app.getGPUInfo("complete");
     stage = "complete";
+    const codecPreferenceFailures = rendering.decoders.filter(
+      (d) => !d.required && d.supported !== false && !d.passed,
+    );
     finish({
       passed:
         rendering.webglPassed &&
         rendering.videoFrames >= 5 &&
         !gpuExits.length &&
-        rendering.encoders.some((e) => e.chunks >= 12) &&
-        !rendering.encoders.some((e) => e.error),
+        rendering.encoders.some((e) => e.chunks === 12) &&
+        rendering.encoders.every((e) => e.supported === false || (!e.error && e.chunks === 12)) &&
+        rendering.decoders.some((d) => d.required && d.passed) &&
+        rendering.decoders.every((d) => !d.required || d.passed),
+      codecPreferencesPassed: !codecPreferenceFailures.length,
+      codecPreferenceFailures,
       rendering,
       gpuFeatures: app.getGPUFeatureStatus(),
       gpu,

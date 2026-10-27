@@ -16,11 +16,14 @@ previously produced an empty version.
 `integration/launcher/flags.py` resolves flags before Electron starts, in this order:
 
 1. Application identity and defaults.
-2. Selected preset's optional controls, then its editable flags.
-3. Additional flags shared by all presets.
-4. The older package-specific `-flags.conf`.
-5. `~/.config/discord-canary-patched-electron.conf` (respecting `XDG_CONFIG_HOME`).
-6. Original command-line arguments.
+2. Selected preset's optional controls, then its editable flags, read from
+   `~/.config/discord-canary-patched-electron.conf` (respecting `XDG_CONFIG_HOME`).
+3. Additional flags: the lines outside that file's managed preset section.
+4. Original command-line arguments.
+
+Migration imports saved OpenAsar preferences and the older package-specific
+`-flags.conf` once, preserving their previous precedence below existing channel
+file overrides. See [file storage and automated codec checks](flags-file.md).
 
 Feature lists merge by feature name; the last setting wins. Other Chromium
 switches keep their normal last-value precedence. `DPE_DEFAULT_FLAGS=0` skips

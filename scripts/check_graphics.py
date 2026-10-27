@@ -124,6 +124,11 @@ def main():
     parser.add_argument("--flag", action="append", default=[])
     parser.add_argument("--video-codec", choices=VIDEO_CODECS, default="h264")
     parser.add_argument(
+        "--strict-codecs",
+        action="store_true",
+        help="Also fail on errors in explicitly preferred hardware/software decoder paths",
+    )
+    parser.add_argument(
         "--openasar-source",
         type=Path,
         help="Apply a pinned bootstrap/src/cmdSwitches.js through the current compatibility adapter",
@@ -132,9 +137,10 @@ def main():
     args = parser.parse_args()
     if args.preset != "perf" and not args.openasar_source:
         parser.error("--preset requires --openasar-source")
-    if not check(
+    report = check(
         args.runtime, args.output, args.flag, args.openasar_source, args.preset, args.video_codec
-    )["passed"]:
+    )
+    if not report["passed"] or (args.strict_codecs and not report["codecPreferencesPassed"]):
         raise SystemExit(1)
 
 
