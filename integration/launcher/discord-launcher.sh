@@ -86,7 +86,7 @@ if [[ -f "$root/client-distribution.json" ]]; then
   unset PYTHONHOME ELECTRON_RUN_AS_NODE
   export DPE_CLIENT_ROOT="$DPE_PROFILE_DIR/dpe-updater"
   export DPE_LAUNCHER
-  DPE_LAUNCHER=$(readlink -f -- "${BASH_SOURCE[0]}")
+  DPE_LAUNCHER=${DPE_LAUNCHER:-$(readlink -f -- "${BASH_SOURCE[0]}")}
   # Packages contain only the updater. Reuse a verified runtime or prepare it
   # with native progress before it can display the normal Electron startup UI.
   DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/bootstrap.py" "$root" "$DPE_PROFILE_DIR")
@@ -100,6 +100,12 @@ if [[ -f "$root/client-distribution.json" ]]; then
     # update underneath it or report a failed desktop launch.
     if [[ $status == 2 ]]; then exit 0; fi
     exit "$status"
+  fi
+  incoming=$(python3 "$root/integration/updater/check.py" --application-path "$launch_result")
+  if [[ -n "$incoming" ]]; then
+    rm -f -- "$launch_result"
+    trap - EXIT
+    exec "$DPE_LAUNCHER" "$@"
   fi
   installed=$(python3 "$root/integration/updater/check.py" --launch-paths "$launch_result")
   mapfile -t installed_paths <<<"$installed"

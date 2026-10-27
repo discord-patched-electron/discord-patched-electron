@@ -167,3 +167,15 @@ test("quitting cancels active preparation, waits for cleanup, and stops future c
   tick();
   assert.equal(pending.length, 1);
 });
+
+test("application-only updates advertise a restart without changing running module paths", async () => {
+  const { updater, pending, checked, downloaded } = fixture();
+  updater.checkForUpdates();
+  await pending.shift().done({ application: "/profile/application/new/app" });
+  assert.equal(checked[0].updateCount, 1);
+  assert.equal(downloaded.length, 1);
+  assert.equal(
+    updater.getModulePath("discord_voice"),
+    "/profile/generations/old/modules/discord_voice",
+  );
+});

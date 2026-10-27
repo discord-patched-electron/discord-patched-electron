@@ -72,18 +72,22 @@ To add Vencord or Equicord, follow the [mod guide](client-mods.md).
 
 ## Updates
 
-New versions reach automatic updates after testing. The app checks for Discord
-and Electron updates on launch and every 15 minutes. When an update is ready,
+New versions reach automatic updates after testing. The app checks for Discord, Electron, OpenAsar and DPE updater/patch updates
+on launch and every 15 minutes. When an update is ready,
 use Discord's update button to restart.
 Downloads are verified before use; a failed update keeps the working version.
 Automatic updates need no administrator access and preserve your installed mod.
 
-Your package manager handles the launcher, updater and Linux integration files.
-Electron and Discord's client ASAR/modules live in your profile; package upgrades
-reuse a matching or newer verified Electron download.
-For launcher, bootstrap and Linux integration changes, close Discord and install
-the next package. Tarball users should extract the new version into a fresh folder.
-Mods installed in the [default location](client-mods.md) are preserved.
+Your package manager maintains a small bootstrap, trusted signing key, desktop
+entries and system dependencies. OpenAsar, DPE patches, the Python updater and
+Linux integrations update together in your profile. Application-only updates
+reuse Electron; they do not download it again. Failed application starts fall
+back to the previous working version.
+
+Install the new package once to migrate from the older updater layout. Later
+package updates are only needed for bootstrap or system dependency changes.
+Tarball users should extract into a fresh folder. Mods installed in the
+[default location](client-mods.md) are preserved.
 
 Discord's hosted web interface updates independently of these desktop releases.
 
@@ -92,7 +96,8 @@ choose your delivery method in [notification settings](https://github.com/settin
 
 ## Startup problems
 
-The first Electron download shows a setup dialog before the startup screen.
+First launch downloads the application, then shows a setup dialog while Electron
+downloads.
 If it fails or is cancelled, launch the app again to retry.
 The startup screen explains later failures and offers **Retry now**. Connection errors
 retry after ten seconds; **Pause retries** stops the countdown. Use **Copy details**
@@ -101,8 +106,8 @@ when reporting a problem. Your desktop's close-window shortcut cancels startup.
 - **Python or Brotli is missing:** install it through your package manager, then
   retry. Python is `python` on Arch and `python3` on Debian/Ubuntu and Fedora.
   Brotli is `brotli` on all three.
-- **Bundled update libraries are missing:** reinstall the complete package or
-  extract the whole tarball again. Keep its `python/` folder beside `launch.sh`.
+- **Application files are damaged:** relaunch online to repair the verified
+  application download. Keep the bootstrap files together.
   You don't need to install Python modules yourself.
 - **Downloads cannot connect:** allow HTTPS access to Discord and GitHub,
   including `github.com`, `api.github.com`, `raw.githubusercontent.com` and GitHub's

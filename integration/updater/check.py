@@ -6,6 +6,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from application import prepare as prepare_application
 from client import FAILURES, ensure_client
 from installation import publish
 from runtime import ensure_runtime
@@ -14,6 +15,9 @@ from support import progress, read_object
 
 def check(app: Path, client_root: Path, channel: str) -> dict:
     offline = os.environ.get("DPE_CLIENT_OFFLINE") == "1"
+    incoming = prepare_application(app, client_root.parent)
+    if incoming:
+        return {"application": str(incoming)}
     progress("check", "Checking patched Electron")
     executable = ensure_runtime(app, client_root.parent, offline=offline)
     progress("check", "Checking Discord modules")
@@ -49,6 +53,8 @@ if __name__ == "__main__":
     try:
         if sys.argv[1] == "--launch-paths":
             launch_paths(Path(sys.argv[2]))
+        elif sys.argv[1] == "--application-path":
+            print(read_object(Path(sys.argv[2])).get("application", ""))
         else:
             print(json.dumps(check(Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3])))
     except (*FAILURES, sqlite3.Error) as error:

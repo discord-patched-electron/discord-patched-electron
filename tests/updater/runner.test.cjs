@@ -156,3 +156,13 @@ test("cancellation also stops children with private pipes after the helper exits
     await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(running(descendant), false);
 });
+
+test("startup accepts a verified application handoff without requiring old client paths", async () => {
+  const { child, promise } = fixture();
+  child.stdout.end('{"application":"/profile/dpe-application/new/app"}\n');
+  child.emit("close", 0);
+  assert.deepEqual(await promise, { application: "/profile/dpe-application/new/app" });
+  const invalid = fixture();
+  invalid.child.stdout.write('{"application":"relative"}\n');
+  await assert.rejects(invalid.promise, /invalid result/);
+});
