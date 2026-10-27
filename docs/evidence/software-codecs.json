@@ -1,0 +1,1711 @@
+{
+  "date": "2026-10-27",
+  "branch": "fix/video-playback-gpu-flags",
+  "base_commit": "9cd0463",
+  "runtime_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+  "openh264_sha256": "d828a944d4d2bb64195ada89cf2cde9bc41733b1547d0788ef49fb8cb231b76f",
+  "openh264_version": "2.5.1",
+  "libffmpeg_sha256": "30c15ef9221ef83d27011ca04c01054c07123b92be9e23a982442ba1a20bc846",
+  "versions": {
+    "electron": "46.0.0-alpha.1",
+    "chrome": "158.0.8114.0",
+    "node": "24.22.1"
+  },
+  "direct_ffmpeg_initialization": {
+    "decoder_found": true,
+    "avcodec_open2": 0,
+    "error": "Success"
+  },
+  "diagnostics": {
+    "forced-software-vp8": {
+      "passed": false,
+      "codec_preferences_passed": false,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/mnt/storage/discord-patched-electron-ci/local-tests/prerelease-launch-40053107555/profile/discordcanary/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode",
+        "--enable-logging=stderr",
+        "--vmodule=ffmpeg_video_decoder=3,ffmpeg_common=3,*openh264*=3"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": null,
+      "codec_preload": null,
+      "playback_decoder": [
+        {
+          "name": "VpxVideoDecoder",
+          "platform": "false"
+        }
+      ],
+      "playback_ended": null,
+      "seek_time": null,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "no-preference",
+          "required": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "error": "OperationError: Unsupported configuration. Check isConfigSupported() and separately verify the description (if required) prior to calling configure().",
+          "frames": 0,
+          "passed": false,
+          "preference": "prefer-software",
+          "required": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    },
+    "no-sandbox-diagnostic": {
+      "passed": true,
+      "codec_preferences_passed": true,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/mnt/storage/discord-patched-electron-ci/local-tests/prerelease-launch-40053107555/profile/discordcanary/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode",
+        "--no-sandbox"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": null,
+      "codec_preload": null,
+      "playback_decoder": [
+        {
+          "name": "VpxVideoDecoder",
+          "platform": "false"
+        }
+      ],
+      "playback_ended": null,
+      "seek_time": null,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    },
+    "preload-sandboxed": {
+      "passed": true,
+      "codec_preferences_passed": true,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/mnt/storage/discord-patched-electron-ci/local-tests/prerelease-launch-40053107555/profile/discordcanary/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": null,
+      "codec_preload": null,
+      "playback_decoder": [
+        {
+          "name": "FFmpegVideoDecoder",
+          "platform": "false"
+        }
+      ],
+      "playback_ended": null,
+      "seek_time": null,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    }
+  },
+  "required_native_passed": true,
+  "results": [
+    {
+      "case": "default-h264",
+      "required": true,
+      "strict_passed": true,
+      "passed": true,
+      "codec_preferences_passed": true,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache/libopenh264-2.5.1-linux64.7.so"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "codec_preload": {
+        "active": true,
+        "libraries": "libopenh264-2.5.1-linux64.7.so",
+        "searchPath": "/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache:/opt/t3code-nightly-bin/usr/lib"
+      },
+      "playback_decoder": [
+        {
+          "name": "VaapiVideoDecoder",
+          "platform": "true"
+        }
+      ],
+      "playback_ended": true,
+      "seek_time": 0.5,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "case": "software-h264",
+      "required": true,
+      "strict_passed": true,
+      "passed": true,
+      "codec_preferences_passed": true,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "codec_preload": {
+        "active": true,
+        "libraries": "libopenh264-2.5.1-linux64.7.so",
+        "searchPath": "/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache:/opt/t3code-nightly-bin/usr/lib"
+      },
+      "playback_decoder": [
+        {
+          "name": "FFmpegVideoDecoder",
+          "platform": "false"
+        }
+      ],
+      "playback_ended": true,
+      "seek_time": 0.5,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "case": "software-vp8",
+      "required": true,
+      "strict_passed": true,
+      "passed": true,
+      "codec_preferences_passed": true,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "codec_preload": {
+        "active": true,
+        "libraries": "libopenh264-2.5.1-linux64.7.so",
+        "searchPath": "/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache:/opt/t3code-nightly-bin/usr/lib"
+      },
+      "playback_decoder": [
+        {
+          "name": "VpxVideoDecoder",
+          "platform": "false"
+        }
+      ],
+      "playback_ended": true,
+      "seek_time": 0.5,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "case": "software-vp9",
+      "required": true,
+      "strict_passed": true,
+      "passed": true,
+      "codec_preferences_passed": true,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "codec_preload": {
+        "active": true,
+        "libraries": "libopenh264-2.5.1-linux64.7.so",
+        "searchPath": "/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache:/opt/t3code-nightly-bin/usr/lib"
+      },
+      "playback_decoder": [
+        {
+          "name": "VpxVideoDecoder",
+          "platform": "false"
+        }
+      ],
+      "playback_ended": true,
+      "seek_time": 0.5,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "case": "software-av1",
+      "required": true,
+      "strict_passed": true,
+      "passed": true,
+      "codec_preferences_passed": true,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "codec_preload": {
+        "active": true,
+        "libraries": "libopenh264-2.5.1-linux64.7.so",
+        "searchPath": "/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache:/opt/t3code-nightly-bin/usr/lib"
+      },
+      "playback_decoder": [
+        {
+          "name": "Dav1dVideoDecoder",
+          "platform": "false"
+        }
+      ],
+      "playback_ended": true,
+      "seek_time": 0.5,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "case": "software-h264-x11",
+      "required": true,
+      "strict_passed": true,
+      "passed": true,
+      "codec_preferences_passed": true,
+      "flags": [
+        "--ozone-platform=x11",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "codec_preload": {
+        "active": true,
+        "libraries": "libopenh264-2.5.1-linux64.7.so",
+        "searchPath": "/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache:/opt/t3code-nightly-bin/usr/lib"
+      },
+      "playback_decoder": [
+        {
+          "name": "FFmpegVideoDecoder",
+          "platform": "false"
+        }
+      ],
+      "playback_ended": true,
+      "seek_time": 0.5,
+      "encoders": [
+        {
+          "codec": "avc1.42001f",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-hardware",
+          "supported": false
+        },
+        {
+          "chunks": 12,
+          "codec": "avc1.42001f",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp8",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "vp09.00.10.08",
+          "preference": "prefer-software",
+          "supported": true
+        },
+        {
+          "chunks": 12,
+          "codec": "av01.0.04M.08",
+          "preference": "prefer-software",
+          "supported": true
+        }
+      ],
+      "decoders": [
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "avc1.42001f",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp8",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "vp09.00.10.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "no-preference",
+          "required": true,
+          "supported": true
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "preference": "prefer-hardware",
+          "required": false,
+          "supported": false
+        },
+        {
+          "codec": "av01.0.04M.08",
+          "encodedWith": "prefer-software",
+          "frames": 12,
+          "passed": true,
+          "preference": "prefer-software",
+          "required": false,
+          "supported": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "case": "control-no-preload",
+      "required": false,
+      "strict_passed": false,
+      "passed": false,
+      "codec_preferences_passed": null,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "codec_preload": {
+        "active": false,
+        "libraries": "",
+        "searchPath": "/opt/t3code-nightly-bin/usr/lib"
+      },
+      "playback_decoder": [],
+      "playback_ended": null,
+      "seek_time": null,
+      "encoders": null,
+      "decoders": [],
+      "error": "Error: PipelineStatus::DECODER_ERROR_NOT_SUPPORTED: video decoder initialization failed with DecoderStatus::Codes::kUnsupportedConfig\n    at video.addEventListener.once (<anonymous>:19:20)"
+    },
+    {
+      "case": "software-hevc",
+      "required": false,
+      "strict_passed": false,
+      "passed": false,
+      "codec_preferences_passed": null,
+      "flags": [
+        "--ozone-platform=wayland",
+        "--enable-libopenh264",
+        "--openh264-library-path=/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache/libopenh264-2.5.1-linux64.7.so",
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "gpu_exits": [],
+      "renderer_sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "codec_preload": {
+        "active": true,
+        "libraries": "libopenh264-2.5.1-linux64.7.so",
+        "searchPath": "/home/he3als/.t3/worktrees/discord-patched-electron/t3-7dc24dd2/out/software-codecs/launcher-final/codec cache:/opt/t3code-nightly-bin/usr/lib"
+      },
+      "playback_decoder": [],
+      "playback_ended": null,
+      "seek_time": null,
+      "encoders": null,
+      "decoders": [],
+      "error": "Error: PipelineStatus::DEMUXER_ERROR_NO_SUPPORTED_STREAMS: FFmpegDemuxer: no supported streams\n    at video.addEventListener.once (<anonymous>:19:20)"
+    }
+  ],
+  "checks": {
+    "python": 276,
+    "javascript": 64,
+    "lint": "passed"
+  },
+  "limits": [
+    "Synthetic clips and frames with a trusted cached OpenH264 2.5.1 library, not a Discord call or physical camera.",
+    "HEVC software playback is unsupported in this build. Hardware HEVC decoding remains a separate path.",
+    "The launcher preloads an already-present requested library. Missing libraries do not block startup but software H.264 needs a restart after the library becomes available.",
+    "The no-sandbox run was only an isolation diagnostic. Production and all required final cases retain the renderer sandbox; Seccomp=2 and NoNewPrivs=1.",
+    "This fixes the software H.264 fallback, not the separate forced hardware encoder crash."
+  ],
+  "artifacts": "out/software-codecs/launcher-final/software-codecs.json"
+}

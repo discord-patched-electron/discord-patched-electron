@@ -25,6 +25,12 @@ The probe shows a generated video pattern and records GPU/decoder metadata.
 It does not open a camera or microphone. Browser codec results do not prove
 hardware encoding in Discord's separate native voice/video stack.
 
+For strict software playback/encode/decode checks, use
+`scripts/check_software_codecs.py` with `--openh264` pointing to an existing
+trusted codec library. It exercises the launcher's pre-sandbox loading, full
+playback, seeking, round trips and renderer sandbox state. See the
+[software codec investigation](software-codecs.md).
+
 To include OpenAsar's actual startup flags, pass
 `--openasar-source /path/to/package/bootstrap/src/cmdSwitches.js` and
 `--preset perf` (or `battery` / `balanced`). Use the source matching

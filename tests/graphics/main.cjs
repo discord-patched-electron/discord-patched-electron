@@ -46,7 +46,9 @@ const effectiveSwitches = Object.fromEntries(
     .map((name) => [name, app.commandLine.getSwitchValue(name)]),
 );
 const players = {};
+const mediaEvents = [];
 const gpuExits = [];
+let rendererSandbox;
 app.on("child-process-gone", (_event, details) => {
   if (details.type === "GPU" && !["clean-exit", "killed"].includes(details.reason))
     gpuExits.push(details.reason);
@@ -59,7 +61,21 @@ function finish(report) {
   fs.writeFileSync(
     path.join(output, "graphics.json"),
     JSON.stringify(
-      { versions: process.versions, stage, players, gpuExits, effectiveSwitches, ...report },
+      {
+        versions: process.versions,
+        stage,
+        players,
+        mediaEvents,
+        gpuExits,
+        effectiveSwitches,
+        rendererSandbox,
+        codecPreload: {
+          active: process.env.DPE_CODEC_PRELOAD_ACTIVE === "1",
+          libraries: process.env.LD_PRELOAD || "",
+          searchPath: process.env.LD_LIBRARY_PATH || "",
+        },
+        ...report,
+      },
       null,
       2,
     ),
@@ -85,9 +101,17 @@ app
     );
     const clip = JSON.parse(fs.readFileSync(path.join(__dirname, "clip.json"), "utf8"));
     await window.loadFile(path.join(__dirname, "index.html"), { query: { clip: clip.file } });
+    const status = fs.readFileSync(`/proc/${window.webContents.getOSProcessId()}/status`, "utf8");
+    rendererSandbox = {
+      configured: window.webContents.getLastWebPreferences().sandbox,
+      seccomp: Number(status.match(/^Seccomp:\s+(\d+)/m)?.[1]),
+      noNewPrivs: Number(status.match(/^NoNewPrivs:\s+(\d+)/m)?.[1]),
+    };
     stage = "media-debugger";
     window.webContents.debugger.attach("1.3");
     window.webContents.debugger.on("message", (_event, method, params) => {
+      if (["Media.playerMessagesLogged", "Media.playerErrorsRaised"].includes(method))
+        mediaEvents.push({ method, ...params });
       if (method === "Media.playerPropertiesChanged") {
         const properties = (players[params.playerId] ??= {});
         for (const { name, value } of params.properties) properties[name] = value;
@@ -108,6 +132,8 @@ app
       passed:
         rendering.webglPassed &&
         rendering.videoFrames >= 5 &&
+        rendering.playbackEnded &&
+        rendering.seekPassed &&
         !gpuExits.length &&
         rendering.encoders.some((e) => e.chunks === 12) &&
         rendering.encoders.every((e) => e.supported === false || (!e.error && e.chunks === 12)) &&

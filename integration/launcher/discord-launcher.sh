@@ -4,6 +4,11 @@ set -euo pipefail
 name=@PKGNAME@
 root=/usr/lib/@PKGNAME@
 export DPE_APP_ROOT="$root"
+# An app.relaunch inherits our codec environment; recompute it from this launch's
+# flags so disabling the codec or entering recovery removes our previous preload.
+# shellcheck source=integration/launcher/codec-preload.sh
+source "$root/integration/launcher/codec-preload.sh"
+dpe_restore_codec_environment
 config_root=${XDG_CONFIG_HOME:-$HOME/.config}
 export DISCORD_PORTAL_APP_ID=${DISCORD_PORTAL_APP_ID:-@DESKTOP_ID@}
 export CHROME_DESKTOP=${CHROME_DESKTOP:-@DESKTOP_ID@.desktop}
@@ -75,6 +80,7 @@ if [[ -f "$root/client-distribution.json" ]]; then
   rm -f -- "$launch_result"
   trap - EXIT
 fi
+dpe_preload_openh264 "${flags[@]}"
 if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
   if [[ ! -f "$root/client-distribution.json" ]]; then
     read -r DPE_CAMERA_PROBE_START DPE_CAMERA_PROBE_END <"$root/camera-probe.conf"

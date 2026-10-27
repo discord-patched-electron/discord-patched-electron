@@ -25,6 +25,7 @@ def integration_key(
                     "integration/updater/flags.cjs",
                     "integration/launcher/flags.py",
                     "integration/launcher/presets.json",
+                    "integration/launcher/codec-preload.sh",
                     "integration/updater/relaunch.cjs",
                     "integration/updater/launch-settings.cjs",
                     "integration/updater/launch-settings-preload.cjs",

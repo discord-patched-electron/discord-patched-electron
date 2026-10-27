@@ -152,8 +152,8 @@ bun run test
 bun run lint
 ```
 
-Without `--openh264`, the graphics fixture disables that optional dynamically
-loaded codec. The matrix always probes independent decode/encode options, both
+Without `--openh264`, the fixture lacks the optional external H.264 software
+decoder; the built-in software encoder is separate. The matrix always probes independent decode/encode options, both
 together and flags-free recovery. `--codecs` adds VP8/VP9/AV1/HEVC playback;
 `--full` also probes each experimental option independently. Experimental failures
 are recorded without treating experiments as required defaults. Both Wayland and
@@ -162,7 +162,8 @@ arguments, GPU exits, decoder/encoder details and executable hashes.
 Encoded bytes are decoded again with frame/timestamp/pixel checks. The ordinary
 decoder path must pass; preferred hardware/software paths have separate results.
 `check_graphics.py --strict-codecs` also fails on errors in those preference probes.
-The current software H.264 decoder still fails despite advertising support.
+The subsequent [software codec fix](software-codecs.md) resolves the H.264
+initialization failure with sandbox-preserving preloading in the launcher.
 
 Results are indexed in [preset evidence](../evidence/launch-presets.json):
 
@@ -184,7 +185,7 @@ Results are indexed in [preset evidence](../evidence/launch-presets.json):
   argument preservation, literal values, feature precedence and relocated packaging.
 
 The separate forced-software H.264 playback limitation recorded in the earlier
-investigation remains unresolved. Synthetic MP4/WebGL/WebCodecs checks do not prove
+investigation is resolved by the later codec-loading fix. Synthetic MP4/WebGL/WebCodecs checks do not prove
 all uploaded videos, animated GIFs or live Discord streams work on every GPU.
 
 ### UI review scope

@@ -3,6 +3,10 @@
 The app uses Wayland in a Wayland session and X11 otherwise. Hardware video
 decoding is enabled when your driver supports it. Most users can keep the defaults.
 
+Software H.264 decoding uses the cached OpenH264 library. The launcher loads it
+before sandbox startup so decoding works with the sandbox enabled. If the library
+is missing, startup continues; restart once it is available to use software H.264.
+
 ## Appearance and startup
 
 Open **User Settings → OpenAsar**:

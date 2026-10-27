@@ -105,7 +105,9 @@ def main():
         )
         flags = resolved["effective"]
         try:
-            report = check(args.runtime, output / name, flags, video_codec=codec)
+            report = check(
+                args.runtime, output / name, flags, video_codec=codec, launcher_codecs=True
+            )
         except Exception as error:
             report_path = output / name / "graphics.json"
             report = read_json(report_path) if report_path.exists() else {}

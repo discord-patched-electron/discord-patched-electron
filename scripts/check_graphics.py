@@ -38,6 +38,7 @@ def check(
     openasar_source: Path | None = None,
     preset: str = "perf",
     video_codec: str = "h264",
+    launcher_codecs: bool = False,
 ):
     runtime, output = runtime.resolve(), output.resolve()
     if output.exists() or output.is_relative_to(runtime.parent):
@@ -81,9 +82,19 @@ def check(
         "WAYLAND_DEBUG": "client",
     }
     env.pop("ELECTRON_RUN_AS_NODE", None)
+    command = [str(output / "runtime" / runtime.name), "--disable-setuid-sandbox", *extra]
+    if launcher_codecs:
+        command = [
+            "bash",
+            "-c",
+            'source "$1"; shift; dpe_restore_codec_environment; dpe_preload_openh264 "$@"; exec "$@"',
+            "codec-probe",
+            str(ROOT / "integration/launcher/codec-preload.sh"),
+            *command,
+        ]
     with (output / "console.log").open("w") as log:
         process = subprocess.run(
-            [str(output / "runtime" / runtime.name), "--disable-setuid-sandbox", *extra],
+            command,
             env=env,
             stdout=log,
             stderr=subprocess.STDOUT,
@@ -97,6 +108,7 @@ def check(
         in (output / "console.log").read_text(errors="replace"),
         additional_flags=extra,
         video_codec=video_codec,
+        launcher_codecs=launcher_codecs,
     )
     if openasar_source:
         report.update(openasar_source_sha256=sha256(openasar_source), openasar_preset=preset)
@@ -124,6 +136,11 @@ def main():
     parser.add_argument("--flag", action="append", default=[])
     parser.add_argument("--video-codec", choices=VIDEO_CODECS, default="h264")
     parser.add_argument(
+        "--launcher-codecs",
+        action="store_true",
+        help="Apply the production launcher's pre-sandbox codec loading",
+    )
+    parser.add_argument(
         "--strict-codecs",
         action="store_true",
         help="Also fail on errors in explicitly preferred hardware/software decoder paths",
@@ -138,7 +155,13 @@ def main():
     if args.preset != "perf" and not args.openasar_source:
         parser.error("--preset requires --openasar-source")
     report = check(
-        args.runtime, args.output, args.flag, args.openasar_source, args.preset, args.video_codec
+        args.runtime,
+        args.output,
+        args.flag,
+        args.openasar_source,
+        args.preset,
+        args.video_codec,
+        launcher_codecs=args.launcher_codecs,
     )
     if not report["passed"] or (args.strict_codecs and not report["codecPreferencesPassed"]):
         raise SystemExit(1)

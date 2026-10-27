@@ -12,6 +12,14 @@
     : gl.getParameter(gl.RENDERER);
   const video = document.querySelector("video");
   let frames = 0;
+  const ended = new Promise((resolve, reject) => {
+    video.addEventListener("ended", resolve, { once: true });
+    video.addEventListener(
+      "error",
+      () => reject(new Error(video.error?.message || "Video failed")),
+      { once: true },
+    );
+  });
   const delivered = new Promise((resolve, reject) => {
     video.addEventListener(
       "error",
@@ -25,11 +33,26 @@
     video.requestVideoFrameCallback(frame);
   });
   video.src = new URLSearchParams(location.search).get("clip") || "clip.mp4";
-  await video.play().catch((error) => {
-    // DOMException loses its message across executeJavaScript's IPC boundary.
-    throw new Error(`${error.name}: ${error.message}; ${video.error?.message || "no media error"}`);
-  });
-  await delivered;
+  // Observe all rejections together, including playback failures before the
+  // first frame. DOMException loses its message across the IPC boundary.
+  await Promise.all([
+    video.play().catch((error) => {
+      throw new Error(
+        `${error.name}: ${error.message}; ${video.error?.message || "no media error"}`,
+      );
+    }),
+    delivered,
+    ended,
+  ]);
+  const playbackEnded = video.ended;
+  // Exercise decoder flush/reinitialization after draining a clip (including
+  // reordered H.264 frames), not just startup and one uninterrupted playback.
+  const seekFrame = new Promise((resolve) =>
+    video.requestVideoFrameCallback((_now, metadata) => resolve(metadata.mediaTime)),
+  );
+  video.currentTime = 0.5;
+  await video.play();
+  const seekTime = await seekFrame;
   // Chromium batches Media-domain diagnostics; keep playback alive long enough
   // to report the actual decoder, rather than infer it from GPU capabilities.
   await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -179,6 +202,9 @@
     videoFrames: frames,
     videoWidth: video.videoWidth,
     videoHeight: video.videoHeight,
+    playbackEnded,
+    seekTime,
+    seekPassed: seekTime >= 0.5 && seekTime <= 1,
     encoders,
     decoders,
     webglPassed: pixel.every((value, i) => Math.abs(value - [26, 128, 230, 255][i]) <= 1),

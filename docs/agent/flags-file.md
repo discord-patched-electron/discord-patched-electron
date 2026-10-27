@@ -5,6 +5,9 @@ The user requested a shared flags file and automated video checks only.
 No diagnostic button was added. Results are in
 [flags-file and codec evidence](../evidence/flags-file-codecs.json).
 
+The later [software codec fix](software-codecs.md) resolves the software H.264
+failure reported below by loading its library before renderer sandbox startup.
+
 ## Storage and migration
 
 The canonical file is `$XDG_CONFIG_HOME/discord-canary-patched-electron.conf`,

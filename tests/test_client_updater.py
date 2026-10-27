@@ -442,6 +442,7 @@ class DistributionBoundary(unittest.TestCase):
                 "client-update.json",
                 "integration/launcher/flags.py",
                 "integration/launcher/presets.json",
+                "integration/launcher/codec-preload.sh",
                 "integration/updater/launch-settings.html",
             ):
                 self.assertEqual((app / name).stat().st_mode & 0o444, 0o444)
