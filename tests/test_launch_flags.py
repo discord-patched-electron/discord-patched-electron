@@ -134,6 +134,34 @@ class LaunchFlags(unittest.TestCase):
         self.assertTrue(warnings)
         self.assertEqual(result["profiles"]["efficiency"]["experiments"], [])
 
+    def test_retired_options_preserve_edits_without_enabling_stronger_replacements(self):
+        self.config["profiles"]["balanced"].update(
+            experiments=["graphite", "videoBuffers", "zeroCopy"], flags="--example=keep"
+        )
+        self.config["profiles"]["performance"]["experiments"] = ["graphite"]
+        for request in (
+            {"config": self.config},
+            {"settings": {"openasar": {"launchFlags": self.config}}},
+        ):
+            with self.subTest(request=list(request)):
+                result = flags.resolve(
+                    self.profile, "package", "discord-canary", [], self.env, request
+                )
+                self.assertEqual(
+                    result["config"]["profiles"]["balanced"]["experiments"], ["zeroCopy"]
+                )
+                self.assertEqual(result["config"]["profiles"]["performance"]["experiments"], [])
+                self.assertIn("--example=keep", result["effective"])
+                self.assertIn("--enable-zero-copy", result["effective"])
+                self.assertFalse(
+                    any("graphite" in v.lower() or "video-frames" in v for v in result["effective"])
+                )
+                self.assertEqual(len(result["warnings"]), 3)
+        self.assertEqual(
+            self.config["profiles"]["balanced"]["experiments"],
+            ["graphite", "videoBuffers", "zeroCopy"],
+        )
+
     def test_invalid_saved_preferences_can_be_repaired_by_preview_and_save(self):
         bad = {"openasar": {"launchFlags": {"schema": 999}}}
         result = flags.resolve(

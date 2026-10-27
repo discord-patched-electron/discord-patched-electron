@@ -83,7 +83,8 @@ app
     window.webContents.on("render-process-gone", (_event, detail) =>
       finish({ passed: false, error: detail.reason }),
     );
-    await window.loadFile(path.join(__dirname, "index.html"));
+    const clip = JSON.parse(fs.readFileSync(path.join(__dirname, "clip.json"), "utf8"));
+    await window.loadFile(path.join(__dirname, "index.html"), { query: { clip: clip.file } });
     stage = "media-debugger";
     window.webContents.debugger.attach("1.3");
     window.webContents.debugger.on("message", (_event, method, params) => {

@@ -24,7 +24,8 @@ Hardware decoding and encoding have separate checkboxes. Unchecked means use
 the runtime's defaults. Rendering backends, driver overrides and other experiments
 are optional and off by default. Forced encoding currently crashes on the tested
 AMD RX 7900 GRE; leave it off unless testing. These controls affect Chromium media,
-not Discord's separate call codec engine.
+not Discord's separate call codec engine. Obsolete controls are removed with a
+notice while preserving your other edits.
 
 **Next launch** shows the merged arguments and their sources. One flag goes on
 each line; blank lines and `#` comments are allowed. Manual flags override preset

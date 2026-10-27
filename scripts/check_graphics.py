@@ -8,6 +8,28 @@ from pathlib import Path
 
 from common import ROOT, read_json, run, sha256, write_json
 
+VIDEO_CODECS = {
+    "h264": ("mp4", ["-c:v", "libx264", "-movflags", "+faststart"]),
+    "vp8": ("webm", ["-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8"]),
+    "vp9": ("webm", ["-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8"]),
+    "av1": ("webm", ["-c:v", "libaom-av1", "-cpu-used", "8", "-crf", "40"]),
+    "hevc": (
+        "mp4",
+        [
+            "-c:v",
+            "libx265",
+            "-preset",
+            "ultrafast",
+            "-x265-params",
+            "pools=2:frame-threads=2",
+            "-tag:v",
+            "hvc1",
+            "-movflags",
+            "+faststart",
+        ],
+    ),
+}
+
 
 def check(
     runtime: Path,
@@ -15,6 +37,7 @@ def check(
     extra: list[str],
     openasar_source: Path | None = None,
     preset: str = "perf",
+    video_codec: str = "h264",
 ):
     runtime, output = runtime.resolve(), output.resolve()
     if output.exists() or output.is_relative_to(runtime.parent):
@@ -29,6 +52,9 @@ def check(
         adapters.mkdir(parents=True)
         for name in ("patches.cjs", "flags.cjs"):
             shutil.copy2(ROOT / "integration/updater" / name, adapters / name)
+    extension, codec_flags = VIDEO_CODECS[video_codec]
+    clip = "clip." + extension
+    write_json(fixture / "clip.json", {"file": clip})
     run(
         "ffmpeg",
         "-hide_banner",
@@ -40,15 +66,12 @@ def check(
         "testsrc2=size=1280x720:rate=30",
         "-t",
         "2",
-        "-c:v",
-        "libx264",
+        *codec_flags,
         "-threads",
         "2",
         "-pix_fmt",
         "yuv420p",
-        "-movflags",
-        "+faststart",
-        fixture / "clip.mp4",
+        fixture / clip,
     )
     run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
     env = {
@@ -73,6 +96,7 @@ def check(
         native_wayland_connection="wl_display"
         in (output / "console.log").read_text(errors="replace"),
         additional_flags=extra,
+        video_codec=video_codec,
     )
     if openasar_source:
         report.update(openasar_source_sha256=sha256(openasar_source), openasar_preset=preset)
@@ -98,6 +122,7 @@ def main():
     parser.add_argument("runtime", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--flag", action="append", default=[])
+    parser.add_argument("--video-codec", choices=VIDEO_CODECS, default="h264")
     parser.add_argument(
         "--openasar-source",
         type=Path,
@@ -107,7 +132,9 @@ def main():
     args = parser.parse_args()
     if args.preset != "perf" and not args.openasar_source:
         parser.error("--preset requires --openasar-source")
-    if not check(args.runtime, args.output, args.flag, args.openasar_source, args.preset)["passed"]:
+    if not check(
+        args.runtime, args.output, args.flag, args.openasar_source, args.preset, args.video_codec
+    )["passed"]:
         raise SystemExit(1)
 
 

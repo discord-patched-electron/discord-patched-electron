@@ -1,5 +1,6 @@
 """Resolve launch flags before Electron starts; also power the settings preview."""
 
+import copy
 import json
 import os
 import re
@@ -150,7 +151,9 @@ def validate(config, data):
             raise ValueError(f"{label}: choose a valid rendering backend.")
         options = profile.get("experiments")
         if not isinstance(options, list) or not all(
-            isinstance(v, str) and v in data["experiments"] for v in options
+            isinstance(v, str)
+            and (v in data["experiments"] or v in data.get("retiredExperiments", {}))
+            for v in options
         ):
             raise ValueError(f"{label}: choose only listed experimental options.")
     return config
@@ -207,6 +210,16 @@ def resolve(profile, package, desktop, args, env=None, request=None):
                 defaults(data),
                 [str(error), "Showing defaults. Save to replace invalid launch preferences."],
             )
+    # Retire ineffective convenience controls without rejecting saved settings
+    # or replacing them with stronger overrides the user never selected.
+    config = copy.deepcopy(config)
+    for key, selected in config["profiles"].items():
+        for name in selected["experiments"]:
+            if reason := data.get("retiredExperiments", {}).get(name):
+                warnings.append(f"{data['presets'][key]['label']}: {reason}")
+        selected["experiments"] = [
+            name for name in selected["experiments"] if name in data["experiments"]
+        ]
     layers = []
 
     def add(name, flags):

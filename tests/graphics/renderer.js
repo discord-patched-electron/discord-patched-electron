@@ -24,7 +24,7 @@
     }
     video.requestVideoFrameCallback(frame);
   });
-  video.src = "clip.mp4";
+  video.src = new URLSearchParams(location.search).get("clip") || "clip.mp4";
   await video.play().catch((error) => {
     // DOMException loses its message across executeJavaScript's IPC boundary.
     throw new Error(`${error.name}: ${error.message}; ${video.error?.message || "no media error"}`);
