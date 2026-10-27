@@ -11,6 +11,8 @@ const storage =
   'electron.ipcMain.on(SAFE_STORAGE_ENCRYPT_STRING,(event,plainText)=>{null!=plainText?event.returnValue=electron.safeStorage.encryptString(plainText).toString("base64"):event.returnValue=null}),' +
   'electron.ipcMain.on(SAFE_STORAGE_DECRYPT_STRING,(event,encrypted)=>{if(null!=encrypted)try{event.returnValue=electron.safeStorage.decryptString(Buffer.from(encrypted,"base64"))}catch{event.returnValue=null}else event.returnValue=null})';
 const fixture = [migration, modulePath, storage].join(";\n");
+const autostartSource =
+  "const exec = app.getPath('exe');\n`Exec=${exec}\nIcon=${join(global.systemElectron ? '/usr/share/pixmaps' : dirname(exec), 'discord.png')}`";
 
 test("desktop transforms disable native migration, resolve modules and install safe storage", () => {
   const output = desktop(fixture, '/portable "app"/storage.cjs');
@@ -50,13 +52,19 @@ test("bootstrap transforms restore settings through the renderer adapter and kee
   assert.ok(bootstrap(entry, "index.js").includes("...settings.get('openasar', {})"));
   assert.ok(transformed.endsWith("  desktopCore = require('discord_desktop_core');\nafter"));
   assert.ok(bootstrap(entry, "index.js").includes("autoupdate: false"));
-  const autostart = bootstrap(
-    "const exec = app.getPath('exe');\n`Exec=${exec}`",
-    "autoStart.js",
-    "/desktop-exec.cjs",
-  );
+  const autostart = bootstrap(autostartSource, "autoStart.js", "/desktop-exec.cjs");
   assert.ok(autostart.includes("process.env.DPE_LAUNCHER"));
   assert.ok(autostart.includes('require("/desktop-exec.cjs")(exec)'));
+  const desktopEntry = vm.runInNewContext(autostart, {
+    process: {
+      env: { DPE_LAUNCHER: "/portable app/launch.sh", CHROME_DESKTOP: "discord-canary.desktop" },
+    },
+    require: () => desktopExec,
+  });
+  assert.equal(
+    desktopEntry,
+    'Exec="/portable app/launch.sh"\nIcon=discord-canary\nStartupWMClass=discord-canary',
+  );
 });
 
 test("first launch skips automatic OpenAsar settings while retaining manual access and preferences", () => {
@@ -87,7 +95,7 @@ test("missing or repeated bootstrap patch sites fail closed", () => {
   for (const [filename, source] of [
     ["cmdSwitches.js", "app.commandLine.appendSwitch(k.replace('--', ''), c[k].join(','));"],
     ["index.js", "global.oaConfig = settings.get('openasar', {});"],
-    ["autoStart.js", "const exec = app.getPath('exe');\n`Exec=${exec}`"],
+    ["autoStart.js", autostartSource],
     [
       "bootstrap.js",
       "  app.on('browser-window-created', customize);\n  desktopCore = require('discord_desktop_core');",

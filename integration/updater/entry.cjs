@@ -67,12 +67,14 @@ function start() {
     return compile.call(this, source, filename);
   };
 
+  require("./application-ready.cjs")(app, process.env.DPE_APPLICATION_READY, info.releaseChannel);
   require(bootstrap);
   if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)
     app.whenReady().then(() => setTimeout(() => updater.checkForUpdates(), 1000).unref());
 }
 
 try {
+  require("./desktop.cjs")(app, process.env.DPE_APP_ROOT, process.env.CHROME_DESKTOP);
   if (process.env.DPE_UPDATER_UI === "1") require("./startup.cjs");
   else start();
 } catch (error) {

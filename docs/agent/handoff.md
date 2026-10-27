@@ -9,9 +9,10 @@ builds and release milestones are in [the history](handoff-history.md).
 - **Channels:** Canary and alpha/beta Electron, controlled by
   [`config/channels.json`](../../config/channels.json).
 - **CPU:** x86-64-v3, including AVX2; AVX-512 is not required.
-- **Client delivery:** packages contain the updater and an open-source bootstrap.
-  The [updater](client-updater.md) manages patched Electron and Discord modules in
-  the user's profile; package upgrades reuse verified runtime downloads.
+- **Client delivery:** new packages contain only a small trust bootstrap. The
+  [updater](client-updater.md) downloads signed OpenAsar, DPE patch and Python
+  updater code into the profile, alongside independently cached Electron and
+  Discord modules. Older installations need one package upgrade to migrate.
 - **Profiles and mods:** the standard `~/.config/discordcanary` profile is shared
   with Discord. Official Vencord and Equicord loaders survive updates.
 - **Releases:** CI publishes test packages. Manual approval promotes the tested
@@ -67,6 +68,8 @@ and matches its provenance before using it.
   when switching audio sources.
 - [Mod preservation](client-mods.md#validation): official installation, self-update,
   client update, relaunch and uninstall.
+- [Minimal bootstrap](client-updater.md#minimal-bootstrap-validation-27-october):
+  signed application updates, rollback, runtime reuse and package isolation.
 - [Updater checks](updater-history.md): module approval, installation recovery,
   package payloads and startup UI.
 - [Cleanup audit](proprietary-payload-cleanup.md): removal of older packages that

@@ -164,6 +164,9 @@ jobs:
           profile discord-release-client-fixture "$GITHUB_WORKSPACE/out/**/profile/app-*/electron" flags=(unconfined) {
             userns,
           }
+          profile discord-release-downloaded-fixture "$GITHUB_WORKSPACE/out/**/profile/dpe-runtime/**/electron" flags=(unconfined) {
+            userns,
+          }
           EOF_RULE
           sudo apparmor_parser -r /etc/apparmor.d/discord-release-fixture
       - name: Launch and relaunch the relocated app
@@ -177,11 +180,13 @@ jobs:
           python scripts/package_release.py "out/relocated app" --output out/packages --version "$VERSION" --epoch "$SOURCE_DATE_EPOCH"
           python scripts/check_release_packages.py out/packages
           python scripts/publish_aur.py --manifest out/packages/release.json --output out/aur-recipe
+      - name: Verify a signed application update without reinstalling or downloading Electron
+        run: xvfb-run -a python scripts/check_application_update.py out/packages --output out/application-update --runtime-archive out/runtime/binary/runtime-dist.zip
       - name: Install the Debian package and check its shared libraries
         run: |
           sudo apt-get install -y ./out/packages/*.deb
           root="/opt/$PACKAGE"
-          xvfb-run -a python scripts/check_desktop_launch.py "$root" --output out/deb-launch --relaunch --read-only-app --runtime-archive out/runtime/binary/runtime-dist.zip
+          xvfb-run -a python scripts/check_desktop_launch.py "$root" --output out/deb-launch --relaunch --read-only-app --runtime-archive out/runtime/binary/runtime-dist.zip --application-archive out/packages/application.zip
       - name: Install the RPM on Fedora and check it as an ordinary user
         run: |
           docker run --rm \
@@ -190,7 +195,7 @@ jobs:
             -v "$PWD/out/runtime/binary/runtime-dist.zip:/runtime.zip:ro" \
             -e PACKAGE \
             fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
-            bash -ec 'dnf install -y --setopt=install_weak_deps=False /packages/*.rpm; python3 /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip' \
+            bash -ec 'dnf install -y --setopt=install_weak_deps=False /packages/*.rpm; python3 /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip --application-archive /packages/application.zip' \
             > out/rpm-install.log 2>&1
       - name: Install the Arch package and check it as an ordinary user
         run: |
@@ -200,7 +205,7 @@ jobs:
             -v "$PWD/out/runtime/binary/runtime-dist.zip:/runtime.zip:ro" \
             -e PACKAGE \
             archlinux:base@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 \
-            bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /packages/*.pkg.tar.zst; python /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip' \
+            bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /packages/*.pkg.tar.zst; python /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip --application-archive /packages/application.zip' \
             > out/arch-install.log 2>&1
       - name: Build and install the AUR recipe from the verified portable archive
         run: |
@@ -221,7 +226,7 @@ jobs:
               cd /build
               runuser -u builder -- makepkg --nodeps --noconfirm
               pacman -U --noconfirm ./*.pkg.tar.zst
-              python /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip
+              python /check.py "/opt/$PACKAGE" --runtime-archive /runtime.zip --application-archive /packages/application.zip
             ' > out/aur-install.log 2>&1
       - name: Keep release packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -230,6 +235,7 @@ jobs:
           compression-level: 0
           retention-days: 7
           path: |
+            out/packages/*.zip
             out/packages/*.tar.gz
             out/packages/*.deb
             out/packages/*.rpm
@@ -242,6 +248,8 @@ jobs:
         with:
           name: release-checks-${{ inputs.discord_channel }}
           path: |
+            out/application-update/application-update-report.json
+            out/application-update/**/console.log
             out/launch/**/launch-report.json
             out/launch/**/console.log
             out/mod-launch/**/launch-report.json

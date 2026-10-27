@@ -9,6 +9,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+from application_payload import validate_bootstrap
 from common import read_json, sha256, write_json
 from stage_updater import validate_distribution, validate_payload_entry
 
@@ -30,6 +31,34 @@ def check_client_free_archive(bundle, root):
             )
 
 
+def check_bootstrap_archive(bundle, root):
+    policy = json.load(bundle.extractfile(root + "/bootstrap.json"))
+    if policy.get("schema") != 1 or policy["application"].get("asset") != "application.zip":
+        raise ValueError("Package is not a minimal bootstrap distribution")
+    allowed = {
+        "loader.py",
+        "launch.sh",
+        "bootstrap.json",
+        "release-signing-key.asc",
+        "discord.png",
+        "README.txt",
+        "SHA256SUMS",
+        "licenses",
+    }
+    for entry in bundle.getmembers():
+        if entry.name.startswith(root + "/"):
+            relative = Path(entry.name.removeprefix(root + "/"))
+            if (
+                entry.issym()
+                or entry.islnk()
+                or (
+                    relative.parts[0] not in allowed
+                    and not (len(relative.parts) == 1 and relative.suffix == ".desktop")
+                )
+            ):
+                raise ValueError("Unexpected application code in installer: " + entry.name)
+
+
 def check(directory: Path):
     directory = directory.resolve()
     manifest = read_json(directory / "release.json")
@@ -40,9 +69,12 @@ def check(directory: Path):
     with tarfile.open(archive) as bundle:
         paths = bundle.getnames()
         root = paths[0]
-        check_client_free_archive(bundle, root)
-        if json.load(bundle.extractfile(root + "/client-update.json")) != manifest["client"]:
-            raise ValueError("Release manifest differs from packaged Discord module pins")
+        check_bootstrap_archive(bundle, root)
+        if (
+            json.load(bundle.extractfile(root + "/bootstrap.json"))["application"]
+            != manifest["application"]
+        ):
+            raise ValueError("Bootstrap pins differ from the application release")
         checksums = bundle.extractfile(root + "/SHA256SUMS").read().decode()
         expected = dict(line.split("  ", 1)[::-1] for line in checksums.splitlines())
         for path, checksum in expected.items():
@@ -54,17 +86,31 @@ def check(directory: Path):
             raise ValueError("Portable files must be readable after root-owned installation")
         if any(member.mode & 0o6000 for member in bundle.getmembers()):
             raise ValueError("Portable tarball has privileged file modes")
+    with tempfile.TemporaryDirectory(prefix="application-check-") as temporary:
+        from importlib.util import module_from_spec, spec_from_file_location
+
+        from common import ROOT
+
+        spec = spec_from_file_location("dpe_bootstrap", ROOT / "integration/bootstrap/loader.py")
+        loader = module_from_spec(spec)
+        spec.loader.exec_module(loader)
+        generation = Path(temporary)
+        loader.extract(directory / "application.zip", generation / "app")
+        loader.validate(generation, manifest["application"])
+        validate_distribution(generation / "app", allow_runtime=False)
+        if read_json(generation / "app/client-update.json") != manifest["client"]:
+            raise ValueError("Application module pins differ from the signed release")
     deb = next(directory.glob("*.deb"))
     rpm = next(directory.glob("*.rpm"))
     # dpkg-deb is available in release CI; bsdtar supplies the local Arch path.
     data = subprocess.check_output(["bsdtar", "-xOf", str(deb), "data.tar.gz"])
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as package:
         package_root = next(
-            name.removesuffix("/client-distribution.json")
+            name.removesuffix("/bootstrap.json")
             for name in package.getnames()
-            if name.endswith("/client-distribution.json")
+            if name.endswith("/bootstrap.json")
         )
-        check_client_free_archive(package, package_root)
+        check_bootstrap_archive(package, package_root)
         for path, checksum in expected.items():
             member = next(
                 (name for name in package.getnames() if name.lstrip("./") == f"opt/{root}/{path}"),
@@ -85,7 +131,7 @@ def check(directory: Path):
     for packaged in (rpm, arch):
         with tempfile.TemporaryDirectory(prefix="release-package-") as temporary:
             subprocess.run(["bsdtar", "-xf", str(packaged), "-C", temporary], check=True)
-            validate_distribution(Path(temporary) / "opt" / root, allow_runtime=False)
+            validate_bootstrap(Path(temporary) / "opt" / root)
             for path, checksum in expected.items():
                 installed = Path(temporary) / "opt" / root / path
                 if installed.stat().st_mode & 0o444 != 0o444:

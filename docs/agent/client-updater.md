@@ -1,8 +1,9 @@
 # Client and Electron updater
 
-Packages contain the updater, an OpenAsar-based bootstrap and Linux integration
-code. Patched Electron downloads separately from the project's retained runtime
-cache. Discord's proprietary modules download directly from Discord
+Packages contain a small Python standard-library loader, download pins and the
+trusted release key. OpenAsar, the Python updater and its bundled libraries, ASAR
+patches, launcher logic and Linux integrations live in a separate `application.zip`.
+Patched Electron downloads separately from the project's retained runtime cache. Discord's proprietary modules download directly from Discord
 into the user's profile. The app never downloads Discord's stock Electron.
 
 This page describes the current design. See [installation](../install.md) for
@@ -11,11 +12,12 @@ and detailed test records.
 
 ## What can update
 
-The package pins exact module URLs, revisions and SHA-256 hashes in
-`client-update.json`. It also ships the initial runtime identity, bootstrap and
-release public key. Installing a test package explicitly selects its candidate.
+The package pins its initial application archive and file-index hashes in
+`bootstrap.json`. That archive contains exact module pins in `client-update.json`
+and the runtime identity in `runtime-update.json`. Installing a test package
+explicitly selects its candidate; no approval lookup is needed for its exact pins.
 
-Automatic client and Electron updates require a signed project release and a
+Automatic application, client and Electron updates require a signed project release and a
 matching manual approval record in `main/config/approved-release.json`. The tag,
 package version, manifest hash and named approver must agree. A signature or
 GitHub's **Latest** label alone is insufficient. Module changes under the same
@@ -26,8 +28,48 @@ background and offers Discord's normal restart notification. Activation happens
 at startup. Failed checks retain the package baseline or a previously approved
 installation. Discord's hosted web interface updates independently.
 
-Package updates supply bootstrap, launcher, integration and signing-key changes.
-The automatic updater handles Discord modules and patched Electron.
+Package updates supply the stable loader, trust key, desktop entries and system
+dependencies. Application updates supply all other executable integration code,
+including OpenAsar, ASAR patching and the Python updater.
+
+## Application downloads and activation
+
+`integration/bootstrap/loader.py` is the only installed Python code. It downloads
+the package-pinned application on first launch, rejects unsafe ZIP entries and
+verifies every extracted file against a checksum-pinned index. It performs no
+ASAR patching or Electron/client update work. Normal cached launches need no
+network access before handing over to the application.
+
+Initial downloads retry transient connection failures, incomplete responses and
+temporary HTTP errors up to three attempts, discarding each partial file. Closing
+setup before its first successful launch does not require downloading the verified
+application again. If no working fallback exists, the package-pinned cache can be
+retried offline. Malformed activation state is retained for diagnosis and rebuilt
+from the verified package baseline; invalid application files still require repair.
+
+Application generations live under `<profile>/dpe-application/<installation-id>/`.
+The application checks for signed, approved releases in the OpenAsar startup
+screen and during background checks. It stages a new generation through the
+installed loader, retaining the signature and approval evidence. The loader
+revalidates that evidence and the file index before executing any new code.
+A bootstrap API mismatch requires a package upgrade instead. Changes to required
+system dependencies must also increment that API, so old packages keep their
+working application until those dependencies are installed.
+
+Background preparation leaves running code unchanged and offers the normal
+restart notification. At startup, the launcher hands off to the new application
+before preparing its Electron or Discord modules. The client/runtime updaters
+cannot advance past the selected application release. A trial becomes current
+after the matching Discord HTTPS window finishes loading; a process that exits first causes
+the next launch to fall back to the previous generation. Exited processes awaiting
+reaping do not count as running instances. Second launches retain
+the running generation so they cannot activate an update underneath it.
+
+Package upgrades retain a newer approved application. The archive hash identifies
+the payload; a changed package installation path uses a separate application cache.
+Offline mode uses verified cached code. `DPE_APPLICATION_UPDATES=0` disables new
+application checks; cached pending updates can still activate on restart.
+The loader and downloaded code never write to the installed package.
 
 ## Client downloads and approval
 
@@ -76,13 +118,14 @@ release lookup, including manually installed test candidates. Other automatic
 runtime updates still require the approval chain above. First launch can fetch
 the baseline when GitHub's latest-release check fails or updates are disabled.
 
-Runtime generations live under `dpe-runtime/<installation-id>/generations/`.
+Runtime generations live under `dpe-runtime/<application-path-id>/generations/`.
 Installation IDs separate portable copies and system apps. Package files remain
 unchanged. The archive hash controls reuse, even when a newer package release
 catches up with an automatic runtime update. A package that pins a newer runtime
 prepares it on launch, retaining a verified older runtime if preparation fails.
-Separate portable installation paths still have separate runtime generations
-because their resource links must not redirect a running installation.
+Application updates and relocated portable copies reuse the verified runtime
+bytes from another cache generation without a download. Each gets its own
+resource link, so an update cannot redirect a running installation.
 On Ubuntu, `aa-exec` applies the installed AppArmor profile to downloaded runtimes.
 Chromium's sandbox stays enabled.
 
@@ -135,7 +178,8 @@ accepts only the local main frame, and window navigation is blocked.
 
 ## Startup screen and dependencies
 
-`bootstrap.py` selects a verified cached runtime before opening the 300×300
+After the installed loader selects the application, its `bootstrap.py` selects a
+verified cached runtime before opening the 300×300
 startup screen. A first install uses a cancellable native progress dialog while
 Python downloads Electron; the helper can also run without a desktop dialog.
 The GTK3 dialog is titled **Discord Patched Electron** and says
@@ -149,6 +193,14 @@ Later launches reuse the cache without a network check before the splash.
 `startup.cjs` manages the window and retries; `runner.cjs` manages the cancellable
 helper group and bounded JSON-lines output. Preparation begins at DOM readiness
 without waiting for optional media downloads. Diagnostics go to stderr.
+
+Every startup stage uses the launcher's `CHROME_DESKTOP` identity, matching the
+installed desktop entry and icon. GTK sets its program name before initialization
+and its X11 class afterward; the packaged logo is loaded at 128px to fit X11's
+window-icon limit. Zenity receives the same identity as `argv[0]`, including for
+bootstrap errors. Electron sets its desktop name before readiness and supplies
+the packaged icon to every window, including settings and client popouts.
+OpenAsar autostart entries use the matching icon name and `StartupWMClass`.
 
 `modern-splash.html` uses OpenAsar's sandboxed preload and a single progress bar.
 Module and runtime progress share task identities so concurrent work cannot move
@@ -168,8 +220,9 @@ main process's current error. Closing the window through the desktop cancels
 preparation; there is no splash close icon or animation button.
 
 Python **3.11 or newer**, Brotli and GnuPG are system dependencies. Capstone and
-pyelftools ship from checksum-pinned wheels in `uv.lock`, with their sources,
-native library and notices. Helpers use the package's `python/` directory and
+pyelftools travel in the application payload from checksum-pinned wheels in
+`uv.lock`, with their sources, native library and notices. Helpers use the
+application's `python/` directory and
 disable user site packages and bytecode writes. Preparation prerequisites are
 checked when needed, so missing patch tools do not block a usable cached client.
 
@@ -227,3 +280,66 @@ no Electron compilation was started.
   passed. No account login, calls or physical camera tests were performed.
 
 These checks do not establish a full Ubuntu AppArmor-restricted desktop session.
+
+### Desktop identity, 27 October
+
+`out/desktop-identity/` retains this worktree's test reports. On Arch Linux with
+niri/Wayland, the original GTK download window reported `app_id=python3`.
+After the fix, the GTK dialog, forced Zenity 4.2.2 fallback and bootstrap error
+dialog all reported `discord-canary`. Closing the progress input completed both
+native progress implementations successfully.
+
+A private app built from the current client lock (Canary 1.0.2357) reused the
+verified Electron 46.0.0-alpha.1 archive. Fresh-profile launch and relaunch reached
+the login form; every recorded Wayland toplevel used `discord-canary`. The launch
+checker now fails if any recorded application ID differs from the desktop entry.
+No account login, call, camera capture or screenshot was performed.
+
+An isolated Xvfb check confirmed the GTK dialog's two `WM_CLASS` components are
+`discord-canary` and its `_NET_WM_ICON` contains a 128×128 icon. The installed and
+generated desktop entries, plus autostart output from the pinned OpenAsar source,
+passed `desktop-file-validate`. Packaging tests cover the desktop/icon installation
+paths, loader identity and exact logo bytes. `bun run test` and `bun run lint`
+passed. GNOME/KDE grouping and a full X11 desktop session remain untested; portable
+Wayland launches still need a matching desktop entry and icon installed.
+
+### Minimal bootstrap validation, 27 October
+
+`out/minimal-bootstrap-check/` retains the local artifacts. Qualification reused
+the approved Electron 46.0.0-alpha.1 archive and Canary 1.0.2380 pins. No Electron
+compilation, account login, call or camera capture was performed.
+
+- All four installer payloads match and exclude OpenAsar, ASARs, patch scripts,
+  Python libraries and Electron. Installed bootstrap code totals about 17 KB;
+  the portable archive is 0.88 MB including the icon. The separately signed
+  application archive is about 5.5 MB.
+- Fresh-profile startup and relaunch reached Discord's login form. The signed
+  application-upgrade fixture then changed OpenAsar, the ASAR loader, patch code
+  and Python updater, activated a new client compatibility generation, and
+  launched successfully without downloading Electron again. Original application
+  files remained unchanged. See `ready-upgrade/application-update-report.json`.
+- The upgrade fixture uses a disposable signing key and local release responses;
+  it does not publish or approve a real release. The same check now gates release CI.
+- Arch and Fedora containers installed the minimal packages as root, then verified
+  readable files, desktop integration, runtime libraries and offline cache reuse
+  as an ordinary user. The generated Arch development recipe also passed with its
+  application archive excluded from the installed package.
+- Regression checks cover forged/mismatched approvals, changed archive bytes,
+  incompatible bootstrap APIs, damaged caches, startup rollback, simultaneous
+  launches, package upgrades and application-only restart notifications.
+- `bun run test` passed 253 Python and 58 JavaScript tests; `bun run lint` passed.
+  These checks do not establish live-call behavior or a complete Ubuntu desktop
+  under AppArmor. The release workflow retains its Debian GUI check.
+
+The subsequent bootstrap reliability pass adds recovery for cancelled initial
+launches, malformed state or generation metadata, missing launcher permissions,
+and exited but unreaped trial processes. Downloads retry transient failures up to
+three times and discard partial files. Eleven regression tests cover these cases,
+actual concurrent first resolves and disk-full extraction failure without changing
+the working generation. The installed code remains stdlib-only, now about 21 KB.
+
+`bun run test` passed 264 Python and 58 JavaScript tests; `bun run lint` passed.
+`out/bootstrap-reliability/` retains all four matching installer payloads and a
+fresh-profile signed upgrade that reached Discord's login form before and after
+activation, kept the original code unchanged and reused Electron without another
+download. No account login, call, physical camera test or new compilation was performed.

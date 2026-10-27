@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -18,6 +19,7 @@ import urllib.request
 from pathlib import Path
 
 from common import read_json, sha256, write_json
+from desktop_identity import desktop_id
 
 
 def check(
@@ -27,6 +29,7 @@ def check(
     equicord: bool = False,
     read_only_app: bool = False,
     runtime_archive: Path | None = None,
+    application_archive: Path | None = None,
 ):
     app, output = app.resolve(), output.resolve()
     if output.exists():
@@ -36,6 +39,13 @@ def check(
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
     profile = (profile or output / "profile").resolve()
+    launcher_app = app
+    if (app / "bootstrap.json").exists():
+        command = ["python3", "-I", str(app / "loader.py"), "--profile", str(profile), "--resolve"]
+        if application_archive:
+            command += ["--archive", str(application_archive.resolve())]
+        app = Path(subprocess.check_output(command, text=True).strip())
+        read_only_app = True
     if runtime_archive:
         subprocess.run(
             [
@@ -80,7 +90,7 @@ def check(
     with (output / "console.log").open("w") as log:
         process = subprocess.Popen(
             [
-                str(app / "launch.sh"),
+                str(launcher_app / "launch.sh"),
                 "--remote-debugging-address=127.0.0.1",
                 f"--remote-debugging-port={port}",
             ],
@@ -196,6 +206,10 @@ ws.addEventListener("error", () => process.exit(0));
                     process.wait()
     console = (output / "console.log").read_text(errors="replace")
     report["native_wayland_connection"] = "wl_display" in console
+    report["wayland_app_ids"] = sorted(set(re.findall(r'\.set_app_id\("([^\"]+)"\)', console)))
+    report["expected_desktop_id"] = desktop_id(channel)
+    if report["native_wayland_connection"]:
+        report["passed"] = report["passed"] and report["wayland_app_ids"] == [desktop_id(channel)]
     report["equicord_required"] = equicord
     report["uncaught_exception"] = (
         "uncaught exception:" in console.lower()
@@ -259,6 +273,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--read-only-app", action="store_true", help="Do not update the installed build manifest"
     )
+    parser.add_argument("--application-archive", type=Path)
     args = parser.parse_args()
     first = check(
         args.app,
@@ -266,6 +281,7 @@ if __name__ == "__main__":
         equicord=args.equicord,
         read_only_app=args.read_only_app,
         runtime_archive=args.runtime_archive,
+        application_archive=args.application_archive,
     )
     passed = first["passed"]
     if passed and args.relaunch:

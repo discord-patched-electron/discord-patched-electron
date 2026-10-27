@@ -1,7 +1,8 @@
 import importlib.util
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location(
     "pipewire_audio",
@@ -12,6 +13,70 @@ spec.loader.exec_module(audio)
 
 
 class WaylandIdentity(unittest.TestCase):
+    def test_audio_picker_identity_preserves_selection_and_cancellation(self):
+        for identity, root, reply, status, kind in (
+            ("discord-canary", "/portable app", b"200\n", 0, "application"),
+            ("discord-ptb", "", b"system\n", 0, "system"),
+            ("discord", "/app", b"200\n", 1, None),
+        ):
+            with (
+                self.subTest(identity=identity, kind=kind),
+                patch.dict(
+                    audio.os.environ,
+                    {"CHROME_DESKTOP": identity + ".desktop", "DPE_APP_ROOT": root},
+                ),
+                patch.dict(
+                    "sys.modules",
+                    {
+                        "window_inventory": SimpleNamespace(
+                            windows=lambda: [], desktop_note=lambda: ""
+                        )
+                    },
+                ),
+                patch.object(audio, "process_identity", side_effect=lambda pid: (pid, "start", 1)),
+                patch.object(audio, "discord_root", return_value=(100, "start", 1)),
+                patch.object(audio, "descendant", return_value=False),
+                patch.object(audio.sp, "Popen") as launch,
+            ):
+                child = Mock()
+                child.poll.return_value = None
+                launch.return_value = child
+                controller = audio.Controller(100)
+                pulse = [
+                    {
+                        "properties": {
+                            "application.process.id": "200",
+                            "application.name": "Test app",
+                        }
+                    }
+                ]
+                self.assertIsNone(controller.choose([], pulse, (20, "300")))
+                args = launch.call_args.args[0]
+                self.assertEqual(args[0], identity)
+                self.assertEqual(launch.call_args.kwargs["executable"], "/usr/bin/zenity")
+                self.assertIn(
+                    "--window-icon=" + (root + "/discord.png" if root else identity), args
+                )
+                self.assertIn("--title=Screen-share audio", args)
+                self.assertEqual(
+                    args[args.index("--") + 1 :],
+                    ["system", "Entire system (except Discord)", "200", "Test app (all audio)"],
+                )
+                child.poll.return_value = status
+                child.returncode = status
+                child.communicate.return_value = (reply, None)
+                choice = controller.choose([], pulse, (20, "300"))
+                if kind is None:
+                    self.assertIsNone(choice)
+                else:
+                    self.assertEqual(choice["kind"], kind)
+                    self.assertEqual(choice["backend"], "selection")
+                    if kind == "application":
+                        self.assertEqual(choice["pid"], 200)
+                self.assertIsNone(controller.chooser)
+                self.assertEqual(controller.choose([], pulse, (20, "300")), choice)
+                launch.assert_called_once()
+
     def test_application_includes_all_its_streams_and_excludes_other_apps(self):
         nodes = [
             {

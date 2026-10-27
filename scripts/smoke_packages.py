@@ -19,11 +19,11 @@ from pathlib import Path
 
 from build_camera_support import build as build_camera
 from channels import enabled_discord_channels
+from check_release_packages import check_bootstrap_archive
 from client_inputs import load_clients
 from common import ROOT, digest, download, enabled_electron_channels, read_json, sha256, write_json
 from desktop_identity import desktop_id
 from generate_package import generate
-from stage_updater import validate_payload_entry
 from updater_python import sources as python_sources
 
 
@@ -46,33 +46,15 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
     root = "usr/lib/" + name
     with tarfile.open(archive) as tar:
         members = {entry.name.rstrip("/"): entry for entry in tar.getmembers()}
-        info = json.load(tar.extractfile(root + "/resources/build_info.json"))
+        policy = json.load(tar.extractfile(root + "/bootstrap.json"))
         if (
-            info["releaseChannel"] != inputs["client"]["channel"]
-            or info["version"] != inputs["client"]["version"]
+            policy["channel"] != inputs["client"]["channel"]
+            or policy["electron_channel"] != inputs["electron_channel"]
         ):
-            raise ValueError("Packaged client identity, updater or module path is incorrect")
-        runtime = json.load(tar.extractfile(root + "/runtime-update.json"))
-        if runtime["archive_sha256"] != inputs["runtime"]["sha256"]:
-            raise ValueError("Runtime download pins differ from the recipe")
-        if members[root + "/resources/build_info.json"].mode & 0o444 != 0o444:
-            raise ValueError("Root-owned build info must be readable by ordinary users")
-        policy = json.load(tar.extractfile(root + "/client-distribution.json"))
-        if policy["mode"] != "module-only" or policy["bundled_discord_client"] is not False:
-            raise ValueError("Package must not bundle the Discord client")
-        actual = hashlib.file_digest(
-            tar.extractfile(root + "/resources/app.asar"), "sha256"
-        ).hexdigest()
-        if actual != policy["loader_sha256"]:
-            raise ValueError("Package loader differs from project bootstrap")
-        for filename, entry in members.items():
-            if filename.startswith(root + "/"):
-                validate_payload_entry(
-                    filename.removeprefix(root + "/"),
-                    is_dir=entry.isdir(),
-                    link=entry.linkname if entry.issym() or entry.islnk() else None,
-                    allow_runtime=False,
-                )
+            raise ValueError("Bootstrap channel differs from the recipe")
+        check_bootstrap_archive(tar, root)
+        if members[root + "/bootstrap.json"].mode & 0o444 != 0o444:
+            raise ValueError("Root-owned bootstrap policy must be readable by ordinary users")
         allowed_prefixes = (root + "/", f"usr/share/licenses/{name}/")
         allowed_files = {
             f"usr/bin/{name}",
@@ -88,17 +70,16 @@ def inspect_package(archive: Path, inputs: dict) -> dict:
                 and not entry.name.startswith(allowed_prefixes)
             ):
                 raise ValueError(f"Package writes outside its private layout: {entry.name}")
-        for filename in (
-            "package-inputs.json",
-            "runtime-update.json",
-        ):
-            if root + "/" + filename not in members:
-                raise ValueError(f"Missing runtime provenance/license: {filename}")
-        camera_hash = hashlib.file_digest(
-            tar.extractfile(root + "/libdpe-camera-probe.so"), "sha256"
-        ).hexdigest()
+    payload = archive.parent / "src/application.zip"
+    if sha256(payload) != policy["application"]["archive_sha256"]:
+        raise ValueError("Application download pins differ from the prepared payload")
+    with zipfile.ZipFile(payload) as application:
+        runtime = json.loads(application.read("runtime-update.json"))
+        if runtime["archive_sha256"] != inputs["runtime"]["sha256"]:
+            raise ValueError("Application runtime pins differ from the recipe")
+        camera_hash = hashlib.sha256(application.read("libdpe-camera-probe.so")).hexdigest()
         if camera_hash != inputs["camera_support"]["sha256"]:
-            raise ValueError("Packaged camera helper differs from input")
+            raise ValueError("Application camera helper differs from input")
     return {
         "package": name,
         "client_version": inputs["client"]["version"],

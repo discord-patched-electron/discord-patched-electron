@@ -19,7 +19,7 @@ export DPE_PACKAGE_NAME="$name"
 export DPE_DESKTOP_ID=@DESKTOP_ID@
 export DPE_FLAGS_MANAGED=1
 export DPE_LAUNCHER
-DPE_LAUNCHER=$(readlink -f -- "${BASH_SOURCE[0]}")
+DPE_LAUNCHER=${DPE_LAUNCHER:-$(readlink -f -- "${BASH_SOURCE[0]}")}
 unset DPE_LAUNCH_ARGS
 # This escape hatch runs before reading any flag file, preset JSON or resolver.
 # Drop every supplied argument as well: a bad CLI override must not defeat it.
@@ -70,6 +70,12 @@ if [[ -f "$root/client-distribution.json" ]]; then
     # update underneath it or report a failed desktop launch.
     if [[ $status == 2 ]]; then exit 0; fi
     exit "$status"
+  fi
+  incoming=$(python3 "$root/integration/updater/check.py" --application-path "$launch_result")
+  if [[ -n "$incoming" ]]; then
+    rm -f -- "$launch_result"
+    trap - EXIT
+    exec "$DPE_LAUNCHER" "$@"
   fi
   installed=$(python3 "$root/integration/updater/check.py" --launch-paths "$launch_result")
   mapfile -t installed_paths <<<"$installed"

@@ -73,7 +73,9 @@ class PortableReleases(unittest.TestCase):
                 config = read_json(Path(command[command.index("--config") + 1]))
                 payload = Path(config["contents"][0]["src"])
                 self.assertFalse((payload / "runtime").exists())
-                self.assertTrue((payload / "resources/app.asar").is_file())
+                self.assertTrue((payload / "loader.py").is_file())
+                self.assertFalse((payload / "resources").exists())
+                self.assertFalse((payload / "integration").exists())
                 Path(command[command.index("--target") + 1]).write_bytes(b"package fixture")
 
             with (
@@ -93,7 +95,8 @@ class PortableReleases(unittest.TestCase):
                 )
                 checksums = archive.extractfile(names[0] + "/SHA256SUMS").read().decode()
                 self.assertNotIn("runtime/", checksums)
-                self.assertIn("runtime-update.json", checksums)
+                self.assertIn("bootstrap.json", checksums)
+                self.assertNotIn("runtime-update.json", checksums)
             self.assertFalse(read_json(output / "release.json")["bundled_electron"])
             self.assertEqual(read_json(app / "runtime-update.json"), policy)
             self.assertEqual(
@@ -107,6 +110,18 @@ class PortableReleases(unittest.TestCase):
             ["discord-canary", "discord-canary-electron-bin"],
         )
         self.assertEqual(config["conflicts"], ["discord-canary"])
+
+    def test_release_installers_register_the_same_desktop_entry_and_icon(self):
+        config = metadata(Path("/app"), "20261024.202623", "canary", 0)
+        contents = {entry["dst"]: entry["src"] for entry in config["contents"]}
+        self.assertEqual(
+            contents["/usr/share/applications/discord-canary.desktop"],
+            "/app/discord-canary.desktop",
+        )
+        self.assertEqual(
+            contents["/usr/share/icons/hicolor/256x256/apps/discord-canary.png"],
+            "/app/discord.png",
+        )
 
     def test_bootstrap_uses_launch_root_even_for_equicord_copies(self):
         source = (

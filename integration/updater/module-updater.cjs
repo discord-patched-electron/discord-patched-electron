@@ -58,7 +58,8 @@ module.exports = function createUpdater(app, state, host, root, clientRoot, inst
         if (error) console.error(error.message);
         const changed =
           !error &&
-          (prepared.host !== host ||
+          ((prepared.application && prepared.application !== root) ||
+            prepared.host !== host ||
             prepared.runtime !== (process.env.DPE_RUNTIME_SOURCE || process.execPath));
         const count = changed ? 1 : 0;
         events.emit(api.UPDATE_CHECK_FINISHED, {

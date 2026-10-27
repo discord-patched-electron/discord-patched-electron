@@ -91,6 +91,11 @@ def recipe(manifest: dict, tag: str, revision: int = 1) -> str:
         if manifest.get("client_distribution") == "module-only"
         else ["LicenseRef-Discord", "MIT", "BSD-3-Clause"]
     )
+    install_hook = (
+        ""
+        if manifest.get("package_distribution") == "bootstrap-only"
+        else "install=discord.install\n"
+    )
     return f"""# Maintainer: he3als <he3als@users.noreply.github.com>
 pkgname={config["name"]}
 pkgver={manifest["version"]}
@@ -103,7 +108,7 @@ depends={array(dependencies["depends"])}
 optdepends={array(dependencies["recommends"])}
 options=('!strip' '!debug')
 {ownership}\
-install=discord.install
+{install_hook}\
 source=("$pkgname-$pkgver.tar.gz::{URL}/releases/download/{tag}/{asset}")
 sha256sums=('{checksum}')
 
@@ -135,11 +140,14 @@ def stage(directory: Path, manifest: dict, tag: str):
         else 1
     )
     (directory / "PKGBUILD").write_text(recipe(manifest, tag, revision))
-    (directory / "discord.install").write_text(
-        "post_install() {\n"
-        f"  sh /opt/{name}/refresh-mod-backup.sh /opt/{name}\n"
-        "}\n\npost_upgrade() {\n  post_install\n}\n"
-    )
+    if manifest.get("package_distribution") == "bootstrap-only":
+        (directory / "discord.install").unlink(missing_ok=True)
+    else:
+        (directory / "discord.install").write_text(
+            "post_install() {\n"
+            f"  sh /opt/{name}/refresh-mod-backup.sh /opt/{name}\n"
+            "}\n\npost_upgrade() {\n  post_install\n}\n"
+        )
     write_srcinfo(directory)
 
 
@@ -183,7 +191,14 @@ def publish(directory: Path, manifest: dict):
         requested = tuple(map(int, manifest["version"].split(".")))
         if installed > requested:
             raise ValueError("AUR already has a newer version")
-    run("git", "add", "PKGBUILD", ".SRCINFO", "discord.install", cwd=directory)
+    files = ["PKGBUILD", ".SRCINFO"]
+    if (directory / "discord.install").exists() or subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "discord.install"],
+        cwd=directory,
+        capture_output=True,
+    ).returncode == 0:
+        files.append("discord.install")
+    run("git", "add", "--all", "--", *files, cwd=directory)
     if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=directory).returncode == 0:
         print("AUR package is already current.")
         return

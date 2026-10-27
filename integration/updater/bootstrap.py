@@ -9,6 +9,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from bootstrap_dialog import zenity_command
 from runtime import FAILURES, ensure_runtime
 
 
@@ -94,13 +95,13 @@ def main():
             and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
         ):
             subprocess.run(
-                [
-                    "zenity",
+                zenity_command(
                     "--error",
                     "--no-markup",
                     "--title=Discord Patched Electron",
                     "--text=" + str(error)[-4000:],
-                ],
+                ),
+                executable="zenity",
                 check=False,
             )
         raise SystemExit(1) from None

@@ -81,6 +81,12 @@ module.exports = function runUpdate(
           const value = JSON.parse(line);
           if (value.type === "progress") onProgress(value);
           else if (
+            typeof value.application === "string" &&
+            path.isAbsolute(value.application) &&
+            !/[\r\n]/.test(value.application)
+          )
+            result = { application: value.application };
+          else if (
             (prepareOnly
               ? ["host", "runtime"]
               : ["host", "runtime", "installed_runtime", "voice"]
