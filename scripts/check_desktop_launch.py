@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -18,6 +19,7 @@ import urllib.request
 from pathlib import Path
 
 from common import read_json, sha256, write_json
+from desktop_identity import desktop_id
 
 
 def check(
@@ -204,6 +206,10 @@ ws.addEventListener("error", () => process.exit(0));
                     process.wait()
     console = (output / "console.log").read_text(errors="replace")
     report["native_wayland_connection"] = "wl_display" in console
+    report["wayland_app_ids"] = sorted(set(re.findall(r'\.set_app_id\("([^\"]+)"\)', console)))
+    report["expected_desktop_id"] = desktop_id(channel)
+    if report["native_wayland_connection"]:
+        report["passed"] = report["passed"] and report["wayland_app_ids"] == [desktop_id(channel)]
     report["equicord_required"] = equicord
     report["uncaught_exception"] = (
         "uncaught exception:" in console.lower()

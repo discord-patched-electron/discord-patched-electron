@@ -194,6 +194,14 @@ Later launches reuse the cache without a network check before the splash.
 helper group and bounded JSON-lines output. Preparation begins at DOM readiness
 without waiting for optional media downloads. Diagnostics go to stderr.
 
+Every startup stage uses the launcher's `CHROME_DESKTOP` identity, matching the
+installed desktop entry and icon. GTK sets its program name before initialization
+and its X11 class afterward; the packaged logo is loaded at 128px to fit X11's
+window-icon limit. Zenity receives the same identity as `argv[0]`, including for
+bootstrap errors. Electron sets its desktop name before readiness and supplies
+the packaged icon to every window, including settings and client popouts.
+OpenAsar autostart entries use the matching icon name and `StartupWMClass`.
+
 `modern-splash.html` uses OpenAsar's sandboxed preload and a single progress bar.
 Module and runtime progress share task identities so concurrent work cannot move
 the bar backward. The pinned upstream HTML and settings sources stay unchanged.
@@ -272,6 +280,28 @@ no Electron compilation was started.
   passed. No account login, calls or physical camera tests were performed.
 
 These checks do not establish a full Ubuntu AppArmor-restricted desktop session.
+
+### Desktop identity, 27 October
+
+`out/desktop-identity/` retains this worktree's test reports. On Arch Linux with
+niri/Wayland, the original GTK download window reported `app_id=python3`.
+After the fix, the GTK dialog, forced Zenity 4.2.2 fallback and bootstrap error
+dialog all reported `discord-canary`. Closing the progress input completed both
+native progress implementations successfully.
+
+A private app built from the current client lock (Canary 1.0.2357) reused the
+verified Electron 46.0.0-alpha.1 archive. Fresh-profile launch and relaunch reached
+the login form; every recorded Wayland toplevel used `discord-canary`. The launch
+checker now fails if any recorded application ID differs from the desktop entry.
+No account login, call, camera capture or screenshot was performed.
+
+An isolated Xvfb check confirmed the GTK dialog's two `WM_CLASS` components are
+`discord-canary` and its `_NET_WM_ICON` contains a 128×128 icon. The installed and
+generated desktop entries, plus autostart output from the pinned OpenAsar source,
+passed `desktop-file-validate`. Packaging tests cover the desktop/icon installation
+paths, loader identity and exact logo bytes. `bun run test` and `bun run lint`
+passed. GNOME/KDE grouping and a full X11 desktop session remain untested; portable
+Wayland launches still need a matching desktop entry and icon installed.
 
 ### Minimal bootstrap validation, 27 October
 

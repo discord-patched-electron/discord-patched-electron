@@ -101,6 +101,17 @@ class Recipes(unittest.TestCase):
                     self.assertIn("DISCORD_USER_DATA_DIR", launcher)
                     self.assertIn(desktop_id(discord), launcher)
                     self.assertNotIn("@DESKTOP_ID@", launcher)
+                    desktop = dict(
+                        line.split("=", 1)
+                        for line in (directory / "discord.desktop").read_text().splitlines()
+                        if "=" in line
+                    )
+                    self.assertEqual(desktop["Icon"], desktop_id(discord))
+                    self.assertEqual(desktop["StartupWMClass"], desktop_id(discord))
+                    self.assertEqual(desktop["Exec"], "/usr/bin/" + result["package"] + " %U")
+                    self.assertIn(
+                        f"/usr/share/icons/hicolor/256x256/apps/{desktop_id(discord)}.png", recipe
+                    )
                     self.assertIn(
                         desktop_id(discord) + ".desktop", (directory / "PKGBUILD").read_text()
                     )

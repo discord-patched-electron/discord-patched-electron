@@ -74,6 +74,7 @@ function start() {
 }
 
 try {
+  require("./desktop.cjs")(app, process.env.DPE_APP_ROOT, process.env.CHROME_DESKTOP);
   if (process.env.DPE_UPDATER_UI === "1") require("./startup.cjs");
   else start();
 } catch (error) {
