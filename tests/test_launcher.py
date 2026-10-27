@@ -22,6 +22,7 @@ class Launcher(unittest.TestCase):
         unbundled=False,
         settings=None,
         broken_resolver=False,
+        application_update=False,
     ):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -44,9 +45,12 @@ class Launcher(unittest.TestCase):
                 "    assert os.environ['PYTHONPATH'].endswith('/python')\n"
                 "    from pathlib import Path\n"
                 "    root = Path(os.environ['DPE_APP_ROOT'])\n"
+                "    if os.environ.get('DPE_FIXTURE_APPLICATION_UPDATE') == '1':\n"
+                "        Path(os.environ['DPE_LAUNCH_RESULT']).write_text(json.dumps({'application': str(root / 'next application')}))\n"
+                "        sys.exit(0)\n"
                 "    Path(os.environ['DPE_LAUNCH_RESULT']).write_text(json.dumps({'runtime': str(root / 'cached runtime/electron'), 'installed_runtime': str(root / 'cached runtime/electron'), 'host': str(root / 'prepared'), 'voice': '/fixture/voice'}))\n"
                 "    sys.exit(int(os.environ.get('DPE_FIXTURE_UI_STATUS', '0')))\n"
-                'print(json.dumps({"flags":sys.argv[1:], "originalArgs":json.loads(os.environ["DPE_LAUNCH_ARGS"]), "managed":os.environ["DPE_FLAGS_MANAGED"], "profile":os.environ["DPE_PROFILE_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"]}))\n'
+                'print(json.dumps({"flags":sys.argv[1:], "originalArgs":json.loads(os.environ["DPE_LAUNCH_ARGS"]), "managed":os.environ["DPE_FLAGS_MANAGED"], "profile":os.environ["DPE_PROFILE_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"], "launcher":os.environ["DPE_LAUNCHER"]}))\n'
             )
             runtime.chmod(0o755)
             if cached:
@@ -115,6 +119,14 @@ class Launcher(unittest.TestCase):
                 and key
                 not in ("CHROME_DESKTOP", "LD_PRELOAD", "XDG_SESSION_TYPE", "WAYLAND_DISPLAY")
             }
+            if application_update:
+                bootstrap = root / "installed bootstrap.sh"
+                bootstrap.write_text(
+                    "#!/usr/bin/env python3\nimport json,sys\n"
+                    "print(json.dumps({'bootstrap': True, 'args': sys.argv[1:]}))\n"
+                )
+                bootstrap.chmod(0o755)
+                environment.update(DPE_LAUNCHER=str(bootstrap), DPE_FIXTURE_APPLICATION_UPDATE="1")
             result = subprocess.check_output(
                 ["bash", str(launcher), *args],
                 text=True,
@@ -230,6 +242,25 @@ class Launcher(unittest.TestCase):
 
     def test_second_instance_exits_successfully_without_starting_another_runtime(self):
         self.assertIsNone(self.launch(env={"DPE_FIXTURE_UI_STATUS": "2"}, cached=True))
+
+    def test_application_handoff_reenters_the_installed_bootstrap_with_original_arguments(self):
+        for args in (["--example=with spaces"], ["--ignore-flags"]):
+            with self.subTest(args=args):
+                result = self.launch(
+                    args=args,
+                    cached=True,
+                    application_update=True,
+                    details=True,
+                    env={"DPE_CLIENT_OFFLINE": "1"},
+                )
+                self.assertTrue(result["bootstrap"])
+                self.assertEqual(result["args"], args)
+
+    def test_normal_launch_retains_the_bootstrap_for_later_restarts(self):
+        result = self.launch(details=True, env={"DPE_LAUNCHER": "/installed package/launch.sh"})
+        self.assertEqual(result["launcher"], "/installed package/launch.sh")
+        direct = self.launch(details=True)
+        self.assertEqual(direct["launcher"], direct["app"] + "/launch.sh")
 
     def test_runtime_free_launcher_uses_cached_electron_for_startup_and_final_client(self):
         result = self.launch(
