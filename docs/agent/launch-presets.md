@@ -1,5 +1,9 @@
 # Launch presets and Linux GPU flag review
 
+This records the initial editor. The current interface is OpenAsar's compact
+[Flags tab](flags-file.md#current-compact-flags-tab); Responsive and redundant
+controls have been removed.
+
 Reviewed 27 October 2026 against the locked Electron **46.0.0-alpha.1 / Chromium
 158.0.8114.0**, its retained assembled sources, and current upstream documentation.
 This replaces the bundled OpenAsar Focus flag lists. The earlier

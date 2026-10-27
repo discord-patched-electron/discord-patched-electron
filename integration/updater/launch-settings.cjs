@@ -1,9 +1,8 @@
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, dialog } = require("electron");
 const { execFile } = require("node:child_process");
 const path = require("node:path");
 const preferences = require("./profile.cjs");
 const relaunch = require("./relaunch.cjs");
-let window;
 
 function resolve(config, { recoverInvalid = false, save = false, fileRevision } = {}) {
   return new Promise((resolve, reject) => {
@@ -47,29 +46,8 @@ function resolve(config, { recoverInvalid = false, save = false, fileRevision } 
   });
 }
 
-function open() {
-  if (window && !window.isDestroyed()) {
-    window.show();
-    window.focus();
-    return;
-  }
-  require("./window.cjs").register();
-  window = new BrowserWindow({
-    title: "Launch presets — Discord",
-    width: 880,
-    height: 820,
-    minWidth: 360,
-    minHeight: 360,
-    backgroundColor: "#202225",
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, "launch-settings-preload.cjs"),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-  const current = window;
+// Share the existing OpenAsar window and its sandboxed main-frame IPC.
+function attach(current) {
   const handle = (name, callback) =>
     current.webContents.ipc.handle(name, async (event, ...args) => {
       if (
@@ -104,26 +82,23 @@ function open() {
     return result;
   });
   handle("dpe-launch-restart", () => {
-    // This is explicitly labelled "Restart with saved flags" in recovery mode.
+    // Restart from the editor leaves recovery after the saved file is repaired.
     relaunch.restart(app, { normal: true });
     return { restarting: true };
   });
-  current.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  current.webContents.on("will-navigate", (event) => event.preventDefault());
   current.webContents.on("will-prevent-unload", (event) => {
     const response = dialog.showMessageBoxSync(current, {
       type: "question",
       buttons: ["Keep editing", "Discard changes"],
       defaultId: 0,
       cancelId: 0,
-      title: "Unsaved launch settings",
-      message: "Discard your unsaved launch settings?",
+      title: "Unsaved flags",
+      message: "Discard your unsaved flags?",
     });
     if (response === 1) event.preventDefault();
   });
-  current.once("closed", () => {
-    window = null;
-  });
-  void current.loadURL("dpe-splash://app/launch-settings.html").catch(console.error);
 }
-module.exports = { open, resolve };
+function open() {
+  return require("./config.cjs").open("flags");
+}
+module.exports = { open, attach, resolve };

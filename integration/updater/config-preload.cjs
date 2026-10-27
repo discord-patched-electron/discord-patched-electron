@@ -5,5 +5,11 @@ contextBridge.exposeInMainWorld("Native", {
   set: (config) => ipcRenderer.send("cs", config),
   get: () => ipcRenderer.sendSync("cg"),
   open: () => ipcRenderer.send("of"),
-  flags: () => ipcRenderer.send("dpe-launch-settings-open"),
+  onTab: (callback) => ipcRenderer.on("dpe-config-tab", (_event, tab) => callback(tab)),
+});
+contextBridge.exposeInMainWorld("LaunchSettings", {
+  load: () => ipcRenderer.invoke("dpe-launch-load"),
+  preview: (config) => ipcRenderer.invoke("dpe-launch-preview", config),
+  save: (config, fileRevision) => ipcRenderer.invoke("dpe-launch-save", config, fileRevision),
+  restart: () => ipcRenderer.invoke("dpe-launch-restart"),
 });

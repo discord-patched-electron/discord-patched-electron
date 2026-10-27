@@ -8,6 +8,39 @@ No diagnostic button was added. Results are in
 The later [software codec fix](software-codecs.md) resolves the software H.264
 failure reported below by loading its library before renderer sandbox startup.
 
+## Current compact Flags tab
+
+The UI now lives inside OpenAsar beside Settings and Theming. The separate
+window, repeated flag descriptions, extra text areas and source breakdown are
+removed. Default and Custom are the visible presets; a previous second edited
+preset remains available as Custom 2. The old Responsive/Efficiency keys remain
+in metadata for compatibility, but their unchanged stock timer flags are retired.
+
+Breaking contains the renderer selector, independent video decoding/encoding,
+acceleration bypass, driver-fix bypass and Graphite. Red flask icons identify
+these options. The other buffer, overlay, throttling and duplicate driver
+controls are retired; their old flag lists are retained only to recognize
+previously generated files without mistaking retirement for external edits.
+Explicit raw custom flags remain available.
+
+The one flags box shows application defaults plus saved options and overrides.
+Switches change optional flags while retaining dynamic session/profile defaults.
+Editing the box directly sets `replaceDefaults` for that preset: its literal list
+replaces automatic defaults, so deleting a flag actually removes it. Reset
+restores dynamic defaults. CLI arguments are shown as comments and are not
+captured as saved overrides.
+
+When editing, existing outside-file flags are folded into each preset before
+clearing that global section, preserving the effective behavior of inactive
+presets. Invalid lines are not copied into inactive presets during repair.
+Revision checks, backup writes, main-frame-only IPC and flags-free recovery remain.
+The pinned OpenAsar source is unchanged; the served copy receives the tab and
+local assets. Switching tabs keeps the draft, and restart is unavailable until
+it is saved or discarded.
+
+The older sections below describe the previous multi-box UI. Current native UI
+results are recorded in [compact tab evidence](../evidence/openasar-tabs.json).
+
 ## Storage and migration
 
 The canonical file is `$XDG_CONFIG_HOME/discord-canary-patched-electron.conf`,

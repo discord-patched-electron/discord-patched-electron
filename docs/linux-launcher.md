@@ -19,33 +19,17 @@ Open **User Settings → OpenAsar**:
 
 ## Presets and video acceleration
 
-Open **User Settings → OpenAsar → Launch presets and flags**. Select **Balanced**
-for Chromium's defaults, **Responsive** to keep background work active, or
-**Efficiency** to explicitly retain background timer throttling. Each preset has
-an editable flags box and its own optional controls. Save, then restart to apply.
+Open **User Settings → OpenAsar → Flags**. Keep **Default**, or select **Custom**
+to save another setup. The box at the bottom shows the flags and lets you edit
+one per line. Choose **Save**, then **Restart** to apply them.
 
-Presets are stored in `~/.config/discord-canary-patched-electron.conf` (or
-`XDG_CONFIG_HOME`). Existing OpenAsar settings and flags are imported automatically;
-the original file is backed up. **Reload from file** discards your draft and reads
-external edits. Save refuses to overwrite a file changed since you loaded it.
+**Breaking** contains optional renderer, video decode/encode and GPU overrides,
+marked with red warning icons. These may crash Discord. **Reset** restores the
+selected preset; **Reload** discards your draft and reads the saved file.
 
-Hardware decoding and encoding have separate checkboxes. Unchecked means use
-the runtime's defaults. Rendering backends, driver overrides and other experiments
-are optional and off by default. Forced encoding currently crashes on the tested
-AMD RX 7900 GRE; leave it off unless testing. These controls affect Chromium media,
-not Discord's separate call codec engine. Obsolete controls are removed with a
-notice while preserving your other edits.
-
-**Force acceleration and bypass GPU checks** requests GPU painting and hardware
-decoding while bypassing the GPU blocklist and video vendor checks. Encoding has
-its own checkbox. Under **Work-in-progress options**, you can explicitly force
-Graphite or compositor memory buffers. Each option shows its flags, is saved per
-preset, and starts off. Graphite currently crashes on the tested AMD GPU; recovery
-with `--ignore-flags` skips these options too.
-
-**Next launch** shows the merged arguments and their sources. One flag goes on
-each line; blank lines and `#` comments are allowed. Manual flags override preset
-checkboxes. **Restore this preset's defaults** changes the draft until you save.
+Flags are stored in `~/.config/discord-canary-patched-electron.conf` (or
+`XDG_CONFIG_HOME`). Existing custom edits are preserved. Save refuses to overwrite
+external changes until you reload.
 
 ## Global shortcuts
 
@@ -65,12 +49,14 @@ Close Discord completely, then reopen it to apply changes.
 --disable-features=AcceleratedVideoDecodeLinuxGL
 ```
 
-Put global overrides outside the marked OpenAsar preset section; they appear in
-**Additional flags**. Active preset flags are visible inside that section, with
-other presets remembered in comments. Editing the active lines directly loads
-them as preset text and resets that preset's option controls. Keep the section
-markers and metadata comment intact. Don't add shell quotes or assignments.
-Global overrides win over preset flags; command-line flags take final precedence.
+Put global overrides outside the marked OpenAsar preset section. The active
+preset is inside it; other presets are remembered in comments. Keep the markers
+and metadata intact. Don't add shell quotes or assignments. Global overrides win
+over preset flags; command-line flags take final precedence.
+
+The Flags box shows the complete saved list. Editing it replaces that preset's
+list, so deleted flags stay deleted. Existing global entries are kept in the
+other presets. Command-line arguments appear as comments for the current session.
 
 ## Troubleshooting
 
@@ -82,7 +68,7 @@ discord-canary-prerelease-patched-electron-bin --ignore-flags
 
 This skips saved presets, flag files and all supplied arguments before they are
 read. It preserves your settings. Repair them in the editor, then choose
-**Restart with saved flags**. For tarballs use `./launch.sh --ignore-flags`;
+**Restart**. For tarballs use `./launch.sh --ignore-flags`;
 `DPE_IGNORE_FLAGS=1` provides the same recovery mode.
 
 Close Discord completely before trying an environment variable in a terminal.
@@ -94,13 +80,13 @@ DPE_APP_AUDIO=0 discord-canary-prerelease-patched-electron-bin
 
 Other controls work the same way:
 
-| Variable                  | Effect                                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                                                                     |
-| `DPE_DEFAULT_FLAGS=0`     | Skips application defaults and the preset section; Additional flags and command-line flags still apply. |
-| `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                                                               |
-| `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime.                                               |
-| `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use. |
+| Variable                  | Effect                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                                                                          |
+| `DPE_DEFAULT_FLAGS=0`     | Skips application defaults and the preset section; Global file overrides and command-line flags still apply. |
+| `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                                                                    |
+| `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime.                                                    |
+| `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use.      |
 
 Offline mode needs an existing installation verified against the package or an
 approved release. If an older cache is rejected, launch online once to repair it.

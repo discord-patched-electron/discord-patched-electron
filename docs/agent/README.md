@@ -32,7 +32,7 @@ that test run.
 - [OpenAsar playback crash and flag audit](video-playback.md)
 - [Editable presets, recovery and initial GPU flag research](launch-presets.md)
 - [Deeper Linux GPU flag audit, dependencies and codec tests](linux-gpu-flags.md)
-- [Flags-file storage and automated encode/decode checks](flags-file.md)
+- [Compact Flags tab, file storage and automated codec checks](flags-file.md)
 - [Software codec initialization and sandbox fix](software-codecs.md)
 - [Local runtime checks](linux-runtime.md)
 

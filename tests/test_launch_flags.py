@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 import json
 import tempfile
@@ -50,6 +51,36 @@ class LaunchFlags(unittest.TestCase):
             self.assertFalse(preset["encode"])
             self.assertEqual(preset["experiments"], [])
             self.assertEqual(preset["backend"], "auto")
+
+    def test_complete_manual_list_can_remove_defaults_without_reappearing_on_reload(self):
+        self.config["profiles"]["balanced"].update(flags="--only=this", replaceDefaults=True)
+        self.config["extra"] = "--external=kept"
+        saved = self.save()
+        self.assertEqual(saved["effective"], ["--only=this", "--external=kept"])
+        self.assertEqual(self.read()["effective"], saved["effective"])
+        self.assertEqual(
+            self.read(["--cli=temporary"])["editableFlags"], "--only=this\n--external=kept"
+        )
+        self.assertIn("--cli=temporary", self.read(["--cli=temporary"])["normalEffective"])
+        self.env["DPE_IGNORE_FLAGS"] = "1"
+        self.assertEqual(self.read()["effective"], [])
+
+    def test_old_stock_presets_and_redundant_options_retire_without_losing_edits(self):
+        old = copy.deepcopy(self.data)
+        for name, values in old["retiredFlags"].items():
+            old["experiments"][name] = {"flags": values}
+        self.config["active"] = "performance"
+        self.config["profiles"]["performance"].update(
+            flags=old["retiredPresetFlags"]["performance"], experiments=["overlays"]
+        )
+        self.config["profiles"]["efficiency"]["flags"] = "--keep=custom"
+        self.file.write_text(flags.render_file(self.config, old))
+        loaded = self.read()
+        self.assertNotIn("--disable-background-timer-throttling", loaded["effective"])
+        self.assertFalse(any("hardware-overlays" in value for value in loaded["effective"]))
+        self.assertEqual(loaded["config"]["profiles"]["efficiency"]["flags"], "--keep=custom")
+        flags.save_file(loaded, loaded["fileRevision"])
+        self.assertEqual(self.read()["effective"], loaded["effective"])
 
     def test_independent_codec_checkboxes_and_customizations_per_preset(self):
         self.config["profiles"]["balanced"].update(decode=True)
@@ -116,11 +147,11 @@ class LaunchFlags(unittest.TestCase):
 
     def test_explicit_experiments_are_available_without_implicit_opt_ins(self):
         selected = self.config["profiles"]["balanced"]
-        selected.update(experiments=["nvidiaVaapi", "gpuBlocklist"], backend="gl")
+        selected.update(experiments=["forceAcceleration"], backend="gl")
         result = self.resolve()["effective"]
         self.assertIn("--ignore-gpu-blocklist", result)
         self.assertIn("--use-angle=gl", result)
-        self.assertIn("--enable-features=VaapiOnNvidiaGPUs", result)
+        self.assertTrue(any("VaapiOnNvidiaGPUs" in value for value in result))
         self.assertNotIn("--disable-gpu-driver-bug-workarounds", result)
 
     def test_legacy_custom_flags_migrate_without_old_automatic_gpu_flags(self):
@@ -166,11 +197,11 @@ class LaunchFlags(unittest.TestCase):
         result = self.resolve()
         self.assertEqual(
             result["config"]["profiles"]["balanced"]["experiments"],
-            ["graphiteForce", "compositorBuffers"],
+            ["graphiteForce"],
         )
         self.assertIn("--enable-skia-graphite", result["effective"])
         self.assertIn("--skia-graphite-dawn-backend=vulkan", result["effective"])
-        self.assertIn("--enable-gpu-memory-buffer-compositor-resources", result["effective"])
+        self.assertNotIn("--enable-gpu-memory-buffer-compositor-resources", result["effective"])
         self.assertNotIn("--ignore-gpu-blocklist", result["effective"])
         self.env["DPE_IGNORE_FLAGS"] = "1"
         recovered = self.resolve()
@@ -182,7 +213,7 @@ class LaunchFlags(unittest.TestCase):
     ):
         selected = self.config["profiles"]["balanced"]
         selected.update(
-            experiments=["forceAcceleration", "gpuBlocklist", "graphiteForce"],
+            experiments=["forceAcceleration", "driverWorkarounds", "graphiteForce"],
             flags="--disable-features=AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks\n--disable-gpu-rasterization\n--disable-skia-graphite",
         )
         result = self.resolve()["effective"]
@@ -193,7 +224,8 @@ class LaunchFlags(unittest.TestCase):
         self.assertIn("--disable-gpu-rasterization", result)
         selected["experiments"].remove("forceAcceleration")
         result = self.resolve()["effective"]
-        self.assertIn("--ignore-gpu-blocklist", result)
+        self.assertNotIn("--ignore-gpu-blocklist", result)
+        self.assertIn("--disable-gpu-driver-bug-workarounds", result)
         self.assertIn("--enable-skia-graphite", result)
         self.assertNotIn("--enable-gpu-rasterization", result)
 
@@ -210,16 +242,14 @@ class LaunchFlags(unittest.TestCase):
                 result = flags.resolve(
                     self.profile, "package", "discord-canary", [], self.env, request
                 )
-                self.assertEqual(
-                    result["config"]["profiles"]["balanced"]["experiments"], ["zeroCopy"]
-                )
+                self.assertEqual(result["config"]["profiles"]["balanced"]["experiments"], [])
                 self.assertEqual(result["config"]["profiles"]["performance"]["experiments"], [])
                 self.assertIn("--example=keep", result["effective"])
-                self.assertIn("--enable-zero-copy", result["effective"])
+                self.assertNotIn("--enable-zero-copy", result["effective"])
                 self.assertFalse(
                     any("graphite" in v.lower() or "video-frames" in v for v in result["effective"])
                 )
-                self.assertEqual(len(result["warnings"]), 3)
+                self.assertEqual(len(result["warnings"]), 4)
         self.assertEqual(
             self.config["profiles"]["balanced"]["experiments"],
             ["graphite", "videoBuffers", "zeroCopy"],
@@ -278,7 +308,7 @@ class LaunchFlags(unittest.TestCase):
 
     def test_json_roundtrip_keeps_every_presets_edits(self):
         self.config["profiles"]["efficiency"]["flags"] += "\n--example=kept"
-        self.config["profiles"]["performance"]["experiments"] = ["overlays"]
+        self.config["profiles"]["performance"]["experiments"] = ["driverWorkarounds"]
         (self.profile / "settings.json").write_text(
             json.dumps({"openasar": {"launchFlags": self.config}})
         )

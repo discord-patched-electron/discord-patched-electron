@@ -1,4 +1,4 @@
-// Exercise the production page, sandboxed preload and IPC with a fresh profile.
+// Exercise the real OpenAsar tabs, sandboxed preload and flags file without an account.
 const { app, BrowserWindow } = require("electron");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -8,10 +8,11 @@ if (!output) throw new Error("A private output directory is required");
 const root = process.env.DPE_APP_ROOT;
 const profile = process.env.DPE_PROFILE_DIR;
 app.setPath("userData", profile);
+app.on("window-all-closed", () => {});
 require(path.join(root, "integration/updater/window.cjs"));
 const editor = require(path.join(root, "integration/updater/launch-settings.cjs"));
 const settingsPage = require(path.join(root, "integration/updater/config.cjs"));
-let values = {
+const values = {
   openasar: { css: "/* preserve me */", themeSync: false, customFlags: "--legacy-ui=kept" },
   unrelated: true,
 };
@@ -39,6 +40,7 @@ let window;
 const evaluate = (code) => window.webContents.executeJavaScript(code);
 const get = (expression) =>
   evaluate(`(() => { const $ = (id) => document.getElementById(id); return ${expression}; })()`);
+const click = (id) => evaluate(`document.getElementById(${JSON.stringify(id)}).click()`);
 const change = (id, value, event = "input") =>
   evaluate(`(() => {
   const input = document.getElementById(${JSON.stringify(id)});
@@ -46,11 +48,18 @@ const change = (id, value, event = "input") =>
   input.dispatchEvent(new Event(${JSON.stringify(event)}, {bubbles:true}));
 })()`);
 async function open() {
-  editor.open();
-  window = BrowserWindow.getAllWindows().find((item) => item !== oldWindow);
-  await until(() => get('$("settings") && !$("settings").hidden'));
+  window = settingsPage.open("flags");
+  await until(() => get('$("settings") && !$("settings").hidden && !$("flags-panel").hidden'));
 }
-let oldWindow;
+async function save() {
+  await until(() =>
+    get('$("save").getAttribute("aria-disabled") !== "true" && !$("flags").disabled'),
+  );
+  await evaluate('document.getElementById("settings").requestSubmit()');
+  await until(() => get('$("status").textContent.startsWith("Saved.")')).catch(async (failure) => {
+    throw new Error(failure.message + ": " + (await get('$("error").textContent')));
+  });
+}
 function finish(error) {
   fs.writeFileSync(
     path.join(output, "settings.json"),
@@ -65,155 +74,145 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
-    settingsPage.open();
-    oldWindow = BrowserWindow.getAllWindows()[0];
-    await until(() => oldWindow.webContents.executeJavaScript('typeof window.Native === "object"'));
     await open();
-    assert.equal(await get('$("preset").value'), "balanced");
-    assert.equal(await get('$("decode").checked || $("encode").checked'), false);
+    assert.equal(BrowserWindow.getAllWindows().length, 1);
+    assert.deepEqual(
+      await evaluate('[...document.querySelectorAll("[role=tab]")].map(x=>x.textContent)'),
+      ["Settings", "Theming", "Flags"],
+    );
+    assert.equal(await evaluate('document.querySelectorAll("textarea").length'), 1);
+    assert.deepEqual(await get('[...$("preset").options].map(x=>x.textContent)'), [
+      "Default",
+      "Custom",
+    ]);
+    assert.equal(await get('$("breaking").open'), false);
     assert.equal(
       await get(
-        '$("forceAcceleration").checked || $("graphiteForce").checked || $("compositorBuffers").checked',
+        '$("decode").checked || $("encode").checked || $("forceAcceleration").checked || $("graphiteForce").checked',
       ),
       false,
     );
     assert.equal(await evaluate("typeof window.require"), "undefined");
-    checks.push("Balanced defaults, independent codec controls and sandboxed preload");
+    assert.match(await get('$("flags").value'), /--openh264-library-path=/);
+    checks.push("One OpenAsar window, three tabs, one flags box and collapsed risky options");
 
-    await change("preset-flags", "--enable-features=EnableDrDc");
+    await evaluate('document.getElementById("breaking").open=true');
+    await click("decode");
+    await until(() => get('!$("flags").disabled'));
+    assert.equal(await get('$("display").value'), "auto");
+    await save();
+    assert.equal((await savedConfig()).profiles.balanced.replaceDefaults, undefined);
+    assert.doesNotMatch((await savedConfig()).profiles.balanced.flags, /--openh264-library-path/);
+    await click("decode");
+    await until(() => get('!$("flags").disabled'));
+    await save();
+    checks.push("Convenience switches preserve automatic display and codec paths");
+
+    const initial = await get('$("flags").value');
+    await change("flags", initial + "\n--enable-features=EnableDrDc");
     await evaluate('document.getElementById("settings").requestSubmit()');
-    await until(() => get('$("preset-flags").getAttribute("aria-invalid") === "true"'));
-    assert.equal(await evaluate("document.activeElement.id"), "preset-flags");
+    await until(() => get('$("flags").getAttribute("aria-invalid") === "true"'));
+    assert.equal(await evaluate("document.activeElement.id"), "flags");
     assert.match(await get('$("error").textContent'), /unsupported on Linux/);
-    assert.equal(values.openasar.launchFlags, undefined);
-    checks.push("Unsupported flag rejected without saving; error labels and focus reach the field");
+    assert.equal(await get('$("b_restart").disabled'), true);
+    checks.push("Invalid flags announce an error, focus the field and block restart");
 
-    await change(
-      "preset-flags",
-      "# my preset\n--disable-features=AcceleratedVideoEncoder\n--custom-value=one=two",
-    );
-    await evaluate('document.getElementById("decode").click()');
+    await change("flags", initial + "\n--custom-value=one=two");
+    await evaluate('document.getElementById("breaking").open=true');
+    await click("decode");
+    assert.match(await get('$("flags").value'), /AcceleratedVideoDecodeLinuxGL/);
     await change("preset", "performance", "change");
-    assert.match(await get('$("preset-flags").value'), /disable-background-timer-throttling/);
+    await until(() => get('!$("flags").disabled'));
     assert.equal(await get('$("decode").checked'), false);
+    assert.doesNotMatch(await get('$("flags").value'), /disable-background/);
     await change("preset", "balanced", "change");
+    await until(() => get('!$("flags").disabled'));
     assert.equal(await get('$("decode").checked'), true);
-    assert.match(await get('$("preset-flags").value'), /custom-value=one=two/);
-    await evaluate('document.getElementById("settings").requestSubmit()');
-    await until(() => get('$("status").textContent.startsWith("Saved.")'));
-    assert.equal((await savedConfig()).profiles.balanced.decode, true);
-    assert.equal((await savedConfig()).profiles.balanced.encode, false);
+    assert.match(await get('$("flags").value'), /custom-value=one=two/);
+    await click("t_settings");
+    assert.equal(
+      await evaluate(
+        '[...document.querySelectorAll("#container input")].every(input => input.getAttribute("aria-label"))',
+      ),
+      true,
+    );
+    await click("t_flags");
+    assert.match(await get('$("flags").value'), /custom-value=one=two/);
+    assert.equal(BrowserWindow.getAllWindows().length, 1);
+    await save();
+    assert.equal((await savedConfig()).profiles.balanced.replaceDefaults, true);
     assert.equal(values.openasar.launchFlags, undefined);
     assert.equal(values.openasar.customFlags, undefined);
-    assert.match(fs.readFileSync(flagsFile, "utf8"), /--legacy-ui=kept/);
-    assert.equal(await get('$("flags-file").textContent'), flagsFile);
     assert.equal(values.unrelated, true);
-    assert.match(await get('$("effective").value'), /AcceleratedVideoDecodeLinuxGL/);
-    assert.match(await get('$("effective").value'), /--disable-features=AcceleratedVideoEncoder/);
-    checks.push("Per-preset edits survive selection, save and real resolver preview");
+    assert.equal(await get('$("flags").title'), flagsFile);
+    assert.match(fs.readFileSync(flagsFile, "utf8"), /legacy-ui=kept/);
+    checks.push("Manual edits and video controls persist per preset and survive tab changes");
 
-    const beforeOldPageSave = fs.readFileSync(flagsFile, "utf8");
-    await oldWindow.webContents.executeJavaScript(
+    const before = fs.readFileSync(flagsFile, "utf8");
+    await evaluate(
       'window.Native.set({css:"updated", themeSync:false, launchFlags:{schema:999}, customFlags:"--stale"})',
     );
     await until(() => values.openasar.css === "updated");
-    assert.equal(fs.readFileSync(flagsFile, "utf8"), beforeOldPageSave);
-    assert.equal(values.openasar.launchFlags, undefined);
-    assert.equal(values.openasar.customFlags, undefined);
-    assert.equal((await savedConfig()).profiles.balanced.decode, true);
+    assert.equal(fs.readFileSync(flagsFile, "utf8"), before);
     window.destroy();
     await open();
-    assert.match(await get('$("preset-flags").value'), /custom-value=one=two/);
-    checks.push(
-      "Reopening persists edits; stale OpenAsar settings cannot overwrite launch settings",
-    );
+    assert.match(await get('$("flags").value'), /custom-value=one=two/);
+    checks.push("Reopening retains flags; ordinary OpenAsar settings cannot overwrite them");
 
     const external =
       fs.readFileSync(flagsFile, "utf8") + "# edited outside app\n--external=value\n";
     fs.writeFileSync(flagsFile, external);
-    await change("extra-flags", "--draft=stale");
+    await change("flags", (await get('$("flags").value')) + "\n--draft=stale");
     await evaluate('document.getElementById("settings").requestSubmit()');
     await until(() => get('$("error").textContent.includes("changed on disk")'));
     assert.equal(fs.readFileSync(flagsFile, "utf8"), external);
-    await evaluate('document.getElementById("discard").click()');
-    await until(() => get('$("extra-flags").value.includes("--external=value")'));
-    assert.match(await get('$("effective").value'), /--external=value/);
-    await change("extra-flags", "# edited in app\n--external=replaced\n");
-    await evaluate('document.getElementById("settings").requestSubmit()');
-    await until(() => get('$("status").textContent.startsWith("Saved.")'));
-    assert.ok(
-      fs.readFileSync(flagsFile, "utf8").endsWith("# edited in app\n--external=replaced\n"),
+    await click("discard");
+    await until(() => get('$("flags").value.includes("--external=value")'));
+    await change(
+      "flags",
+      (await get('$("flags").value')).replace("--external=value", "--external=replaced"),
     );
-    checks.push(
-      "External edits block stale saves; reload and Additional flags share the canonical file",
-    );
+    await save();
+    assert.ok((await editor.resolve()).effective.includes("--external=replaced"));
+    assert.ok(!(await editor.resolve()).effective.includes("--external=value"));
+    assert.match((await savedConfig()).profiles.performance.flags, /--external=value/);
+    checks.push("External edits block stale saves; one-box edits preserve inactive presets");
 
-    await evaluate('document.getElementById("wip-details").open = true');
-    for (const id of ["forceAcceleration", "graphiteForce", "compositorBuffers"])
-      await evaluate(`document.getElementById(${JSON.stringify(id)}).click()`);
-    await until(() =>
-      get(
-        '$("effective").value.includes("--enable-skia-graphite") && $("effective").value.includes("--ignore-gpu-blocklist")',
-      ),
-    );
-    assert.match(await get('$("effective").value'), /VaapiIgnoreDriverChecks/);
-    assert.match(
-      await get('$("effective").value'),
-      /--enable-gpu-memory-buffer-compositor-resources/,
+    await evaluate('document.getElementById("breaking").open=true');
+    for (const id of ["forceAcceleration", "graphiteForce", "driverWorkarounds"]) await click(id);
+    assert.match(await get('$("flags").value'), /--ignore-gpu-blocklist/);
+    assert.match(await get('$("flags").value'), /--enable-skia-graphite/);
+    assert.equal(await get('$("encode").checked'), false);
+    await click("encode");
+    assert.match(await get('$("flags").value'), /AcceleratedVideoEncoder/);
+    await change(
+      "flags",
+      (await get('$("flags").value')) + "\n--disable-features=AcceleratedVideoEncoder",
     );
     assert.equal(await get('$("encode").checked'), false);
-    assert.equal(await get('$("wip-count").textContent'), "(2 enabled)");
-    assert.equal(await get('$("experiment-count").textContent'), "(0 enabled)");
-    await change("preset", "performance", "change");
+    await save();
+    await click("reset-preset");
+    await until(() => get('!$("flags").disabled'));
     assert.equal(await get('$("forceAcceleration").checked || $("graphiteForce").checked'), false);
-    await change("preset", "balanced", "change");
-    assert.equal(await get('$("forceAcceleration").checked && $("graphiteForce").checked'), true);
-    await evaluate('document.getElementById("forceAcceleration").click()');
-    await until(() => get('!$("effective").value.includes("--ignore-gpu-blocklist")'));
-    assert.match(await get('$("effective").value'), /--enable-skia-graphite/);
-    await evaluate('document.getElementById("forceAcceleration").click()');
-    await evaluate('document.getElementById("settings").requestSubmit()');
-    await until(() => get('$("status").textContent.startsWith("Saved.")'));
-    assert.deepEqual([...(await savedConfig()).profiles.balanced.experiments].sort(), [
-      "compositorBuffers",
-      "forceAcceleration",
-      "graphiteForce",
-    ]);
-    window.destroy();
-    await open();
-    assert.equal(
-      await get(
-        '$("forceAcceleration").checked && $("graphiteForce").checked && $("compositorBuffers").checked',
-      ),
-      true,
-    );
-    await evaluate('document.getElementById("reset-preset").click()');
-    await until(() => get('!$("effective").value.includes("--enable-skia-graphite")'));
-    assert.equal(
-      await get(
-        '$("forceAcceleration").checked || $("graphiteForce").checked || $("compositorBuffers").checked',
-      ),
-      false,
-    );
-    await evaluate('document.getElementById("discard").click()');
+    await click("discard");
     await until(() => get('$("forceAcceleration").checked && $("graphiteForce").checked'));
-    checks.push(
-      "Acceleration bypass and WIP controls remain independent, persist per preset, and support reset/discard",
-    );
+    checks.push("Risky controls update one box; manual overrides, reset and reload stay in sync");
 
     const contents = window.webContents;
-    await evaluate('document.getElementById("experiments-details").open = true');
-    await evaluate('document.getElementById("wip-details").open = true');
     contents.debugger.attach("1.3");
     const tree = await contents.debugger.sendCommand("Accessibility.getFullAXTree");
     const controls = tree.nodes.filter((node) =>
-      ["button", "checkbox", "combobox", "textbox", "DisclosureTriangle"].includes(
+      ["tab", "button", "checkbox", "combobox", "textbox", "DisclosureTriangle"].includes(
         node.role?.value,
       ),
     );
-    assert.ok(controls.length >= 20);
+    assert.ok(controls.length >= 15);
     for (const node of controls) assert.ok(node.name?.value, `Unnamed ${node.role.value}`);
-    checks.push("Accessibility tree exposes names and native roles for all editor controls");
+    await evaluate('document.getElementById("t_theming").focus()');
+    contents.sendInputEvent({ type: "keyDown", keyCode: "Right" });
+    contents.sendInputEvent({ type: "keyUp", keyCode: "Right" });
+    await until(() => evaluate('document.activeElement.id === "t_flags"'));
+    assert.equal(await get('$("t_flags").getAttribute("aria-selected")'), "true");
     await contents.debugger.sendCommand("Emulation.setDeviceMetricsOverride", {
       width: 320,
       height: 900,
@@ -222,59 +221,52 @@ app
     });
     await delay(100);
     assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
-    await evaluate('document.documentElement.dir = "rtl"');
+    await evaluate('document.documentElement.dir="rtl"');
     assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
-    await evaluate('document.documentElement.dir = "ltr"');
+    await evaluate('document.documentElement.dir="ltr"');
     await contents.debugger.sendCommand("Emulation.clearDeviceMetricsOverride");
     contents.setZoomFactor(2);
     await delay(100);
     assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
     contents.setZoomFactor(1);
-    await evaluate('document.getElementById("experiments-details").open = false');
-    await evaluate('document.getElementById("preset").focus()');
-    contents.sendInputEvent({ type: "keyDown", keyCode: "Tab" });
-    contents.sendInputEvent({ type: "keyUp", keyCode: "Tab" });
-    await until(() => evaluate('document.activeElement.id === "display"'));
+    await evaluate('document.getElementById("breaking").open=false');
+    await click("reset-preset");
+    await until(() => get('!$("flags").disabled'));
+    await evaluate("window.scrollTo(0,0)");
+    await delay(150);
     fs.writeFileSync(path.join(output, "editor.png"), (await contents.capturePage()).toPNG());
-    checks.push("320px, RTL and 200% zoom have no horizontal overflow; keyboard navigation works");
+    await evaluate('document.getElementById("breaking").open=true');
+    await delay(150);
+    fs.writeFileSync(path.join(output, "breaking.png"), (await contents.capturePage()).toPNG());
+    await click("discard");
+    await until(() => get('$("graphiteForce").checked'));
+    checks.push("Named native controls, keyboard tabs, 320px, RTL and 200% zoom pass");
 
-    const recoveredFlags = await editor.resolve();
-    assert.ok(recoveredFlags.normalEffective.includes("--enable-skia-graphite"));
     process.env.DPE_IGNORE_FLAGS = "1";
-    const ignoredFlags = await editor.resolve();
-    assert.deepEqual(ignoredFlags.effective, []);
-    assert.ok(ignoredFlags.normalEffective.includes("--enable-skia-graphite"));
-    checks.push(
-      "Recovery ignores saved acceleration and WIP flags while retaining them for repair",
-    );
-
+    assert.deepEqual((await editor.resolve()).effective, []);
     window.destroy();
-    values.openasar.launchFlags = { schema: 999 };
-    global.settings.save();
-    process.env.DPE_IGNORE_FLAGS = "1";
     process.env.DPE_LAUNCH_ARGS = '["--ignore-flags"]';
     const broken =
       "# >>> OpenAsar launch presets v1\n# presets: {broken}\n--recoverable\n# <<< OpenAsar launch presets v1\ninvalid flag\n";
     fs.writeFileSync(flagsFile, broken);
     await open();
     assert.equal(await get('$("recovery").hidden'), false);
-    assert.match(await get('$("warnings").textContent'), /Invalid preset metadata/);
-    assert.equal(await get('$("restart").textContent'), "Restart with saved flags");
-    assert.match(await get('$("extra-flags").value'), /--recoverable/);
+    assert.match(await get('$("flags").value'), /--recoverable/);
     await evaluate('document.getElementById("settings").requestSubmit()');
-    await until(() => get('$("extra-flags").getAttribute("aria-invalid") === "true"'));
-    assert.equal(await get('$("restart").disabled'), true);
+    await until(() => get('$("flags").getAttribute("aria-invalid") === "true"'));
     assert.equal(fs.readFileSync(flagsFile, "utf8"), broken);
-    await change("extra-flags", "# repaired\n--recoverable\n");
-    await evaluate('document.getElementById("settings").requestSubmit()');
-    await until(() => get('$("status").textContent.startsWith("Saved.")'));
-    assert.equal((await editor.resolve()).fileManaged, true);
-    assert.equal(await get('$("restart").disabled'), false);
+    await change("flags", "# repaired\n--recoverable\n");
+    await save();
+    assert.equal(await get('$("b_restart").disabled'), false);
     assert.equal(await get('$("error").hidden'), true);
-    const backup = fs
-      .readdirSync(path.dirname(flagsFile))
-      .find((name) => name.includes(".backup-"));
-    assert.equal(fs.readFileSync(path.join(path.dirname(flagsFile), backup), "utf8"), broken);
+    assert.ok(
+      fs
+        .readdirSync(path.dirname(flagsFile))
+        .filter((name) => name.includes(".backup-"))
+        .some(
+          (name) => fs.readFileSync(path.join(path.dirname(flagsFile), name), "utf8") === broken,
+        ),
+    );
     let restart,
       quit = false;
     app.relaunch = (options) => {
@@ -283,11 +275,13 @@ app
     app.quit = () => {
       quit = true;
     };
-    await evaluate("window.LaunchSettings.restart()");
+    await click("b_restart");
+    await until(() => quit);
     assert.deepEqual(restart, { execPath: process.env.DPE_LAUNCHER, args: [] });
     assert.equal(process.env.DPE_IGNORE_FLAGS, undefined);
-    assert.equal(quit, true);
-    checks.push("Recovery repairs invalid presets and explicitly returns to normal launch");
+    checks.push(
+      "Recovery repairs a broken file, backs it up and restarts without the recovery switch",
+    );
     finish();
   })
   .catch(finish);

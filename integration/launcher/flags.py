@@ -111,11 +111,9 @@ def preferences(settings, data):
                 else:
                     imported.append(arg)
             result["extra"] = "\n".join(imported)
-            warnings.append("Imported legacy custom flags. Review Additional flags before saving.")
+            warnings.append("Imported your saved flags.")
         if oa.get("cmdPreset"):
-            warnings.append(
-                "Using the new preset definitions; old forced GPU tweaks were not migrated."
-            )
+            warnings.append("Removed the old automatic GPU overrides.")
         return result, warnings
     validate(saved, data)
     return saved, warnings
@@ -158,6 +156,8 @@ def validate(config, data, *, check_text=True):
                 raise InvalidFlags(error, "preset-flags", key) from error
         if any(type(profile.get(name)) is not bool for name in ("decode", "encode")):
             raise ValueError(f"{label}: video options must be checked or unchecked.")
+        if type(profile.get("replaceDefaults", False)) is not bool:
+            raise ValueError(f"{label}: invalid manual flags setting.")
         if (
             not isinstance(profile.get("backend"), str)
             or profile["backend"] not in data["backends"]
@@ -199,8 +199,10 @@ def snapshot(path):
     return {"target": target, "raw": raw, "revision": revision(target, raw)}
 
 
-def options(config, data):
+def options(config, data, *, retired=False):
     selected = config["profiles"][config["active"]]
+    if selected.get("replaceDefaults"):
+        return []
     result = list(data["backends"][selected["backend"]]["flags"])
     for name in ("decode", "encode"):
         if selected[name]:
@@ -208,12 +210,14 @@ def options(config, data):
     for name in selected["experiments"]:
         if name in data["experiments"]:
             result += data["experiments"][name]["flags"]
+        elif retired:
+            result += data.get("retiredFlags", {}).get(name, [])
     return result
 
 
-def preset_body(config, data):
+def preset_body(config, data, *, retired=False):
     text = "\n".join(
-        [*options(config, data), config["profiles"][config["active"]]["flags"]]
+        [*options(config, data, retired=retired), config["profiles"][config["active"]]["flags"]]
     ).rstrip("\n")
     return text + "\n" if text else ""
 
@@ -258,7 +262,7 @@ def load_file(state, legacy, settings, data, *, recover=False):
         config["extra"] = outside
         validate(config, data, check_text=False)
         warnings = []
-        if body != preset_body(config, data):
+        if body not in (preset_body(config, data), preset_body(config, data, retired=True)):
             # The editable active lines win over the UI's remembered controls.
             # Keep inactive presets and global file overrides intact.
             config["profiles"][config["active"]].update(
@@ -413,6 +417,12 @@ def resolve(profile, package, desktop, args, env=None, request=None):
     # or replacing them with stronger overrides the user never selected.
     config = copy.deepcopy(config)
     for key, selected in config["profiles"].items():
+        if (
+            not selected.get("replaceDefaults")
+            and key in data.get("retiredPresetFlags", {})
+            and selected["flags"] == data["retiredPresetFlags"][key]
+        ):
+            selected["flags"] = ""
         for name in selected["experiments"]:
             if reason := data.get("retiredExperiments", {}).get(name):
                 warnings.append(f"{data['presets'][key]['label']}: {reason}")
@@ -424,7 +434,10 @@ def resolve(profile, package, desktop, args, env=None, request=None):
     def add(name, flags):
         layers.append({"name": name, "flags": flags})
 
-    add("Application identity", ["--class=" + desktop])
+    selected = config["profiles"][config["active"]]
+    manual = selected.get("replaceDefaults", False) and env.get("DPE_DEFAULT_FLAGS") != "0"
+    if not manual:
+        add("Application identity", ["--class=" + desktop])
     if env.get("DPE_DEFAULT_FLAGS") != "0":
         display = config["display"]
         if display == "auto":
@@ -436,7 +449,8 @@ def resolve(profile, package, desktop, args, env=None, request=None):
                 "--openh264-library-path="
                 + str(profile / "discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"),
             ]
-        add("Application defaults", common)
+        if not manual:
+            add("Application defaults", common)
         active = config["active"]
         # Preset text is the final word within the preset; explicit feature
         # disables can override a convenience checkbox without duplicate switches.
@@ -467,6 +481,20 @@ def resolve(profile, package, desktop, args, env=None, request=None):
             if not request.get("tolerateFileErrors"):
                 raise InvalidFlags(error, field, preset) from error
             file_errors.append(f"Fix {file} before restarting: {error}")
+    editable = merge(layers)
+    # Retain malformed raw lines for repair in the single flags editor.
+    editor_text = "\n".join(editable)
+    if file_errors:
+        editor_text = "\n".join([selected["flags"], config["extra"]])
+    preserved_extra = []
+    for row in config["extra"].splitlines():
+        try:
+            lines(row)
+            preserved_extra.append(row)
+        except ValueError:
+            # Repairing one box must not propagate its old invalid global lines
+            # into every inactive preset and make those impossible to save.
+            pass
     add("Command line", args)
     recovery = env.get("DPE_IGNORE_FLAGS") == "1" or "--ignore-flags" in args
     return {
@@ -482,6 +510,8 @@ def resolve(profile, package, desktop, args, env=None, request=None):
         "layers": layers,
         "effective": [] if recovery else merge(layers),
         "normalEffective": merge(layers),
+        "editableFlags": editor_text,
+        "preservedExtra": "\n".join(preserved_extra),
         "recovery": recovery,
         "originalArgs": args,
     }

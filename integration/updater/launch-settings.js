@@ -1,153 +1,149 @@
 (() => {
   const $ = (id) => document.getElementById(id);
-  let data,
-    config,
-    saved,
-    fileRevision,
-    dirty = false,
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+  const editor = window.FlagEditor;
+  const warningIcon =
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M5 5.782V2.5h-.25a.75.75 0 0 1 0-1.5h6.5a.75.75 0 0 1 0 1.5H11v3.282l3.666 5.76C15.619 13.04 14.543 15 12.767 15H3.233c-1.776 0-2.852-1.96-1.899-3.458L5 5.782zM9.5 2.5h-3V6a.75.75 0 0 1-.117.403L4.73 9h6.54L9.617 6.403A.75.75 0 0 1 9.5 6V2.5zm-6.9 9.847L3.775 10.5h8.45l1.175 1.847a.75.75 0 0 1-.633 1.153H3.233a.75.75 0 0 1-.633-1.153z"/></svg>';
+  let data, config, saved, fileRevision;
+  let dirty = false,
     saving = false,
     loading = false,
     fileError = false,
-    generation = 0,
+    pending = false;
+  let generation = 0,
     previewTimer;
-  const clone = (value) => JSON.parse(JSON.stringify(value));
   const active = () => config.profiles[config.active];
-  const error = (message = "") => {
+  function error(message = "") {
     $("error").textContent = message;
     $("error").hidden = !message;
-  };
+  }
+  function restartState() {
+    $("b_restart").disabled = dirty || fileError || pending || saving;
+    $("b_restart").title = dirty ? "Save flags before restarting" : "";
+  }
   function validation(result, focus = false) {
-    for (const id of ["preset", "preset-flags", "extra-flags"]) {
+    for (const id of ["preset", "flags"]) {
       $(id).removeAttribute("aria-invalid");
-      const description = $(id).getAttribute("aria-describedby") || "";
-      $(id).setAttribute("aria-describedby", description.replace(/ ?error/g, ""));
+      $(id).setAttribute("aria-describedby", id === "flags" ? "flags-help" : "");
     }
     error(result.error || "");
     if (!result.error) return;
-    const id = result.preset && result.preset !== config.active ? "preset" : result.field;
-    const target = $(id) || $("error");
-    if (id) {
-      target.setAttribute("aria-invalid", "true");
-      target.setAttribute(
-        "aria-describedby",
-        (target.getAttribute("aria-describedby") || "") + " error",
-      );
-    } else target.tabIndex = -1;
+    const target = result.preset && result.preset !== config.active ? $("preset") : $("flags");
+    target.setAttribute("aria-invalid", "true");
+    target.setAttribute("aria-describedby", target.id === "flags" ? "flags-help error" : "error");
     if (focus) target.focus();
   }
-  function markDirty() {
+  function controls() {
+    const text = $("flags").value;
+    const selected = editor.state(text);
+    const display = selected.get("--ozone-platform")?.split("=")[1];
+    $("display").value = active().replaceDefaults ? display || "auto" : config.display;
+    $("backend").value =
+      Object.entries(data.catalog.backends).find(
+        ([key, item]) => key !== "auto" && editor.has(text, item.flags),
+      )?.[0] || "auto";
+    for (const [key, item] of Object.entries({
+      ...data.catalog.video,
+      ...data.catalog.experiments,
+    }))
+      $(key).checked = editor.has(text, item.flags);
+  }
+  function enableControls(enabled) {
+    pending = !enabled;
+    for (const input of $("settings").querySelectorAll("input, textarea, select"))
+      if (input.id !== "preset") input.disabled = !enabled;
+    restartState();
+  }
+  function markDirty(rewrite = false) {
     dirty = JSON.stringify(config) !== saved;
-    $("status").textContent = dirty
-      ? "Unsaved changes. Save, then restart to apply."
-      : "No unsaved changes.";
-    $("restart").disabled = dirty || fileError;
+    $("status").textContent = dirty ? "Unsaved changes." : "";
     clearTimeout(previewTimer);
-    // Invalidate pending results immediately, before the next debounce fires.
     generation++;
-    previewTimer = setTimeout(preview, 180);
+    restartState();
+    previewTimer = setTimeout(() => preview(rewrite), 180);
   }
-  function option(parent, id, item, checked, change) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "option";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.id = id;
-    input.name = id;
-    input.checked = checked;
-    input.setAttribute("aria-describedby", id + "-help");
-    input.addEventListener("change", () => {
-      change(input.checked);
-      markDirty();
-      updateCount();
-    });
-    const copy = document.createElement("div");
-    const label = document.createElement("label");
-    label.htmlFor = id;
-    label.textContent = item.label;
-    const help = document.createElement("p");
-    help.className = "hint";
-    help.id = id + "-help";
-    help.textContent = item.description;
-    const flags = document.createElement("code");
-    flags.textContent = item.flags.join("\n");
-    copy.append(label, help, flags);
-    wrapper.append(input, copy);
-    parent.append(wrapper);
+  function edit(text) {
+    editor.edit(config, text, data.preservedExtra);
+    $("flags").value = text;
+    controls();
+    markDirty();
   }
-  function updateCount() {
-    const count = (group) =>
-      active().experiments.filter(
-        (key) => (data.catalog.experiments[key].group || "advanced") === group,
-      ).length;
-    $("experiment-count").textContent = `(${count("advanced")} enabled)`;
-    $("wip-count").textContent = `(${count("wip")} enabled)`;
+  function configure(remove, add) {
+    if (active().replaceDefaults) return edit(editor.replace($("flags").value, remove, add));
+    editor.configure(config, data.catalog, remove, add, config.extra ? data.preservedExtra : "");
+    enableControls(false);
+    markDirty(true);
   }
-  function renderPreset() {
-    const selected = active();
-    $("preset").value = config.active;
-    $("preset-description").textContent = data.catalog.presets[config.active].description;
-    $("preset-flags").value = selected.flags;
-    $("preset-flags").placeholder = "No extra flags. Chromium's defaults are used.";
-    $("backend").value = selected.backend;
-    $("acceleration-options").replaceChildren();
-    $("video-options").replaceChildren();
-    $("experimental-options").replaceChildren();
-    $("wip-options").replaceChildren();
-    for (const [key, item] of Object.entries(data.catalog.video))
-      option($("video-options"), key, item, selected[key], (checked) => {
-        selected[key] = checked;
-      });
-    for (const [key, item] of Object.entries(data.catalog.experiments)) {
-      const target = {
-        acceleration: "acceleration-options",
-        wip: "wip-options",
-        advanced: "experimental-options",
-      }[item.group || "advanced"];
-      option($(target), key, item, selected.experiments.includes(key), (checked) => {
-        selected.experiments = selected.experiments.filter((name) => name !== key);
-        if (checked) selected.experiments.push(key);
-      });
-    }
-    updateCount();
+  function warnings(messages) {
+    // Details about retired switches belong in contributor notes, not this tab.
+    const relevant = messages.filter(
+      (message) => !message.includes("Removed a") && !message.includes("Removed an"),
+    );
+    $("warnings").textContent = relevant.join("\n");
+    $("warnings").hidden = !relevant.length;
   }
-  function renderPreview(result) {
+  function renderPreview(result, rewrite = true) {
     if (result.fileErrors?.length) result = { ...result, error: result.fileErrors.join("\n") };
     if (result.fileRevision && result.fileRevision !== fileRevision)
-      result = {
-        ...result,
-        error: "Flags file changed on disk. Reload from file to review it before saving.",
-      };
+      result = { ...result, error: "Flags changed on disk. Reload before saving." };
     fileError = Boolean(result.error);
-    $("restart").disabled = dirty || fileError;
     validation(result);
-    if (result.error) {
-      $("effective").value = "Resolve the error above to preview this draft.";
-      return false;
+    // Malformed files still expose their literal text for repair.
+    if (rewrite && result.editableFlags !== undefined) {
+      $("flags").value = result.editableFlags;
+      if (result.originalArgs?.length)
+        $("flags").value +=
+          "\n# Command line (this session):\n" +
+          result.originalArgs.map((arg) => "# " + arg).join("\n");
+      if (document.activeElement !== $("flags")) {
+        $("flags").setSelectionRange(0, 0);
+        $("flags").scrollTop = 0;
+      }
+      controls();
     }
-    $("effective").value = result.normalEffective.join("\n") || "(No launch flags)";
-    $("layers").replaceChildren();
-    for (const layer of result.layers) {
-      if (!layer.flags.length) continue;
-      const section = document.createElement("div");
-      section.className = "layer";
-      const heading = document.createElement("h3");
-      heading.textContent = layer.name;
-      const flags = document.createElement("code");
-      flags.textContent = layer.flags.join("\n");
-      section.append(heading, flags);
-      $("layers").append(section);
-    }
-    return true;
+    enableControls(true);
   }
-  async function preview() {
+  async function preview(rewrite = false) {
     if (saving || loading) return;
     const ticket = ++generation;
     try {
       const result = await window.LaunchSettings.preview(clone(config));
-      if (ticket === generation && !saving && !loading) renderPreview(result);
+      if (ticket === generation) renderPreview(result, rewrite);
     } catch (failure) {
-      if (ticket === generation) error(failure.message);
+      if (ticket === generation) {
+        fileError = true;
+        error(failure.message);
+        enableControls(true);
+      }
     }
+  }
+  function option(key, item) {
+    const row = document.createElement("div");
+    row.className = "flag-row";
+    const copy = document.createElement("div");
+    const label = document.createElement("label");
+    label.htmlFor = key;
+    const icon = document.createElement("span");
+    icon.className = "risk-icon";
+    icon.setAttribute("role", "img");
+    icon.setAttribute("aria-label", "May break Discord");
+    icon.title = "May break Discord";
+    icon.innerHTML = warningIcon;
+    label.append(icon, item.label);
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.id = key + "-help";
+    hint.textContent = item.description;
+    const input = document.createElement("input");
+    input.id = key;
+    input.name = key;
+    input.type = "checkbox";
+    input.className = "flag-switch";
+    input.setAttribute("aria-describedby", hint.id);
+    input.addEventListener("change", () => configure(item.flags, input.checked ? item.flags : []));
+    copy.append(label, hint);
+    row.append(copy, input);
+    $("breaking-options").append(row);
   }
   async function load() {
     if (loading || saving) return;
@@ -156,8 +152,6 @@
     generation++;
     $("settings").inert = true;
     try {
-      if (!window.LaunchSettings)
-        throw new Error("Open this editor from Discord's OpenAsar settings.");
       data = await window.LaunchSettings.load();
       if (data.error) throw new Error(data.error);
       config = clone(data.config);
@@ -165,30 +159,39 @@
       saved = JSON.stringify(config);
       dirty = false;
       $("preset").replaceChildren();
+      for (const [key, item] of Object.entries(data.catalog.presets)) {
+        if (
+          !item.legacy ||
+          config.active === key ||
+          JSON.stringify(config.profiles[key]) !== JSON.stringify(data.defaults.profiles[key])
+        )
+          $("preset").add(new Option(item.label, key));
+      }
+      $("preset").value = config.active;
       $("backend").replaceChildren();
-      for (const [key, item] of Object.entries(data.catalog.presets))
-        $("preset").add(new Option(item.label, key));
       for (const [key, item] of Object.entries(data.catalog.backends))
         $("backend").add(new Option(item.label, key));
-      $("display").value = config.display;
-      $("extra-flags").value = config.extra;
-      $("flags-file").textContent = data.flagsFile;
-      $("warnings").textContent = data.warnings.join("\n");
-      $("warnings").hidden = !data.warnings.length;
+      $("breaking-options").replaceChildren();
+      for (const [key, item] of Object.entries({
+        ...data.catalog.video,
+        ...data.catalog.experiments,
+      }))
+        option(key, item);
+      document.querySelectorAll(".risk-icon").forEach((icon) => {
+        icon.innerHTML = warningIcon;
+      });
+      $("flags").title = data.flagsFile;
+      warnings(data.warnings);
       $("recovery").hidden = !data.recovery;
-      $("restart").textContent = data.recovery ? "Restart with saved flags" : "Restart Discord";
-      $("restart").disabled = false;
-      $("discard").disabled = false;
       $("settings").hidden = false;
       $("loading").hidden = true;
-      renderPreset();
+      $("status").textContent = "";
       renderPreview(data);
-      $("status").textContent = "Changes apply after restarting Discord.";
     } catch (failure) {
-      $("loading").hidden = true;
       fileError = true;
-      $("restart").disabled = true;
+      $("loading").hidden = true;
       error(failure.message);
+      restartState();
     } finally {
       loading = false;
       $("settings").inert = false;
@@ -196,39 +199,33 @@
   }
   $("preset").addEventListener("change", () => {
     config.active = $("preset").value;
-    renderPreset();
-    markDirty();
+    enableControls(false);
+    markDirty(true);
   });
   $("display").addEventListener("change", () => {
-    config.display = $("display").value;
-    markDirty();
+    const display = $("display").value;
+    config.display = display;
+    // Automatic returns this preset to dynamic session detection.
+    configure(
+      ["--ozone-platform"],
+      active().replaceDefaults && display !== "auto" ? ["--ozone-platform=" + display] : [],
+    );
   });
   $("backend").addEventListener("change", () => {
-    active().backend = $("backend").value;
-    markDirty();
+    const all = Object.values(data.catalog.backends).flatMap((item) => item.flags);
+    configure(all, data.catalog.backends[$("backend").value].flags);
   });
-  $("preset-flags").addEventListener("input", () => {
-    active().flags = $("preset-flags").value;
-    markDirty();
-  });
-  $("extra-flags").addEventListener("input", () => {
-    config.extra = $("extra-flags").value;
-    markDirty();
-  });
+  $("flags").addEventListener("input", () => edit($("flags").value));
   $("reset-preset").addEventListener("click", () => {
-    config.profiles[config.active] = clone(data.defaults.profiles[config.active]);
-    renderPreset();
-    markDirty();
-  });
-  $("discard").addEventListener("click", () => {
     if (saving || loading) return;
-    clearTimeout(previewTimer);
-    generation++;
-    void load();
+    config.profiles[config.active] = clone(data.defaults.profiles[config.active]);
+    enableControls(false);
+    markDirty(true);
   });
+  $("discard").addEventListener("click", () => void load());
   $("settings").addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (saving || loading) return;
+    if (saving || loading || pending) return;
     saving = true;
     clearTimeout(previewTimer);
     const ticket = ++generation;
@@ -236,44 +233,41 @@
     $("save").setAttribute("aria-disabled", "true");
     $("save").textContent = "Saving…";
     $("discard").disabled = true;
+    restartState();
     try {
       const result = await window.LaunchSettings.save(submitted, fileRevision);
       if (result.error) {
         fileError = true;
-        $("restart").disabled = true;
         validation(result, true);
         return;
       }
       fileRevision = result.fileRevision;
-      $("warnings").textContent = result.warnings.join("\n");
-      $("warnings").hidden = !result.warnings.length;
       saved = JSON.stringify(submitted);
       dirty = JSON.stringify(config) !== saved;
+      warnings(result.warnings);
       if (ticket === generation) renderPreview(result);
-      else previewTimer = setTimeout(preview, 0);
-      generation++;
-      $("status").textContent = dirty
-        ? "Saved. You have additional unsaved changes."
-        : "Saved. Restart Discord to apply.";
-      $("restart").disabled = dirty || fileError;
+      else previewTimer = setTimeout(() => preview(true), 0);
+      $("status").textContent = dirty ? "Saved. More changes pending." : "Saved. Restart to apply.";
     } catch (failure) {
+      fileError = true;
       error(failure.message);
     } finally {
       saving = false;
       $("save").removeAttribute("aria-disabled");
-      $("save").textContent = "Save changes";
+      $("save").textContent = "Save";
       $("discard").disabled = false;
+      restartState();
     }
   });
-  $("restart").addEventListener("click", async () => {
-    if (dirty || fileError) return;
+  $("b_restart").onclick = async () => {
+    if (dirty || fileError || pending || saving) return;
     try {
       const result = await window.LaunchSettings.restart();
       if (result?.error) error(result.error);
     } catch (failure) {
       error(failure.message);
     }
-  });
+  };
   window.addEventListener("beforeunload", (event) => {
     if (dirty) {
       event.preventDefault();

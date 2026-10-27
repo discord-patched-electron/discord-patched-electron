@@ -212,18 +212,18 @@ class Launcher(unittest.TestCase):
             },
             details=True,
         )
-        self.assertIn("--disable-renderer-backgrounding", result["flags"])
+        self.assertNotIn("--disable-renderer-backgrounding", result["flags"])
         self.assertIn("--enable-features=Custom:Param/value", result["flags"])
         self.assertEqual(result["originalArgs"], [])
         self.assertNotIn("--ignore-gpu-blocklist", result["flags"])
         self.assertIn("# >>> OpenAsar launch presets v1", result["flagsFileContent"])
-        self.assertIn("--disable-renderer-backgrounding", result["flagsFileContent"])
+        self.assertNotIn("--disable-renderer-backgrounding", result["flagsFileContent"])
         relaunched = self.launch(
             config=result["flagsFileContent"],
             legacy="--stale-package-flag",
             settings={"openasar": {"cmdPreset": "battery", "customFlags": "--stale-setting"}},
         )
-        self.assertIn("--disable-renderer-backgrounding", relaunched)
+        self.assertNotIn("--disable-renderer-backgrounding", relaunched)
         self.assertIn("--enable-features=Custom:Param/value", relaunched)
         self.assertNotIn("--stale-package-flag", relaunched)
         self.assertNotIn("--stale-setting", relaunched)

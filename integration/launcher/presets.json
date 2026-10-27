@@ -4,32 +4,33 @@
   "runtime": "Electron 46 / Chromium 158",
   "presets": {
     "balanced": {
-      "label": "Balanced",
-      "description": "Recommended. Uses Chromium's rendering and scheduling defaults, with driver protections intact.",
+      "label": "Default",
+      "description": "Use the normal app settings.",
       "flags": ""
     },
     "performance": {
-      "label": "Responsive",
-      "description": "Keeps background timers and renderers active. May improve background responsiveness at the cost of CPU use and battery life; does not raise the display refresh rate.",
-      "flags": "--disable-background-timer-throttling\n--disable-renderer-backgrounding"
+      "label": "Custom",
+      "description": "Keep a separate set of launch options.",
+      "flags": ""
     },
     "efficiency": {
-      "label": "Efficiency",
-      "description": "Explicitly keeps intensive background timer throttling enabled. This is already Chromium's default; battery-life gains are not guaranteed.",
-      "flags": "--enable-features=IntensiveWakeUpThrottling"
+      "label": "Custom 2",
+      "description": "Your other saved launch options.",
+      "flags": "",
+      "legacy": true
     }
   },
   "backends": {
     "auto": {
-      "label": "Automatic (recommended)",
+      "label": "Automatic",
       "flags": []
     },
     "gl": {
-      "label": "ANGLE OpenGL (experimental override)",
+      "label": "OpenGL",
       "flags": ["--use-gl=angle", "--use-angle=gl"]
     },
     "vulkan": {
-      "label": "ANGLE Vulkan (experimental)",
+      "label": "Vulkan",
       "flags": [
         "--use-gl=angle",
         "--use-angle=vulkan",
@@ -39,102 +40,69 @@
   },
   "video": {
     "decode": {
-      "label": "Force hardware video decoding",
-      "description": "Experimental override. Requests Chromium's Linux decoder and OpenGL path; drivers and codecs still decide availability. Usually already enabled on supported Intel/AMD systems.",
+      "label": "Force video decoding",
+      "description": "Use the GPU to play videos.",
       "flags": ["--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL"]
     },
     "encode": {
-      "label": "Force hardware video encoding",
-      "description": "Experimental; known to crash the GPU on the tested RX 7900 GRE. Requests Chromium/WebCodecs encoding, not Discord's separate voice/video engine. Leave off unless testing.",
+      "label": "Force video encoding",
+      "description": "Use the GPU to encode videos.",
       "flags": ["--enable-features=AcceleratedVideoEncoder"]
     }
   },
   "experiments": {
     "forceAcceleration": {
-      "label": "Force acceleration and bypass GPU checks",
-      "description": "Experimental mode for this preset. Bypasses the GPU blocklist and Linux video vendor checks; forces GPU painting and requests hardware decoding. Can crash or corrupt rendering. Enable encoding separately below.",
-      "group": "acceleration",
+      "label": "Force acceleration",
+      "description": "Use the GPU even when driver checks block it.",
       "flags": [
         "--ignore-gpu-blocklist",
         "--enable-gpu-rasterization",
         "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs"
       ]
     },
-    "rasterization": {
-      "label": "Force GPU rasterization",
-      "description": "Forces GPU painting, including past the rasterization blocklist. Usually already enabled; can expose driver failures.",
-      "flags": ["--enable-gpu-rasterization"]
-    },
-    "zeroCopy": {
-      "label": "Zero-copy raster buffers",
-      "description": "Changes CPU-raster buffer uploads. GPU rasterization uses a different provider; this does not enable zero-copy video.",
-      "flags": ["--enable-zero-copy"]
-    },
-    "overlays": {
-      "label": "Request hardware overlay strategies",
-      "description": "Requests fullscreen, on-top and underlay strategies, already chosen when overlays are supported. Does not bypass compositor requirements or guarantee direct scanout.",
-      "flags": ["--enable-hardware-overlays=single-fullscreen,single-on-top,underlay"]
-    },
-    "nvidiaVaapi": {
-      "label": "NVIDIA VA-API decoding",
-      "description": "Needs a compatible NVIDIA VA-API driver. Support varies by driver version; NVDEC support does not provide NVENC encoding.",
-      "flags": ["--enable-features=VaapiOnNvidiaGPUs"]
-    },
-    "vaapiDriverChecks": {
-      "label": "Bypass Vulkan VA-API vendor check",
-      "description": "Allows the Vulkan decoder path on non-Intel GPUs. Passed a short AMD playback test, but remains unsupported and may crash. Does not bypass every VA-API or GPU check.",
-      "flags": ["--enable-features=VaapiIgnoreDriverChecks"]
-    },
-    "gpuBlocklist": {
-      "label": "Bypass the GPU blocklist",
-      "description": "Removes Chromium's protection against known driver failures. Only use to test a specific driver workaround.",
-      "flags": ["--ignore-gpu-blocklist"]
-    },
     "driverWorkarounds": {
-      "label": "Disable GPU driver workarounds",
-      "description": "Disables Chromium's driver bug fixes. Can cause crashes, corruption or performance regressions.",
+      "label": "Skip driver fixes",
+      "description": "Turn off workarounds for known GPU bugs.",
       "flags": ["--disable-gpu-driver-bug-workarounds"]
     },
-    "uncapped": {
-      "label": "Uncap rendering",
-      "description": "Disables frame-rate limiting and GPU vsync. Can increase power use, tearing and latency; not a general smoothness fix.",
-      "flags": ["--disable-frame-rate-limit"]
-    },
-    "zeroCopyVideo": {
-      "label": "Request zero-copy video imports",
-      "description": "Uses NV12/P010 imports where supported. Already enabled by this runtime; unrelated to zero-copy raster buffers. Driver support still applies.",
-      "flags": ["--enable-features=AcceleratedVideoDecodeLinuxZeroCopyGL"]
-    },
-    "nativeBuffers": {
-      "label": "Force native GPU memory buffers",
-      "description": "Allows additional native buffer allocations, including CPU-mappable DMA-BUF formats. Does not force every video frame into native buffers or repair hardware encoding.",
-      "flags": ["--enable-native-gpu-memory-buffers"]
-    },
-    "overlayDelegation": {
-      "label": "Wayland overlay delegation",
-      "description": "Experimental subsurface composition. Requires viewporter and single-pixel buffers; blocked while fractional scaling is available. Can affect scaling or cause flicker.",
-      "flags": ["--enable-features=WaylandOverlayDelegation"]
-    },
-    "doubleBuffer": {
-      "label": "Double-buffer compositing",
-      "description": "Reduces the compositor buffer queue from three to two. May reduce queued frames but can worsen stutter when rendering misses a deadline. No measured latency gain.",
-      "flags": ["--double-buffer-compositing"]
-    },
     "graphiteForce": {
-      "label": "Force Skia Graphite (WIP)",
-      "description": "Bypasses the Linux platform guard using the test-only Dawn Vulkan backend. This combination crashed the tested RX 7900 GRE before playback. Use --ignore-flags if startup fails.",
-      "group": "wip",
+      "label": "Graphite renderer",
+      "description": "Use the newer graphics renderer.",
       "flags": ["--enable-skia-graphite", "--skia-graphite-dawn-backend=vulkan"]
-    },
-    "compositorBuffers": {
-      "label": "GPU memory buffers for compositor resources (WIP)",
-      "description": "Forces a compositor-resource path normally disabled on Linux. Separate from video-frame buffers; may change memory use or break rendering.",
-      "group": "wip",
-      "flags": ["--enable-gpu-memory-buffer-compositor-resources"]
     }
   },
   "retiredExperiments": {
-    "graphite": "Removed the old Graphite checkbox because its feature flag is blocked on Linux. To test the stronger override, select Force Skia Graphite (WIP) explicitly.",
-    "videoBuffers": "Removed the video-frame buffers checkbox because its enable switch has no effect on Linux; this path is already enabled by default."
+    "graphite": "Removed an ineffective graphics override.",
+    "videoBuffers": "Removed an ineffective graphics override.",
+    "rasterization": "Removed a redundant or low-value graphics override.",
+    "zeroCopy": "Removed a redundant or low-value graphics override.",
+    "overlays": "Removed a redundant or low-value graphics override.",
+    "nvidiaVaapi": "Removed a redundant or low-value graphics override.",
+    "vaapiDriverChecks": "Removed a redundant or low-value graphics override.",
+    "gpuBlocklist": "Removed a redundant or low-value graphics override.",
+    "uncapped": "Removed a redundant or low-value graphics override.",
+    "zeroCopyVideo": "Removed a redundant or low-value graphics override.",
+    "nativeBuffers": "Removed a redundant or low-value graphics override.",
+    "overlayDelegation": "Removed a redundant or low-value graphics override.",
+    "doubleBuffer": "Removed a redundant or low-value graphics override.",
+    "compositorBuffers": "Removed a redundant or low-value graphics override."
+  },
+  "retiredPresetFlags": {
+    "performance": "--disable-background-timer-throttling\n--disable-renderer-backgrounding",
+    "efficiency": "--enable-features=IntensiveWakeUpThrottling"
+  },
+  "retiredFlags": {
+    "rasterization": ["--enable-gpu-rasterization"],
+    "zeroCopy": ["--enable-zero-copy"],
+    "overlays": ["--enable-hardware-overlays=single-fullscreen,single-on-top,underlay"],
+    "nvidiaVaapi": ["--enable-features=VaapiOnNvidiaGPUs"],
+    "vaapiDriverChecks": ["--enable-features=VaapiIgnoreDriverChecks"],
+    "gpuBlocklist": ["--ignore-gpu-blocklist"],
+    "uncapped": ["--disable-frame-rate-limit"],
+    "zeroCopyVideo": ["--enable-features=AcceleratedVideoDecodeLinuxZeroCopyGL"],
+    "nativeBuffers": ["--enable-native-gpu-memory-buffers"],
+    "overlayDelegation": ["--enable-features=WaylandOverlayDelegation"],
+    "doubleBuffer": ["--double-buffer-compositing"],
+    "compositorBuffers": ["--enable-gpu-memory-buffer-compositor-resources"]
   }
 }

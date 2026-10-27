@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-27",
+  "branch": "fix/video-playback-gpu-flags",
+  "passed": true,
+  "runtime_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+  "runtime": {
+    "electron": "46.0.0-alpha.1",
+    "chrome": "158.0.8114.0",
+    "node": "24.22.1"
+  },
+  "checks": [
+    "One OpenAsar window, three tabs, one flags box and collapsed risky options",
+    "Convenience switches preserve automatic display and codec paths",
+    "Invalid flags announce an error, focus the field and block restart",
+    "Manual edits and video controls persist per preset and survive tab changes",
+    "Reopening retains flags; ordinary OpenAsar settings cannot overwrite them",
+    "External edits block stale saves; one-box edits preserve inactive presets",
+    "Risky controls update one box; manual overrides, reset and reload stay in sync",
+    "Named native controls, keyboard tabs, 320px, RTL and 200% zoom pass",
+    "Recovery repairs a broken file, backs it up and restarts without the recovery switch"
+  ],
+  "suites": {
+    "python": 278,
+    "javascript": 69,
+    "lint": "passed"
+  },
+  "screenshots": [
+    "out/openasar-tabs-reviewed/editor.png",
+    "out/openasar-tabs-reviewed/breaking.png"
+  ],
+  "review": {
+    "writing": "No actionable writing findings in the changed Flags tab. Labels and descriptions checked against their actions.",
+    "layout": "No actionable layout findings in the changed tab at 500x650, 320px, RTL and 200% zoom.",
+    "accessibility": "Named controls, keyboard tab navigation, warning icon names and inline validation checked. No actionable findings in this scope.",
+    "not_verified": [
+      "Full screen-reader speech walk",
+      "Long translated strings",
+      "Live Discord calls"
+    ],
+    "disposition": "Approve for the inspected scope"
+  }
+}

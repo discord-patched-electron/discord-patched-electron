@@ -55,7 +55,11 @@ module.exports = function assetHandler(
     if (parsed.host !== "app") return new Response(null, { status: 404 });
     const name = parsed.pathname.slice(1);
     try {
-      if (["launch-settings.html", "launch-settings.js", "launch-settings.css"].includes(name)) {
+      if (
+        ["launch-settings.js", "launch-settings.css", "config-tabs.js", "flag-editor.js"].includes(
+          name,
+        )
+      ) {
         const contents = await fs.readFile(path.join(__dirname, name));
         return new Response(contents, {
           headers: {

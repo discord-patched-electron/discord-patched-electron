@@ -71,7 +71,8 @@ test("upstream settings and its local editor work without remote executable code
   const config = await handler({ url: "dpe-splash://app/config.html" });
   assert.equal(config.status, 200);
   const adapted = await config.text();
-  assert.match(adapted, /Launch presets and flags/);
+  assert.match(adapted, /id="t_flags" role="tab"/);
+  assert.equal((adapted.match(/<textarea/g) || []).length, 1);
   assert.ok(!adapted.includes("[ 'Focus',"));
   assert.equal(
     createHash("sha256")
@@ -81,7 +82,12 @@ test("upstream settings and its local editor work without remote executable code
       .digest("hex"),
     source.config_sha256,
   );
-  for (const name of ["launch-settings.html", "launch-settings.js", "launch-settings.css"]) {
+  for (const name of [
+    "launch-settings.js",
+    "launch-settings.css",
+    "config-tabs.js",
+    "flag-editor.js",
+  ]) {
     const local = await handler({ url: "dpe-splash://app/" + name });
     assert.equal(local.status, 200);
     assert.match(local.headers.get("content-security-policy"), /connect-src 'none'/);
