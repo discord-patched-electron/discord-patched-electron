@@ -27,6 +27,13 @@ AMD RX 7900 GRE; leave it off unless testing. These controls affect Chromium med
 not Discord's separate call codec engine. Obsolete controls are removed with a
 notice while preserving your other edits.
 
+**Force acceleration and bypass GPU checks** requests GPU painting and hardware
+decoding while bypassing the GPU blocklist and video vendor checks. Encoding has
+its own checkbox. Under **Work-in-progress options**, you can explicitly force
+Graphite or compositor memory buffers. Each option shows its flags, is saved per
+preset, and starts off. Graphite currently crashes on the tested AMD GPU; recovery
+with `--ignore-flags` skips these options too.
+
 **Next launch** shows the merged arguments and their sources. One flag goes on
 each line; blank lines and `#` comments are allowed. Manual flags override preset
 checkboxes. **Restore this preset's defaults** changes the draft until you save.

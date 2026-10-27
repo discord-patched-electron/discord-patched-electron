@@ -55,6 +55,7 @@ Feature names in this table go inside `--enable-features=` or
 | `--num-raster-threads=N`                                                    | Clamped to **1–4** in this version, normally selected from CPU count. Recipes using 8/16 do not obtain that many raster workers here.                                                                                                                        |
 | `--use-cmd-decoder=passthrough`                                             | Redundant for this ANGLE build: the validating decoder is compiled out. Requesting `validating` is ignored with a warning.                                                                                                                                   |
 | `--ignore-gpu-blocklist`                                                    | Broad GPU protection bypass. Distinct from VA-API vendor checks and driver bug workarounds.                                                                                                                                                                  |
+| `SkipVulkanBlocklist`                                                       | The inspected use in `IsVulkanSupported()` is in the Android branch. It is not added to the Linux bypass bundle merely because the feature is defined.                                                                                                       |
 | `--disable-gpu-driver-bug-workarounds`                                      | Disables driver-specific fixes; spelling is plural. No evidence of a general speed or efficiency improvement.                                                                                                                                                |
 
 Primary source paths: [media features][media], [Linux decoder implementation][decoder],
@@ -79,8 +80,11 @@ Testing it with `--skia-graphite-dawn-backend=vulkan` produced a GPU crash and n
 WebGL context before playback. This is evidence against **that combination on
 this machine**, not a test of every Graphite backend. The ineffective checkbox is
 retired; saved selections receive a notice and are removed from the resolved
-configuration. They are never upgraded to the stronger switch. The manual editor
-still accepts testing switches. See [Graphite platform guard][graphite].
+configuration. They are never upgraded to the stronger switch. The subsequent
+**Force Skia Graphite (WIP)** control explicitly requests the tested
+`--enable-skia-graphite --skia-graphite-dawn-backend=vulkan` combination under a new
+`graphiteForce` key. It starts off; selecting the acceleration bypass does not
+select it. The manual editor also accepts testing switches. See [Graphite platform guard][graphite].
 
 ### Vulkan playback has a vendor gate beyond Vulkan rendering
 

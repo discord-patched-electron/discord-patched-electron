@@ -108,6 +108,30 @@ window has a sandboxed preload, local assets/CSP and IPC scoped to its own main 
 It uses native form controls, labelled descriptions, inline errors, unsaved-change
 protection, draft reset and explicit Save/Restart actions.
 
+## Explicit bypass and WIP controls
+
+The subsequent experimental-controls update adds a prominent per-preset
+**Force acceleration and bypass GPU checks** checkbox. It requests
+`--ignore-gpu-blocklist`, `--enable-gpu-rasterization` and the features
+`AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs`.
+It does not claim a driver can accelerate an unsupported codec. Hardware encoding
+remains independent; users can also select each existing bypass individually.
+
+**Work-in-progress options** exposes the actual Graphite test override
+(`--enable-skia-graphite --skia-graphite-dawn-backend=vulkan`) and
+`--enable-gpu-memory-buffer-compositor-resources`. Each shows its exact flags.
+The Graphite control uses a new `graphiteForce` key, so retired `graphite`
+selections never activate the stronger override. Its known startup crash is
+stated beside the checkbox. No sandbox or GPU crash-limit bypass is bundled.
+
+These controls reuse the existing per-preset experiment list and schema. Turning
+off the acceleration bundle removes only that selection; individual overrides
+and WIP choices retain their own values. Reset/discard, manual feature precedence,
+and the early flags-free recovery path continue to apply. The native editor test
+covers selecting, saving, switching presets, reopening, reset/discard, accessibility
+and recovery with these controls. Runtime observations are recorded in
+[experimental-controls evidence](../evidence/experimental-acceleration.json).
+
 ## Validation and reproduction
 
 The verified runtime executable SHA-256 was

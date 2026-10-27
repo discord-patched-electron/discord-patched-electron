@@ -74,7 +74,12 @@
     parent.append(wrapper);
   }
   function updateCount() {
-    $("experiment-count").textContent = `(${active().experiments.length} enabled)`;
+    const count = (group) =>
+      active().experiments.filter(
+        (key) => (data.catalog.experiments[key].group || "advanced") === group,
+      ).length;
+    $("experiment-count").textContent = `(${count("advanced")} enabled)`;
+    $("wip-count").textContent = `(${count("wip")} enabled)`;
   }
   function renderPreset() {
     const selected = active();
@@ -83,23 +88,25 @@
     $("preset-flags").value = selected.flags;
     $("preset-flags").placeholder = "No extra flags. Chromium's defaults are used.";
     $("backend").value = selected.backend;
+    $("acceleration-options").replaceChildren();
     $("video-options").replaceChildren();
     $("experimental-options").replaceChildren();
+    $("wip-options").replaceChildren();
     for (const [key, item] of Object.entries(data.catalog.video))
       option($("video-options"), key, item, selected[key], (checked) => {
         selected[key] = checked;
       });
-    for (const [key, item] of Object.entries(data.catalog.experiments))
-      option(
-        $("experimental-options"),
-        key,
-        item,
-        selected.experiments.includes(key),
-        (checked) => {
-          selected.experiments = selected.experiments.filter((name) => name !== key);
-          if (checked) selected.experiments.push(key);
-        },
-      );
+    for (const [key, item] of Object.entries(data.catalog.experiments)) {
+      const target = {
+        acceleration: "acceleration-options",
+        wip: "wip-options",
+        advanced: "experimental-options",
+      }[item.group || "advanced"];
+      option($(target), key, item, selected.experiments.includes(key), (checked) => {
+        selected.experiments = selected.experiments.filter((name) => name !== key);
+        if (checked) selected.experiments.push(key);
+      });
+    }
     updateCount();
   }
   function renderPreview(result) {

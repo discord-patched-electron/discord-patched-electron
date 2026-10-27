@@ -50,6 +50,16 @@
     }
   },
   "experiments": {
+    "forceAcceleration": {
+      "label": "Force acceleration and bypass GPU checks",
+      "description": "Experimental mode for this preset. Bypasses the GPU blocklist and Linux video vendor checks; forces GPU painting and requests hardware decoding. Can crash or corrupt rendering. Enable encoding separately below.",
+      "group": "acceleration",
+      "flags": [
+        "--ignore-gpu-blocklist",
+        "--enable-gpu-rasterization",
+        "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs"
+      ]
+    },
     "rasterization": {
       "label": "Force GPU rasterization",
       "description": "Forces GPU painting, including past the rasterization blocklist. Usually already enabled; can expose driver failures.",
@@ -109,10 +119,22 @@
       "label": "Double-buffer compositing",
       "description": "Reduces the compositor buffer queue from three to two. May reduce queued frames but can worsen stutter when rendering misses a deadline. No measured latency gain.",
       "flags": ["--double-buffer-compositing"]
+    },
+    "graphiteForce": {
+      "label": "Force Skia Graphite (WIP)",
+      "description": "Bypasses the Linux platform guard using the test-only Dawn Vulkan backend. This combination crashed the tested RX 7900 GRE before playback. Use --ignore-flags if startup fails.",
+      "group": "wip",
+      "flags": ["--enable-skia-graphite", "--skia-graphite-dawn-backend=vulkan"]
+    },
+    "compositorBuffers": {
+      "label": "GPU memory buffers for compositor resources (WIP)",
+      "description": "Forces a compositor-resource path normally disabled on Linux. Separate from video-frame buffers; may change memory use or break rendering.",
+      "group": "wip",
+      "flags": ["--enable-gpu-memory-buffer-compositor-resources"]
     }
   },
   "retiredExperiments": {
-    "graphite": "Removed the old Graphite checkbox because SkiaGraphite is blocked on Linux. The stronger testing override was not enabled; it crashed the tested GPU.",
+    "graphite": "Removed the old Graphite checkbox because its feature flag is blocked on Linux. To test the stronger override, select Force Skia Graphite (WIP) explicitly.",
     "videoBuffers": "Removed the video-frame buffers checkbox because its enable switch has no effect on Linux; this path is already enabled by default."
   }
 }

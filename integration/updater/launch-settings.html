@@ -62,11 +62,13 @@
         </section>
         <section aria-labelledby="video-heading">
           <h2 id="video-heading">
-            Video acceleration <span class="tag">Experimental overrides</span>
+            Hardware acceleration <span class="tag">Experimental overrides</span>
           </h2>
+          <div id="acceleration-options"></div>
           <p class="hint">
-            Independent options for this preset. Unchecked means use Chromium's defaults, not
-            disable acceleration. Driver checks still apply.
+            Encoding and decoding can also be requested individually. Unchecked leaves the runtime
+            and your other flags in control. These requests still need working drivers and supported
+            hardware/codecs.
           </p>
           <div id="video-options"></div>
           <p class="hint">
@@ -90,6 +92,14 @@
               GPU, driver and frame pacing options <span id="experiment-count"></span>
             </summary>
             <div id="experimental-options"></div>
+          </details>
+          <details id="wip-details">
+            <summary>Work-in-progress options <span id="wip-count"></span></summary>
+            <p class="hint">
+              These explicitly force unfinished or unsupported paths. Select each one separately;
+              the acceleration bypass does not enable them. All flags are shown below each option.
+            </p>
+            <div id="wip-options"></div>
           </details>
         </section>
         <section aria-labelledby="extra-heading">

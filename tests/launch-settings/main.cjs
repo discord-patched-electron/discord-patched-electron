@@ -66,6 +66,12 @@ app
     await open();
     assert.equal(await get('$("preset").value'), "balanced");
     assert.equal(await get('$("decode").checked || $("encode").checked'), false);
+    assert.equal(
+      await get(
+        '$("forceAcceleration").checked || $("graphiteForce").checked || $("compositorBuffers").checked',
+      ),
+      false,
+    );
     assert.equal(await evaluate("typeof window.require"), "undefined");
     checks.push("Balanced defaults, independent codec controls and sandboxed preload");
 
@@ -109,8 +115,62 @@ app
       "Reopening persists edits; stale OpenAsar settings cannot overwrite launch settings",
     );
 
+    await evaluate('document.getElementById("wip-details").open = true');
+    for (const id of ["forceAcceleration", "graphiteForce", "compositorBuffers"])
+      await evaluate(`document.getElementById(${JSON.stringify(id)}).click()`);
+    await until(() =>
+      get(
+        '$("effective").value.includes("--enable-skia-graphite") && $("effective").value.includes("--ignore-gpu-blocklist")',
+      ),
+    );
+    assert.match(await get('$("effective").value'), /VaapiIgnoreDriverChecks/);
+    assert.match(
+      await get('$("effective").value'),
+      /--enable-gpu-memory-buffer-compositor-resources/,
+    );
+    assert.equal(await get('$("encode").checked'), false);
+    assert.equal(await get('$("wip-count").textContent'), "(2 enabled)");
+    assert.equal(await get('$("experiment-count").textContent'), "(0 enabled)");
+    await change("preset", "performance", "change");
+    assert.equal(await get('$("forceAcceleration").checked || $("graphiteForce").checked'), false);
+    await change("preset", "balanced", "change");
+    assert.equal(await get('$("forceAcceleration").checked && $("graphiteForce").checked'), true);
+    await evaluate('document.getElementById("forceAcceleration").click()');
+    await until(() => get('!$("effective").value.includes("--ignore-gpu-blocklist")'));
+    assert.match(await get('$("effective").value'), /--enable-skia-graphite/);
+    await evaluate('document.getElementById("forceAcceleration").click()');
+    await evaluate('document.getElementById("settings").requestSubmit()');
+    await until(() => get('$("status").textContent.startsWith("Saved.")'));
+    assert.deepEqual([...values.openasar.launchFlags.profiles.balanced.experiments].sort(), [
+      "compositorBuffers",
+      "forceAcceleration",
+      "graphiteForce",
+    ]);
+    window.destroy();
+    await open();
+    assert.equal(
+      await get(
+        '$("forceAcceleration").checked && $("graphiteForce").checked && $("compositorBuffers").checked',
+      ),
+      true,
+    );
+    await evaluate('document.getElementById("reset-preset").click()');
+    await until(() => get('!$("effective").value.includes("--enable-skia-graphite")'));
+    assert.equal(
+      await get(
+        '$("forceAcceleration").checked || $("graphiteForce").checked || $("compositorBuffers").checked',
+      ),
+      false,
+    );
+    await evaluate('document.getElementById("discard").click()');
+    await until(() => get('$("forceAcceleration").checked && $("graphiteForce").checked'));
+    checks.push(
+      "Acceleration bypass and WIP controls remain independent, persist per preset, and support reset/discard",
+    );
+
     const contents = window.webContents;
     await evaluate('document.getElementById("experiments-details").open = true');
+    await evaluate('document.getElementById("wip-details").open = true');
     contents.debugger.attach("1.3");
     const tree = await contents.debugger.sendCommand("Accessibility.getFullAXTree");
     const controls = tree.nodes.filter((node) =>
@@ -144,6 +204,16 @@ app
     await until(() => evaluate('document.activeElement.id === "display"'));
     fs.writeFileSync(path.join(output, "editor.png"), (await contents.capturePage()).toPNG());
     checks.push("320px, RTL and 200% zoom have no horizontal overflow; keyboard navigation works");
+
+    const recoveredFlags = await editor.resolve();
+    assert.ok(recoveredFlags.normalEffective.includes("--enable-skia-graphite"));
+    process.env.DPE_IGNORE_FLAGS = "1";
+    const ignoredFlags = await editor.resolve();
+    assert.deepEqual(ignoredFlags.effective, []);
+    assert.ok(ignoredFlags.normalEffective.includes("--enable-skia-graphite"));
+    checks.push(
+      "Recovery ignores saved acceleration and WIP flags while retaining them for repair",
+    );
 
     window.destroy();
     values.openasar.launchFlags = { schema: 999 };

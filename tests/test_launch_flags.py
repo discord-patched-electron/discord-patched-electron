@@ -134,6 +134,65 @@ class LaunchFlags(unittest.TestCase):
         self.assertTrue(warnings)
         self.assertEqual(result["profiles"]["efficiency"]["experiments"], [])
 
+    def test_acceleration_bypass_is_explicit_and_encoding_and_wip_stay_independent(self):
+        selected = self.config["profiles"]["balanced"]
+        selected["experiments"] = ["forceAcceleration"]
+        result = self.resolve()["effective"]
+        self.assertIn("--ignore-gpu-blocklist", result)
+        self.assertIn("--enable-gpu-rasterization", result)
+        enabled = next(v for v in result if v.startswith("--enable-features="))
+        for feature in (
+            "AcceleratedVideoDecoder",
+            "AcceleratedVideoDecodeLinuxGL",
+            "VaapiIgnoreDriverChecks",
+            "VaapiOnNvidiaGPUs",
+        ):
+            self.assertIn(feature, enabled)
+        self.assertNotIn("AcceleratedVideoEncoder", enabled)
+        self.assertNotIn("--enable-skia-graphite", result)
+        self.assertNotIn("--disable-gpu-driver-bug-workarounds", result)
+        selected["encode"] = True
+        self.assertTrue(any("AcceleratedVideoEncoder" in v for v in self.resolve()["effective"]))
+        self.config["active"] = "performance"
+        self.assertNotIn("--ignore-gpu-blocklist", self.resolve()["effective"])
+
+    def test_wip_options_reach_preview_and_launch_without_old_graphite_migration(self):
+        selected = self.config["profiles"]["balanced"]
+        selected["experiments"] = ["graphite", "graphiteForce", "compositorBuffers"]
+        result = self.resolve()
+        self.assertEqual(
+            result["config"]["profiles"]["balanced"]["experiments"],
+            ["graphiteForce", "compositorBuffers"],
+        )
+        self.assertIn("--enable-skia-graphite", result["effective"])
+        self.assertIn("--skia-graphite-dawn-backend=vulkan", result["effective"])
+        self.assertIn("--enable-gpu-memory-buffer-compositor-resources", result["effective"])
+        self.assertNotIn("--ignore-gpu-blocklist", result["effective"])
+        self.env["DPE_IGNORE_FLAGS"] = "1"
+        recovered = self.resolve()
+        self.assertEqual(recovered["effective"], [])
+        self.assertEqual(recovered["normalEffective"], result["effective"])
+
+    def test_manual_flags_override_bypass_features_and_disabling_bundle_keeps_individual_options(
+        self,
+    ):
+        selected = self.config["profiles"]["balanced"]
+        selected.update(
+            experiments=["forceAcceleration", "gpuBlocklist", "graphiteForce"],
+            flags="--disable-features=AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks\n--disable-gpu-rasterization\n--disable-skia-graphite",
+        )
+        result = self.resolve()["effective"]
+        enabled = next(v for v in result if v.startswith("--enable-features="))
+        self.assertNotIn("AcceleratedVideoDecodeLinuxGL", enabled)
+        self.assertNotIn("VaapiIgnoreDriverChecks", enabled)
+        self.assertIn("--disable-skia-graphite", result)
+        self.assertIn("--disable-gpu-rasterization", result)
+        selected["experiments"].remove("forceAcceleration")
+        result = self.resolve()["effective"]
+        self.assertIn("--ignore-gpu-blocklist", result)
+        self.assertIn("--enable-skia-graphite", result)
+        self.assertNotIn("--enable-gpu-rasterization", result)
+
     def test_retired_options_preserve_edits_without_enabling_stronger_replacements(self):
         self.config["profiles"]["balanced"].update(
             experiments=["graphite", "videoBuffers", "zeroCopy"], flags="--example=keep"
