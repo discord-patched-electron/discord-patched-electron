@@ -13,8 +13,8 @@ function open(tab = "settings") {
   }
   require("./window.cjs").register();
   window = new BrowserWindow({
-    width: 500,
-    height: 650,
+    width: 560,
+    height: 760,
     frame: false,
     resizable: false,
     minWidth: 320,
@@ -70,7 +70,18 @@ function open(tab = "settings") {
     ipcMain.on(name, listener);
     return [name, listener];
   });
+  ipcMain.handle("dpe-config-open-link", async (event, name) => {
+    if (event.sender !== window?.webContents || event.senderFrame !== window.webContents.mainFrame)
+      throw new Error("Invalid settings window");
+    const links = {
+      github: "https://github.com/discord-patched-electron/discord-patched-electron",
+      nvidia: "https://github.com/elFarto/nvidia-vaapi-driver",
+    };
+    if (!Object.hasOwn(links, name)) throw new Error("Unknown project link");
+    await shell.openExternal(links[name]);
+  });
   window.once("closed", () => {
+    ipcMain.removeHandler("dpe-config-open-link");
     for (const [name, listener] of listeners) ipcMain.removeListener(name, listener);
     window = null;
   });

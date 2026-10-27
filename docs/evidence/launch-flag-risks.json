@@ -1,0 +1,340 @@
+{
+  "date": "2026-10-27",
+  "runtime": {
+    "electron": "46.0.0-alpha.1",
+    "chrome": "158.0.8114.0"
+  },
+  "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+  "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+  "source_ref": "158.0.8114.0",
+  "sources": [
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/content/public/common/content_switches.cc",
+      "blob_sha": "aeec68d9de48351df2e8236ad5c1f1f3c2ee5740"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/content/public/browser/gpu_utils.cc",
+      "blob_sha": "f1e41883cfd2e506b0837231876b47d11c38c134"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/content/renderer/render_thread_impl.cc",
+      "blob_sha": "46d33ba8f9f30c52755d228ae7e8fdb49ceb16bb"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/gpu/config/gpu_util.cc",
+      "blob_sha": "837c62e54cedc7fdcb7c57962521736e5f260ec3"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/content/browser/gpu/compositor_util.cc",
+      "blob_sha": "39cab5c0f691073625e731a76fba6f182e5e88fe"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/media/capture/capture_switches.cc",
+      "blob_sha": "0d8a8814c11c75d21e8ea52c032f48e15c2c8315"
+    }
+  ],
+  "cases": [
+    {
+      "case": "baseline",
+      "flags": [],
+      "display": "wayland",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "enabled",
+        "video_decode": "enabled",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "34ab2fa707aa390f1d0f7a071bda5d072a49d1bef063a5df891c075ff3f3a204"
+    },
+    {
+      "case": "force-decode",
+      "flags": [
+        "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL"
+      ],
+      "display": "wayland",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "enabled",
+        "video_decode": "enabled",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "9e70fbb33b71025120efd96cbf48a90ae5dedb6f814c00077f09b189f050729d"
+    },
+    {
+      "case": "force-acceleration",
+      "flags": [
+        "--ignore-gpu-blocklist",
+        "--enable-gpu-rasterization",
+        "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs"
+      ],
+      "display": "wayland",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "enabled_force",
+        "video_decode": "enabled",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "00e3928ddcf34b73417f0406972dfe854bb9e7b65f173943f77a50df14d5e88d"
+    },
+    {
+      "case": "force-encode-1",
+      "flags": [
+        "--enable-features=AcceleratedVideoEncoder"
+      ],
+      "display": "wayland",
+      "passed": false,
+      "gpu_exits": [
+        "crashed"
+      ],
+      "codec_preferences_passed": false,
+      "gpu_features": {
+        "rasterization": "enabled",
+        "video_decode": "enabled",
+        "video_encode": "enabled",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "530a734918d73ba0452c90e868ccdf6f13b56e4dab9eb86996bef5bfa452694f"
+    },
+    {
+      "case": "force-encode-2",
+      "flags": [
+        "--enable-features=AcceleratedVideoEncoder"
+      ],
+      "display": "wayland",
+      "passed": false,
+      "gpu_exits": [
+        "crashed"
+      ],
+      "codec_preferences_passed": false,
+      "gpu_features": {
+        "rasterization": "enabled",
+        "video_decode": "enabled",
+        "video_encode": "enabled",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "339e17d13c44ac6211d862ecf1d0f425c8afbc2ca0ef6945c07d7826b130ec71"
+    },
+    {
+      "case": "graphite-1",
+      "flags": [
+        "--enable-skia-graphite",
+        "--skia-graphite-dawn-backend=vulkan"
+      ],
+      "display": "wayland",
+      "passed": false,
+      "gpu_exits": [
+        "crashed",
+        "crashed",
+        "crashed"
+      ],
+      "codec_preferences_passed": null,
+      "gpu_features": {
+        "rasterization": null,
+        "video_decode": null,
+        "video_encode": null,
+        "webgl": null
+      },
+      "decoders": [],
+      "report_sha256": "391c3e4b7b2795426ce6da8503bb4a5f887dd235ce23a6fe1d5653db2b570b8b"
+    },
+    {
+      "case": "graphite-2",
+      "flags": [
+        "--enable-skia-graphite",
+        "--skia-graphite-dawn-backend=vulkan"
+      ],
+      "display": "wayland",
+      "passed": false,
+      "gpu_exits": [
+        "crashed",
+        "crashed",
+        "crashed"
+      ],
+      "codec_preferences_passed": null,
+      "gpu_features": {
+        "rasterization": null,
+        "video_decode": null,
+        "video_encode": null,
+        "webgl": null
+      },
+      "decoders": [],
+      "report_sha256": "391c3e4b7b2795426ce6da8503bb4a5f887dd235ce23a6fe1d5653db2b570b8b"
+    },
+    {
+      "case": "software-decode",
+      "flags": [
+        "--disable-accelerated-video-decode"
+      ],
+      "display": "wayland",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "enabled",
+        "video_decode": "disabled_software",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "Dav1dVideoDecoder",
+        "FFmpegVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "8f58bce83b04a6be17c44aaf75f755a29ee229a53b0252979715e4c621d46633"
+    },
+    {
+      "case": "software-encode",
+      "flags": [
+        "--disable-accelerated-video-encode",
+        "--disable-features=AcceleratedVideoEncoder"
+      ],
+      "display": "wayland",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "enabled",
+        "video_decode": "enabled",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "75064253cbd0bcfd14efbd2b40b959fd3b3dbbc9203cf6de26ad2e5404b8ad83"
+    },
+    {
+      "case": "baseline-after",
+      "flags": [],
+      "display": "wayland",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "enabled",
+        "video_decode": "enabled",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "10e1affc782192ef010f9deebd51c28574b2a3dce8d80d85ce434ccf63efd104"
+    },
+    {
+      "case": "software-raster",
+      "flags": [
+        "--disable-gpu-rasterization"
+      ],
+      "display": "wayland",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "disabled_software",
+        "video_decode": "enabled",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "69941d2229e3d9fbf261bf87d96bf6b9613c0b766ea3e17a2dc697208232ecec"
+    },
+    {
+      "case": "software-video-and-raster",
+      "flags": [
+        "--disable-gpu-rasterization",
+        "--disable-accelerated-video-decode"
+      ],
+      "display": "wayland",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "disabled_software",
+        "video_decode": "disabled_software",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "Dav1dVideoDecoder",
+        "FFmpegVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "4b1d5b45bb3d47fd6ad2072b03a200bba23327d9fd11a0942dcd8ca2a78ffa61"
+    },
+    {
+      "case": "software-raster-x11",
+      "flags": [
+        "--disable-gpu-rasterization"
+      ],
+      "display": "x11",
+      "passed": true,
+      "gpu_exits": [],
+      "codec_preferences_passed": true,
+      "gpu_features": {
+        "rasterization": "disabled_software",
+        "video_decode": "enabled",
+        "video_encode": "disabled_software",
+        "webgl": "enabled"
+      },
+      "decoders": [
+        "FFmpegVideoDecoder",
+        "VaapiVideoDecoder",
+        "VpxVideoDecoder"
+      ],
+      "report_sha256": "a34959fa23fe4b1929426de7c0ff0ab9fbd67dbab27385c9f8969b2442d6bb03"
+    }
+  ],
+  "known_crash_options": [
+    "encode",
+    "graphiteForce"
+  ],
+  "limits": [
+    "Known to crash means reproduced in both fresh local runs, not guaranteed failure on every GPU or every use.",
+    "Synthetic media only; no account login, calls, messages, physical camera capture or desktop recording.",
+    "No latency, power or speed improvement is claimed for any option."
+  ],
+  "local_artifacts": "out/flags-risk-research"
+}

@@ -12,13 +12,38 @@ body {
   flex-direction: column;
 }
 header {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 16px;
   margin-block-end: 24px;
 }
 header > h1 {
   margin: 0 0 16px;
+  overflow-wrap: anywhere;
+}
+#config-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 0;
+  color: #ddd;
+  text-decoration: none;
+  -webkit-app-region: no-drag;
+}
+#config-github:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+#config-github svg {
+  position: static;
+  width: 18px;
+  height: 18px;
+  flex: none;
 }
 nav {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
@@ -89,23 +114,31 @@ button[aria-disabled="true"] {
   font-size: 14px;
   line-height: 1.4;
 }
-#breaking {
+.hint a {
+  color: #b9c1ff;
+  text-underline-offset: 2px;
+}
+#advanced {
   margin-block: 4px 20px;
 }
-#breaking summary {
+#advanced summary {
   cursor: pointer;
   font-size: 18px;
   font-weight: 700;
   min-height: 30px;
 }
-#breaking > .hint {
+#advanced > .hint {
   margin-block: 4px 20px;
 }
 .risk-icon {
-  color: #ff8585;
+  color: #b5b8bf;
   display: inline-flex;
   margin-inline-end: 6px;
   vertical-align: middle;
+}
+.risk-icon.danger,
+.crash-warning {
+  color: #ff8585;
 }
 .risk-icon svg {
   width: 18px;
@@ -140,7 +173,8 @@ button[aria-disabled="true"] {
 .flags-label {
   display: block;
 }
-#flags {
+#flags,
+#essential-flags {
   display: block;
   width: 100%;
   min-height: 100px;
@@ -162,12 +196,39 @@ button[aria-disabled="true"] {
   justify-content: flex-end;
   gap: 8px;
   margin-block-start: 10px;
+  align-items: center;
+}
+#essential-flags:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.essential-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-end: auto;
+  min-height: 32px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.essential-toggle input {
+  appearance: auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+#essential-section {
+  margin-block-start: 16px;
+}
+#essential-help {
+  overflow-wrap: anywhere;
 }
 .flag-actions button {
   font-size: 14px;
   padding: 6px 16px;
 }
-#reset-preset,
+#reset-flags,
 #discard {
   background: var(--background-secondary);
 }
@@ -177,11 +238,13 @@ button[aria-disabled="true"] {
   font-size: 14px;
   color: #b5b8bf;
 }
-#error {
+#error,
+#external-link-error {
   color: #ffaaaa;
   white-space: pre-line;
 }
 #error,
+#external-link-error,
 #warnings,
 .recovery-help {
   overflow-wrap: anywhere;
@@ -189,6 +252,33 @@ button[aria-disabled="true"] {
 .recovery-help code {
   user-select: text;
   font-size: 12px;
+}
+.recovery-help {
+  margin-block-end: 20px;
+  padding: 12px;
+  border: 1px solid #5f95ee;
+  border-radius: 6px;
+  background: #263954;
+  color: #d9e8ff;
+}
+.recovery-help h2 {
+  margin: 0;
+  color: #d9e8ff;
+  font-size: 16px;
+  font-weight: 700;
+}
+.recovery-help p {
+  margin: 6px 0 10px;
+  font-size: 14px;
+}
+.recovery-help pre {
+  margin: 0;
+  padding: 10px;
+  border-radius: 4px;
+  background: #192a43;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 .switch:focus-within {
   outline: 2px solid #b9c1ff;
@@ -203,6 +293,9 @@ button[aria-disabled="true"] {
   }
   .flag-row select {
     width: 105px;
+  }
+  .essential-toggle {
+    flex-basis: 100%;
   }
   body > footer button {
     padding-inline: 20px;

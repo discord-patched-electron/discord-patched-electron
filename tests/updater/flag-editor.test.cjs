@@ -39,7 +39,30 @@ test("the editor shows final feature states after manual overrides", () => {
   );
 });
 
-test("editing the complete list preserves external flags in inactive presets only once", () => {
+test("software fallbacks override forced acceleration without removing unrelated flags", () => {
+  const catalog = require("../../integration/launcher/presets.json");
+  const forced = catalog.experiments.forceAcceleration;
+  const software = catalog.experiments.softwareDecode;
+  const input = [...forced.flags, "--custom=kept"].join("\n");
+  const raw = input + "\n--disable-accelerated-video-decode";
+  assert.equal(editor.selected(raw, forced), false);
+  assert.equal(editor.selected(raw, catalog.video.decode), false);
+  assert.equal(editor.selected(raw, software), true);
+  const fallback = editor.replace(input, software.removes, software.flags);
+  assert.equal(editor.selected(fallback, software), true);
+  assert.equal(editor.selected(fallback, catalog.video.decode), false);
+  assert.match(fallback, /--custom=kept/);
+  assert.match(fallback, /VaapiOnNvidiaGPUs/);
+  const restored = editor.replace(fallback, forced.removes, forced.flags);
+  assert.equal(editor.selected(restored, forced), true);
+  assert.equal(editor.selected(restored, software), false);
+  const cpu = editor.replace(restored, [], catalog.experiments.softwareRaster.flags);
+  assert.equal(editor.selected(cpu, forced), false);
+  assert.equal(editor.selected(cpu, catalog.experiments.softwareRaster), true);
+  assert.equal(editor.selected(restored + "\n--disable-gpu", forced), false);
+});
+
+test("editing user overrides preserves external flags in inactive presets only once", () => {
   const config = {
     active: "one",
     extra: "# global\n--outside=old",
@@ -48,7 +71,7 @@ test("editing the complete list preserves external flags in inactive presets onl
   editor.edit(config, "--outside=new");
   assert.equal(config.extra, "");
   assert.equal(config.profiles.one.flags, "--outside=new");
-  assert.equal(config.profiles.one.replaceDefaults, true);
+  assert.equal(config.profiles.one.replaceDefaults, undefined);
   assert.equal(config.profiles.two.flags, "--two\n# global\n--outside=old");
   editor.edit(config, "--outside=last");
   assert.equal(config.profiles.two.flags, "--two\n# global\n--outside=old");

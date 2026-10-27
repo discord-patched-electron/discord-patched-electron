@@ -34,6 +34,8 @@ that test run.
 - [Deeper Linux GPU flag audit, dependencies and codec tests](linux-gpu-flags.md)
 - [Compact Flags tab, file storage and automated codec checks](flags-file.md)
 - [Software codec initialization and sandbox fix](software-codecs.md)
+- [Codec playback verification and NVIDIA HEVC flags](codec-support.md)
+- [External links, test-profile isolation and Zen verification](external-links.md)
 - [Local runtime checks](linux-runtime.md)
 
 ## History and evidence

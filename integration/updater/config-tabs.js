@@ -1,4 +1,21 @@
 (() => {
+  window.openConfigLink = async (name) => {
+    const error = document.getElementById("external-link-error");
+    error.hidden = true;
+    try {
+      await window.Native.openLink(name);
+    } catch (failure) {
+      error.textContent = failure.message.replace(
+        /^Error invoking remote method '[^']+': Error: /,
+        "",
+      );
+      error.hidden = false;
+    }
+  };
+  document.getElementById("config-github").addEventListener("click", (event) => {
+    event.preventDefault();
+    void window.openConfigLink("github");
+  });
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const container = document.getElementById("container");
   const panel = document.getElementById("flags-panel");

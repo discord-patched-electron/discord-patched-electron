@@ -10,7 +10,11 @@ module.exports = function failure(error) {
       .at(-1)
       .replace(/; the updater will retry\./, ", then try again.");
     retry = false;
-  } else if (/No space left|disk full|Disk quota exceeded/i.test(details)) {
+  } else if (/Disk quota exceeded|EDQUOT|\[Errno 122\]/i.test(details)) {
+    message =
+      "Your storage quota was exceeded. Free drive space may still be available. Remove files from the affected filesystem or use a profile location with more quota, then try again.";
+    retry = false;
+  } else if (/No space left|disk full/i.test(details)) {
     message = "Free up space on the drive containing your Discord profile, then try again.";
     retry = false;
   } else if (/Permission denied|Read-only file system/i.test(details)) {

@@ -50,9 +50,16 @@
   const seekFrame = new Promise((resolve) =>
     video.requestVideoFrameCallback((_now, metadata) => resolve(metadata.mediaTime)),
   );
+  const seeked = new Promise((resolve) =>
+    video.addEventListener("seeked", resolve, { once: true }),
+  );
+  // Observe the sought frame while paused. Resuming first can advance the clock
+  // before the compositor delivers its callback and falsely fail a valid seek.
+  video.pause();
   video.currentTime = 0.5;
-  await video.play();
+  await seeked;
   const seekTime = await seekFrame;
+  await video.play();
   // Chromium batches Media-domain diagnostics; keep playback alive long enough
   // to report the actual decoder, rather than infer it from GPU capabilities.
   await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -63,7 +70,8 @@
   synthetic.width = 1280;
   synthetic.height = 720;
   const ctx = synthetic.getContext("2d");
-  for (const preference of ["prefer-hardware", "prefer-software"]) {
+  const roundTrips = new URLSearchParams(location.search).get("roundTrips") !== "false";
+  for (const preference of roundTrips ? ["prefer-hardware", "prefer-software"] : []) {
     for (const codec of ["avc1.42001f", "vp8", "vp09.00.10.08", "av01.0.04M.08"]) {
       const config = {
         codec,
@@ -196,6 +204,7 @@
       }
     }
   }
+  const quality = video.getVideoPlaybackQuality();
   return {
     renderer,
     pixel: [...pixel],
@@ -203,6 +212,11 @@
     videoWidth: video.videoWidth,
     videoHeight: video.videoHeight,
     playbackEnded,
+    playbackQuality: {
+      totalVideoFrames: quality.totalVideoFrames,
+      droppedVideoFrames: quality.droppedVideoFrames,
+      corruptedVideoFrames: quality.corruptedVideoFrames,
+    },
     seekTime,
     seekPassed: seekTime >= 0.5 && seekTime <= 1,
     encoders,

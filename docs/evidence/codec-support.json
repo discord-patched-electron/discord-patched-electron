@@ -1,0 +1,1451 @@
+{
+  "date": "2026-10-27",
+  "runtime": {
+    "electron": "46.0.0-alpha.1",
+    "chromium": "158.0.8114.0",
+    "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "matches_staged_app": true
+  },
+  "host": {
+    "gpu": "AMD Radeon RX 7900 GRE",
+    "mesa": "26.2.4",
+    "displays": [
+      "Wayland",
+      "Xwayland"
+    ],
+    "nvidia_available": false
+  },
+  "inputs": {
+    "sources": {
+      "media/base/media_switches.cc": "0cf695386ffb702503709c74b24ba125eaa7c7011e5103e9c7d5933254a4bbfa",
+      "media/base/supported_types.cc": "5977e7a088795b5fc1040c8fa65d88ddfe6f7395e5ebcdfa384a3446113fc4c1",
+      "media/mojo/services/gpu_mojo_media_client_linux.cc": "e5c95e17dcc6ad942e84a42f587d6dda8ee83e41995bd538a2a1bbb4d36b3ad2",
+      "media/gpu/vaapi/vaapi_wrapper.cc": "c4ed394b3e670ef7f699810b2dae10dc55a8ab870c4dcdd4e085b8b55710460f",
+      "media/filters/ffmpeg_video_decoder.cc": "d7f3d1239bdc1a7f38530a1ed09a04f2208198df35cce4f5d1c608c8202118b6",
+      "out/Release/gen/media/media_buildflags.h": "798ed96b7ed0a154521aff97afa9f3cf0d3bd7e91c4f20052310c97945947080",
+      "out/Release/gen/media/gpu/buildflags.h": "ea56fca6ec3f08e4f5061381e40b79590d914d6053838c78314b022bfa6ce416",
+      "third_party/ffmpeg/chromium/config/Chrome/linux/x64/config_components.h": "a71bc80eb7ef7d647dd9d79b3ff4bc0f95cbe959d848e78e8efe68ebc2055aba",
+      "third_party/ffmpeg/chromium/config/Chrome/linux/x64/libavcodec/codec_list.c": "f49df35c24f482465f92e933397884b9c62ee63589355d534deb667912f04846"
+    },
+    "out/flags-editor/verified-runtime/electron": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "out/pr-review/app/runtime/electron": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "out/flags-editor/verified-runtime/libffmpeg.so": "30c15ef9221ef83d27011ca04c01054c07123b92be9e23a982442ba1a20bc846",
+    "out/flags-risk-research/libopenh264-2.5.1-linux64.7.so": "d828a944d4d2bb64195ada89cf2cde9bc41733b1547d0788ef49fb8cb231b76f",
+    "ffmpeg_registered_decoders": {
+      "hevc": false,
+      "libopenh264": true,
+      "h264": false,
+      "av1": false,
+      "libdav1d": false,
+      "vp8": false,
+      "vp9": false
+    }
+  },
+  "test_inputs_sha256": {
+    "scripts/check_graphics.py": "0c7f705682b05992cd95ce65ccc060d6c0fdfd06fa48241a051579c62e56b14b",
+    "tests/graphics/main.cjs": "48c1a83ed95678dad29d3766d863af682f8e18f393a77ff982097efa6d8a5976",
+    "tests/graphics/renderer.js": "37d5658e68f5cae0530af28da07656687940660b899e994adb6afcb8202ba38d",
+    "integration/launcher/codec-preload.sh": "13baa26205771766f93e7caa6c44f06cc7c0ee268d3ad6487f401938e29b485f",
+    "out/codec-audit/run_matrix.py": "bc67eb37f4886db34ca637a6f6c95aa76698e177e123d31949ee87f643176d06"
+  },
+  "upstream_sources": [
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/media/base/media_switches.cc",
+      "blob_sha": "6ddd8169a21ce367dd8ea9c3732f96b0108fbfa9"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/media/base/supported_types.cc",
+      "blob_sha": "efc7246c8cd3eb05e245c2ee97f616bb1b630c55"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/media/mojo/services/gpu_mojo_media_client_linux.cc",
+      "blob_sha": "1694ea29dfccdbfa073f91e2224c643a0c85d0bf"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/media/gpu/vaapi/vaapi_wrapper.cc",
+      "blob_sha": "b88dfd2db85df8a9be00c6da0efb5a09305298db"
+    },
+    {
+      "url": "https://github.com/chromium/chromium/blob/158.0.8114.0/docs/gpu/vaapi.md",
+      "blob_sha": "36e27d2b56fa93c6a76d61f9101718eb897b9762"
+    },
+    {
+      "url": "https://github.com/elFarto/nvidia-vaapi-driver/blob/master/README.md",
+      "blob_sha": "602d614b690fa6f22e01b9a214cfa203f3ad068b"
+    }
+  ],
+  "expectations_passed": true,
+  "playback_passed": 22,
+  "software_hevc_unsupported": 3,
+  "cases": [
+    {
+      "case": "default-h264",
+      "codec": "h264",
+      "pixel_format": "yuv420p",
+      "clip_profile": "High",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "h264",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "h264 high",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/default-h264/graphics.json",
+      "report_sha256": "ca9fe12d1358a31ec9a83f9df42bc2c161a3ed3dc6adadcac928469951d8a133"
+    },
+    {
+      "case": "software-h264",
+      "codec": "h264",
+      "pixel_format": "yuv420p",
+      "clip_profile": "High",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": true,
+      "expected": "software",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "FFmpegVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "h264",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "h264 high",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-h264/graphics.json",
+      "report_sha256": "c0143035ddefc1d667233b16199b945874d32e686fe5dc9099851063c0d888f9"
+    },
+    {
+      "case": "default-vp8",
+      "codec": "vp8",
+      "pixel_format": "yuv420p",
+      "clip_profile": "0",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": true,
+      "expected": "software",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VpxVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "vp8",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": false,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "vp8",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/default-vp8/graphics.json",
+      "report_sha256": "8d2e4dd7572de488d6bacef7bbd66efb51c357ad93c09df5e262dae0ef029b58"
+    },
+    {
+      "case": "software-vp8",
+      "codec": "vp8",
+      "pixel_format": "yuv420p",
+      "clip_profile": "0",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": true,
+      "expected": "software",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VpxVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "vp8",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": false,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "vp8",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-vp8/graphics.json",
+      "report_sha256": "c3c736c674702d38b162580b0da13a5f7a2fc13a91e4b64e274f6a7339f36f0c"
+    },
+    {
+      "case": "default-vp9",
+      "codec": "vp9",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Profile 0",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "vp9",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": false,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "vp9 profile0",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/default-vp9/graphics.json",
+      "report_sha256": "8e6490338f07814184db09d76868afc447a4bd2a52a6ca286e82f20a813fe1f4"
+    },
+    {
+      "case": "software-vp9",
+      "codec": "vp9",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Profile 0",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": true,
+      "expected": "software",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VpxVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "vp9",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": false,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "vp9 profile0",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-vp9/graphics.json",
+      "report_sha256": "8c385de1f01919ef7689ee321eeeca2bc5416a2ffd4e9a4f41fff300b387e424"
+    },
+    {
+      "case": "default-av1",
+      "codec": "av1",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "av1",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "av1 profile main",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/default-av1/graphics.json",
+      "report_sha256": "d98497b46970f0d0e12858c3fa3f6c4967104b75b8e5b6f1ddb5c8591d043270"
+    },
+    {
+      "case": "software-av1",
+      "codec": "av1",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": true,
+      "expected": "software",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "Dav1dVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "av1",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "av1 profile main",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 1,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-av1/graphics.json",
+      "report_sha256": "d569014c85b60662e8724897fd7e552f2f8010630939f07a73292beb9c714886"
+    },
+    {
+      "case": "default-hevc",
+      "codec": "hevc",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "hevc",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "hevc main",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 4,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/default-hevc/graphics.json",
+      "report_sha256": "6fc90ea97f14c93daee3e601461d9035b6d1e9e054fa1fee604cfb18e0539368"
+    },
+    {
+      "case": "software-hevc",
+      "codec": "hevc",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": true,
+      "expected": "unsupported",
+      "expectation_met": true,
+      "playback_passed": false,
+      "error": "Error: PipelineStatus::DEMUXER_ERROR_NO_SUPPORTED_STREAMS: FFmpegDemuxer: no supported streams\n    at video.addEventListener.once (<anonymous>:19:20)",
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [],
+      "clip_tracks": [],
+      "seek_time": null,
+      "playback_quality": null,
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-hevc/graphics.json",
+      "report_sha256": "167cda3960f3dd20d005cfc6dd2ac9d8137a8c50f7b63c949b786725c611dd38"
+    },
+    {
+      "case": "default-vp9-10bit",
+      "codec": "vp9",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Profile 2",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "vp9",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": false,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "vp9 profile2",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/default-vp9-10bit/graphics.json",
+      "report_sha256": "8cf6f9d7130917539973605d1a7fce83b3a1fcb800b320e0069837a814b195c8"
+    },
+    {
+      "case": "software-vp9-10bit",
+      "codec": "vp9",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Profile 2",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": true,
+      "expected": "software",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VpxVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "vp9",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": false,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "vp9 profile2",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-vp9-10bit/graphics.json",
+      "report_sha256": "2c6aece409c03d05737088c43d430ee5889b11fbe841a91f690b0bc051f16347"
+    },
+    {
+      "case": "default-av1-10bit",
+      "codec": "av1",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "av1",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "av1 profile main",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/default-av1-10bit/graphics.json",
+      "report_sha256": "f6b2eaca80f9082c3aab12318899f6689623685380011c7425d49f9d0fbd1e37"
+    },
+    {
+      "case": "software-av1-10bit",
+      "codec": "av1",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": true,
+      "expected": "software",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "Dav1dVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "av1",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "av1 profile main",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-av1-10bit/graphics.json",
+      "report_sha256": "f30b2bb7dc903cad2fbd1c936d9918b407ea8366fc812f741d53a2151a4cdca6"
+    },
+    {
+      "case": "default-hevc-10bit",
+      "codec": "hevc",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Main 10",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "hevc",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "hevc main 10",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/default-hevc-10bit/graphics.json",
+      "report_sha256": "80c6f2adea4ccf95e36286d365a6c85805ae34657e4fb763d456b93a67cff008"
+    },
+    {
+      "case": "software-hevc-10bit",
+      "codec": "hevc",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Main 10",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": true,
+      "expected": "unsupported",
+      "expectation_met": true,
+      "playback_passed": false,
+      "error": "Error: PipelineStatus::DEMUXER_ERROR_NO_SUPPORTED_STREAMS: FFmpegDemuxer: no supported streams\n    at video.addEventListener.once (<anonymous>:19:20)",
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [],
+      "clip_tracks": [],
+      "seek_time": null,
+      "playback_quality": null,
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-hevc-10bit/graphics.json",
+      "report_sha256": "d944b6d56b18312f2e9c1381901b9c2bdbe1a485416ce014be622e72694fde38"
+    },
+    {
+      "case": "hevc-feature-on",
+      "codec": "hevc",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [
+        "--enable-features=PlatformHEVCDecoderSupport"
+      ],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "hevc",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "hevc main",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/hevc-feature-on/graphics.json",
+      "report_sha256": "2b94ff3a1bf29d728dd3c419b3fb1e8f8a020f521bbfa532d1af0e30a1246e25"
+    },
+    {
+      "case": "hevc-feature-off",
+      "codec": "hevc",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [
+        "--disable-features=PlatformHEVCDecoderSupport"
+      ],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "hevc",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "hevc main",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/hevc-feature-off/graphics.json",
+      "report_sha256": "b192525cd8ea968a632dee32a266135ba050089f4f0a0d1a43307bc63d22e692"
+    },
+    {
+      "case": "hevc-zero-copy-off",
+      "codec": "hevc",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Main 10",
+      "display": "wayland",
+      "flags": [
+        "--disable-features=AcceleratedVideoDecodeLinuxZeroCopyGL"
+      ],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "hevc",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "hevc main 10",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/hevc-zero-copy-off/graphics.json",
+      "report_sha256": "d80c4e4e5d3e104e49ea6b36ffcbaa1717a225634c97e7a9cdec498451e99597"
+    },
+    {
+      "case": "hevc-quoted-flags",
+      "codec": "hevc",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Main 10",
+      "display": "wayland",
+      "flags": [
+        "--enable-features=VaapiOnNvidiaGPUs,PlatformHEVCDecoderSupport,AcceleratedVideoEncoder,AcceleratedVideoDecodeLinuxZeroCopyGL"
+      ],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "hevc",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "hevc main 10",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/hevc-quoted-flags/graphics.json",
+      "report_sha256": "1d6329275d4aa4f723c306a9b5d2732d167e8d4126c94762de2da61bd159b5cf"
+    },
+    {
+      "case": "software-hevc-feature-on",
+      "codec": "hevc",
+      "pixel_format": "yuv420p",
+      "clip_profile": "Main",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode",
+        "--enable-features=PlatformHEVCDecoderSupport"
+      ],
+      "playback_only": true,
+      "expected": "unsupported",
+      "expectation_met": true,
+      "playback_passed": false,
+      "error": "Error: PipelineStatus::DEMUXER_ERROR_NO_SUPPORTED_STREAMS: FFmpegDemuxer: no supported streams\n    at video.addEventListener.once (<anonymous>:19:20)",
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [],
+      "clip_tracks": [],
+      "seek_time": null,
+      "playback_quality": null,
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/software-hevc-feature-on/graphics.json",
+      "report_sha256": "d020f10bf5154fa9e627f5f678dcb8c6fef8e7fbc6387a1f29ff47e8d6cc5867"
+    },
+    {
+      "case": "hevc-x11",
+      "codec": "hevc",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Main 10",
+      "display": "x11",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "hevc",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "hevc main 10",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/hevc-x11/graphics.json",
+      "report_sha256": "f8255248183078e22a4f849739d751fb1957e08d58212b6317570efdec95408d"
+    },
+    {
+      "case": "av1-x11",
+      "codec": "av1",
+      "pixel_format": "yuv420p10le",
+      "clip_profile": "Main",
+      "display": "x11",
+      "flags": [],
+      "playback_only": true,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "av1",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "UNSPECIFIED",
+              "primaries": "UNSPECIFIED",
+              "range": "LIMITED",
+              "transfer": "UNSPECIFIED"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "av1 profile main",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": null,
+      "report": "out/codec-audit/verified/av1-x11/graphics.json",
+      "report_sha256": "134f64f5b551132606e8c5df0d1117029daa5e93046d9aa678582c2ad83458fc"
+    },
+    {
+      "case": "software-h264-roundtrips",
+      "codec": "h264",
+      "pixel_format": "yuv420p",
+      "clip_profile": "High",
+      "display": "wayland",
+      "flags": [
+        "--disable-accelerated-video-decode",
+        "--disable-accelerated-video-encode"
+      ],
+      "playback_only": false,
+      "expected": "software",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "FFmpegVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "h264",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "h264 high",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": true,
+      "report": "out/codec-audit/verified/software-h264-roundtrips/graphics.json",
+      "report_sha256": "7f810e9ef63b6e4a925f9ac412b22a2e47789e32e5f753b7cf0c667e41be9d83"
+    },
+    {
+      "case": "default-h264-roundtrips",
+      "codec": "h264",
+      "pixel_format": "yuv420p",
+      "clip_profile": "High",
+      "display": "wayland",
+      "flags": [],
+      "playback_only": false,
+      "expected": "hardware",
+      "expectation_met": true,
+      "playback_passed": true,
+      "error": null,
+      "gpu_exits": [],
+      "sandbox": {
+        "configured": true,
+        "noNewPrivs": 1,
+        "seccomp": 2
+      },
+      "actual_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "clip_tracks": [
+        [
+          {
+            "alpha mode": "is_opaque",
+            "codec": "h264",
+            "coded size": "1280x720",
+            "color space": {
+              "matrix": "BT709",
+              "primaries": "BT709",
+              "range": "LIMITED",
+              "transfer": "BT709"
+            },
+            "encryption scheme": "Unencrypted",
+            "has extra data": true,
+            "hdr metadata": {},
+            "natural size": "1280x720",
+            "orientation": "0\u00b0",
+            "profile": "h264 high",
+            "visible rect": "0,0 1280x720"
+          }
+        ]
+      ],
+      "seek_time": 0.5,
+      "playback_quality": {
+        "corruptedVideoFrames": 0,
+        "droppedVideoFrames": 0,
+        "totalVideoFrames": 120
+      },
+      "codec_preferences_passed": true,
+      "report": "out/codec-audit/verified/default-h264-roundtrips/graphics.json",
+      "report_sha256": "49f123f1fc9e42069c2c66a7a2fedd38b0bffc7354b412b1a78862deb5ab67a5"
+    }
+  ],
+  "limits": [
+    "Synthetic 1280x720 30fps 4:2:0 clips, including 8-bit and 10-bit VP9/AV1/HEVC. HEVC MP4 uses hvc1.",
+    "No NVIDIA GPU is available; NVIDIA flag behavior is source-reviewed, not hardware-tested.",
+    "No software HEVC implementation is present; its three tests are expected failures, not playback passes.",
+    "No account login, real Discord call, physical camera capture or desktop recording.",
+    "No HDR display accuracy, arbitrary profiles/chroma formats, sustained performance or encoding improvements are claimed."
+  ],
+  "local_artifacts": "out/codec-audit",
+  "licensing_review": {
+    "date": "2026-10-27",
+    "decision": "Keep existing hardware-only HEVC; no software decoder integration or Electron rebuild for this update.",
+    "reason": "A system libde265 adapter is technically plausible and LGPLv3 has a shared-library route, but project-specific HEVC patent clearance was not established. User requested the new implementation only if licensing conditions could be met.",
+    "local_build_policy": "If a future candidate build is needed for this task, only this candidate on the user's PC; preserve retained objects and verified runtime; no CI compiler or publication.",
+    "system_packages": {
+      "libde265": "1.1.3-1.1 (LGPL-3.0-or-later)",
+      "ffmpeg": "2:9.0.2-2.1 (GPL-3.0-only)"
+    },
+    "technical_findings": [
+      "FFmpegVideoDecoder::IsCodecSupported accepts only H.264 in the retained source.",
+      "The FFmpeg thread-selection switch treats HEVC as unsupported.",
+      "Linux HEVC capability reporting uses available platform decoder profiles.",
+      "Chromium provides a system FFmpeg GN target, but swapping libffmpeg.so is not sufficient and custom OpenH264 symbols must remain compatible.",
+      "System libde265 has a public C API and Main/Main 10 support, but Chromium needs a decoder adapter, capability integration and sandbox-safe loading."
+    ],
+    "source_licenses": {
+      "runtime_ffmpeg": "LGPL version 2.1 or later (avcodec_license)",
+      "ffmpeg_config": {
+        "CONFIG_GPL": 0,
+        "CONFIG_NONFREE": 0,
+        "CONFIG_VERSION3": 0,
+        "CONFIG_HEVC_DECODER": 0
+      },
+      "dav1d": "BSD-2-Clause",
+      "libvpx": "BSD-3-Clause, WebM-Project-Patent"
+    },
+    "sources": [
+      {
+        "url": "https://github.com/strukturag/libde265/blob/v1.1.3/COPYING",
+        "blob_sha": "141eb2f0050e87306e27da91c8f2b1d4a4e40fee"
+      },
+      {
+        "url": "https://github.com/strukturag/libde265/blob/v1.1.3/README.md",
+        "blob_sha": "9cf95701346a3860747b3333300c212db08f003d"
+      },
+      {
+        "url": "https://www.libde265.org/faq/"
+      },
+      {
+        "url": "https://ffmpeg.org/legal.html"
+      },
+      {
+        "url": "https://accessadvance.com/faq/",
+        "note": "Licensor position: free downloaded HEVC software generally needs a licence; case-specific exceptions exist. Not a legal finding about DPE."
+      },
+      {
+        "url": "https://www.via-la.com/licensing-programs/hevc-vvc/"
+      }
+    ],
+    "limitations": [
+      "Open-source licences and system-library installation do not themselves establish third-party patent clearance.",
+      "No legal opinion, project-specific patent licence or applicable exemption was supplied or established.",
+      "NVIDIA hardware was unavailable. Toggle, saved flags and link were tested, not NVIDIA playback.",
+      "Existing 25-case AMD/software matrix remains applicable because the runtime and codec preload were unchanged."
+    ],
+    "runtime_notice_check": {
+      "avcodec_license": "LGPL version 2.1 or later",
+      "avcodec_configuration": "symbol not exported",
+      "avcodec_version": 4132964,
+      "notice_files": [
+        "LICENSE",
+        "LICENSES.chromium.html"
+      ],
+      "LICENSE": {
+        "FFmpeg": false,
+        "libvpx": false,
+        "dav1d": false,
+        "libde265": false
+      },
+      "LICENSES.chromium.html": {
+        "FFmpeg": true,
+        "libvpx": true,
+        "dav1d": true,
+        "libde265": false
+      }
+    }
+  }
+}

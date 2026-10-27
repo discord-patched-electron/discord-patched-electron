@@ -1,16 +1,14 @@
 <section id="flags-panel" role="tabpanel" aria-labelledby="t_flags" hidden>
+  <aside class="recovery-help" id="flags-recovery-help" aria-labelledby="recovery-title">
+    <h2 id="recovery-title">Won’t start?</h2>
+    <p>Run this command to start without saved flags:</p>
+    <pre><code>discord-canary-prerelease-patched-electron-bin --ignore-flags</code></pre>
+  </aside>
   <p id="recovery" class="hint" hidden>Recovery mode. Saved flags are off.</p>
   <p id="warnings" class="hint" hidden></p>
   <p id="error" role="alert" hidden></p>
   <p id="loading" role="status">Loading…</p>
   <form id="settings" hidden>
-    <div class="flag-row">
-      <div>
-        <label for="preset">Preset</label>
-        <p class="hint">Keep separate launch options.</p>
-      </div>
-      <select id="preset" name="preset"></select>
-    </div>
     <div class="flag-row">
       <div>
         <label for="display">Display</label>
@@ -22,9 +20,11 @@
         <option value="x11">X11</option>
       </select>
     </div>
-    <details id="breaking">
-      <summary>Breaking</summary>
-      <p class="hint">These options may crash Discord.</p>
+    <details id="advanced">
+      <summary>Advanced</summary>
+      <p class="hint">
+        Experimental video, rendering and driver overrides. These may break Discord.
+      </p>
       <div class="flag-row">
         <div>
           <label for="backend"
@@ -35,13 +35,12 @@
         </div>
         <select id="backend" name="backend"></select>
       </div>
-      <div id="breaking-options"></div>
-      <p class="hint recovery-help">
-        Won’t start? Run <code>discord-canary-prerelease-patched-electron-bin --ignore-flags</code>
-      </p>
+      <div id="advanced-options"></div>
     </details>
     <label for="flags" class="flags-label">Flags</label>
-    <p id="flags-help" class="hint">One flag per line. Restart to apply.</p>
+    <p id="flags-help" class="hint">
+      Your overrides, one per line. App defaults are applied separately.
+    </p>
     <textarea
       id="flags"
       name="flags"
@@ -50,10 +49,33 @@
       autocapitalize="off"
       aria-describedby="flags-help"
     ></textarea>
+    <div id="essential-section">
+      <label for="essential-flags" class="flags-label"
+        ><span class="risk-icon danger" role="img" aria-label="May break startup"></span>Essential
+        flags</label
+      >
+      <p id="essential-help" class="hint">
+        Changing these can break startup. Variables:
+        <code>{DESKTOP_ID}</code>, <code>{PROFILE_DIR}</code>, <code>{OPENH264_LIBRARY_PATH}</code>.
+      </p>
+      <textarea
+        id="essential-flags"
+        name="essential-flags"
+        rows="4"
+        spellcheck="false"
+        autocapitalize="off"
+        aria-describedby="essential-help"
+        disabled
+      ></textarea>
+    </div>
     <div class="flag-actions">
-      <button id="reset-preset" type="button">Reset</button>
+      <label class="essential-toggle">
+        <input id="edit-essential" type="checkbox" aria-controls="essential-flags" />
+        Edit essential flags
+      </label>
+      <button id="reset-flags" type="button">Reset</button>
       <button id="discard" type="button">Reload</button>
-      <button id="save" type="submit">Save</button>
+      <button id="save" type="submit" disabled>Save</button>
     </div>
     <p id="status" role="status"></p>
   </form>

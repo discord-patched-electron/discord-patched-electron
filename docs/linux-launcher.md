@@ -7,6 +7,15 @@ Software H.264 decoding uses the cached OpenH264 library. The launcher loads it
 before sandbox startup so decoding works with the sandbox enabled. If the library
 is missing, startup continues; restart once it is available to use software H.264.
 
+VP8, VP9 and AV1 also support software decoding. **HEVC requires working hardware
+decoding in this build**; selecting Software video decoding prevents HEVC playback.
+For NVIDIA, install and configure [nvidia-vaapi-driver](https://github.com/elFarto/nvidia-vaapi-driver#chrome),
+then enable **Allow VA-API on NVIDIA GPUs** under **Advanced**.
+This sets `VaapiOnNvidiaGPUs`; it does not enable encoding or bypass driver checks.
+`PlatformHEVCDecoderSupport` is already enabled by default;
+`AcceleratedVideoEncoder` is unnecessary for playback.
+See the [codec checks](agent/codec-support.md) for tested formats and hardware.
+
 ## Appearance and startup
 
 Open **User Settings → OpenAsar**:
@@ -17,15 +26,20 @@ Open **User Settings → OpenAsar**:
 | Splash Theming | Uses your Discord or custom theme colors during startup. Enabled by default.    |
 | Quickstart     | Opens an existing installation sooner and checks for updates in the background. |
 
-## Presets and video acceleration
+## Launch flags and GPU acceleration
 
-Open **User Settings → OpenAsar → Flags**. Keep **Default**, or select **Custom**
-to save another setup. The box at the bottom shows the flags and lets you edit
-one per line. Choose **Save**, then **Restart** to apply them.
+Open **User Settings → OpenAsar → Flags**. The Flags box shows your overrides,
+one per line. App defaults are applied separately. Choose **Save**, then
+**Restart** to apply changes. Save stays disabled until something changes.
 
-**Breaking** contains optional renderer, video decode/encode and GPU overrides,
-marked with red warning icons. These may crash Discord. **Reset** restores the
-selected preset; **Reload** discards your draft and reads the saved file.
+Expand **Advanced** for video processing, GPU/CPU rendering and driver options. **Known to crash!** marks
+options that crashed in local testing; other hardware may behave differently.
+Software decoding/rasterization can help isolate GPU problems but may use more CPU.
+**Reset** restores launch defaults; **Reload** discards your draft.
+
+Check **Edit essential flags** beside the buttons to unlock the essential-flags
+box. Variables such as `{OPENH264_LIBRARY_PATH}` resolve for the current profile
+on each launch. Unchecking locks the box; its flags still apply.
 
 Flags are stored in `~/.config/discord-canary-patched-electron.conf` (or
 `XDG_CONFIG_HOME`). Existing custom edits are preserved. Save refuses to overwrite
@@ -49,14 +63,12 @@ Close Discord completely, then reopen it to apply changes.
 --disable-features=AcceleratedVideoDecodeLinuxGL
 ```
 
-Put global overrides outside the marked OpenAsar preset section. The active
-preset is inside it; other presets are remembered in comments. Keep the markers
-and metadata intact. Don't add shell quotes or assignments. Global overrides win
-over preset flags; command-line flags take final precedence.
+Put global overrides outside the marked OpenAsar section. Keep its markers and
+metadata intact. Don't add shell quotes or assignments. Global overrides win
+over the managed flags; command-line flags take final precedence.
 
-The Flags box shows the complete saved list. Editing it replaces that preset's
-list, so deleted flags stay deleted. Existing global entries are kept in the
-other presets. Command-line arguments appear as comments for the current session.
+Clearing the Flags box keeps the app's required defaults. Command-line arguments
+appear as comments for the current session.
 
 ## Troubleshooting
 
@@ -105,6 +117,25 @@ DPE_PROFILE_DIR=/full/path/to/profile discord-canary-prerelease-patched-electron
 `DPE_PROFILE_DIR` is the exact profile path. Discord's `DISCORD_USER_DATA_DIR`
 variable instead selects a parent folder, with `discordcanary/` added beneath it.
 Custom profiles may need the mod installer's **Custom Location** option.
+
+For a fresh test profile, use a folder on disk instead of `/tmp`, which may have
+a separate memory or per-user quota even when your drive has free space:
+
+```sh
+mkdir -p "$HOME/.cache/dpe-tests"
+test_dir=$(mktemp -d "$HOME/.cache/dpe-tests/test.XXXXXX")
+mkdir -p "$test_dir/tmp"
+TMPDIR="$test_dir/tmp" \
+DPE_PROFILE_DIR="$test_dir/profile" \
+EQUICORD_USER_DATA_DIR="$test_dir/profile/equicord" \
+discord-canary-prerelease-patched-electron-bin
+```
+
+For tarballs, replace the last line with the path to `launch.sh`. Each run creates
+a new Discord profile; keep its path if you want to reuse it. Desktop settings
+and the shared launch-flags file remain in your normal configuration directory.
+Keep `XDG_CONFIG_HOME` unchanged: overriding it also hides your default browser
+association and can stop links from opening.
 
 Older builds used `~/.config/discord-canary-prerelease-patched-electron-bin`.
 That folder is left untouched. Set `DPE_PROFILE_DIR` to its full path to keep using it.
