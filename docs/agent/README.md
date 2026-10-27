@@ -29,6 +29,11 @@ that test run.
 - [Audio investigation and mixer fix](audio-investigation.md)
 - [Camera startup](camera-startup.md)
 - [Launcher, codecs and shortcuts](linux-launcher.md)
+- [OpenAsar playback crash and flag audit](video-playback.md)
+- [Editable presets, recovery and initial GPU flag research](launch-presets.md)
+- [Deeper Linux GPU flag audit, dependencies and codec tests](linux-gpu-flags.md)
+- [Compact Flags tab, file storage and automated codec checks](flags-file.md)
+- [Software codec initialization and sandbox fix](software-codecs.md)
 - [Local runtime checks](linux-runtime.md)
 
 ## History and evidence

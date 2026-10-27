@@ -3,6 +3,10 @@
 The app uses Wayland in a Wayland session and X11 otherwise. Hardware video
 decoding is enabled when your driver supports it. Most users can keep the defaults.
 
+Software H.264 decoding uses the cached OpenH264 library. The launcher loads it
+before sandbox startup so decoding works with the sandbox enabled. If the library
+is missing, startup continues; restart once it is available to use software H.264.
+
 ## Appearance and startup
 
 Open **User Settings → OpenAsar**:
@@ -12,6 +16,20 @@ Open **User Settings → OpenAsar**:
 | Custom CSS     | Changes Discord's appearance with your own CSS.                                 |
 | Splash Theming | Uses your Discord or custom theme colors during startup. Enabled by default.    |
 | Quickstart     | Opens an existing installation sooner and checks for updates in the background. |
+
+## Presets and video acceleration
+
+Open **User Settings → OpenAsar → Flags**. Keep **Default**, or select **Custom**
+to save another setup. The box at the bottom shows the flags and lets you edit
+one per line. Choose **Save**, then **Restart** to apply them.
+
+**Breaking** contains optional renderer, video decode/encode and GPU overrides,
+marked with red warning icons. These may crash Discord. **Reset** restores the
+selected preset; **Reload** discards your draft and reads the saved file.
+
+Flags are stored in `~/.config/discord-canary-patched-electron.conf` (or
+`XDG_CONFIG_HOME`). Existing custom edits are preserved. Save refuses to overwrite
+external changes until you reload.
 
 ## Global shortcuts
 
@@ -31,11 +49,27 @@ Close Discord completely, then reopen it to apply changes.
 --disable-features=AcceleratedVideoDecodeLinuxGL
 ```
 
-Blank lines and `#` comments are ignored. Don't add shell quotes or assignments.
-Flags in this file override defaults and OpenAsar's Focus presets.
-Command-line flags take precedence over the file.
+Put global overrides outside the marked OpenAsar preset section. The active
+preset is inside it; other presets are remembered in comments. Keep the markers
+and metadata intact. Don't add shell quotes or assignments. Global overrides win
+over preset flags; command-line flags take final precedence.
+
+The Flags box shows the complete saved list. Editing it replaces that preset's
+list, so deleted flags stay deleted. Existing global entries are kept in the
+other presets. Command-line arguments appear as comments for the current session.
 
 ## Troubleshooting
+
+If a flag makes Discord crash immediately, close it completely and run:
+
+```sh
+discord-canary-prerelease-patched-electron-bin --ignore-flags
+```
+
+This skips saved presets, flag files and all supplied arguments before they are
+read. It preserves your settings. Repair them in the editor, then choose
+**Restart**. For tarballs use `./launch.sh --ignore-flags`;
+`DPE_IGNORE_FLAGS=1` provides the same recovery mode.
 
 Close Discord completely before trying an environment variable in a terminal.
 For example, to disable the application-audio adapter for one launch:
@@ -46,13 +80,13 @@ DPE_APP_AUDIO=0 discord-canary-prerelease-patched-electron-bin
 
 Other controls work the same way:
 
-| Variable                  | Effect                                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                                                                     |
-| `DPE_DEFAULT_FLAGS=0`     | Disables the default launch flags.                                                                      |
-| `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                                                               |
-| `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime.                                               |
-| `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use. |
+| Variable                  | Effect                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                                                                          |
+| `DPE_DEFAULT_FLAGS=0`     | Skips application defaults and the preset section; Global file overrides and command-line flags still apply. |
+| `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                                                                    |
+| `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime.                                                    |
+| `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use.      |
 
 Offline mode needs an existing installation verified against the package or an
 approved release. If an older cache is rejected, launch online once to repair it.

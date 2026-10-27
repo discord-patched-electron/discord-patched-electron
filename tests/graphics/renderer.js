@@ -12,6 +12,14 @@
     : gl.getParameter(gl.RENDERER);
   const video = document.querySelector("video");
   let frames = 0;
+  const ended = new Promise((resolve, reject) => {
+    video.addEventListener("ended", resolve, { once: true });
+    video.addEventListener(
+      "error",
+      () => reject(new Error(video.error?.message || "Video failed")),
+      { once: true },
+    );
+  });
   const delivered = new Promise((resolve, reject) => {
     video.addEventListener(
       "error",
@@ -24,14 +32,33 @@
     }
     video.requestVideoFrameCallback(frame);
   });
-  video.src = "clip.mp4";
+  video.src = new URLSearchParams(location.search).get("clip") || "clip.mp4";
+  // Observe all rejections together, including playback failures before the
+  // first frame. DOMException loses its message across the IPC boundary.
+  await Promise.all([
+    video.play().catch((error) => {
+      throw new Error(
+        `${error.name}: ${error.message}; ${video.error?.message || "no media error"}`,
+      );
+    }),
+    delivered,
+    ended,
+  ]);
+  const playbackEnded = video.ended;
+  // Exercise decoder flush/reinitialization after draining a clip (including
+  // reordered H.264 frames), not just startup and one uninterrupted playback.
+  const seekFrame = new Promise((resolve) =>
+    video.requestVideoFrameCallback((_now, metadata) => resolve(metadata.mediaTime)),
+  );
+  video.currentTime = 0.5;
   await video.play();
-  await delivered;
+  const seekTime = await seekFrame;
   // Chromium batches Media-domain diagnostics; keep playback alive long enough
   // to report the actual decoder, rather than infer it from GPU capabilities.
   await new Promise((resolve) => setTimeout(resolve, 1500));
   video.pause();
   const encoders = [];
+  const decoders = [];
   const synthetic = document.createElement("canvas");
   synthetic.width = 1280;
   synthetic.height = 720;
@@ -47,7 +74,8 @@
         hardwareAcceleration: preference,
       };
       let encoder,
-        chunks = 0,
+        chunks = [],
+        decoderConfig,
         failure;
       try {
         const support = await VideoEncoder.isConfigSupported(config);
@@ -56,14 +84,19 @@
           continue;
         }
         encoder = new VideoEncoder({
-          output: () => chunks++,
+          output: (chunk, metadata) => {
+            chunks.push(chunk);
+            if (metadata.decoderConfig) decoderConfig = metadata.decoderConfig;
+          },
           error: (error) => {
             failure = String(error);
           },
         });
         encoder.configure(config);
         for (let i = 0; i < 12; i++) {
-          ctx.fillStyle = `rgb(${i * 20},100,180)`;
+          // Neutral levels avoid conflating BT.601/BT.709 color conversion with
+          // codec delivery. The ramp still catches blank, stale or corrupt frames.
+          ctx.fillStyle = `rgb(${i * 20},${i * 20},${i * 20})`;
           ctx.fillRect(0, 0, 1280, 720);
           const frame = new VideoFrame(synthetic, { timestamp: i * 33333 });
           encoder.encode(frame, { keyFrame: i === 0 });
@@ -74,11 +107,90 @@
           codec,
           preference,
           supported: true,
-          chunks,
+          chunks: chunks.length,
           ...(failure ? { error: failure } : {}),
         });
+        if (failure || chunks.length !== 12) continue;
+        // Decode the actual encoded bytes, checking every frame's timestamp,
+        // dimensions and pixels. Capability queries alone don't prove playback.
+        for (const decodePreference of ["no-preference", "prefer-hardware", "prefer-software"]) {
+          const decoding = {
+            ...(decoderConfig || { codec, codedWidth: 1280, codedHeight: 720 }),
+            hardwareAcceleration: decodePreference,
+          };
+          const result = {
+            codec,
+            encodedWith: preference,
+            preference: decodePreference,
+            required: decodePreference === "no-preference",
+          };
+          let decoder, decodeFailure;
+          const decoded = [];
+          const sample = document.createElement("canvas");
+          sample.width = sample.height = 1;
+          const sampleCtx = sample.getContext("2d", { willReadFrequently: true });
+          try {
+            const support = await VideoDecoder.isConfigSupported(decoding);
+            if (!support.supported) {
+              decoders.push({ ...result, supported: false });
+              continue;
+            }
+            decoder = new VideoDecoder({
+              output: (frame) => {
+                try {
+                  sampleCtx.drawImage(frame, 0, 0, 1, 1);
+                  const pixel = [...sampleCtx.getImageData(0, 0, 1, 1).data];
+                  const level = (frame.timestamp / 33333) * 20;
+                  const expected = [level, level, level, 255];
+                  decoded.push({
+                    timestamp: frame.timestamp,
+                    width: frame.displayWidth,
+                    height: frame.displayHeight,
+                    pixel,
+                    passed:
+                      frame.displayWidth === 1280 &&
+                      frame.displayHeight === 720 &&
+                      pixel.every((value, i) => Math.abs(value - expected[i]) <= 12),
+                  });
+                } catch (error) {
+                  decodeFailure = String(error);
+                } finally {
+                  frame.close();
+                }
+              },
+              error: (error) => {
+                decodeFailure = String(error);
+              },
+            });
+            decoder.configure(decoding);
+            for (const chunk of chunks) decoder.decode(chunk);
+            await decoder.flush();
+            const timestamps = decoded.map((frame) => frame.timestamp).sort((a, b) => a - b);
+            decoders.push({
+              ...result,
+              supported: true,
+              frames: decoded.length,
+              decoded,
+              passed:
+                !decodeFailure &&
+                decoded.length === 12 &&
+                decoded.every((frame) => frame.passed) &&
+                timestamps.every((timestamp, i) => timestamp === i * 33333),
+              ...(decodeFailure ? { error: decodeFailure } : {}),
+            });
+          } catch (error) {
+            decoders.push({
+              ...result,
+              passed: false,
+              frames: decoded.length,
+              error: String(error),
+            });
+          } finally {
+            if (decoder && decoder.state !== "closed") decoder.close();
+          }
+        }
       } catch (error) {
-        encoders.push({ codec, preference, chunks, error: String(error) });
+        encoders.push({ codec, preference, chunks: chunks.length, error: String(error) });
       } finally {
         if (encoder && encoder.state !== "closed") encoder.close();
       }
@@ -90,7 +202,11 @@
     videoFrames: frames,
     videoWidth: video.videoWidth,
     videoHeight: video.videoHeight,
+    playbackEnded,
+    seekTime,
+    seekPassed: seekTime >= 0.5 && seekTime <= 1,
     encoders,
+    decoders,
     webglPassed: pixel.every((value, i) => Math.abs(value - [26, 128, 230, 255][i]) <= 1),
   };
 })();

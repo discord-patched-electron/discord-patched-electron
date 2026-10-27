@@ -1,0 +1,229 @@
+/* Match the pinned OpenAsar page's type, colors and plain settings rows. */
+:root {
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 18px 20px;
+  min-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+}
+header {
+  display: block;
+  margin-block-end: 24px;
+}
+header > h1 {
+  margin: 0 0 16px;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  -webkit-app-region: no-drag;
+}
+nav > button {
+  padding: 4px 0;
+  border-radius: 0;
+  border-block-end: 2px solid transparent;
+  background: transparent;
+  color: #ddd;
+  font-size: 20px;
+  font-weight: 500;
+}
+nav > button.active {
+  color: #fff;
+  border-block-end-color: var(--accent);
+}
+main {
+  flex: 1;
+  min-width: 0;
+  -webkit-app-region: no-drag;
+}
+body > footer {
+  position: static;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block-start: 20px;
+}
+button {
+  min-height: 32px;
+}
+button:disabled,
+button[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+}
+:focus-visible {
+  outline: 2px solid #b9c1ff;
+  outline-offset: 3px;
+}
+[hidden] {
+  display: none !important;
+}
+.flag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  margin-block-end: 20px;
+}
+.flag-row label,
+.flags-label {
+  font-size: 18px;
+  font-weight: 700;
+}
+.flag-row select {
+  float: none;
+  width: 120px;
+  max-width: 100%;
+  min-height: 30px;
+}
+.hint {
+  margin: 4px 0 0;
+  color: #b5b8bf;
+  font-size: 14px;
+  line-height: 1.4;
+}
+#breaking {
+  margin-block: 4px 20px;
+}
+#breaking summary {
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  min-height: 30px;
+}
+#breaking > .hint {
+  margin-block: 4px 20px;
+}
+.risk-icon {
+  color: #ff8585;
+  display: inline-flex;
+  margin-inline-end: 6px;
+  vertical-align: middle;
+}
+.risk-icon svg {
+  width: 18px;
+  height: 18px;
+  position: static;
+}
+.flag-switch {
+  appearance: none;
+  width: 36px;
+  height: 24px;
+  margin: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--background-tertiary);
+  cursor: pointer;
+}
+.flag-switch::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 4px;
+  border-radius: 50%;
+  background: #ddd;
+}
+.flag-switch:checked {
+  background: var(--accent);
+}
+.flag-switch:checked::before {
+  margin-inline-start: 16px;
+}
+.flags-label {
+  display: block;
+}
+#flags {
+  display: block;
+  width: 100%;
+  min-height: 100px;
+  margin-block-start: 8px;
+  padding: 8px;
+  background: var(--background-secondary);
+  color: var(--header-primary);
+  border: 1px solid #737780;
+  border-radius: 4px;
+  font:
+    12px/1.5 ui-monospace,
+    monospace;
+  resize: vertical;
+  user-select: text;
+}
+.flag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-block-start: 10px;
+}
+.flag-actions button {
+  font-size: 14px;
+  padding: 6px 16px;
+}
+#reset-preset,
+#discard {
+  background: var(--background-secondary);
+}
+#status {
+  min-height: 18px;
+  margin-block: 8px 0;
+  font-size: 14px;
+  color: #b5b8bf;
+}
+#error {
+  color: #ffaaaa;
+  white-space: pre-line;
+}
+#error,
+#warnings,
+.recovery-help {
+  overflow-wrap: anywhere;
+}
+.recovery-help code {
+  user-select: text;
+  font-size: 12px;
+}
+.switch:focus-within {
+  outline: 2px solid #b9c1ff;
+  outline-offset: 3px;
+}
+@media (max-width: 380px) {
+  body {
+    margin: 14px 12px;
+  }
+  .flag-row {
+    gap: 8px;
+  }
+  .flag-row select {
+    width: 105px;
+  }
+  body > footer button {
+    padding-inline: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}
+@media (forced-colors: active) {
+  .flag-switch {
+    appearance: auto;
+  }
+  .flag-switch::before {
+    display: none;
+  }
+  :focus-visible,
+  .switch:focus-within {
+    outline-color: Highlight;
+  }
+}

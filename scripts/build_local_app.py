@@ -124,6 +124,11 @@ def build(
             capacity["archive_sha256"],
         )
     if not portable:
+        shutil.copytree(
+            ROOT / "integration/launcher",
+            output / "integration/launcher",
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+        )
         krisp = output / "modules/discord_krisp"
         write_json(output / "krisp-patch.json", krisp_patch(krisp / "discord_krisp.node"))
         (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
@@ -202,6 +207,7 @@ def build(
             "First launch downloads patched Electron from GitHub and Discord modules directly from Discord. Later package upgrades reuse the verified Electron cache.\n"
             "Discord and patched Electron update automatically after testing. Your settings and installed Vencord or Equicord are preserved.\n"
             "OpenAsar is included. Find its settings in User Settings > OpenAsar.\n"
+            "Use Launch presets and flags to inspect or edit launch options. If flags prevent startup, close Discord and run ./launch.sh --ignore-flags.\n"
             "Requires x86-64-v3, Linux desktop libraries, Python 3.11 or newer, Brotli, GnuPG (gpg and gpgv), PipeWire and PulseAudio tools.\n"
             f"Settings: ~/.config/discord-{channel}-patched-electron.conf\n"
             f"Profile: ~/.config/{profile_name(channel)}\n"

@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "reviewed": "2026-10-27",
+  "runtime": "Electron 46 / Chromium 158",
+  "presets": {
+    "balanced": {
+      "label": "Default",
+      "description": "Use the normal app settings.",
+      "flags": ""
+    },
+    "performance": {
+      "label": "Custom",
+      "description": "Keep a separate set of launch options.",
+      "flags": ""
+    },
+    "efficiency": {
+      "label": "Custom 2",
+      "description": "Your other saved launch options.",
+      "flags": "",
+      "legacy": true
+    }
+  },
+  "backends": {
+    "auto": {
+      "label": "Automatic",
+      "flags": []
+    },
+    "gl": {
+      "label": "OpenGL",
+      "flags": ["--use-gl=angle", "--use-angle=gl"]
+    },
+    "vulkan": {
+      "label": "Vulkan",
+      "flags": [
+        "--use-gl=angle",
+        "--use-angle=vulkan",
+        "--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE"
+      ]
+    }
+  },
+  "video": {
+    "decode": {
+      "label": "Force video decoding",
+      "description": "Use the GPU to play videos.",
+      "flags": ["--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL"]
+    },
+    "encode": {
+      "label": "Force video encoding",
+      "description": "Use the GPU to encode videos.",
+      "flags": ["--enable-features=AcceleratedVideoEncoder"]
+    }
+  },
+  "experiments": {
+    "forceAcceleration": {
+      "label": "Force acceleration",
+      "description": "Use the GPU even when driver checks block it.",
+      "flags": [
+        "--ignore-gpu-blocklist",
+        "--enable-gpu-rasterization",
+        "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs"
+      ]
+    },
+    "driverWorkarounds": {
+      "label": "Skip driver fixes",
+      "description": "Turn off workarounds for known GPU bugs.",
+      "flags": ["--disable-gpu-driver-bug-workarounds"]
+    },
+    "graphiteForce": {
+      "label": "Graphite renderer",
+      "description": "Use the newer graphics renderer.",
+      "flags": ["--enable-skia-graphite", "--skia-graphite-dawn-backend=vulkan"]
+    }
+  },
+  "retiredExperiments": {
+    "graphite": "Removed an ineffective graphics override.",
+    "videoBuffers": "Removed an ineffective graphics override.",
+    "rasterization": "Removed a redundant or low-value graphics override.",
+    "zeroCopy": "Removed a redundant or low-value graphics override.",
+    "overlays": "Removed a redundant or low-value graphics override.",
+    "nvidiaVaapi": "Removed a redundant or low-value graphics override.",
+    "vaapiDriverChecks": "Removed a redundant or low-value graphics override.",
+    "gpuBlocklist": "Removed a redundant or low-value graphics override.",
+    "uncapped": "Removed a redundant or low-value graphics override.",
+    "zeroCopyVideo": "Removed a redundant or low-value graphics override.",
+    "nativeBuffers": "Removed a redundant or low-value graphics override.",
+    "overlayDelegation": "Removed a redundant or low-value graphics override.",
+    "doubleBuffer": "Removed a redundant or low-value graphics override.",
+    "compositorBuffers": "Removed a redundant or low-value graphics override."
+  },
+  "retiredPresetFlags": {
+    "performance": "--disable-background-timer-throttling\n--disable-renderer-backgrounding",
+    "efficiency": "--enable-features=IntensiveWakeUpThrottling"
+  },
+  "retiredFlags": {
+    "rasterization": ["--enable-gpu-rasterization"],
+    "zeroCopy": ["--enable-zero-copy"],
+    "overlays": ["--enable-hardware-overlays=single-fullscreen,single-on-top,underlay"],
+    "nvidiaVaapi": ["--enable-features=VaapiOnNvidiaGPUs"],
+    "vaapiDriverChecks": ["--enable-features=VaapiIgnoreDriverChecks"],
+    "gpuBlocklist": ["--ignore-gpu-blocklist"],
+    "uncapped": ["--disable-frame-rate-limit"],
+    "zeroCopyVideo": ["--enable-features=AcceleratedVideoDecodeLinuxZeroCopyGL"],
+    "nativeBuffers": ["--enable-native-gpu-memory-buffers"],
+    "overlayDelegation": ["--enable-features=WaylandOverlayDelegation"],
+    "doubleBuffer": ["--double-buffer-compositing"],
+    "compositorBuffers": ["--enable-gpu-memory-buffer-compositor-resources"]
+  }
+}

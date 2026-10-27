@@ -22,7 +22,7 @@ function start() {
     relaunch({
       ...options,
       execPath: process.env.DPE_LAUNCHER,
-      args: options.args ?? process.argv.slice(1),
+      args: options.args ?? require("./relaunch.cjs").arguments(),
     });
 
   function supply(relative, value) {

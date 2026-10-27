@@ -1,0 +1,739 @@
+{
+  "date": "2026-10-27",
+  "environment": {
+    "os": "Arch Linux",
+    "desktop": "niri",
+    "session": "Wayland and Xwayland",
+    "gpu": "AMD Radeon RX 7900 GRE",
+    "mesa": "26.2.4",
+    "electron": "46.0.0-alpha.1",
+    "chromium": "158.0.8114.0"
+  },
+  "runtime": {
+    "compiler_run": "40053107555",
+    "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+    "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "archive_and_executable_reverified": true
+  },
+  "openasar": {
+    "commit": "5a44615cad9db23ae57573c498b26bae4e6e255b",
+    "archive_sha256": "8f0b45308dbd21b30e8e66c43576802c13c87d2ba7f6c0ceabbe3467d3c32d7c",
+    "cmd_switches_sha256": "875c9ff8f7c97ef14ea4ee4ea28fb1651fd8f027238646ec1098b8afa5e7e60e",
+    "matches_installed_source": true
+  },
+  "original_effective_switches": {
+    "ozone-platform": "wayland",
+    "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,EnableDrDc,CanvasOopRasterization,BackForwardCache:TimeToLiveInBackForwardCacheInSeconds/300/should_ignore_blocklists/true/enable_same_site/true,ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes,UseSkiaRenderer,WebAssemblyLazyCompilation",
+    "autoplay-policy": "no-user-gesture-required",
+    "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket,Vulkan",
+    "disable-background-timer-throttling": "",
+    "enable-gpu-rasterization": "",
+    "enable-zero-copy": "",
+    "ignore-gpu-blocklist": "",
+    "enable-hardware-overlays": "single-fullscreen,single-on-top,underlay",
+    "force_high_performance_gpu": "",
+    "enable-libopenh264": "",
+    "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+  },
+  "before_fix_bootstrap": [
+    {
+      "case": "bootstrap-before-wayland",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": [
+        "crashed"
+      ],
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "error": "Error: AbortError: The play() request was interrupted by a call to pause(). https://goo.gl/LdLk22; PipelineStatus::PIPELINE_ERROR_DISCONNECTED",
+      "video_decoders": [],
+      "effective_switches": {
+        "autoplay-policy": "no-user-gesture-required",
+        "disable-background-networking": "",
+        "disable-background-timer-throttling": "",
+        "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket,Vulkan",
+        "disable-setuid-sandbox": "",
+        "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,EnableDrDc,CanvasOopRasterization,BackForwardCache:TimeToLiveInBackForwardCacheInSeconds/300/should_ignore_blocklists/true/enable_same_site/true,ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes,UseSkiaRenderer,WebAssemblyLazyCompilation",
+        "enable-gpu-rasterization": "",
+        "enable-hardware-overlays": "single-fullscreen,single-on-top,underlay",
+        "enable-libopenh264": "",
+        "enable-zero-copy": "",
+        "force_high_performance_gpu": "",
+        "ignore-gpu-blocklist": "",
+        "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "ozone-platform": "wayland"
+      }
+    },
+    {
+      "case": "bootstrap-before-x11",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": false,
+      "error": "Error: No WebGL context",
+      "video_decoders": [],
+      "effective_switches": {
+        "autoplay-policy": "no-user-gesture-required",
+        "disable-background-networking": "",
+        "disable-background-timer-throttling": "",
+        "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket,Vulkan",
+        "disable-setuid-sandbox": "",
+        "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,EnableDrDc,CanvasOopRasterization,BackForwardCache:TimeToLiveInBackForwardCacheInSeconds/300/should_ignore_blocklists/true/enable_same_site/true,ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes,UseSkiaRenderer,WebAssemblyLazyCompilation",
+        "enable-gpu-rasterization": "",
+        "enable-hardware-overlays": "single-fullscreen,single-on-top,underlay",
+        "enable-libopenh264": "",
+        "enable-zero-copy": "",
+        "force_high_performance_gpu": "",
+        "ignore-gpu-blocklist": "",
+        "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "ozone-platform": "x11"
+      }
+    }
+  ],
+  "flag_isolation": [
+    {
+      "case": "original-all",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "original-x11",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": false,
+      "error": "Error: No WebGL context",
+      "video_decoders": []
+    },
+    {
+      "case": "without-enable-gpu-rasterization",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-enable-zero-copy",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-ignore-gpu-blocklist",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-enable-hardware-overlays",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-force_high_performance_gpu",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-enable-libopenh264",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-AcceleratedVideoDecoder",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-AcceleratedVideoDecodeLinuxGL",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-EnableDrDc",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": true,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    },
+    {
+      "case": "without-CanvasOopRasterization",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-UseSkiaRenderer",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "drdc-alone",
+      "passed": false,
+      "process_exit": 1,
+      "stage": "renderer",
+      "gpu_exits": null,
+      "gpu_exit_codes_in_log": [
+        133
+      ],
+      "native_wayland_connection": true,
+      "video_decoders": []
+    },
+    {
+      "case": "without-drdc-no-disable",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": true,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    },
+    {
+      "case": "without-drdc-x11",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": false,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL 4.6)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    },
+    {
+      "case": "without-drdc-repeat",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": true,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    }
+  ],
+  "individual_other_flags": [
+    {
+      "case": "CanvasOopRasterization",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "BackForwardCache",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "UseSkiaRenderer",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "WebAssemblyLazyCompilation",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "autoplay-policy",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "WinRetrieveSuggestionsOnlyOnDemand",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "HardwareMediaKeyHandling",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "MediaSessionService",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "UseEcoQoSForBackgroundProcess",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "IntensiveWakeUpThrottling",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "AllowAggressiveThrottlingWithWebSocket",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "Vulkan",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "disable-background-timer-throttling",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "enable-gpu-rasterization",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "enable-zero-copy",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "ignore-gpu-blocklist",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "enable-hardware-overlays",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "force_high_performance_gpu",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "enable-libopenh264",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    },
+    {
+      "case": "openh264-library-path",
+      "passed": true,
+      "stage": "complete",
+      "error": null,
+      "gpuExits": [],
+      "process_exit": 0
+    }
+  ],
+  "fixed_presets": [
+    {
+      "case": "bootstrap-after-wayland",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": true,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "effective_switches": {
+        "autoplay-policy": "no-user-gesture-required",
+        "disable-background-networking": "",
+        "disable-background-timer-throttling": "",
+        "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket,Vulkan",
+        "disable-setuid-sandbox": "",
+        "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,CanvasOopRasterization,BackForwardCache:TimeToLiveInBackForwardCacheInSeconds/300/should_ignore_blocklists/true/enable_same_site/true,ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes,UseSkiaRenderer,WebAssemblyLazyCompilation",
+        "enable-gpu-rasterization": "",
+        "enable-hardware-overlays": "single-fullscreen,single-on-top,underlay",
+        "enable-libopenh264": "",
+        "enable-zero-copy": "",
+        "force_high_performance_gpu": "",
+        "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "ozone-platform": "wayland"
+      },
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    },
+    {
+      "case": "bootstrap-after-x11",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": false,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL 4.6)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "effective_switches": {
+        "autoplay-policy": "no-user-gesture-required",
+        "disable-background-networking": "",
+        "disable-background-timer-throttling": "",
+        "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket,Vulkan",
+        "disable-setuid-sandbox": "",
+        "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,CanvasOopRasterization,BackForwardCache:TimeToLiveInBackForwardCacheInSeconds/300/should_ignore_blocklists/true/enable_same_site/true,ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes,UseSkiaRenderer,WebAssemblyLazyCompilation",
+        "enable-gpu-rasterization": "",
+        "enable-hardware-overlays": "single-fullscreen,single-on-top,underlay",
+        "enable-libopenh264": "",
+        "enable-zero-copy": "",
+        "force_high_performance_gpu": "",
+        "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "ozone-platform": "x11"
+      },
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    },
+    {
+      "case": "fixed-battery-wayland",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": true,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "effective_switches": {
+        "disable-background-timer-throttling": "",
+        "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket",
+        "disable-setuid-sandbox": "",
+        "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,TurnOffStreamingMediaCachingOnBattery",
+        "enable-libopenh264": "",
+        "force_low_power_gpu": "",
+        "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "ozone-platform": "wayland"
+      },
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    },
+    {
+      "case": "fixed-battery-x11",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": false,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL 4.6)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "effective_switches": {
+        "disable-background-timer-throttling": "",
+        "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket",
+        "disable-setuid-sandbox": "",
+        "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,TurnOffStreamingMediaCachingOnBattery",
+        "enable-libopenh264": "",
+        "force_low_power_gpu": "",
+        "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "ozone-platform": "x11"
+      },
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    },
+    {
+      "case": "fixed-balanced-wayland",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": true,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "effective_switches": {
+        "disable-background-timer-throttling": "",
+        "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket",
+        "disable-setuid-sandbox": "",
+        "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL",
+        "enable-libopenh264": "",
+        "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "ozone-platform": "wayland"
+      },
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    },
+    {
+      "case": "fixed-balanced-x11",
+      "passed": true,
+      "process_exit": 0,
+      "stage": "complete",
+      "gpu_exits": [],
+      "gpu_exit_codes_in_log": [],
+      "native_wayland_connection": false,
+      "video_frames": 5,
+      "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL 4.6)",
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ],
+      "effective_switches": {
+        "disable-background-timer-throttling": "",
+        "disable-features": "WinRetrieveSuggestionsOnlyOnDemand,HardwareMediaKeyHandling,MediaSessionService,UseEcoQoSForBackgroundProcess,IntensiveWakeUpThrottling,AllowAggressiveThrottlingWithWebSocket",
+        "disable-setuid-sandbox": "",
+        "enable-features": "AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL",
+        "enable-libopenh264": "",
+        "openh264-library-path": "$FRESH_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+        "ozone-platform": "x11"
+      },
+      "software_encoder_chunks": {
+        "avc1.42001f": 12,
+        "vp8": 12,
+        "vp09.00.10.08": 12,
+        "av01.0.04M.08": 12
+      },
+      "supported_hardware_encoders": []
+    }
+  ],
+  "software_only_diagnostic": {
+    "case": "software-diagnostics",
+    "passed": false,
+    "process_exit": 1,
+    "stage": "renderer",
+    "gpu_exits": [],
+    "gpu_exit_codes_in_log": [],
+    "native_wayland_connection": true,
+    "error": "Error: NotSupportedError: Failed to load because no supported source was found.; PipelineStatus::DECODER_ERROR_NOT_SUPPORTED: video decoder initialization failed with DecoderStatus::Codes::kUnsupportedConfig",
+    "video_decoders": [],
+    "effective_switches": {
+      "autoplay-policy": "no-user-gesture-required",
+      "disable-accelerated-video-decode": "",
+      "disable-background-networking": "",
+      "disable-setuid-sandbox": "",
+      "enable-libopenh264": "",
+      "enable-logging": "stderr",
+      "openh264-library-path": "/usr/lib/libopenh264.so",
+      "ozone-platform": "wayland",
+      "vmodule": "ffmpeg*=2"
+    }
+  },
+  "limitations": [
+    "Synthetic H.264 playback, hardware WebGL and WebCodecs encoding; no account, live Discord video or call tested.",
+    "One AMD/Mesa host; native X11 session, NVIDIA and Intel not tested.",
+    "Forced software H.264 decoding failed with kUnsupportedConfig even without OpenAsar and with a system OpenH264 path. This is separate from the reproduced GPU crash; software decoding is not validated.",
+    "No Electron compilation, package publication or installed profile modification performed."
+  ],
+  "checks": {
+    "python_tests": 238,
+    "javascript_tests": 61,
+    "test": "bun run test",
+    "lint": "bun run lint"
+  }
+}

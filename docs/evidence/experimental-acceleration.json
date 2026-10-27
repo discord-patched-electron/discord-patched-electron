@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "base_commit": "690d873",
+  "runtime": {
+    "electron": "46.0.0-alpha.1",
+    "chromium": "158.0.8114.0",
+    "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+    "source": "retained verified prerelease artifact 40053107555; no compilation"
+  },
+  "host": {
+    "os": "Arch Linux",
+    "compositor": "niri 26.04-214-ge9804c1c",
+    "gpu": "AMD Radeon RX 7900 GRE",
+    "mesa": "26.2.4",
+    "libva": "2.24.1",
+    "kernel": "7.2.11-1-cachyos"
+  },
+  "inputs_sha256": {
+    "integration/launcher/presets.json": "af95824c4de4ec855c04fdea96bd5b6358219e8988759a9da4c467df9e707db6",
+    "integration/updater/launch-settings.html": "09a708588d2b6aa92049788c909c56768409c15962635d1020f94efd42844994",
+    "integration/updater/launch-settings.js": "fb752a55d4df5498a63846845d5d122d6694ca2830e1887f4c2c8a5976e81398",
+    "tests/test_launch_flags.py": "331c7d13f6a124e19f0fc1fcd3ac70d1a12d9c0b6a0a39d6345c5a01ef8f93b4",
+    "tests/launch-settings/main.cjs": "7c6759ab6e9b7c3cf63ad92876ac9a5c3e4f6d285a5dd3811e26fbb7d751e7a2"
+  },
+  "graphics": [
+    {
+      "case": "bypass-auto",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--ignore-gpu-blocklist",
+        "--enable-gpu-rasterization",
+        "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs",
+        "--disable-features=OpenH264SoftwareEncoder"
+      ],
+      "report": "out/experimental-acceleration/bypass-auto/graphics.json",
+      "sha256": "57f13812494b70cc4cdfab92edca08387942f01e02a48b8410a6765b459d5079",
+      "passed": true,
+      "gpu_exits": [],
+      "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "video_frames": 5,
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ]
+    },
+    {
+      "case": "bypass-vulkan",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--use-gl=angle",
+        "--use-angle=vulkan",
+        "--ignore-gpu-blocklist",
+        "--enable-gpu-rasterization",
+        "--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE,AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs",
+        "--disable-features=OpenH264SoftwareEncoder"
+      ],
+      "report": "out/experimental-acceleration/bypass-vulkan/graphics.json",
+      "sha256": "9493b75ee55990fef0054ab2d225996d3e476353604274853c3021bc6d295073",
+      "passed": true,
+      "gpu_exits": [],
+      "renderer": "ANGLE (AMD, Vulkan 1.4.354 (AMD Radeon RX 7900 GRE (RADV NAVI31) (0x0000744C)), radv)",
+      "video_frames": 5,
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ]
+    },
+    {
+      "case": "compositor-buffers",
+      "flags": [
+        "--class=discord-canary",
+        "--ozone-platform=wayland",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-gpu-memory-buffer-compositor-resources",
+        "--disable-features=OpenH264SoftwareEncoder"
+      ],
+      "report": "out/experimental-acceleration/compositor-buffers/graphics.json",
+      "sha256": "d97c24539533d8c667c19bb779405e215fa285633270fb44e99545b11c7dab51",
+      "passed": true,
+      "gpu_exits": [],
+      "renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+      "video_frames": 5,
+      "video_decoders": [
+        "VaapiVideoDecoder"
+      ]
+    }
+  ],
+  "prior_graphite_evidence": {
+    "source": "docs/evidence/linux-gpu-flags.json",
+    "case": "graphite-force",
+    "report": "out/flags-deep-research/graphite-force/graphics.json",
+    "sha256": "e653d87e6afabe50bf4fbb17412419463fd958cf0db7f4f938f3ed5d0c2f1059",
+    "result": "GPU crash with the same explicit Graphite/Dawn Vulkan switches; no additional Graphite crash test required."
+  },
+  "native_editor": {
+    "report": "out/experimental-acceleration/settings/settings.json",
+    "sha256": "9227ee3bfffb1ccd64803250699ed1dfcd00458d2b9a4e7fe645171b4f0c6f43",
+    "passed": true,
+    "checks": [
+      "Balanced defaults, independent codec controls and sandboxed preload",
+      "Unsupported flag rejected without saving; error labels and focus reach the field",
+      "Per-preset edits survive selection, save and real resolver preview",
+      "Reopening persists edits; stale OpenAsar settings cannot overwrite launch settings",
+      "Acceleration bypass and WIP controls remain independent, persist per preset, and support reset/discard",
+      "Accessibility tree exposes names and native roles for all editor controls",
+      "320px, RTL and 200% zoom have no horizontal overflow; keyboard navigation works",
+      "Recovery ignores saved acceleration and WIP flags while retaining them for repair",
+      "Recovery repairs invalid presets and explicitly returns to normal launch"
+    ]
+  },
+  "validation": {
+    "python_tests": 257,
+    "javascript_tests": 64,
+    "lint": "passed",
+    "tests_log_sha256": "429d2c083264d590c2ed694dbdaf0f83e29fb187179b404832e8b534962fd9b5",
+    "lint_log_sha256": "7e8f0a0825493410b435bc9534f5a35fe49b678bd7b1dc05d1ffe91f792f0f47"
+  },
+  "limits": [
+    "Synthetic short WebGL/H.264 playback probes on one AMD GPU; no performance/efficiency or cross-GPU claim.",
+    "Hardware encoding is a separate explicit choice and still has the previously reproduced GPU crash.",
+    "WIP options remain user-requested experiments; passing playback does not prove direct scanout or all buffer paths.",
+    "No Discord login, messages, calls or physical camera use."
+  ]
+}
