@@ -175,6 +175,30 @@ class RuntimeUpdates(unittest.TestCase):
                 )
         self.assertEqual(len(list((self.cache / "generations").glob("*.damaged-*"))), 2)
 
+    def test_application_generation_reuses_runtime_bytes_without_redirecting_running_resources(
+        self,
+    ):
+        executable = runtime.ensure_runtime(self.app, self.profile)
+        application = self.root / "next application"
+        (application / "resources").mkdir(parents=True)
+        (application / "resources/app.asar").write_bytes(b"new bootstrap")
+        incoming = runtime.read_object(executable.parent / "runtime.json")
+        write_json(application / "runtime-update.json", incoming)
+        with (
+            patch.dict(os.environ, {"DPE_RUNTIME_UPDATES": "0"}),
+            patch.object(
+                runtime, "download", side_effect=AssertionError("Electron must not download again")
+            ),
+        ):
+            reused = runtime.ensure_runtime(application, self.profile)
+            self.assertNotEqual(reused, executable)
+            self.assertEqual(reused.read_bytes(), executable.read_bytes())
+            self.assertEqual((reused.parent / "resources").resolve(), application / "resources")
+            self.assertEqual((executable.parent / "resources").resolve(), self.app / "resources")
+            self.assertEqual(
+                runtime.ensure_runtime(application, self.profile, offline=True), reused
+            )
+
     def download(self, url, target, **_options):
         self.downloads.append(url)
         if url == f"https://api.github.com/repos/{runtime.REPOSITORY}/releases/latest":

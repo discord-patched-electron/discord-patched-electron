@@ -41,6 +41,8 @@ SUPPORT = [
     "scripts/camera_scope.py",
     "scripts/client_native.py",
     "scripts/stage_package.py",
+    "scripts/application_payload.py",
+    "integration/bootstrap/loader.py",
     "scripts/stage_updater.py",
     "scripts/updater_python.py",
     "scripts/stage_openasar.py",

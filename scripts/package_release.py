@@ -1,7 +1,7 @@
 """Package a tested, relocatable app without compiling Electron.
 
-All four formats contain the same updater tree, without Electron. nFPM creates
-distro metadata; the launcher prepares the pinned runtime in the user's profile.
+All four formats contain the same minimal bootstrap. The signed application
+archive supplies the updater, OpenAsar and patches in the user's profile.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import tarfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+from application_payload import ASSET, bootstrap, bundle
 from channels import require_enabled_discord
 from common import (
     ROOT,
@@ -29,6 +30,7 @@ from common import (
 from desktop_identity import arch_conflicts, desktop_id
 from elftools.elf.elffile import ELFFile
 from fetch_reference import validate_capacity
+from releases import release_tag
 from stage_updater import validate_distribution
 
 REPOSITORY = "https://github.com/discord-patched-electron/discord-patched-electron"
@@ -244,9 +246,9 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     libc = required_glibc(app)
     output.mkdir(parents=True)
     source = app
-    app = output / "payload"
-    # Retain the verified full app for qualification/reuse. Only the installer
-    # payload excludes Electron; no package upgrade can download it indirectly.
+    app = output / "application"
+    # Retain the verified full app for qualification/reuse. The application archive
+    # excludes Electron; the installer contains only its trust bootstrap.
     shutil.copytree(
         source,
         app,
@@ -258,17 +260,21 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     write_json(app / "runtime-update.json", policy)
     normalize_permissions(app)
     validate_distribution(app, allow_runtime=False)
+    application = bundle(app, output / ASSET, version, epoch)
+    client_pins = read_json(app / "client-update.json")
+    release_key = os.environ.get("RELEASE_KEY") or application["archive_sha256"]
+    tag = release_tag(build["client_version"], release_key, build["channel"], version)
+    payload = output / "payload"
+    bootstrap(
+        app, payload, application, tag, build["channel"], build["capacity"]["source"]["target"]
+    )
+    app = payload
+    normalize_permissions(app)
     config = metadata(app, version, build["channel"], epoch, build["capacity"]["source"]["target"])
     config["overrides"]["deb"]["depends"][0] = f"libc6 (>= {libc})"
     config["overrides"]["rpm"]["depends"][0] = f"glibc >= {libc}"
     config["overrides"]["archlinux"]["depends"][0] = f"glibc>={libc}"
     name = config["name"]
-    shutil.copyfile(ROOT / "packaging/linux/refresh-mod-backup.sh", app / "refresh-mod-backup.sh")
-    (app / "refresh-mod-backup.sh").chmod(0o644)
-    refresh = output / "refresh-mod-backup.sh"
-    refresh.write_text(f"#!/bin/sh\nsh /opt/{name}/refresh-mod-backup.sh /opt/{name}\n")
-    config["scripts"] = {"postinstall": str(refresh)}
-    config["archlinux"]["scripts"] = {"postupgrade": str(refresh)}
     # The launcher explicitly enters this named profile for per-user runtimes
     # on Ubuntu 24.04+. Retain the old attachment for upgrades from bundled apps.
     profile = output / "apparmor-profile"
@@ -278,8 +284,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     )
     postinstall = output / "postinstall.sh"
     postinstall.write_text(
-        refresh.read_text()
-        + (ROOT / "packaging/linux/postinstall.sh").read_text().replace("@PKGNAME@", name)
+        (ROOT / "packaging/linux/postinstall.sh").read_text().replace("@PKGNAME@", name)
     )
     config["contents"].append(
         {"src": str(profile), "dst": f"/etc/apparmor.d/{name}", "type": "config", "packager": "deb"}
@@ -308,7 +313,13 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             check=True,
             env=environment,
         )
-    assets = [archive, *output.glob("*.deb"), *output.glob("*.rpm"), *output.glob("*.pkg.tar.zst")]
+    assets = [
+        archive,
+        *output.glob("*.deb"),
+        *output.glob("*.rpm"),
+        *output.glob("*.pkg.tar.zst"),
+        output / ASSET,
+    ]
     write_json(
         output / "release.json",
         {
@@ -319,7 +330,9 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             "channel": build["channel"],
             "desktop_id": desktop_id(build["channel"]),
             "client_version": build["client_version"],
-            "client": read_json(app / "client-update.json"),
+            "client": client_pins,
+            "application": application,
+            "package_distribution": "bootstrap-only",
             "client_distribution": "module-only",
             "bundled_discord_client": False,
             "bundled_electron": False,
@@ -340,7 +353,7 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             "workflow_run": os.environ.get("GITHUB_RUN_ID"),
             "clients_state": os.environ.get("CLIENTS_STATE"),
             "proposal_commit": os.environ.get("PROPOSAL_COMMIT"),
-            "release_key": os.environ.get("RELEASE_KEY"),
+            "release_key": release_key,
             "minimum_cpu": "x86-64-v3",
             "minimum_glibc": libc,
             "source_dirty": bool(

@@ -27,6 +27,7 @@ def check(
     equicord: bool = False,
     read_only_app: bool = False,
     runtime_archive: Path | None = None,
+    application_archive: Path | None = None,
 ):
     app, output = app.resolve(), output.resolve()
     if output.exists():
@@ -36,6 +37,13 @@ def check(
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
     profile = (profile or output / "profile").resolve()
+    launcher_app = app
+    if (app / "bootstrap.json").exists():
+        command = ["python3", "-I", str(app / "loader.py"), "--profile", str(profile), "--resolve"]
+        if application_archive:
+            command += ["--archive", str(application_archive.resolve())]
+        app = Path(subprocess.check_output(command, text=True).strip())
+        read_only_app = True
     if runtime_archive:
         subprocess.run(
             [
@@ -80,7 +88,7 @@ def check(
     with (output / "console.log").open("w") as log:
         process = subprocess.Popen(
             [
-                str(app / "launch.sh"),
+                str(launcher_app / "launch.sh"),
                 "--remote-debugging-address=127.0.0.1",
                 f"--remote-debugging-port={port}",
             ],
@@ -259,6 +267,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--read-only-app", action="store_true", help="Do not update the installed build manifest"
     )
+    parser.add_argument("--application-archive", type=Path)
     args = parser.parse_args()
     first = check(
         args.app,
@@ -266,6 +275,7 @@ if __name__ == "__main__":
         equicord=args.equicord,
         read_only_app=args.read_only_app,
         runtime_archive=args.runtime_archive,
+        application_archive=args.application_archive,
     )
     passed = first["passed"]
     if passed and args.relaunch:

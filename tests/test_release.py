@@ -72,7 +72,9 @@ class PortableReleases(unittest.TestCase):
                 config = read_json(Path(command[command.index("--config") + 1]))
                 payload = Path(config["contents"][0]["src"])
                 self.assertFalse((payload / "runtime").exists())
-                self.assertTrue((payload / "resources/app.asar").is_file())
+                self.assertTrue((payload / "loader.py").is_file())
+                self.assertFalse((payload / "resources").exists())
+                self.assertFalse((payload / "integration").exists())
                 Path(command[command.index("--target") + 1]).write_bytes(b"package fixture")
 
             with (
@@ -92,7 +94,8 @@ class PortableReleases(unittest.TestCase):
                 )
                 checksums = archive.extractfile(names[0] + "/SHA256SUMS").read().decode()
                 self.assertNotIn("runtime/", checksums)
-                self.assertIn("runtime-update.json", checksums)
+                self.assertIn("bootstrap.json", checksums)
+                self.assertNotIn("runtime-update.json", checksums)
             self.assertFalse(read_json(output / "release.json")["bundled_electron"])
             self.assertEqual(read_json(app / "runtime-update.json"), policy)
             self.assertEqual(

@@ -17,6 +17,9 @@ def integration_key(
                 [
                     "scripts/prepare_app.py",
                     "scripts/stage_updater.py",
+                    "scripts/application_payload.py",
+                    "integration/bootstrap/loader.py",
+                    "integration/updater/application.py",
                     "scripts/updater_python.py",
                     "scripts/stage_openasar.py",
                     "integration/updater/installation.py",
@@ -76,6 +79,7 @@ def integration_key(
                     "scripts/build_local_app.py",
                     "scripts/package_release.py",
                     "scripts/check_desktop_launch.py",
+                    "scripts/check_application_update.py",
                     "scripts/check_client_mods.py",
                     "tests/client-mods/self-update.cjs",
                     "scripts/check_installed_package.py",
