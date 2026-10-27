@@ -18,7 +18,9 @@ See the [codec checks](agent/codec-support.md) for tested formats and hardware.
 
 ## Appearance and startup
 
-Open **User Settings → OpenAsar**:
+Open Discord's **User Settings**, then click **OpenAsar (discord-patched-electron …)**
+in the version information at the bottom of the left sidebar. This opens
+**DPE OpenAsar Config**.
 
 | Setting        | What it does                                                                    |
 | -------------- | ------------------------------------------------------------------------------- |
@@ -28,7 +30,7 @@ Open **User Settings → OpenAsar**:
 
 ## Launch flags and GPU acceleration
 
-Open **User Settings → OpenAsar → Flags**. The Flags box shows your overrides,
+In **DPE OpenAsar Config**, select **Flags**. The Flags box shows your overrides,
 one per line. App defaults are applied separately. Choose **Save**, then
 **Restart** to apply changes. Save stays disabled until something changes.
 

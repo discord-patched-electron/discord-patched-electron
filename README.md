@@ -48,8 +48,8 @@ are available for testing.
 ## Configure OpenAsar and flags
 
 Open Discord's **User Settings**, then click **OpenAsar (discord-patched-electron …)**
-in the version information at the bottom of the left sidebar. You can also select
-**OpenAsar** in the sidebar. Both open **DPE OpenAsar Config**.
+in the version information at the bottom of the left sidebar to open
+**DPE OpenAsar Config**.
 
 Use **Settings** and **Theming** to configure OpenAsar. The **Flags** tab provides
 display options, graphics presets under **Advanced**, and a box for custom
