@@ -13,8 +13,22 @@ Open **User Settings → OpenAsar**:
 | Splash Theming | Uses your Discord or custom theme colors during startup. Enabled by default.    |
 | Quickstart     | Opens an existing installation sooner and checks for updates in the background. |
 
-Focus presets retain the GPU driver blocklist and omit `EnableDrDc`, which is
-unsupported on Linux and can crash video rendering.
+## Presets and video acceleration
+
+Open **User Settings → OpenAsar → Launch presets and flags**. Select **Balanced**
+for Chromium's defaults, **Responsive** to keep background work active, or
+**Efficiency** to explicitly retain background timer throttling. Each preset has
+an editable flags box and its own optional controls. Save, then restart to apply.
+
+Hardware decoding and encoding have separate checkboxes. Unchecked means use
+the runtime's defaults. Rendering backends, driver overrides and other experiments
+are optional and off by default. Forced encoding currently crashes on the tested
+AMD RX 7900 GRE; leave it off unless testing. These controls affect Chromium media,
+not Discord's separate call codec engine.
+
+**Next launch** shows the merged arguments and their sources. One flag goes on
+each line; blank lines and `#` comments are allowed. Manual flags override preset
+checkboxes. **Restore this preset's defaults** changes the draft until you save.
 
 ## Global shortcuts
 
@@ -35,10 +49,21 @@ Close Discord completely, then reopen it to apply changes.
 ```
 
 Blank lines and `#` comments are ignored. Don't add shell quotes or assignments.
-Flags in this file override defaults and OpenAsar's Focus presets.
+Flags in this file override defaults and saved presets.
 Command-line flags take precedence over the file.
 
 ## Troubleshooting
+
+If a flag makes Discord crash immediately, close it completely and run:
+
+```sh
+discord-canary-prerelease-patched-electron-bin --ignore-flags
+```
+
+This skips saved presets, flag files and all supplied arguments before they are
+read. It preserves your settings. Repair them in the editor, then choose
+**Restart with saved flags**. For tarballs use `./launch.sh --ignore-flags`;
+`DPE_IGNORE_FLAGS=1` provides the same recovery mode.
 
 Close Discord completely before trying an environment variable in a terminal.
 For example, to disable the application-audio adapter for one launch:
@@ -52,7 +77,7 @@ Other controls work the same way:
 | Variable                  | Effect                                                                                                  |
 | ------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                                                                     |
-| `DPE_DEFAULT_FLAGS=0`     | Disables the default launch flags.                                                                      |
+| `DPE_DEFAULT_FLAGS=0`     | Skips application defaults and saved presets/options; files and command-line flags still apply.         |
 | `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                                                               |
 | `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime.                                               |
 | `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use. |

@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -128,6 +129,7 @@ class PortableReleases(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
             app = base / "moved app"
+            shutil.copytree(ROOT / "integration/launcher", app / "integration/launcher")
             (app / "runtime").mkdir(parents=True)
             runtime = app / "runtime/electron"
             runtime.write_text(

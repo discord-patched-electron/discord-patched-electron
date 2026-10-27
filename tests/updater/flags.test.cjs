@@ -5,6 +5,26 @@ const { test } = require("node:test");
 const append = require("../../integration/updater/flags.cjs");
 const { bootstrap } = require("../../integration/updater/patches.cjs");
 
+test("managed presets and recovery suppress every later OpenAsar switch", (t) => {
+  for (const marker of ["DPE_FLAGS_MANAGED", "DPE_IGNORE_FLAGS"]) {
+    const previous = process.env[marker];
+    process.env[marker] = "1";
+    t.after(() => {
+      if (previous === undefined) delete process.env[marker];
+      else process.env[marker] = previous;
+    });
+    const { switches, commandLine } = fixture({ "enable-features": "UserFeature" });
+    for (const [name, value] of [
+      ["enable-features", "EnableDrDc"],
+      ["use-angle", "vulkan"],
+      ["enable-zero-copy", ""],
+    ])
+      append(commandLine, name, value);
+    assert.deepEqual(switches, { "enable-features": "UserFeature" });
+    delete process.env[marker];
+  }
+});
+
 function fixture(initial = {}) {
   const switches = { ...initial };
   const commandLine = {

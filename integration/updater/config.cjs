@@ -1,4 +1,4 @@
-// Keep the upstream settings HTML/preload; constrain IPC to this local window.
+// Extend the pinned settings page; constrain IPC to this local window.
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const path = require("node:path");
 const preferences = require("./profile.cjs");
@@ -15,7 +15,7 @@ function open() {
     center: true,
     backgroundColor: "#2f3136",
     webPreferences: {
-      preload: path.join(process.env.DPE_APP_ROOT, "bootstrap/src/config/preload.js"),
+      preload: path.join(__dirname, "config-preload.cjs"),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -32,14 +32,20 @@ function open() {
     cs(_event, config) {
       // Bootstrap/channel self-replacement would remove the fork integration.
       if (!config || typeof config !== "object" || Array.isArray(config)) return;
+      // The launch editor saves independently; the older page holds a snapshot.
+      // Preserve its latest launch settings when another OpenAsar option changes.
+      const launchFlags = settings.get("openasar", {}).launchFlags;
+      config = { ...config, ...(launchFlags ? { launchFlags } : {}) };
       settings.set("openasar", config);
       settings.save();
       global.oaConfig = { ...config, autoupdate: false };
     },
     cr() {
       settings.save();
-      app.relaunch();
-      app.quit();
+      require("./relaunch.cjs").restart(app);
+    },
+    "dpe-launch-settings-open"() {
+      require("./launch-settings.cjs").open();
     },
     of() {
       void shell.openPath(path.join(process.env.DPE_PROFILE_DIR, "settings.json"));

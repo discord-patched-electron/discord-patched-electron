@@ -30,6 +30,7 @@ that test run.
 - [Camera startup](camera-startup.md)
 - [Launcher, codecs and shortcuts](linux-launcher.md)
 - [OpenAsar playback crash and flag audit](video-playback.md)
+- [Editable presets, recovery and current Linux GPU flag research](launch-presets.md)
 - [Local runtime checks](linux-runtime.md)
 
 ## History and evidence

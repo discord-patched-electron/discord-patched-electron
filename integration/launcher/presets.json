@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "reviewed": "2026-10-27",
+  "runtime": "Electron 46 / Chromium 158",
+  "presets": {
+    "balanced": {
+      "label": "Balanced",
+      "description": "Recommended. Uses Chromium's rendering and scheduling defaults, with driver protections intact.",
+      "flags": ""
+    },
+    "performance": {
+      "label": "Responsive",
+      "description": "Keeps background timers and renderers active. May improve background responsiveness at the cost of CPU use and battery life; does not raise the display refresh rate.",
+      "flags": "--disable-background-timer-throttling\n--disable-renderer-backgrounding"
+    },
+    "efficiency": {
+      "label": "Efficiency",
+      "description": "Explicitly keeps intensive background timer throttling enabled. This is already Chromium's default; battery-life gains are not guaranteed.",
+      "flags": "--enable-features=IntensiveWakeUpThrottling"
+    }
+  },
+  "backends": {
+    "auto": {
+      "label": "Automatic (recommended)",
+      "flags": []
+    },
+    "gl": {
+      "label": "ANGLE OpenGL (experimental override)",
+      "flags": ["--use-gl=angle", "--use-angle=gl"]
+    },
+    "vulkan": {
+      "label": "ANGLE Vulkan (experimental)",
+      "flags": [
+        "--use-gl=angle",
+        "--use-angle=vulkan",
+        "--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE"
+      ]
+    }
+  },
+  "video": {
+    "decode": {
+      "label": "Force hardware video decoding",
+      "description": "Experimental override. Requests Chromium's Linux decoder and OpenGL path; drivers and codecs still decide availability. Usually already enabled on supported Intel/AMD systems.",
+      "flags": ["--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL"]
+    },
+    "encode": {
+      "label": "Force hardware video encoding",
+      "description": "Experimental; known to crash the GPU on the tested RX 7900 GRE. Requests Chromium/WebCodecs encoding, not Discord's separate voice/video engine. Leave off unless testing.",
+      "flags": ["--enable-features=AcceleratedVideoEncoder"]
+    }
+  },
+  "experiments": {
+    "rasterization": {
+      "label": "Force GPU rasterization",
+      "description": "Forces GPU painting. Often already enabled; can regress some drivers.",
+      "flags": ["--enable-gpu-rasterization"]
+    },
+    "zeroCopy": {
+      "label": "Zero-copy raster buffers",
+      "description": "Changes raster buffer uploads. This is not a zero-copy video decoder switch.",
+      "flags": ["--enable-zero-copy"]
+    },
+    "overlays": {
+      "label": "Force hardware overlays",
+      "description": "May reduce composition work, but can cause flicker or video corruption with some drivers/compositors.",
+      "flags": ["--enable-hardware-overlays=single-fullscreen,single-on-top,underlay"]
+    },
+    "graphite": {
+      "label": "Skia Graphite renderer",
+      "description": "Experimental rendering backend on Linux. Depends on the runtime build and GPU driver; can fail or fall back.",
+      "flags": ["--enable-features=SkiaGraphite"]
+    },
+    "nvidiaVaapi": {
+      "label": "NVIDIA VA-API decoding",
+      "description": "Needs a compatible NVIDIA VA-API driver. Support varies by driver version; NVDEC support does not provide NVENC encoding.",
+      "flags": ["--enable-features=VaapiOnNvidiaGPUs"]
+    },
+    "vaapiDriverChecks": {
+      "label": "Bypass VA-API driver checks",
+      "description": "Developer override for unsupported drivers. Can crash or corrupt video; does not install a missing driver.",
+      "flags": ["--enable-features=VaapiIgnoreDriverChecks"]
+    },
+    "gpuBlocklist": {
+      "label": "Bypass the GPU blocklist",
+      "description": "Removes Chromium's protection against known driver failures. Only use to test a specific driver workaround.",
+      "flags": ["--ignore-gpu-blocklist"]
+    },
+    "driverWorkarounds": {
+      "label": "Disable GPU driver workarounds",
+      "description": "Disables Chromium's driver bug fixes. Can cause crashes, corruption or performance regressions.",
+      "flags": ["--disable-gpu-driver-bug-workarounds"]
+    },
+    "uncapped": {
+      "label": "Uncap rendering",
+      "description": "Disables frame-rate limiting and GPU vsync. Can increase power use, tearing and latency; not a general smoothness fix.",
+      "flags": ["--disable-frame-rate-limit"]
+    },
+    "zeroCopyVideo": {
+      "label": "Request zero-copy video imports",
+      "description": "Uses NV12/P010 imports where supported. Already enabled by this runtime; unrelated to zero-copy raster buffers. Driver support still applies.",
+      "flags": ["--enable-features=AcceleratedVideoDecodeLinuxZeroCopyGL"]
+    },
+    "nativeBuffers": {
+      "label": "Force native GPU memory buffers",
+      "description": "Overrides native buffer allocation. Experimental across drivers; does not fix unsupported hardware encoding.",
+      "flags": ["--enable-native-gpu-memory-buffers"]
+    },
+    "videoBuffers": {
+      "label": "GPU memory buffers for video frames",
+      "description": "Changes the video frame buffer path. Driver and format support vary; can cause playback failures.",
+      "flags": ["--enable-gpu-memory-buffer-video-frames"]
+    },
+    "overlayDelegation": {
+      "label": "Wayland overlay delegation",
+      "description": "Allows subsurfaces for delegated composition. Disabled by default in Chromium; does not enable delegated composition on its own.",
+      "flags": ["--enable-features=WaylandOverlayDelegation"]
+    }
+  }
+}

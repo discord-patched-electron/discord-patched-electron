@@ -88,7 +88,7 @@ def stage(
     # Official mod installers use this to identify the installation. The loader
     # reads the live client metadata from Discord's per-user installation.
     write_json(resources / "build_info.json", {"releaseChannel": channel, "version": version})
-    for directory in ("updater", "audio", "desktop"):
+    for directory in ("updater", "audio", "desktop", "launcher"):
         shutil.copytree(
             ROOT / "integration" / directory,
             output / "integration" / directory,

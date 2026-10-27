@@ -1,0 +1,185 @@
+// Exercise the production page, sandboxed preload and IPC with a fresh profile.
+const { app, BrowserWindow } = require("electron");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const output = process.env.DPE_SETTINGS_OUTPUT;
+if (!output) throw new Error("A private output directory is required");
+const root = process.env.DPE_APP_ROOT;
+const profile = process.env.DPE_PROFILE_DIR;
+app.setPath("userData", profile);
+require(path.join(root, "integration/updater/window.cjs"));
+const editor = require(path.join(root, "integration/updater/launch-settings.cjs"));
+const settingsPage = require(path.join(root, "integration/updater/config.cjs"));
+let values = { openasar: { css: "/* preserve me */", themeSync: false }, unrelated: true };
+global.settings = {
+  get: (key, fallback) => values[key] ?? fallback,
+  set: (key, value) => {
+    values[key] = value;
+  },
+  save: () => fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify(values)),
+};
+global.settings.save();
+const checks = [];
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function until(predicate) {
+  const end = Date.now() + 10000;
+  do {
+    if (await predicate()) return;
+    await delay(50);
+  } while (Date.now() < end);
+  throw new Error("Timed out waiting for the settings UI");
+}
+let window;
+const evaluate = (code) => window.webContents.executeJavaScript(code);
+const get = (expression) =>
+  evaluate(`(() => { const $ = (id) => document.getElementById(id); return ${expression}; })()`);
+const change = (id, value, event = "input") =>
+  evaluate(`(() => {
+  const input = document.getElementById(${JSON.stringify(id)});
+  input.value = ${JSON.stringify(value)};
+  input.dispatchEvent(new Event(${JSON.stringify(event)}, {bubbles:true}));
+})()`);
+async function open() {
+  editor.open();
+  window = BrowserWindow.getAllWindows().find((item) => item !== oldWindow);
+  await until(() => get('$("settings") && !$("settings").hidden'));
+}
+let oldWindow;
+function finish(error) {
+  fs.writeFileSync(
+    path.join(output, "settings.json"),
+    JSON.stringify(
+      { passed: !error, versions: process.versions, checks, error: error?.stack },
+      null,
+      2,
+    ),
+  );
+  app.exit(error ? 1 : 0);
+}
+app
+  .whenReady()
+  .then(async () => {
+    settingsPage.open();
+    oldWindow = BrowserWindow.getAllWindows()[0];
+    await until(() => oldWindow.webContents.executeJavaScript('typeof window.Native === "object"'));
+    await open();
+    assert.equal(await get('$("preset").value'), "balanced");
+    assert.equal(await get('$("decode").checked || $("encode").checked'), false);
+    assert.equal(await evaluate("typeof window.require"), "undefined");
+    checks.push("Balanced defaults, independent codec controls and sandboxed preload");
+
+    await change("preset-flags", "--enable-features=EnableDrDc");
+    await evaluate('document.getElementById("settings").requestSubmit()');
+    await until(() => get('$("preset-flags").getAttribute("aria-invalid") === "true"'));
+    assert.equal(await evaluate("document.activeElement.id"), "preset-flags");
+    assert.match(await get('$("error").textContent'), /unsupported on Linux/);
+    assert.equal(values.openasar.launchFlags, undefined);
+    checks.push("Unsupported flag rejected without saving; error labels and focus reach the field");
+
+    await change(
+      "preset-flags",
+      "# my preset\n--disable-features=AcceleratedVideoEncoder\n--custom-value=one=two",
+    );
+    await evaluate('document.getElementById("decode").click()');
+    await change("preset", "performance", "change");
+    assert.match(await get('$("preset-flags").value'), /disable-background-timer-throttling/);
+    assert.equal(await get('$("decode").checked'), false);
+    await change("preset", "balanced", "change");
+    assert.equal(await get('$("decode").checked'), true);
+    assert.match(await get('$("preset-flags").value'), /custom-value=one=two/);
+    await evaluate('document.getElementById("settings").requestSubmit()');
+    await until(() => get('$("status").textContent.startsWith("Saved.")'));
+    assert.equal(values.openasar.launchFlags.profiles.balanced.decode, true);
+    assert.equal(values.openasar.launchFlags.profiles.balanced.encode, false);
+    assert.equal(values.unrelated, true);
+    assert.match(await get('$("effective").value'), /AcceleratedVideoDecodeLinuxGL/);
+    assert.match(await get('$("effective").value'), /--disable-features=AcceleratedVideoEncoder/);
+    checks.push("Per-preset edits survive selection, save and real resolver preview");
+
+    await oldWindow.webContents.executeJavaScript(
+      'window.Native.set({css:"updated", themeSync:false})',
+    );
+    await until(() => values.openasar.css === "updated");
+    assert.equal(values.openasar.launchFlags.profiles.balanced.decode, true);
+    window.destroy();
+    await open();
+    assert.match(await get('$("preset-flags").value'), /custom-value=one=two/);
+    checks.push(
+      "Reopening persists edits; stale OpenAsar settings cannot overwrite launch settings",
+    );
+
+    const contents = window.webContents;
+    await evaluate('document.getElementById("experiments-details").open = true');
+    contents.debugger.attach("1.3");
+    const tree = await contents.debugger.sendCommand("Accessibility.getFullAXTree");
+    const controls = tree.nodes.filter((node) =>
+      ["button", "checkbox", "combobox", "textbox", "DisclosureTriangle"].includes(
+        node.role?.value,
+      ),
+    );
+    assert.ok(controls.length >= 20);
+    for (const node of controls) assert.ok(node.name?.value, `Unnamed ${node.role.value}`);
+    checks.push("Accessibility tree exposes names and native roles for all editor controls");
+    await contents.debugger.sendCommand("Emulation.setDeviceMetricsOverride", {
+      width: 320,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await delay(100);
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    await evaluate('document.documentElement.dir = "rtl"');
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    await evaluate('document.documentElement.dir = "ltr"');
+    await contents.debugger.sendCommand("Emulation.clearDeviceMetricsOverride");
+    contents.setZoomFactor(2);
+    await delay(100);
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    contents.setZoomFactor(1);
+    await evaluate('document.getElementById("experiments-details").open = false');
+    await evaluate('document.getElementById("preset").focus()');
+    contents.sendInputEvent({ type: "keyDown", keyCode: "Tab" });
+    contents.sendInputEvent({ type: "keyUp", keyCode: "Tab" });
+    await until(() => evaluate('document.activeElement.id === "display"'));
+    fs.writeFileSync(path.join(output, "editor.png"), (await contents.capturePage()).toPNG());
+    checks.push("320px, RTL and 200% zoom have no horizontal overflow; keyboard navigation works");
+
+    window.destroy();
+    values.openasar.launchFlags = { schema: 999 };
+    global.settings.save();
+    process.env.DPE_IGNORE_FLAGS = "1";
+    process.env.DPE_LAUNCH_ARGS = '["--ignore-flags"]';
+    const brokenFile = path.join(
+      process.env.XDG_CONFIG_HOME,
+      "discord-canary-patched-electron.conf",
+    );
+    fs.writeFileSync(brokenFile, "invalid flag");
+    await open();
+    assert.equal(await get('$("recovery").hidden'), false);
+    assert.match(await get('$("warnings").textContent'), /Showing defaults/);
+    assert.equal(await get('$("restart").textContent'), "Restart with saved flags");
+    await evaluate('document.getElementById("settings").requestSubmit()');
+    await until(() => values.openasar.launchFlags.schema === 1);
+    assert.equal(await get('$("restart").disabled'), true);
+    assert.match(await get('$("error").textContent'), /Fix .*discord-canary-patched-electron.conf/);
+    fs.unlinkSync(brokenFile);
+    await change("preset-flags", "");
+    await until(() => get('$("error").hidden && !$("restart").disabled'));
+    let restart,
+      quit = false;
+    app.relaunch = (options) => {
+      restart = options;
+    };
+    app.quit = () => {
+      quit = true;
+    };
+    await evaluate("window.LaunchSettings.restart()");
+    assert.deepEqual(restart, { execPath: process.env.DPE_LAUNCHER, args: [] });
+    assert.equal(process.env.DPE_IGNORE_FLAGS, undefined);
+    assert.equal(quit, true);
+    checks.push("Recovery repairs invalid presets and explicitly returns to normal launch");
+    finish();
+  })
+  .catch(finish);
+setTimeout(() => finish(new Error("Settings probe timed out")), 45000);

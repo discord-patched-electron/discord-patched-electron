@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Launch presets — Discord</title>
+    <link rel="stylesheet" href="launch-settings.css" />
+    <script src="launch-settings.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">DISCORD · LINUX</p>
+        <h1>Launch presets</h1>
+        <p>
+          Choose how Discord starts. Inspect every flag, make it your own, and restart when you're
+          ready.
+        </p>
+      </header>
+      <p id="recovery" class="notice" hidden>
+        <strong>Recovery mode.</strong> All saved and supplied launch flags are ignored for this
+        session. You can repair your presets here.
+      </p>
+      <p id="warnings" class="notice" hidden></p>
+      <p id="error" role="alert" hidden></p>
+      <p id="loading" role="status">Loading your launch settings…</p>
+      <form id="settings" hidden>
+        <section aria-labelledby="preset-heading">
+          <h2 id="preset-heading">Your preset</h2>
+          <div class="selectors">
+            <div>
+              <label for="preset">Preset</label>
+              <select id="preset" name="preset" aria-describedby="preset-description"></select>
+            </div>
+            <div>
+              <label for="display">Display server</label>
+              <select id="display" name="display">
+                <option value="auto">Match this session (recommended)</option>
+                <option value="wayland">Wayland</option>
+                <option value="x11">X11 / Xwayland</option>
+              </select>
+            </div>
+          </div>
+          <p id="preset-description" class="hint"></p>
+          <label for="preset-flags">Preset flags</label>
+          <p id="flags-help" class="hint">
+            One flag per line, such as <code>--enable-zero-copy</code>. Blank lines and # comments
+            are allowed. Edits are kept separately for each preset; Save activates the selected one.
+          </p>
+          <textarea
+            id="preset-flags"
+            name="flags"
+            rows="5"
+            spellcheck="false"
+            autocapitalize="off"
+            aria-describedby="flags-help"
+          ></textarea>
+          <div class="row">
+            <button id="reset-preset" type="button">Restore this preset's defaults</button
+            ><span class="hint">Changes remain a draft until saved.</span>
+          </div>
+        </section>
+        <section aria-labelledby="video-heading">
+          <h2 id="video-heading">
+            Video acceleration <span class="tag">Experimental overrides</span>
+          </h2>
+          <p class="hint">
+            Independent options for this preset. Unchecked means use Chromium's defaults, not
+            disable acceleration. Driver checks still apply.
+          </p>
+          <div id="video-options"></div>
+          <p class="hint">
+            These flags control Chromium media. Discord calls use a separate native codec stack.
+          </p>
+        </section>
+        <section aria-labelledby="experiments-heading">
+          <h2 id="experiments-heading">Rendering experiments</h2>
+          <p class="hint">
+            All off by default. Change one at a time; a driver or compositor may perform worse or
+            crash.
+          </p>
+          <label for="backend">Rendering backend</label>
+          <select id="backend" name="backend"></select>
+          <p class="hint">
+            Automatic follows the runtime's driver checks. Vulkan can fail on this Electron/Wayland
+            build.
+          </p>
+          <details id="experiments-details">
+            <summary>
+              GPU, driver and frame pacing options <span id="experiment-count"></span>
+            </summary>
+            <div id="experimental-options"></div>
+          </details>
+        </section>
+        <section aria-labelledby="extra-heading">
+          <h2 id="extra-heading">Additional flags</h2>
+          <label for="extra-flags">Apply to every preset</label>
+          <p id="extra-help" class="hint">
+            Legacy OpenAsar custom flags appear here. These override preset options and text.
+            Configuration files and command-line arguments take precedence over everything saved
+            here.
+          </p>
+          <textarea
+            id="extra-flags"
+            name="extra"
+            rows="3"
+            spellcheck="false"
+            autocapitalize="off"
+            aria-describedby="extra-help"
+          ></textarea>
+        </section>
+        <section aria-labelledby="preview-heading">
+          <h2 id="preview-heading">Next launch</h2>
+          <p id="preview-help" class="hint">
+            The resolved arguments after merging your preset, application defaults, configuration
+            files and original command line. A manual feature setting can override a checkbox.
+          </p>
+          <label for="effective">Resolved flags</label>
+          <textarea
+            id="effective"
+            rows="6"
+            readonly
+            spellcheck="false"
+            aria-describedby="preview-help"
+          ></textarea>
+          <details>
+            <summary>See which settings contribute flags</summary>
+            <div id="layers"></div>
+          </details>
+        </section>
+        <section class="recovery-help" aria-labelledby="recovery-heading">
+          <h2 id="recovery-heading">If Discord won't start</h2>
+          <p>Close Discord completely, then run this in a terminal:</p>
+          <code class="command">discord-canary-prerelease-patched-electron-bin --ignore-flags</code>
+          <p class="hint">
+            For a tarball, use <code>./launch.sh --ignore-flags</code>. Or set
+            <code>DPE_IGNORE_FLAGS=1</code>. Presets, flag files and supplied arguments are skipped
+            without deleting your settings.
+          </p>
+        </section>
+        <footer>
+          <p id="status" role="status"></p>
+          <div class="actions">
+            <button id="discard" type="button">Discard changes</button>
+            <button id="restart" type="button">Restart Discord</button>
+            <button id="save" class="primary" type="submit">Save changes</button>
+          </div>
+        </footer>
+      </form>
+    </main>
+  </body>
+</html>

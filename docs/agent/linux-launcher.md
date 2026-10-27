@@ -13,23 +13,26 @@ previously produced an empty version.
 
 ## Flag handling
 
-`integration/launcher/discord-launcher.sh` applies flags in this order:
+`integration/launcher/flags.py` resolves flags before Electron starts, in this order:
 
-1. Project defaults.
-2. The older package-specific `-flags.conf`.
-3. `~/.config/discord-canary-patched-electron.conf` (respecting `XDG_CONFIG_HOME`).
-4. Command-line arguments.
+1. Application identity and defaults.
+2. Selected preset's optional controls, then its editable flags.
+3. Additional flags shared by all presets.
+4. The older package-specific `-flags.conf`.
+5. `~/.config/discord-canary-patched-electron.conf` (respecting `XDG_CONFIG_HOME`).
+6. Original command-line arguments.
 
 Feature lists merge by feature name; the last setting wins. Other Chromium
-switches keep their normal last-value precedence. `DPE_DEFAULT_FLAGS=0` disables
-the project defaults. OpenAsar Focus presets yield to explicit launcher flags.
-The compatibility adapter drops OpenAsar's `EnableDrDc` feature and
-`--ignore-gpu-blocklist` switch. It preserves deliberate overrides supplied through
-the launcher. Other preset settings remain available.
+switches keep their normal last-value precedence. `DPE_DEFAULT_FLAGS=0` skips
+application defaults and all saved presets/options. The managed launcher suppresses
+OpenAsar's subsequent flag injection entirely. The direct legacy compatibility
+adapter still drops its automatic `EnableDrDc` and `--ignore-gpu-blocklist` settings.
 
 The launcher selects `--ozone-platform=wayland` when `WAYLAND_DISPLAY` is present,
-otherwise `--ozone-platform=x11`. It also enables `AcceleratedVideoDecoder` and
-`AcceleratedVideoDecodeLinuxGL`. These are launch settings, not compiler changes.
+otherwise `--ozone-platform=x11`. Hardware decode follows Chromium's defaults;
+there are separate optional decode/encode overrides. `--ignore-flags` or
+`DPE_IGNORE_FLAGS=1` skips every user flag source before parsing it. See the
+[preset design, research and current results](launch-presets.md).
 
 ## Graphics results and limits
 
@@ -44,8 +47,9 @@ and AV1 each produced twelve frames.
 
 Forcing `AcceleratedVideoEncoder` crashed the GPU process in
 `CreateGpuMemoryBufferHandle`, including with native GPU buffers enabled. It
-remains off by default. `--ozone-platform=auto` also crashed that runtime, which
-is why the launcher selects the session explicitly. GPU blocklists and the GPU
+remains off by default. An earlier `--ozone-platform=auto` run failed; the current
+flags-free recovery check succeeds with native Wayland selected by Electron.
+Normal launches retain explicit session selection. GPU blocklists and the GPU
 sandbox remain enabled; Vulkan is not forced.
 
 Discord's voice/video module has a separate codec stack. Its pre-call report

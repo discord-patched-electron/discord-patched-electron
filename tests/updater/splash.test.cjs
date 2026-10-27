@@ -70,12 +70,22 @@ test("upstream settings and its local editor work without remote executable code
   const handler = assetHandler("/unused", () => assert.fail("settings must be local"), true, root);
   const config = await handler({ url: "dpe-splash://app/config.html" });
   assert.equal(config.status, 200);
+  const adapted = await config.text();
+  assert.match(adapted, /Launch presets and flags/);
+  assert.ok(!adapted.includes("[ 'Focus',"));
   assert.equal(
     createHash("sha256")
-      .update(await config.text())
+      .update(
+        await fs.readFile(path.join(__dirname, "../../integration/updater/openasar/config.html")),
+      )
       .digest("hex"),
     source.config_sha256,
   );
+  for (const name of ["launch-settings.html", "launch-settings.js", "launch-settings.css"]) {
+    const local = await handler({ url: "dpe-splash://app/" + name });
+    assert.equal(local.status, 200);
+    assert.match(local.headers.get("content-security-policy"), /connect-src 'none'/);
+  }
   const editor = await handler({ url: "dpe-splash://app/monaco-editor/min/vs/loader.js" });
   assert.equal(await editor.text(), "fixture editor");
   assert.match(editor.headers.get("content-type"), /javascript/);

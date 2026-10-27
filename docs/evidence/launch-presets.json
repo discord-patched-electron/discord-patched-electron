@@ -1,0 +1,1034 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "branch": "fix/video-playback-gpu-flags",
+  "runtime": {
+    "electron": "46.0.0-alpha.1",
+    "chromium": "158.0.8114.0",
+    "executable_sha256": "4223184105a4ee9f162bbfefabbe3a4f0eccc239400d38f88fa56390dd3d945d",
+    "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
+    "source": "retained verified prerelease artifact 40053107555; no compilation"
+  },
+  "host": {
+    "os": "Arch Linux",
+    "compositor": "niri 26.04-214-ge9804c1c",
+    "gpu": "AMD Radeon RX 7900 GRE",
+    "mesa": "26.2.4",
+    "libva": "2.24.1"
+  },
+  "inputs_sha256": {
+    "integration/launcher/flags.py": "7d713bf809f29451d3b953e074eeddfd31758f91e792d1a3b793952ce15c7e67",
+    "integration/launcher/presets.json": "ce305402928f8396fae1cbff5af37c2bef2c220a5570b5ff013a8537f61ca8e4",
+    "integration/launcher/discord-launcher.sh": "ef76056cd909b16dc00e63f209c9fb238822df6f5e7985dce5c8b2ab10ff511c",
+    "integration/updater/launch-settings.cjs": "5c24a433b46a2d7242aa7e2b4555e3e4e5d33acd78e5269df9c96f858890f07b",
+    "integration/updater/launch-settings.js": "429fe1a9a3f963db2685c0eb73661d7d769d896ecf3d8b3eb2bbaa8302ed9718",
+    "integration/updater/launch-settings.html": "f173784cefbc0af7e9a413724c91e2319225dc18ea4eaebf87606a4ed987902e",
+    "integration/updater/launch-settings.css": "5b75f541725b3443f55ee9a7ad3940a127be63384037c04a734a99e2f1a92421",
+    "integration/updater/relaunch.cjs": "99e521e2aaaf7c58b40f25b58ff3e2035f0923a1bc1d569015b40366cf1b781f",
+    "scripts/check_launch_presets.py": "ae09cb4674354f090b73fa88dd9d553700b51ba5f03ca51e264050df3a912e26",
+    "scripts/check_launch_settings.py": "823b4106cd45c40cbe8e7b544fed634d6b0bd16c69c39f34e463a07e4653be99",
+    "tests/launch-settings/main.cjs": "779952ddcc68419af17302ab67a42e2b60a88c2a93cd9d070826ef8d0b936a16"
+  },
+  "openh264_sha256": "d828a944d4d2bb64195ada89cf2cde9bc41733b1547d0788ef49fb8cb231b76f",
+  "graphics": {
+    "cases": 24,
+    "passed": 22,
+    "required_passed": true,
+    "results": [
+      {
+        "case": "balanced-wayland",
+        "required": true,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/balanced-wayland/graphics.json",
+        "report_sha256": "f4df8dc5c23053812e46255337515463c6b7301a0e74b72c7a9a42657da3d6fd",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "balanced-x11",
+        "required": true,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/balanced-x11/graphics.json",
+        "report_sha256": "95615f15819968f83598905d452d2e9af2cba613294304c2908d6ef07b0f907d",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=x11",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": false,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL 4.6)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "performance-wayland",
+        "required": true,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/performance-wayland/graphics.json",
+        "report_sha256": "6d12ee5982621d9329c3803ffbd05b7927ffbd3e97172c4af6eca0ec6adac8da",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--disable-background-timer-throttling",
+          "--disable-renderer-backgrounding"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "performance-x11",
+        "required": true,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/performance-x11/graphics.json",
+        "report_sha256": "5a7b7e3165b19eb5d776388407ccc9f37db6b14613141849e9491abf3348fc25",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=x11",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--disable-background-timer-throttling",
+          "--disable-renderer-backgrounding"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": false,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL 4.6)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "efficiency-wayland",
+        "required": true,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/efficiency-wayland/graphics.json",
+        "report_sha256": "403c39de49dcb9da44d20ccfcba71af5af1a7b7913608803575810e11b30474f",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=IntensiveWakeUpThrottling"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "efficiency-x11",
+        "required": true,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/efficiency-x11/graphics.json",
+        "report_sha256": "f2a2a9b914ab78fee72853fd21eedd82c607082ee6a9163c9e775feb476be299",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=x11",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=IntensiveWakeUpThrottling"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": false,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL 4.6)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "ignore-flags",
+        "required": true,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/ignore-flags/graphics.json",
+        "report_sha256": "e6ac17d1b0272c570e905418a8fede6869785b2fa3e13628c36914392532a95e",
+        "flags": [],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "video-decode",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/video-decode/graphics.json",
+        "report_sha256": "2604ffb3305f8cf761c2a7c70d6a746d0d63484cf690296105fd4a1d964ab2cd",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=AcceleratedVideoDecoder,AcceleratedVideoDecodeLinuxGL"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "video-encode",
+        "required": false,
+        "passed": false,
+        "report": "out/preset-refactor/matrix/video-encode/graphics.json",
+        "report_sha256": "961ecaed38fda84c1a1a40129867862ead5dd85279f27de45be6e683f746c37c",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=AcceleratedVideoEncoder"
+        ],
+        "gpu_exits": [
+          "crashed"
+        ],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "OperationError: Encoding error.",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "backends-gl",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/backends-gl/graphics.json",
+        "report_sha256": "1961674fbc13943c7f3ef844aaf979a875db35b442dd04e41119544db62ad105",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--use-gl=angle",
+          "--use-angle=gl"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "backends-vulkan",
+        "required": false,
+        "passed": false,
+        "report": "out/preset-refactor/matrix/backends-vulkan/graphics.json",
+        "report_sha256": "75523a03ed3ccad8ecc304cde2ccc1c4df376ed1b1212aa632ae6af80bcbf764",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--use-gl=angle",
+          "--use-angle=vulkan",
+          "--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE"
+        ],
+        "gpu_exits": [],
+        "error": "Error: NotSupportedError: Failed to load because no supported source was found.; PipelineStatus::DECODER_ERROR_NOT_SUPPORTED: video decoder initialization failed with DecoderStatus::Codes::kUnsupportedConfig\n    at <anonymous>:30:11\n    at async <anonymous>:28:3",
+        "native_wayland": true,
+        "webgl_renderer": null,
+        "video_frames": null,
+        "video_decoders": []
+      },
+      {
+        "case": "experiments-rasterization",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-rasterization/graphics.json",
+        "report_sha256": "c8ffb111f4387fcfdc19cf137816080064b012bf5e453ea9b0fe44c085bfcdd3",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-gpu-rasterization"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-zeroCopy",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-zeroCopy/graphics.json",
+        "report_sha256": "eefcdfb9ee176439ceb208b08402576c79a22a42c6af28eee4355b857a4e547a",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-zero-copy"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-overlays",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-overlays/graphics.json",
+        "report_sha256": "b7e63f80a3829015c5373ec9c82f118565abd851e950f19b6e6b822512fe19f8",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-hardware-overlays=single-fullscreen,single-on-top,underlay"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-graphite",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-graphite/graphics.json",
+        "report_sha256": "8aab27ebec20b8688bd6717969c642b1b6a77bfeaea2fbf879a408cf5a6f0859",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=SkiaGraphite"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-nvidiaVaapi",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-nvidiaVaapi/graphics.json",
+        "report_sha256": "b9d45d74c562a1833a22570ab732bdb7c10e1bd8e174cb8c5fd50ae235a5a246",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=VaapiOnNvidiaGPUs"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-vaapiDriverChecks",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-vaapiDriverChecks/graphics.json",
+        "report_sha256": "86a67b8ffd36d884ac5d7e4eed93d06c7f43f5921a09fc800a86c8dab9165157",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=VaapiIgnoreDriverChecks"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-gpuBlocklist",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-gpuBlocklist/graphics.json",
+        "report_sha256": "ab1b17f5668b2e40b4d7a8da307ca0d26aadb8190495c276875187bca6997fe5",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--ignore-gpu-blocklist"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-driverWorkarounds",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-driverWorkarounds/graphics.json",
+        "report_sha256": "064bae516bf0c5d49fead589892dd556ee0873e68655e47c4a38ffecd09020c7",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--disable-gpu-driver-bug-workarounds"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-uncapped",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/matrix/experiments-uncapped/graphics.json",
+        "report_sha256": "48222abcba35fbe4ac2a9398b46a1532a4a9b3a05f8c0996e080e99e0f6ccd15",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--disable-frame-rate-limit"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-zeroCopyVideo",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/extra-experiments/zeroCopyVideo/graphics.json",
+        "report_sha256": "6feb829166510454a0e7de8a4d7b25144f365dca352a7e219cb580f9bbf0c9e6",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=AcceleratedVideoDecodeLinuxZeroCopyGL"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-nativeBuffers",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/extra-experiments/nativeBuffers/graphics.json",
+        "report_sha256": "2b437218016d7e5d739ad6855b46e819cdf0997e305f2480f6c352a83a232054",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-native-gpu-memory-buffers"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-videoBuffers",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/extra-experiments/videoBuffers/graphics.json",
+        "report_sha256": "680f1076191998136461b34ada61085b0ffd6e3817425df3a5b49f1d326152b3",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-gpu-memory-buffer-video-frames"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      },
+      {
+        "case": "experiments-overlayDelegation",
+        "required": false,
+        "passed": true,
+        "report": "out/preset-refactor/extra-experiments/overlayDelegation/graphics.json",
+        "report_sha256": "0fc2e00f884b9398273044ea217930716edba16b0abfb248e3e354277e4e4bbf",
+        "flags": [
+          "--class=discord-canary",
+          "--ozone-platform=wayland",
+          "--autoplay-policy=no-user-gesture-required",
+          "--enable-libopenh264",
+          "--openh264-library-path=$TEST_PROFILE/discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so",
+          "--enable-features=WaylandOverlayDelegation"
+        ],
+        "gpu_exits": [],
+        "error": null,
+        "native_wayland": true,
+        "webgl_renderer": "ANGLE (AMD, AMD Radeon RX 7900 GRE (radeonsi navi31 ACO), OpenGL ES 3.2)",
+        "video_frames": 5,
+        "video_decoders": [
+          "VaapiVideoDecoder"
+        ],
+        "software_encoders": {
+          "avc1.42001f": 12,
+          "vp8": 12,
+          "vp09.00.10.08": 12,
+          "av01.0.04M.08": 12
+        },
+        "hardware_encoder_results": {
+          "avc1.42001f": "unsupported",
+          "vp8": "unsupported",
+          "vp09.00.10.08": "unsupported",
+          "av01.0.04M.08": "unsupported"
+        },
+        "gpu_features": {
+          "video_decode": "enabled",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "skia_graphite": "disabled_off"
+        }
+      }
+    ]
+  },
+  "native_editor": {
+    "passed": true,
+    "checks": [
+      "Balanced defaults, independent codec controls and sandboxed preload",
+      "Unsupported flag rejected without saving; error labels and focus reach the field",
+      "Per-preset edits survive selection, save and real resolver preview",
+      "Reopening persists edits; stale OpenAsar settings cannot overwrite launch settings",
+      "Accessibility tree exposes names and native roles for all editor controls",
+      "320px, RTL and 200% zoom have no horizontal overflow; keyboard navigation works",
+      "Recovery repairs invalid presets and explicitly returns to normal launch"
+    ],
+    "report": "out/preset-refactor/native-settings-final/settings.json",
+    "report_sha256": "cdbc4a0c06cace9be68e492f4b169e88215c060e466ea247c939003f995b13fd",
+    "additional_recovery_coverage": "Malformed external flag file permits preset repair while restart remains blocked; deleting the file restores the preview."
+  },
+  "checks": {
+    "bun run test": {
+      "passed": true,
+      "python_tests": 253,
+      "javascript_tests": 64
+    },
+    "bun run lint": {
+      "passed": true
+    }
+  },
+  "limits": [
+    "No Intel, NVIDIA, hybrid or other compositor hardware tested.",
+    "Passing individual experimental switches does not establish performance gains or that every requested backend activated. Graphite remained disabled.",
+    "Forced hardware encoding crashed the GPU; ANGLE Vulkan failed video decoder initialization. Both remain opt-in.",
+    "Synthetic 720p H.264/WebGL/WebCodecs only. No Discord account login, messages, calls, physical camera capture or live stream tests.",
+    "No screen-reader speech walk, independent accessibility audit, HDR/VRR or power/frame-time benchmark."
+  ]
+}

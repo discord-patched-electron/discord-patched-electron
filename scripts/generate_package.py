@@ -55,7 +55,7 @@ SUPPORT = [
 ]
 SUPPORT += [
     str(path.relative_to(ROOT))
-    for name in ("audio", "desktop", "updater")
+    for name in ("audio", "desktop", "updater", "launcher")
     for path in sorted((ROOT / "integration" / name).rglob("*"))
     if path.is_file() and "__pycache__" not in path.parts
 ]
