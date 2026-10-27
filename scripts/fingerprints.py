@@ -20,6 +20,7 @@ def integration_key(
                     "scripts/application_payload.py",
                     "integration/bootstrap/loader.py",
                     "integration/updater/application.py",
+                    "integration/updater/application-ready.cjs",
                     "scripts/updater_python.py",
                     "scripts/stage_openasar.py",
                     "integration/updater/installation.py",

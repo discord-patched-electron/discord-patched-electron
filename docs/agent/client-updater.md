@@ -53,7 +53,7 @@ Background preparation leaves running code unchanged and offers the normal
 restart notification. At startup, the launcher hands off to the new application
 before preparing its Electron or Discord modules. The client/runtime updaters
 cannot advance past the selected application release. A trial becomes current
-when its Electron application reports ready; a process that exits first causes
+after the matching Discord HTTPS window finishes loading; a process that exits first causes
 the next launch to fall back to the previous generation. Second launches retain
 the running generation so they cannot activate an update underneath it.
 
@@ -279,7 +279,7 @@ compilation, account login, call or camera capture was performed.
   application-upgrade fixture then changed OpenAsar, the ASAR loader, patch code
   and Python updater, activated a new client compatibility generation, and
   launched successfully without downloading Electron again. Original application
-  files remained unchanged. See `reviewed-upgrade/application-update-report.json`.
+  files remained unchanged. See `ready-upgrade/application-update-report.json`.
 - The upgrade fixture uses a disposable signing key and local release responses;
   it does not publish or approve a real release. The same check now gates release CI.
 - Arch and Fedora containers installed the minimal packages as root, then verified
@@ -289,6 +289,6 @@ compilation, account login, call or camera capture was performed.
 - Regression checks cover forged/mismatched approvals, changed archive bytes,
   incompatible bootstrap APIs, damaged caches, startup rollback, simultaneous
   launches, package upgrades and application-only restart notifications.
-- `bun run test` passed 253 Python and 56 JavaScript tests; `bun run lint` passed.
+- `bun run test` passed 253 Python and 58 JavaScript tests; `bun run lint` passed.
   These checks do not establish live-call behavior or a complete Ubuntu desktop
   under AppArmor. The release workflow retains its Debian GUI check.

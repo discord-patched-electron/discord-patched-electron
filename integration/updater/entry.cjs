@@ -67,11 +67,8 @@ function start() {
     return compile.call(this, source, filename);
   };
 
+  require("./application-ready.cjs")(app, process.env.DPE_APPLICATION_READY, info.releaseChannel);
   require(bootstrap);
-  if (process.env.DPE_APPLICATION_READY)
-    app
-      .whenReady()
-      .then(() => fs.writeFileSync(process.env.DPE_APPLICATION_READY, "ready\n", { mode: 0o600 }));
   if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)
     app.whenReady().then(() => setTimeout(() => updater.checkForUpdates(), 1000).unref());
 }
