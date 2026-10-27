@@ -504,24 +504,37 @@ def main():
     os.execve(app / "launch.sh", [str(app / "launch.sh"), *arguments], environment)
 
 
+def show_error(error):
+    print(f"Cannot start Discord Patched Electron: {error}", file=sys.stderr)
+    if (
+        "--launch" in sys.argv[1:]
+        and shutil.which("zenity")
+        and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+    ):
+        package = Path(__file__).resolve().parent
+        try:
+            channel = read(package / "bootstrap.json")["channel"]
+        except FAILURES:
+            channel = "canary"
+        desktop = "discord" if channel == "stable" else "discord-" + channel
+        identity = (os.environ.get("CHROME_DESKTOP") or desktop).removesuffix(".desktop")
+        subprocess.run(
+            [
+                identity,
+                "--window-icon=" + str(package / "discord.png"),
+                "--error",
+                "--no-markup",
+                "--title=Discord Patched Electron",
+                "--text=" + str(error)[-2000:],
+            ],
+            executable="zenity",
+            check=False,
+        )
+
+
 if __name__ == "__main__":
     try:
         main()
     except FAILURES as error:
-        print(f"Cannot start Discord Patched Electron: {error}", file=sys.stderr)
-        if (
-            "--launch" in sys.argv[1:]
-            and shutil.which("zenity")
-            and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-        ):
-            subprocess.run(
-                [
-                    "zenity",
-                    "--error",
-                    "--no-markup",
-                    "--title=Discord Patched Electron",
-                    "--text=" + str(error)[-2000:],
-                ],
-                check=False,
-            )
+        show_error(error)
         raise SystemExit(1) from None

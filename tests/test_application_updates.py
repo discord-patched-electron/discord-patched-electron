@@ -129,6 +129,30 @@ class ApplicationUpdates(unittest.TestCase):
             check=check,
         )
 
+    def test_first_launch_error_uses_packaged_desktop_identity(self):
+        for channel, desktop in (
+            ("stable", "discord"),
+            ("canary", "discord-canary"),
+            ("ptb", "discord-ptb"),
+        ):
+            with self.subTest(channel=channel):
+                write_json(self.package / "bootstrap.json", {**self.policy, "channel": channel})
+                with (
+                    patch.object(loader, "__file__", str(self.package / "loader.py")),
+                    patch.object(sys, "argv", ["loader.py", "--launch"]),
+                    patch.object(sys, "stderr", io.StringIO()),
+                    patch.dict(os.environ, {"CHROME_DESKTOP": "", "WAYLAND_DISPLAY": "fixture"}),
+                    patch.object(loader.shutil, "which", return_value="/usr/bin/zenity"),
+                    patch.object(loader.subprocess, "run") as run,
+                ):
+                    loader.show_error(ValueError("Download failed"))
+                self.assertEqual(run.call_args.args[0][0], desktop)
+                self.assertIn(
+                    "--window-icon=" + str(self.package / "discord.png"), run.call_args.args[0]
+                )
+                self.assertIn("--text=Download failed", run.call_args.args[0])
+                self.assertEqual(run.call_args.kwargs["executable"], "zenity")
+
     def approve(self, candidate, *, approved=True):
         proof = self.directory / (candidate["version"] + "-proof")
         proof.mkdir(exist_ok=True)
