@@ -15,7 +15,8 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 - Wayland by default, with X11 support too.
 - [Application audio](docs/wayland-audio.md) for screen sharing.
 - Faster camera startup and hardware video decoding where supported.
-- OpenAsar included by default, with custom themes and startup settings.
+- Integrated OpenAsar for custom themes and startup settings.
+- Easily configurable Electron flags, with graphics presets and custom overrides.
 - [Vencord and Equicord](docs/client-mods.md) support that persists across updates.
 - Automatic Discord and patched Electron updates.
 
@@ -43,6 +44,17 @@ update checks, and PipeWire for screen-share audio. See the
 These links install the latest tested release.
 [Pre-release builds](https://github.com/discord-patched-electron/discord-patched-electron/releases)
 are available for testing.
+
+## Configure OpenAsar and flags
+
+Open Discord's **User Settings**, then click **OpenAsar (discord-patched-electron …)**
+in the version information at the bottom of the left sidebar. You can also select
+**OpenAsar** in the sidebar. Both open **DPE OpenAsar Config**.
+
+Use **Settings** and **Theming** to configure OpenAsar. The **Flags** tab provides
+display options, graphics presets under **Advanced**, and a box for custom
+Electron flags. After changing flags, choose **Save**, then **Restart** to apply
+them. See [launcher settings](docs/linux-launcher.md) for more details.
 
 ## Guides
 
