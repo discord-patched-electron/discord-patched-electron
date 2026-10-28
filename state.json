@@ -360,7 +360,7 @@
       "reference_run": "40053107555",
       "requested_at": "2026-10-28T09:52:33.843529+00:00",
       "run": "40667442277",
-      "status": "queued"
+      "status": "success"
     },
     "a77e14f71652ebdbfee9d1f1cb8018c7bc97202d9c638a17527e9f61fb313eff": {
       "channel": "canary",
@@ -529,7 +529,7 @@
     "5cf2486d6e4d75c6dcfe39dc19cfa3ab7989a2be80e90442597d76b629f115f6": {
       "requested_at": "2026-10-28T09:52:33.843529+00:00",
       "run": "40667442277",
-      "status": "queued",
+      "status": "failure",
       "target": {
         "commit": "00eec6bdbb7167b8300a1b44490e15254ed1510b",
         "version": "46.0.0-alpha.2"
