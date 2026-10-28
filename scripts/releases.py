@@ -340,6 +340,25 @@ def input_changes(manifest: dict, previous: dict | None) -> list[str]:
     return changes
 
 
+def approval_action(manifest: dict) -> str:
+    return (
+        "\n\n[![Approve this release](https://img.shields.io/badge/Approve_this_release-238636?style=for-the-badge)]"
+        f"({URL}/actions/workflows/approve-release.yml)\n\n"
+        "**Maintainers:** choose **Run workflow** on `main`, paste "
+        f"`{manifest_tag(manifest)}` into **release_tag**, and confirm that you tested this build."
+    )
+
+
+def approved_notes(body: str, manifest: dict) -> str:
+    return (
+        body.replace(approval_action(manifest), "", 1)
+        .replace("**Awaiting maintainer testing.**", PENDING, 1)
+        .replace("**I haven't tested and approved this build yet.**", PENDING, 1)
+        .replace("**I haven't approved this build as stable yet.**", PENDING, 1)
+        .replace(PENDING, "**This build has been approved as stable.**", 1)
+    )
+
+
 def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
     commit = manifest["source_commit"]
     log = ""
@@ -398,6 +417,7 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
         provenance = f" · [Client snapshot]({URL}/commit/{snapshot})"
     return (
         ("**This build has been approved as stable.**" if approved else PENDING)
+        + ("" if approved else approval_action(manifest))
         + f"\n\nRequires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
         + install_notes(manifest)
         + "## Changes\n\n"
@@ -707,11 +727,7 @@ def approve(tag: str, *, check_only=False):
         data={
             "prerelease": False,
             "make_latest": "true",
-            "body": release["body"]
-            .replace("**Awaiting maintainer testing.**", PENDING, 1)
-            .replace("**I haven't tested and approved this build yet.**", PENDING, 1)
-            .replace("**I haven't approved this build as stable yet.**", PENDING, 1)
-            .replace(PENDING, "**This build has been approved as stable.**", 1),
+            "body": approved_notes(release["body"], manifest),
         },
     )
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:

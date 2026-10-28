@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from releases import (
     FORMATS,
     app_release_channel,
+    approved_notes,
     manifest_tag,
     notes,
     previous_release,
@@ -40,6 +41,31 @@ def release(item, **changes):
 
 
 class ReleaseNotes(unittest.TestCase):
+    def test_approval_button_names_exact_candidate_and_disappears_after_approval(self):
+        current = manifest()
+        pending = notes(current, None)
+        self.assertIn("[![Approve this release]", pending)
+        self.assertIn("/actions/workflows/approve-release.yml)", pending)
+        self.assertIn(f"`{manifest_tag(current)}` into **release_tag**", pending)
+        self.assertIn("confirm that you tested this build", pending)
+        promoted = approved_notes(pending, current)
+        self.assertEqual(promoted, notes(current, None, approved=True))
+        self.assertNotIn("Approve this release", promoted)
+        self.assertEqual(approved_notes(promoted, current), promoted)
+
+    def test_approval_preserves_old_notes_without_a_button(self):
+        current = manifest()
+        for status in (
+            "**Awaiting maintainer testing.**",
+            "**I haven't tested and approved this build yet.**",
+            "**I haven't approved this build as stable yet.**",
+            "**This build hasn't been approved as stable yet.**",
+        ):
+            self.assertEqual(
+                approved_notes(status + "\n\nExisting release details", current),
+                "**This build has been approved as stable.**\n\nExisting release details",
+            )
+
     def test_all_tag_generations_are_recognized_without_runtime_caches(self):
         for schema in (1, 2, 3):
             self.assertEqual(

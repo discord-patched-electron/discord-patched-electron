@@ -83,6 +83,10 @@ change; package assets, tags, titles, approval status and Latest remain intact.
 3. Run [**Approve tested release**](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/approve-release.yml)
    on `main`, paste the exact release tag, and tick the local-testing confirmation.
 
+Unapproved release notes include an **Approve this release** button and the exact
+tag to paste into the workflow. The link is public; GitHub requires repository
+write access to run it. Approval removes the button from that release's notes.
+
 To hear about new candidates, select **Watch → Custom → Releases** on the
 repository and choose your delivery method in GitHub's notification settings.
 
