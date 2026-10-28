@@ -35,7 +35,9 @@ the pinned upstream files and patches.
 Use `bun run test:python` or `bun run test:js` to run one suite while iterating.
 These tests need no Discord account or Electron build. Arch-specific assertions
 are skipped when `vercmp` is unavailable. CI also checks generated Arch packages.
-For documentation changes, also check the links and instructions you changed.
+Documentation-only changes need `bun run lint` and a review of changed links and
+instructions. CI selects integration checks by affected files; see
+[check selection](docs/agent/ci-setup.md#check-selection).
 
 ## Repository layout
 
@@ -63,7 +65,7 @@ or `bun.lock` with the change. Keep tool versions pinned so local checks and CI 
 
 ## Desktop and packaging changes
 
-CI runs package, native-module and isolated audio checks. For local integration
+CI runs the affected package, native-module and isolated audio checks. For local integration
 tests, follow [runtime validation](docs/agent/runtime-validation.md). Container
 tests need Docker. Most app changes can reuse a verified Electron runtime. See
 [release packaging](docs/agent/releases.md) for local builds and CI releases.

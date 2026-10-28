@@ -10,7 +10,27 @@ concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      unit: ${{ steps.scope.outputs.unit }}
+      source: ${{ steps.scope.outputs.source }}
+      native: ${{ steps.scope.outputs.native }}
+      audio: ${{ steps.scope.outputs.audio }}
+      packaging: ${{ steps.scope.outputs.packaging }}
+      compiler: ${{ steps.scope.outputs.compiler }}
+      camera: ${{ steps.scope.outputs.camera }}
+      launcher: ${{ steps.scope.outputs.launcher }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select checks from the complete change
+        id: scope
+        run: python3 scripts/ci_scope.py
   tests:
+    needs: changes
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -34,26 +54,36 @@ jobs:
       - run: uv sync --locked
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv
+        if: needs.changes.outputs.unit == 'true'
       - run: bun run lint
       - run: bun run test
+        if: needs.changes.outputs.unit == 'true'
       - name: Check real compiler cache hits and CPU/header invalidation
+        if: needs.changes.outputs.compiler == 'true'
         run: python scripts/check_compiler_cache.py --compiler /usr/bin/clang
       - name: Validate launcher syntax
+        if: needs.changes.outputs.launcher == 'true'
         run: bash -n integration/launcher/discord-launcher.sh
       - name: Compile the independent camera support binary
+        if: needs.changes.outputs.camera == 'true'
         run: python scripts/build_camera_support.py --output out/camera-support
       - name: Retain the camera binary and build identity
+        if: needs.changes.outputs.camera == 'true'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: camera-support
           path: out/camera-support/
           retention-days: 7
   native-baselines:
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
     permissions:
       contents: read
       actions: read
     uses: ./.github/workflows/native-runtime.yml
   source-assembly:
+    needs: changes
+    if: needs.changes.outputs.source == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -76,9 +106,39 @@ jobs:
           path: out/source-*.json
           retention-days: 7
   arch-packaging:
+    needs: changes
+    if: needs.changes.outputs.packaging == 'true'
     uses: ./.github/workflows/package-check.yml
   application-audio:
+    needs: changes
+    if: needs.changes.outputs.audio == 'true'
     permissions:
       contents: read
       actions: read
     uses: ./.github/workflows/app-audio.yml
+  complete:
+    name: Checks complete
+    if: always()
+    needs: [changes, tests, native-baselines, source-assembly, arch-packaging, application-audio]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every selected check to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          jobs = json.loads(os.environ["RESULTS"])
+          expected = {"changes": "success", "tests": "success"}
+          scopes = jobs["changes"]["outputs"]
+          for job, scope in {
+              "native-baselines": "native", "source-assembly": "source",
+              "arch-packaging": "packaging", "application-audio": "audio",
+          }.items():
+              expected[job] = "success" if scopes.get(scope) == "true" else "skipped"
+          failed = [job for job, result in expected.items() if jobs[job]["result"] != result]
+          if failed:
+              raise SystemExit("Checks did not complete as selected: " + ", ".join(failed))
+          PY

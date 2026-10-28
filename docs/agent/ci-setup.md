@@ -4,6 +4,54 @@ Standard checks and packaging use GitHub-hosted runners. New Electron builds use
 Blacksmith through `build.yml`. The old PC and one-shot capacity workflows have
 been removed; retained local sources and objects remain available for investigation.
 
+## Check selection
+
+`check.yml` uses `scripts/ci_scope.py` to select checks for pushes and pull requests.
+Lint always runs. Code changes run the full Python/JavaScript unit suite, with
+integration jobs selected by their inputs:
+
+| Change                                                                        | Additional checks                            |
+| ----------------------------------------------------------------------------- | -------------------------------------------- |
+| README, contributor guides, agent notes                                       | None; lint only                              |
+| Release notes, approval/AUR/discovery tooling, unit tests                     | Unit suite only                              |
+| App settings, updater, package assets and templates                           | Arch packaging                               |
+| Launcher                                                                      | Arch packaging and shell syntax              |
+| Audio adapters or patches                                                     | Arch packaging and application audio         |
+| Krisp patcher                                                                 | Arch packaging and native baselines          |
+| Camera support                                                                | Arch packaging and camera binary compilation |
+| Compiler cache                                                                | Real compiler cache check                    |
+| Native/audio test fixtures                                                    | Their corresponding integration suite        |
+| Source/client locks, shared dependencies, selector/workflow, unfamiliar paths | Full checks                                  |
+
+Mixed changes use the union of their scopes. Keep the rules conservative: a new
+unlisted path runs everything until its consumers have been identified. Changing
+the selector or `check.yml` itself also runs everything. No check here recompiles
+Electron; compilation remains a separate budgeted workflow.
+
+The selector compares the complete push range or the PR merge base and head.
+It includes deleted and renamed files, without GitHub's API/path-filter file
+limits. Missing history or invalid event data runs all checks. A manual **Checks**
+dispatch always runs all checks. The run summary lists selected jobs; the selector
+log also explains each path's scope.
+
+The **Checks complete** job verifies that every selected job succeeded and every
+unselected integration job was skipped. Use this stable check for future branch
+protection. Job conditions keep skipped checks from remaining pending, as described
+in [GitHub's required-check guidance](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
+
+Release qualification in `release.yml` still runs its full packaging, desktop,
+native and audio checks before publishing a candidate. Release-publication helpers
+(`releases.py`, `release_proposals.py`, `publish_aur.py`) no longer contribute to
+the app integration fingerprint: a button or release-note edit should not propose
+another app package. Removing these inputs changes the fingerprint once; subsequent
+publication-only changes leave it stable.
+
+Replay a historical push locally with full commit SHAs:
+
+```sh
+uv run python scripts/ci_scope.py --base BEFORE_SHA --head AFTER_SHA
+```
+
 ## Blacksmith compilation
 
 Before allocating a runner, a GitHub-hosted job reserves the full job allowance

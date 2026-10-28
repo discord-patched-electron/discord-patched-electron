@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from assemble import validate_port
@@ -109,6 +110,20 @@ class Manifests(unittest.TestCase):
 
 
 class VersionsAndKeys(unittest.TestCase):
+    def test_release_publication_changes_do_not_invalidate_app_payload(self):
+        contents = {}
+        client = {"channel": "canary"}
+        with patch(
+            "fingerprints.hash_files",
+            side_effect=lambda paths: {name: contents.get(name, "original") for name in paths},
+        ):
+            before = integration_key("runtime", client, "prerelease")
+            for name in ("releases.py", "release_proposals.py", "publish_aur.py"):
+                contents[f"scripts/{name}"] = "changed"
+            self.assertEqual(before, integration_key("runtime", client, "prerelease"))
+            contents["integration/updater/launch-settings.js"] = "changed"
+            self.assertNotEqual(before, integration_key("runtime", client, "prerelease"))
+
     def test_semver_numeric_and_promotion(self):
         versions = ["45.0.0", "45.0.0-beta.10", "45.0.0-beta.2", "45.0.0-alpha.1", "44.99.99"]
         self.assertEqual(sorted(versions, key=version_key), list(reversed(versions)))
