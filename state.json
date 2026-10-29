@@ -3,23 +3,23 @@
   "bundled_runtime_errors": {},
   "bundled_runtimes": {
     "canary": {
-      "changed_since_previous_core": false,
-      "client_version": "1.0.2393",
-      "core_sha256": "959d99f40f776828feb6c95688abc9bbf9d3aa006500e39a5b40ec4f2c58037f",
-      "embedded_electron_version": "44.9.3",
-      "executable_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+      "changed_since_previous_core": true,
+      "client_version": "1.0.2396",
+      "core_sha256": "dfcb238bc5f447f62ec31f45b85c4a9e5f46cbdc6f3aaf8620138715a8cf0f93",
+      "embedded_electron_version": "44.10.0",
+      "executable_sha256": "4df767096d5715d3a647acabfe484e3e5746bee9951069a0287f61ceb42510e4",
       "files": {
         "chrome-sandbox": "536488054c08db6e601b68eb9cd38699757869f9ab38000f9672ed873f3df661",
         "chrome_100_percent.pak": "891176da5eee33b54352fdb1407a8e09a2bd48c7eb2077311e75787de33a095e",
         "chrome_200_percent.pak": "b3ce9953a50959e9c1a018d6512742f48cee0dbf53644ea952909418bd7c2b3e",
-        "chrome_crashpad_handler": "c821b78239a4f743569bf6c138bcba7ebbca6e0d9226e044c3a296ce6735a97d",
-        "executable": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
-        "icudtl.dat": "da53f0b69843aaa43315f0f210a67e4a874b0be338f3dae08ff57b8afe76ab0d",
-        "libEGL.so": "4a8e1a1e8620ea26983035bf5acc87910ef901256fa151eb52013596030c5b2e",
-        "libGLESv2.so": "f021209744750ac8138ffb5791b037b1cf980d2f58afbe249dfda6f6f5db09d0",
-        "libffmpeg.so": "8f40442cdf2a22dcaef3f2ee15f4de8c13cab9b7b94d6c2accad425fc1c36a9a",
-        "libvk_swiftshader.so": "46fded42eb0676050d26890bf7a7b2534383005314aa22ad45d31c8ce1f56e05",
-        "libvulkan.so.1": "9241252c9a325f86f657ce6624b94a6ba57a3a99bb00b3b29d3cc4b5cdd35293",
+        "chrome_crashpad_handler": "3bab88c5fcb3c54e7ce9ad799433cfc78bc0bf993e37da8023af09d859d3b358",
+        "executable": "4df767096d5715d3a647acabfe484e3e5746bee9951069a0287f61ceb42510e4",
+        "icudtl.dat": "e1ed8f674bb8449731b79cae956042da59f9ecbd37c8d3f86586a22b4836e5b2",
+        "libEGL.so": "922b7d45f79a5b8a2379f153cacea5a5a2a8dee98bd7c1be8deabb55ed7fc819",
+        "libGLESv2.so": "f4d48565a977c194f36967de884d895ba87ed48da7ecef63f0889f38ccf8e74e",
+        "libffmpeg.so": "2d9f56567f2c65078132eec77fe6ecba6706eaa8cd14970fb0dba8684d494944",
+        "libvk_swiftshader.so": "f73192cef8946d49deafaf1cbb0ee1fbd3b01e8ebde77de97a3eefa1ef79d150",
+        "libvulkan.so.1": "bc3d537a62e85b98e011c7e51ba3ad7a6b22c67b7faa0b0334e3070b59433e5f",
         "locales/af.pak": "9abd48c6c1f34e14dcad66131a9cc8624b4e850ebf692b05a66fb18d5c537588",
         "locales/am.pak": "28545e9a72220ddca39f7d7b36eacb3b661a3cc40d212b7e56be21d90f5ee71b",
         "locales/ar.pak": "267687bf1ed07628b03f02d095b253141a4cbc6b80f0bfec6007ca0556260e5f",
@@ -75,11 +75,11 @@
         "locales/vi.pak": "4dcf8fe139c4355a8999137098532662e5af79d7b464c6e2faab686605d7ad8d",
         "locales/zh-CN.pak": "aec678d57f7644157d8d7d1007cd03c9efbc7ef54488df2f856989179a563e42",
         "locales/zh-TW.pak": "deba23736da06f4e2633cbecab98e7b9c3ae8b6b7245c08b89f63581fa47f1f4",
-        "resources.pak": "61d1b4c33101c119971fab04cd27e712ab25054e039cd78f1a3c09d1b4f241ab",
-        "snapshot_blob.bin": "8d02e9a670be492fd4d99d383778b189baa4f943baf25a6ff45900a3b465e9ed",
-        "v8_context_snapshot.bin": "0e23db7a1d50b53b52796768acfb274ce601609134717746e5f844aa3c4c1961"
+        "resources.pak": "4d1c668d8d4d2de2c152b9f82f1dd5d9367b42056d809ba1c444c6b85b7a08fd",
+        "snapshot_blob.bin": "fb4cd59e56e8985916ba1cef79aff7224d51014f49f1f999f408115c4706356b",
+        "v8_context_snapshot.bin": "38c07e1fbc3f3b905cee9956da8ffbefe7ba166ec1be0bbe7e2aa4b378553b42"
       },
-      "payload_sha256": "ec7b816bdd7ad27d190d82e7440e50ce31d3980dec0e59166edf07a3f964f640",
+      "payload_sha256": "019ad491c29b546cc32ce3fb692cafe2b87d27f048c8dedf2e474c314840eb4e",
       "previous_payload_sha256": "ec7b816bdd7ad27d190d82e7440e50ce31d3980dec0e59166edf07a3f964f640"
     },
     "ptb": {
@@ -281,6 +281,15 @@
       "run": "40136604122",
       "status": "success"
     },
+    "20bb9960affd5dccb49d9111a93a28f2977f487ed06ff53d4bace53b75626782": {
+      "channel": "canary",
+      "client_digest": "63cddf6189f8ed6d54f3b5b9c4fcfccacb853583e2d203e860faec18afeaee42",
+      "key": "20bb9960affd5dccb49d9111a93a28f2977f487ed06ff53d4bace53b75626782",
+      "reference_run": "40053107555",
+      "requested_at": "2026-10-29T01:53:28.738992+00:00",
+      "run": "40802973982",
+      "status": "queued"
+    },
     "366f5dd1c875586fe0c6e85b19e9cd9e53c498217fc6131b3c5339aaa9f0b277": {
       "channel": "canary",
       "client_digest": "f565741d639862fc53f39d942d726cbfaf7393c0c1887ae92ef2ac4c3c307b20",
@@ -360,7 +369,7 @@
       "reference_run": "40053107555",
       "requested_at": "2026-10-28T21:45:28.521295+00:00",
       "run": "40774348969",
-      "status": "queued"
+      "status": "success"
     },
     "97e3453fe6d20bb87c1917cae4c89f1ac5affde74e6a0c7fd4a1875639e9f1d9": {
       "channel": "canary",
@@ -457,81 +466,81 @@
       ],
       "sources": {
         "core": {
-          "sha256": "959d99f40f776828feb6c95688abc9bbf9d3aa006500e39a5b40ec4f2c58037f",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/full.distro"
+          "sha256": "dfcb238bc5f447f62ec31f45b85c4a9e5f46cbdc6f3aaf8620138715a8cf0f93",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/full.distro"
         },
         "discord_cloudsync": {
-          "module_version": 2,
+          "module_version": 1,
           "sha256": "303161028e3c2db0a7e8d28c8d21007c8f61d6b20d359bffee7132836c79c10d",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_cloudsync/2/full.distro"
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_cloudsync/1/full.distro"
         },
         "discord_desktop_core": {
-          "module_version": 2,
+          "module_version": 1,
           "sha256": "87db112c4280ad7d5f134b8c336d4822e49aece71287aeec9c5b8f99f6819ccb",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_desktop_core/2/full.distro"
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_desktop_core/1/full.distro"
         },
         "discord_dispatch": {
-          "module_version": 2,
+          "module_version": 1,
           "sha256": "d3ec4de5b656c2d47a8877539b1a463e60d4d6416e5d4709f12ded04f11db366",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_dispatch/2/full.distro"
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_dispatch/1/full.distro"
         },
         "discord_erlpack": {
-          "module_version": 2,
-          "sha256": "cbed3b6f5a41177fb2829292daa49a94504408032d3b2a34f9e1b4fa5236572d",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_erlpack/2/full.distro"
+          "module_version": 1,
+          "sha256": "81f00f67a72895ae1331f71fe1de77f6bdb895848617137b0cc54f27610a756e",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_erlpack/1/full.distro"
         },
         "discord_game_utils": {
-          "module_version": 2,
-          "sha256": "4fd367396a5a6e4f5ce3a6a8dfb0649ec900ed209bbf4dc51e17d9306619a09c",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_game_utils/2/full.distro"
+          "module_version": 1,
+          "sha256": "cafff96b70464193179aac3a8d9a2fd5b0e90baae2885051b277d407530c6923",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_game_utils/1/full.distro"
         },
         "discord_krisp": {
-          "module_version": 2,
-          "sha256": "7dd7d3f4920c5a4e8f548cf6bed2ebc6331e641dddaa3067d5778eb39d2e45dc",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_krisp/2/full.distro"
+          "module_version": 1,
+          "sha256": "4da65838f40859020dd82d9b985185e60c5a2762e07429554215167bd60bed79",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_krisp/1/full.distro"
         },
         "discord_modules": {
-          "module_version": 2,
-          "sha256": "617637754b6f2068f0fe4db04ff3152872e89f216ce9f31d23ebe69c411e4f29",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_modules/2/full.distro"
+          "module_version": 1,
+          "sha256": "d7135372cc2d76b4ff47bb18ecac6d8222f7f234652ad8ae98a58208c97e1d9f",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_modules/1/full.distro"
         },
         "discord_ndi": {
-          "module_version": 2,
-          "sha256": "319099d4eeedeacb65a00aebefd5a3c9b8642338e9d45bee4896fd44df9157fb",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_ndi/2/full.distro"
+          "module_version": 1,
+          "sha256": "d439dc55d034ba54bf5d21fdad6b64270aead9ac5c86757fa8c9d9d73c77ad54",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_ndi/1/full.distro"
         },
         "discord_rpc": {
-          "module_version": 2,
-          "sha256": "2507cc1c44a48e78156681d57f6f003375d3727cd7cac55e68f33c74146d1e96",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_rpc/2/full.distro"
+          "module_version": 1,
+          "sha256": "f6a655358477fa8acbaaa9d94ed6ae1afa29ba466aec03ba51a5bbc26cd78ac2",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_rpc/1/full.distro"
         },
         "discord_spellcheck": {
-          "module_version": 2,
-          "sha256": "9c7c09402dc1cdbadf7f581b3440b8891c2eb281779838ff5bd16d6189361c34",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_spellcheck/2/full.distro"
+          "module_version": 1,
+          "sha256": "9e391f1c156430ae914c4784334683037b1ac01bdad53140a210d44dd9bf6baf",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_spellcheck/1/full.distro"
         },
         "discord_sysimg": {
-          "module_version": 2,
+          "module_version": 1,
           "sha256": "e3cca7768aaecfae0403602adb19fc0919c1794f21d1da31b725c089ddba828e",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_sysimg/2/full.distro"
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_sysimg/1/full.distro"
         },
         "discord_utils": {
-          "module_version": 2,
-          "sha256": "4771a99e7bb28fdd487d0dc30d1b478d6165d9f744e31f6c30e9e6490f3b3c2c",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_utils/2/full.distro"
+          "module_version": 1,
+          "sha256": "bbf97d151cf14af31237a4b3c9139687425ce8580ed117f76f04daf61f8fb345",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_utils/1/full.distro"
         },
         "discord_voice": {
-          "module_version": 2,
-          "sha256": "7a57d2904e470b500509c3e69c4562db7c43e7aeda8f6fc2f02646cdd2438560",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_voice/2/full.distro"
+          "module_version": 1,
+          "sha256": "c13c844820afe769a18eb45c1bfbd27cd76753e3d2754f3af8ed82774a72538b",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_voice/1/full.distro"
         },
         "discord_zstd": {
-          "module_version": 2,
+          "module_version": 1,
           "sha256": "aaf4a91f674af7f2b07bafd5642b5b13393fcf3036fe2aa1b0b95be5e7868173",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2393/discord_zstd/2/full.distro"
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2396/discord_zstd/1/full.distro"
         }
       },
-      "version": "1.0.2393"
+      "version": "1.0.2396"
     }
   },
   "electron_work": {
