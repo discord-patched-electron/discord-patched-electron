@@ -217,11 +217,15 @@ def verify_assets(directory: Path, manifest: dict):
         raise ValueError("Missing immutable source commit")
 
 
-def install_notes(manifest: dict) -> str:
+def aur_install_row(manifest: dict) -> str:
+    name = package_name(manifest["channel"], electron_channel(manifest["electron_version"]))
+    return f"| Arch Linux | [AUR](https://aur.archlinux.org/packages/{name}) |"
+
+
+def install_notes(manifest: dict, *, approved: bool = False) -> str:
     tag = manifest_tag(manifest)
     downloads = f"{URL}/releases/download/{tag}"
-    name = package_name(manifest["channel"], electron_channel(manifest["electron_version"]))
-    rows = [f"| Arch Linux | [AUR](https://aur.archlinux.org/packages/{name}) |"]
+    rows = [aur_install_row(manifest)] if approved else []
     for distribution, extension in (
         ("Debian / Ubuntu", ".deb"),
         ("Fedora", ".rpm"),
@@ -350,6 +354,10 @@ def approval_action(manifest: dict) -> str:
 
 
 def approved_notes(body: str, manifest: dict) -> str:
+    header = "| Distribution | Package |\n| --- | --- |\n"
+    row = aur_install_row(manifest)
+    if row not in body:
+        body = body.replace(header, header + row + "\n", 1)
     return (
         body.replace(approval_action(manifest), "", 1)
         .replace("**Awaiting maintainer testing.**", PENDING, 1)
@@ -419,7 +427,7 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
         ("**This build has been approved as stable.**" if approved else PENDING)
         + ("" if approved else approval_action(manifest))
         + f"\n\nRequires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
-        + install_notes(manifest)
+        + install_notes(manifest, approved=approved)
         + "## Changes\n\n"
         + "\n".join(changes)
         + comparison

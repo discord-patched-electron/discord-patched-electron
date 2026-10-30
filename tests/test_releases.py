@@ -269,7 +269,7 @@ class ReleaseApproval(unittest.TestCase):
     def test_release_table_links_to_exact_assets_including_older_versioned_names(self):
         for prefix in ("app-x86_64", "app-20261024.120000-x86_64"):
             manifest = {**self.manifest, "assets": {prefix + ext: "c" * 64 for ext in FORMATS}}
-            body = install_notes(manifest)
+            body = install_notes(manifest, approved=True)
             self.assertIn("| Distribution | Package |", body)
             self.assertIn(
                 "| Arch Linux | [AUR](https://aur.archlinux.org/packages/"
