@@ -49,10 +49,19 @@ def client_result(channel, jobs, completed):
     return "success" if all(job["conclusion"] == "success" for job in found.values()) else "failure"
 
 
+def electron_result(jobs, completed):
+    job = next((job for job in jobs if job["name"] == "electron"), None)
+    if not job:
+        return "failure" if completed else None
+    if job["status"] != "completed":
+        return None
+    return "success" if job["conclusion"] == "success" else "failure"
+
+
 def schedule(state, policy, sources, now, run_id, results, compiler_busy=False):
     work = state.setdefault("client_work", {})
     for item in [*work.values(), *state.setdefault("electron_work", {}).values()]:
-        result_key = item["run"] + ":" + item["channel"] if "channel" in item else item["run"]
+        result_key = item["run"] + ":" + item.get("channel", "electron")
         if result_key not in results:
             result_key = item["run"]
         if result_key in results:
@@ -123,6 +132,9 @@ if __name__ == "__main__":
             result = api("actions/runs/" + item["run"])
             results[item["run"]] = result["conclusion"] if result["status"] == "completed" else None
             jobs = api("actions/runs/" + item["run"] + "/jobs?filter=latest&per_page=100")["jobs"]
+            results[item["run"] + ":electron"] = electron_result(
+                jobs, result["status"] == "completed"
+            )
             for channel in state["clients"]:
                 results[item["run"] + ":" + channel] = client_result(
                     channel, jobs, result["status"] == "completed"

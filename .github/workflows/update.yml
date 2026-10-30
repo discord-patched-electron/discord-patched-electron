@@ -73,8 +73,11 @@ jobs:
       contents: write
       actions: read
   electron:
-    needs: discover
-    if: needs.discover.outputs.electron != ''
+    # Client preparation writes its proposal to main. Finish that write before
+    # checking out main for source advancement; the two pushes otherwise race.
+    # Failed client qualification must not suppress independent source work.
+    needs: [discover, clients]
+    if: ${{ !cancelled() && needs.discover.result == 'success' && needs.discover.outputs.electron != '' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write

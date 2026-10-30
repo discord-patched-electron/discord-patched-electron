@@ -74,6 +74,21 @@ problem. Compiler retries need a fresh dispatch and reservation. Source or clien
 fixes create new integration keys. State writers share a concurrency group and
 use fast-forward pushes; do not force-merge JSON state.
 
+State pushes retry the same commit up to three times for transient transport or
+GitHub server errors. Authentication failures and conflicting writers still fail
+immediately; retries never merge or overwrite another writer's state. Electron
+source advancement waits for the client release jobs to finish writing their
+proposal to `main`, then checks out the current branch. A failed client check
+does not suppress source preparation, and its result is tracked independently.
+
+On 30 October, run `41070913056` failed on a GitHub internal server error while
+pushing `ci-state`; the next run `41115805385` qualified and published Canary
+1.0.2414. Earlier run `40667442277` hit the proposal/source push race. The audio
+failure in `40802973982` was Arch Node failing to load `libsimdjson.so.34`; newer
+qualification runs passed with the same project code, so no app workaround was
+added. Keep the failed records as evidence rather than republishing superseded
+client releases or restarting their compiler work.
+
 `config/update-policy.json` identifies the last-good runtime by compiler run,
 source commit, capacity-report digest and archive checksum. A public runtime-cache
 release preserves it beyond Actions artifact expiry. Fetching checks both report

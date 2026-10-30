@@ -3,6 +3,8 @@
 import argparse
 import os
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 from common import read_json, run
@@ -50,6 +52,46 @@ def checkout(remote: str, directory: Path):
     git(directory, "checkout", "--quiet", "-B", BRANCH, "FETCH_HEAD", check=True)
 
 
+def push_state(directory: Path):
+    # Retry the same commit only for transport/server failures. An ordinary
+    # fast-forward push remains safe even if GitHub accepted a lost response.
+    # Conflicting writers and authentication failures still fail immediately.
+    transient = (
+        "internal server error",
+        "error: 500",
+        "error: 502",
+        "error: 503",
+        "error: 504",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
+        "connection reset",
+        "connection timed out",
+        "remote end hung up unexpectedly",
+    )
+    for attempt in range(3):
+        result = git(
+            directory,
+            "push",
+            "origin",
+            "HEAD:refs/heads/" + BRANCH,
+            capture_output=True,
+            text=True,
+        )
+        print(result.stdout, end="")
+        print(result.stderr, end="", file=sys.stderr)
+        if result.returncode == 0:
+            return
+        message = result.stderr.lower()
+        conflict = any(
+            term in message for term in ("non-fast-forward", "fetch first", "stale info")
+        )
+        if attempt == 2 or conflict or not any(term in message for term in transient):
+            result.check_returncode()
+        print("Transient state push failure; retrying the same commit.", file=sys.stderr)
+        time.sleep(2 ** (attempt + 1))
+
+
 def save(directory: Path) -> bool:
     if read_json(directory / "state.json").get("schema") != 1:
         raise ValueError("Refusing to publish unsupported state")
@@ -78,7 +120,7 @@ def save(directory: Path) -> bool:
     )
     # A concurrent writer causes a failed fast-forward push, never a force or
     # text merge. The next poll checks out fresh state and reconciles again.
-    git(directory, "push", "origin", "HEAD:refs/heads/" + BRANCH, check=True)
+    push_state(directory)
     return True
 
 

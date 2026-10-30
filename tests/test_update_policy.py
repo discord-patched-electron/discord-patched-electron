@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT, read_json
-from schedule_updates import client_result, schedule
+from schedule_updates import client_result, electron_result, schedule
 from update_policy import in_range, plan, urgent
 
 
@@ -115,6 +115,46 @@ class UpdatePolicy(unittest.TestCase):
         self.assertEqual(result["electron"]["action"], "deferred")
         self.assertEqual(self.state["electron_work"], {})
         self.assertEqual(len(result["clients"]), 1)
+
+    def test_source_result_is_independent_of_client_failure(self):
+        schedule(self.state, self.policy, self.sources, "2026-10-28T03:00:00Z", "1", {})
+        schedule(
+            self.state,
+            self.policy,
+            self.sources,
+            "2026-10-28T04:00:00Z",
+            "2",
+            {"1": "failure", "1:electron": "success", "1:canary": "failure"},
+        )
+        self.assertEqual(self.state["electron_work"]["b" * 64]["status"], "success")
+        self.assertEqual(
+            [work["status"] for work in self.state["client_work"].values()], ["failure"]
+        )
+
+    def test_source_job_results_require_the_job_to_succeed(self):
+        self.assertIsNone(electron_result([], False))
+        self.assertEqual(electron_result([], True), "failure")
+        self.assertIsNone(
+            electron_result(
+                [
+                    {"name": "electron", "status": "in_progress", "conclusion": None},
+                ],
+                False,
+            )
+        )
+        for conclusion in ("success", "failure", "skipped", "cancelled"):
+            with self.subTest(conclusion=conclusion):
+                jobs = [
+                    {"name": "electron", "status": "completed", "conclusion": conclusion},
+                    {
+                        "name": "clients (canary) / publish",
+                        "status": "completed",
+                        "conclusion": "failure",
+                    },
+                ]
+                self.assertEqual(
+                    electron_result(jobs, True), "success" if conclusion == "success" else "failure"
+                )
 
     def test_successful_github_rerun_updates_failed_work_without_dispatch(self):
         schedule(self.state, self.policy, self.sources, "2026-10-25T03:00:00Z", "1", {})
