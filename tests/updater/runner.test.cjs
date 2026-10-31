@@ -157,6 +157,56 @@ test("cancellation also stops children with private pipes after the helper exits
   assert.equal(running(descendant), false);
 });
 
+test("helper completion cleans up private-output children on success and failure", async (t) => {
+  const { spawn } = require("node:child_process");
+  const fs = require("node:fs");
+  const running = (pid) => {
+    try {
+      return !/\) Z /.test(fs.readFileSync(`/proc/${pid}/stat`, "utf8"));
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  };
+  for (const code of [0, 1]) {
+    await t.test(`exit ${code}`, async (t) => {
+      let descendant;
+      t.after(() => {
+        if (descendant && running(descendant)) process.kill(descendant, "SIGKILL");
+      });
+      const task = runUpdate(
+        {
+          root: "/fixture",
+          clientRoot: "/fixture/profile",
+          channel: "canary",
+          prepareOnly: true,
+          timeoutMs: 5000,
+          onProgress: (state) => {
+            descendant = state.pid;
+          },
+        },
+        (_command, _args, options) => {
+          const childCode = `process.on('SIGTERM', () => {}); setTimeout(() => process.exit(), 10000); process.send(process.pid);`;
+          const parentCode = `const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(childCode)}], {stdio:['ignore','ignore','ignore','ipc']});
+          child.once('message', (pid) => {
+            console.log(JSON.stringify({type:'progress',pid}));
+            console.log(JSON.stringify({host:'/host',runtime:'/runtime'}));
+            process.exit(${code});
+          });`;
+          return spawn(process.execPath, ["-e", parentCode], options);
+        },
+      );
+      if (code) await assert.rejects(task.promise, /update failed/i);
+      else assert.deepEqual(await task.promise, { host: "/host", runtime: "/runtime" });
+      assert.ok(descendant);
+      const deadline = Date.now() + 1000;
+      while (running(descendant) && Date.now() < deadline)
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      assert.equal(running(descendant), false);
+    });
+  }
+});
+
 test("startup accepts a verified application handoff without requiring old client paths", async () => {
   const { child, promise } = fixture();
   child.stdout.end('{"application":"/profile/dpe-application/new/app"}\n');
@@ -165,4 +215,33 @@ test("startup accepts a verified application handoff without requiring old clien
   const invalid = fixture();
   invalid.child.stdout.write('{"application":"relative"}\n');
   await assert.rejects(invalid.promise, /invalid result/);
+});
+
+test("bounded progress records survive coalesced pipe reads across a partial line", async () => {
+  const f = fixture();
+  const progress = JSON.stringify({ type: "progress", stage: "download", current: 1, total: 2 });
+  const output = (progress + "\n").repeat(2000) + '{"application":"/app/new"}\n';
+  f.child.stdout.write(output.slice(0, 10));
+  for (let offset = 10; offset < output.length; offset += 65536)
+    f.child.stdout.write(output.slice(offset, offset + 65536));
+  f.child.emit("close", 0);
+  assert.deepEqual(await f.promise, { application: "/app/new" });
+  assert.equal(f.states.length, 2000);
+});
+
+test("cancellation ignores remaining output while waiting for helper cleanup", async () => {
+  const f = fixture();
+  f.child.kill = () => {}; // SIGTERM is asynchronous; output can already be buffered.
+  f.cancel();
+  f.child.stdout.write('{"type":"progress","stage":"download"}\n');
+  f.child.stdout.write("x".repeat(65537));
+  f.child.emit("close", null);
+  await assert.rejects(f.promise, /cancelled/);
+  assert.equal(f.states.length, 0);
+});
+
+test("an oversized individual record is rejected even with preceding progress", async () => {
+  const f = fixture();
+  f.child.stdout.write('{"type":"progress","stage":"download"}\n' + "x".repeat(65537));
+  await assert.rejects(f.promise, /oversized response/);
 });

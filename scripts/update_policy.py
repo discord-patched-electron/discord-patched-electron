@@ -19,6 +19,8 @@ def date(value):
 
 def in_range(version: str, expression: str) -> bool:
     """GitHub advisory comparator ranges; unknown syntax is never guessed."""
+    if not isinstance(expression, str):
+        raise ValueError("Unsupported advisory version range")
     comparisons = []
     for part in expression.split(","):
         match = re.fullmatch(
@@ -46,6 +48,10 @@ def urgent(candidate: str, current: str, advisories: list, policy: dict) -> list
                 continue
             try:
                 fixed = item.get("patched_versions", "")
+                # An advisory without a usable fix must not break client
+                # scheduling or grant a compiler cooldown bypass.
+                if not isinstance(fixed, str):
+                    continue
                 # Do not infer that crossing a major boundary contains a backport.
                 if (
                     fixed.split(".")[0] == candidate.split(".")[0]

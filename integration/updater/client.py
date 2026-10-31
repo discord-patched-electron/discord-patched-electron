@@ -278,9 +278,18 @@ def extract_module(archive: Path, destination: Path, *, limit: int = 2 * 1024 * 
                     ):
                         raise ValueError(f"Unsafe Discord archive path: {member.name}")
                     if member.issym():
-                        if Path(member.linkname).is_absolute() or not (
-                            target.parent / member.linkname
-                        ).resolve().is_relative_to(destination.resolve()):
+                        relative = target.parent.resolve().relative_to(destination.resolve())
+                        link = Path(os.path.normpath(relative / member.linkname))
+                        # A link that leaves files/ and re-enters by that name
+                        # points elsewhere after publication renames the module.
+                        # Resolve parent aliases before checking its relative depth.
+                        if (
+                            link.is_absolute()
+                            or ".." in link.parts
+                            or not (target.parent / member.linkname)
+                            .resolve()
+                            .is_relative_to(destination.resolve())
+                        ):
                             raise ValueError(f"Unsafe Discord archive link: {member.name}")
                         target.parent.mkdir(parents=True, exist_ok=True)
                         target.symlink_to(member.linkname)
@@ -434,10 +443,6 @@ def ensure_client(
         try:
             previous = current_host(root, channel)
         except FAILURES as error:
-            if offline:
-                raise ValueError(
-                    "Cached Discord client is incomplete; reconnect to repair it"
-                ) from error
             print(
                 f"Discord cache unavailable; checking for a complete client: {error}",
                 file=sys.stderr,
@@ -450,11 +455,23 @@ def ensure_client(
             print("Cached Discord client has no matching package pins or approval", file=sys.stderr)
             previous = None
         if offline:
-            if previous is None:
-                raise ValueError(
-                    "First launch requires an internet connection; reconnect to repair an unapproved cached client"
-                )
-            return previous
+            if previous is not None:
+                return previous
+            # A failed publication or application rollback can leave the pointer
+            # absent or unusable while the exact authorized generation survives.
+            # Derive candidates from verified sources, never from directory names.
+            compatibility = compatibility_key()
+            for source in sorted(sources, key=lambda item: item["approved_version"], reverse=True):
+                generation = identity({**source, "compatibility": compatibility})
+                try:
+                    cached = validate_host(root, channel, generation)
+                except FAILURES:
+                    continue
+                write_json(root / "current.json", generation)
+                return cached
+            raise ValueError(
+                "First launch requires an internet connection; reconnect to repair an incomplete or unapproved cached client"
+            )
         try:
             state = sources[0]
             for source in sources[1:]:

@@ -98,15 +98,17 @@ if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
     DPE_CAMERA_VOICE_MODULE=$(readlink -f -- "$DPE_VOICE_ROOT/discord_voice.node")
     export DPE_CAMERA_VOICE_MODULE
   fi
+  # LD_LIBRARY_PATH accepts spaces; LD_PRELOAD splits them. Resolve the helper
+  # by basename for both relocated bundled apps and cached installations.
   if [[ -f "$root/client-distribution.json" ]]; then
-    # LD_LIBRARY_PATH accepts spaces; LD_PRELOAD splits them. Keep this search
-    # directory limited to our helper so child programs keep their system libs.
+    # Keep this search directory limited to our helper so child programs keep
+    # their system libraries.
     preload_dir=$(dirname -- "$(readlink -f -- "$DPE_RUNTIME_EXECUTABLE")")/preload
-    export LD_LIBRARY_PATH="$preload_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-    export LD_PRELOAD="libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
   else
-    export LD_PRELOAD="$root/libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+    preload_dir=$root
   fi
+  export LD_LIBRARY_PATH="$preload_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  export LD_PRELOAD="libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
 fi
 # Official mod loaders live in the profile's app-version/resources directory.
 # The updater preserves the loader and refreshes its underlying bootstrap.
