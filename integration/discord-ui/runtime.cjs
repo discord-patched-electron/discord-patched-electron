@@ -28,6 +28,10 @@ module.exports = function discordUI() {
     let source;
     try {
       source = Function.prototype.toString.call(fn);
+      // Mod-owned callable proxies expose the original source via toString;
+      // Function.prototype alone sees only [native code], hiding lazy controls.
+      if (source.includes("[native code]")) source = fn.toString();
+      if (typeof source !== "string") return null;
     } catch {
       return null;
     }
@@ -65,6 +69,32 @@ module.exports = function discordUI() {
     runtimes = new Set(),
     chunkArrays = new WeakMap();
   const wrapped = new WeakMap();
+  const modListeners = new WeakMap();
+  function notifyModule(exports, runtime, id) {
+    try {
+      const factory = runtime.m?.[id];
+      if (typeof factory !== "function") return;
+      const source = factory.toString();
+      for (const watcher of watchers.values())
+        if (watcher.match(source)) notify(watcher, exports, runtime);
+    } catch {
+      /* A mod may hide unsupported modules from discovery. */
+    }
+  }
+  function useModListener(runtime) {
+    // Vencord/Equicord recompile source factories. Assigning a wrapper to their
+    // proxied module table can silently discard it during patching. Subscribe
+    // after their patches execute, while exports are still reaching the caller.
+    const webpack = safe(safe(globalThis, "Vencord"), "Webpack");
+    const listeners = safe(webpack, "moduleListeners");
+    if (safe(webpack, "wreq") !== runtime || typeof safe(listeners, "add") !== "function")
+      return false;
+    if (modListeners.get(runtime) !== listeners) {
+      listeners.add((exports, id) => notifyModule(exports, runtime, id));
+      modListeners.set(runtime, listeners);
+    }
+    return true;
+  }
   function notify(watcher, exports, runtime) {
     try {
       watcher.visit(exports, runtime);
@@ -80,6 +110,13 @@ module.exports = function discordUI() {
     try {
       moduleIds = ids || Object.keys(runtime.m || {});
     } catch {
+      return;
+    }
+    if (useModListener(runtime)) {
+      for (const id of moduleIds) {
+        const cached = safe(runtime.c, id);
+        if (cached) notifyModule(safe(cached, "exports"), runtime, id);
+      }
       return;
     }
     for (const id of moduleIds) {

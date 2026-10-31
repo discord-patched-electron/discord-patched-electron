@@ -7,6 +7,7 @@ const settings = require("../../integration/discord-ui/settings.cjs");
 function fixture({ cached = false, icon = true } = {}) {
   const calls = [],
     executed = [];
+  const moduleListeners = new Set();
   const context = vm.createContext({ calls, console });
   vm.runInContext(
     `
@@ -36,6 +37,7 @@ function fixture({ cached = false, icon = true } = {}) {
       runtime.c[id] = module;
       executed.push(id);
       runtime.m[id](module, module.exports, runtime);
+      for (const listener of moduleListeners) listener(module.exports, id);
     }
     return runtime.c[id].exports;
   };
@@ -56,7 +58,7 @@ function fixture({ cached = false, icon = true } = {}) {
       .renamed.buildLayout()
       .find((x) => x.key === "utility_section")
       .buildLayout();
-  return { context, runtime, chunks, calls, executed, install, load, getItems };
+  return { context, runtime, chunks, calls, executed, install, load, getItems, moduleListeners };
 }
 
 test("lazy native layout gets Discord's cog and ordinary sidebar action above translated Log Out", () => {
@@ -163,3 +165,25 @@ test("settings registration waits for a late webpack loader without a DOM pollin
   assert.equal(f.getItems()[1].key, "dpe_openasar");
   assert.equal(timers.length, 0);
 });
+
+for (const cached of [false, true]) {
+  test(`mod-owned factory recompilation preserves the entry (${cached ? "cached" : "lazy"})`, () => {
+    const f = fixture({ cached });
+    let assignments = 0;
+    f.runtime.m = new Proxy(f.runtime.m, {
+      set(target, id, factory) {
+        assignments++;
+        // Model the mod's source patches: closure-based wrappers disappear.
+        return Reflect.set(target, id, vm.runInContext("(" + factory.toString() + ")", f.context));
+      },
+    });
+    f.context.Vencord = { Webpack: { wreq: f.runtime, moduleListeners: f.moduleListeners } };
+    f.install();
+    assert.equal(assignments, 0, "do not replace a mod-owned factory");
+    if (!cached) f.load();
+    assert.equal(f.getItems()[1].key, "dpe_openasar");
+    assert.equal(f.moduleListeners.size, 1);
+    f.install();
+    assert.equal(f.moduleListeners.size, 1);
+  });
+}

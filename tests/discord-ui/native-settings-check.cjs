@@ -20,8 +20,9 @@ module.exports = async function checkSettings(run) {
     const exports = req(roots[0][0]);
     const root = ui.inspect({c:{root:{exports}}}).objects.find(value => value.key === "$Root");
     const utility = root.buildLayout().find(node => node.key === "utility_section");
+    if (!utility.buildLayout().some(node => node.key === "dpe_openasar")) throw Error("DPE native settings entry was not installed");
     const compiler = Object.entries(req.m).find(([,factory]) => String(factory).includes(".buildLayout().map"));
-    const compile = Object.values(req(compiler[0])).find(value => typeof value === "function" && String(value).includes(".buildLayout().map"));
+    const compile = Object.values(req(compiler[0])).find(value => typeof value === "function" && ui.has(ui.signature(value), "layout", "parent", "forEach", "map"));
     const compiled = compile(utility);
     const index = compiled.layout.findIndex(node => node.key === "dpe_openasar");
     const entry = compiled.layout[index];

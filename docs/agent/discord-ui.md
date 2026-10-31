@@ -69,3 +69,31 @@ fresh profile: `out/dpe-openasar-shared-settings-check/settings.json`.
 
 Final repository checks passed: `bun run lint`, 395 Python tests and 131 JavaScript
 tests through `bun run test`.
+
+## Equicord factory recompilation fix
+
+The first check covered plain Discord but missed Equicord's source-recompiling
+factory proxy. Assigning our closure-based wrapper to its module table caused
+Equicord to compile the original source and discard our completion hook. The
+settings entry consequently never reached the native layout.
+
+The shared runtime now subscribes to `Vencord.Webpack.moduleListeners` when that
+API owns the discovered runtime (Equicord exposes the same API). Cached exports
+are inspected too. Plain Discord continues to use the standard factory hook.
+Source signatures also accept the original source exposed by a callable proxy's
+`toString`, so lazy native audio controls remain discoverable with the mod loaded.
+Capture-controller exclusions and ambiguity checks still apply.
+
+`tests/discord-ui/equicord-fixture.cjs` loads the actual installed mod bundle with
+empty in-memory settings and isolated IPC fixtures. Set `DPE_TEST_EQUICORD_ASAR`
+to a disposable archive copy when running the native picker smoke. The user's
+mod settings, account data and updater are not used. The settings check recognizes
+the patched native layout compiler as well as the unmodified compiler.
+
+The missing entry was reproduced in `out/settings-equicord-repro/before2.log`.
+After the fix, `out/settings-equicord-repro/after2/native-settings.json` confirms
+the label, ordinary native row type, exact Discord cog and placement; `result.json`
+and `scaling.json` cover the native audio dialog in the same modded page. The plain
+Discord check also passed in `out/settings-equicord-repro/plain/`. These are fresh,
+signed-out profiles using retained Electron 46.0.0-alpha.1. No account interaction
+or capture was performed.

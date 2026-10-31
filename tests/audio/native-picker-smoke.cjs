@@ -12,12 +12,19 @@ app.setPath("userData", path.join(output, "profile"));
 app.disableHardwareAcceleration();
 const timeout = setTimeout(() => app.exit(2), 120000);
 app.whenReady().then(async () => {
+  const originalPreload = path.join(__dirname, "native-picker-preload.cjs");
+  const preload = process.env.DPE_TEST_EQUICORD_ASAR
+    ? require("../discord-ui/equicord-fixture.cjs")(
+        process.env.DPE_TEST_EQUICORD_ASAR,
+        originalPreload,
+      )
+    : originalPreload;
   const window = new BrowserWindow({
     width: 1269,
     height: 772,
     useContentSize: true,
     webPreferences: {
-      preload: path.join(__dirname, "native-picker-preload.cjs"),
+      preload,
       contextIsolation: true,
       sandbox: false,
     },

@@ -238,3 +238,26 @@ test("a replacement export is rediscovered; failed lookups are not cached across
   f.runtime.c[key] = { exports: replacement };
   assert.equal(inspect([f.runtime]).components.Button, replacement);
 });
+
+test("mod-proxied presentation factories remain discoverable without invoking capture hooks", () => {
+  for (const capture of [false, true]) {
+    const f = fixture();
+    delete f.runtime.c[Object.keys(f.runtime.c)[4]];
+    const factory = vm.runInNewContext(
+      "(function(module,exports){" +
+        (capture ? "getDisplayMedia();" : "") +
+        "exports.changed=" +
+        bodies.SegmentedControl +
+        "})",
+    );
+    f.runtime.m.proxied = new Proxy(factory, {
+      get(target, key, receiver) {
+        return key === "toString"
+          ? target.toString.bind(target)
+          : Reflect.get(target, key, receiver);
+      },
+    });
+    assert.equal(inspect([f.runtime]).reason, capture ? "missing-components" : "ready");
+    assert.equal(f.calls, capture ? 0 : 1);
+  }
+});
