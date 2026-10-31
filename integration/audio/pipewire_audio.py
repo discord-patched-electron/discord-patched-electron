@@ -793,8 +793,15 @@ class Controller:
         if target["kind"] != "system" and (identity is None or descendant(self.owner, identity)):
             self.reset()
             return
-        key = (target["key"], identity)
-        if self.target_key and self.target_key[0] == key[0] and self.target_key[1] != identity:
+        # Parentage can change while the same process survives its launcher.
+        # Keep ancestry for routing, but use PID/start time for replacement checks.
+        stable_identity = identity[:2] if identity else None
+        key = (target["key"], stable_identity)
+        if (
+            self.target_key
+            and self.target_key[0] == key[0]
+            and self.target_key[1] != stable_identity
+        ):
             # The window/session is unchanged but its process identity vanished
             # or was reused. Require a new video selection before following it.
             if self.route:
@@ -808,10 +815,10 @@ class Controller:
                 self.route.close()
             self.route = None
             self.target_key = key
-            self.target = identity
             route = Route()
             route.start()
             self.route = route
+        self.target = identity
         self.route.sync(objects, pulse, self.target, self.excluded)
         self.emit(self.route.capture_pid, "ready", target["backend"])
 

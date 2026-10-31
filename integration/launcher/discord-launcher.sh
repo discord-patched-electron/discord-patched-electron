@@ -99,14 +99,21 @@ if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then
     export DPE_CAMERA_VOICE_MODULE
   fi
   if [[ -f "$root/client-distribution.json" ]]; then
-    # LD_LIBRARY_PATH accepts spaces; LD_PRELOAD splits them. Keep this search
-    # directory limited to our helper so child programs keep their system libs.
+    # Keep this search directory limited to our helper so child programs keep
+    # their system libraries.
     preload_dir=$(dirname -- "$(readlink -f -- "$DPE_RUNTIME_EXECUTABLE")")/preload
     export LD_LIBRARY_PATH="$preload_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-    export LD_PRELOAD="libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+    camera_preload=libdpe-camera-probe.so
+  elif [[ $root != *[[:space:]:]* ]]; then
+    # Direct loading also preserves paths containing semicolons, which would
+    # instead be separators in LD_LIBRARY_PATH.
+    camera_preload=$root/libdpe-camera-probe.so
   else
-    export LD_PRELOAD="$root/libdpe-camera-probe.so${LD_PRELOAD:+:$LD_PRELOAD}"
+    # LD_PRELOAD splits spaces; directory search can represent them.
+    export LD_LIBRARY_PATH="$root${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    camera_preload=libdpe-camera-probe.so
   fi
+  export LD_PRELOAD="$camera_preload${LD_PRELOAD:+:$LD_PRELOAD}"
 fi
 # Official mod loaders live in the profile's app-version/resources directory.
 # The updater preserves the loader and refreshes its underlying bootstrap.

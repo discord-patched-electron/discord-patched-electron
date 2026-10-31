@@ -69,6 +69,11 @@ not establish compilation or runtime compatibility.
 reserve work before jobs start, and the ledger retains completed and failed
 attempts. Repeated polls do not restart identical failures.
 
+Each enabled Electron channel is seeded on its first successful feed observation.
+An outage during initial activation can persist client state without preventing
+that seed on recovery. Previously tracked channels retain their original activation
+boundary; a withdrawn or rejected seed does not trigger historical backfill.
+
 Use Actions **Re-run all jobs** for client work after fixing an infrastructure
 problem. Compiler retries need a fresh dispatch and reservation. Source or client
 fixes create new integration keys. State writers share a concurrency group and

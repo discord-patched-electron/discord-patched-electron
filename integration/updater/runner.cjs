@@ -66,16 +66,24 @@ module.exports = function runUpdate(
       process.stderr.write(data);
     });
     child.stdout.on("data", (data) => {
-      buffer += data;
-      if (buffer.length > 65536) {
-        failure = new Error("The updater returned an oversized response.");
-        cancel();
-        return;
-      }
-      let newline;
-      while ((newline = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, newline);
-        buffer = buffer.slice(newline + 1);
+      if (cancelled || finished) return;
+      // Pipe chunks can contain many records plus the tail of the last read.
+      // Bound each record, not the arbitrary chunk chosen by the OS.
+      let offset = 0;
+      while (offset < data.length) {
+        const newline = data.indexOf("\n", offset);
+        const end = newline === -1 ? data.length : newline;
+        if (buffer.length + end - offset > 65536) {
+          failure = new Error("The updater returned an oversized response.");
+          buffer = "";
+          cancel();
+          return;
+        }
+        buffer += data.slice(offset, end);
+        if (newline === -1) return;
+        const line = buffer;
+        buffer = "";
+        offset = newline + 1;
         if (!line.trim()) continue;
         try {
           const value = JSON.parse(line);
@@ -103,6 +111,7 @@ module.exports = function runUpdate(
           failure = error;
           cancel();
         }
+        if (cancelled || finished) return;
       }
     });
     child.once("error", (error) => {
@@ -120,8 +129,9 @@ module.exports = function runUpdate(
     child.once("close", (code) => {
       finished = true;
       // The leader can exit before a child with captured/private output. Such
-      // children no longer hold our pipes open, so close alone is not cleanup.
-      if (cancelled) signal("SIGKILL");
+      // children no longer hold our pipes open, so close alone is not cleanup,
+      // whether preparation succeeded, failed or was cancelled.
+      signal("SIGKILL");
       clearTimeout(timer);
       clearTimeout(killTimer);
       if (failure) reject(failure);

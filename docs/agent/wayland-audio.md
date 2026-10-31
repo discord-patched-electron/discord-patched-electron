@@ -26,6 +26,8 @@ On niri versions exposing the `Casts` IPC request, the helper follows the actual
 PipeWire link into the native Discord video consumer. It joins that source node
 to niri's cast record, then its target window to the window's process. It includes
 that process's audio streams and descendants, checking UID and process start time.
+An application surviving its launcher's exit keeps its selection when only its
+parent PID changes. PID reuse and UID changes still invalidate the selection.
 Several audio processes can therefore contribute to one application's mix.
 Selecting a monitor explicitly chooses system playback except Discord.
 
@@ -86,6 +88,10 @@ and [Window Calls](https://github.com/ickyicky/window-calls).
    ending and destruction. Generations reject late helper replies. Stdin closure
    releases routes; parent-death signals and a narrowly scoped Pulse module lease
    also clean up after an uncatchable helper crash.
+
+The optional X11 adapter silences audio before switching sources and commits the
+new audio selection only after the native setter accepts it. A synchronous native
+rejection clears its selection and polling state before propagating the error.
 
 The native PulseAudio mixer can retain unread samples after detachment.
 `scripts/patch_pulse_audio.py` clears that buffer under the existing mainloop
