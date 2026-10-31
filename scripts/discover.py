@@ -198,14 +198,16 @@ def reconcile(
         for identity, item in state["releases"].items()
     }
     seeds = set()
-    if previous is None:
-        for channel in channels:
-            candidates = [
-                (key, item) for key, item in eligible.items() if item["channel"] == channel
-            ]
-            if not candidates:
-                raise ValueError(f"No published seed for {channel}")
-            seeds.add(max(candidates, key=lambda pair: version_key(pair[1]["version"]))[0])
+    for channel in channels:
+        # An initial feed outage still persists client state. Seed the first
+        # successful observation of each channel, not just the first state file.
+        # Even withdrawn/rejected records count: never backfill their history.
+        if any(item["channel"] == channel for item in state["releases"].values()):
+            continue
+        candidates = [(key, item) for key, item in eligible.items() if item["channel"] == channel]
+        if not candidates:
+            raise ValueError(f"No published seed for {channel}")
+        seeds.add(max(candidates, key=lambda pair: version_key(pair[1]["version"]))[0])
     for identity, release in sorted(eligible.items()):
         previous_identity = previous_ids.get((release["repository"], release["release_id"]))
         if previous_identity and previous_identity != identity:

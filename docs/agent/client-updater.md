@@ -64,6 +64,8 @@ after the matching Discord HTTPS window finishes loading; a process that exits f
 the next launch to fall back to the previous generation. Exited processes awaiting
 reaping do not count as running instances. Second launches retain
 the running generation so they cannot activate an update underneath it.
+The loader retains PID/start-time records for all live instances, including the
+experimental multi-instance mode, and prunes exited or reused PIDs on launch.
 
 Package upgrades retain a newer approved application. The archive hash identifies
 the payload; a changed package installation path uses a separate application cache.
@@ -79,6 +81,8 @@ The loader and downloaded code never write to the installed package.
 1. Selects the package pins or the exact client pins from an approved release.
 2. Verifies each archive before extraction. Traversal, external links, device
    files, duplicate entries and oversized archives are rejected.
+   Relative links must remain internal after the staged module is renamed into
+   its cache location; they cannot depend on the temporary directory's name.
 3. Applies the voice/audio, Krisp and camera compatibility changes. Unknown
    layouts stop preparation. The desktop safe-storage adapter runs in memory.
 4. Checks the prepared generation and publishes it through the installation
@@ -93,6 +97,10 @@ launches recheck its signature and module pins. Offline mode and Quickstart need
 pins matching the package or a retained approved release. Older unapproved caches
 require an online launch to repair them; their files remain available to running
 processes. Legacy release manifests without client pins cannot authorize updates.
+If the current pointer is missing, damaged or no longer authorized after rollback,
+offline selection can recover an intact generation derived from the selected
+application's authorized sources and current compatibility fingerprint. It never
+downloads or installs modules on that path.
 
 ## Patched Electron updates
 
@@ -112,6 +120,9 @@ project's cache repository. Extraction rejects unsafe entries and discards
 Electron's demo resources. A Node-mode probe verifies the executable's version
 before selection. Failed checks keep a verified current runtime. A damaged cache
 is repaired from the pinned archive; an offline launch requires an intact cache.
+Cached Electron must also be executable. Lost execute permission triggers repair
+from a supplied archive or the normal download path; offline mode without usable
+replacement bytes reports that no verified runtime is available.
 
 The package's `runtime-update.json` authorizes its exact baseline without a
 release lookup, including manually installed test candidates. Other automatic
@@ -183,7 +194,7 @@ verified cached runtime before opening the 300×300
 startup screen. A first install uses a cancellable native progress dialog while
 Python downloads Electron; the helper can also run without a desktop dialog.
 The GTK3 dialog is titled **Discord Patched Electron** and says
-**Downloading Electron for the first time...**. Native widgets use the desktop
+**Preparing Electron...**. Native widgets use the desktop
 theme, with centered content, 24px outer padding and 8px between the message and
 progress bar. The titlebar close button cancels preparation. It uses Python's
 `ctypes` and the package's existing GTK3 dependency, without Tkinter or PyGObject.
@@ -193,6 +204,9 @@ Later launches reuse the cache without a network check before the splash.
 `startup.cjs` manages the window and retries; `runner.cjs` manages the cancellable
 helper group and bounded JSON-lines output. Preparation begins at DOM readiness
 without waiting for optional media downloads. Diagnostics go to stderr.
+Both helper paths terminate remaining members of their process group on completion,
+failure or cancellation, including descendants that outlive the parent process.
+Native-dialog cancellation is checked again before accepting a completed setup.
 
 Every startup stage uses the launcher's `CHROME_DESKTOP` identity, matching the
 installed desktop entry and icon. GTK sets its program name before initialization

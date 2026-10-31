@@ -15,6 +15,26 @@ from runtime import FAILURES, ensure_runtime
 DIALOG_DELAY_SECONDS = 2.0
 
 
+def stop_helper(task):
+    """Tear down the helper's process group, even when its leader exited first."""
+    try:
+        os.killpg(task.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        task.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    finally:
+        # A reaped leader does not establish that its download/probe children
+        # exited. They may ignore TERM or have private output streams.
+        try:
+            os.killpg(task.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        task.wait()
+
+
 def prepare(app: Path, profile: Path) -> str:
     try:
         return str(ensure_runtime(app, profile, offline=True, bootstrap=True))
@@ -54,6 +74,10 @@ def prepare(app: Path, profile: Path) -> str:
                 if dialog and dialog.poll() == 1:
                     raise InterruptedError("Electron setup cancelled")
                 time.sleep(0.1)
+            # The helper may finish between polls after the dialog was closed.
+            # Do not turn that cancellation into a successful launch handoff.
+            if dialog and dialog.poll() == 1:
+                raise InterruptedError("Electron setup cancelled")
             errors.seek(0)
             details = errors.read()
             if details:
@@ -65,22 +89,18 @@ def prepare(app: Path, profile: Path) -> str:
             result.seek(0)
             return result.read().strip()
         finally:
-            if task.poll() is None:
-                os.killpg(task.pid, signal.SIGTERM)
-                try:
-                    task.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(task.pid, signal.SIGKILL)
-                    task.wait()
-            if dialog:
-                dialog.stdin.close()
-                if dialog.poll() is None:
-                    dialog.terminate()
-                try:
-                    dialog.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    dialog.kill()
-                    dialog.wait()
+            try:
+                stop_helper(task)
+            finally:
+                if dialog:
+                    dialog.stdin.close()
+                    if dialog.poll() is None:
+                        dialog.terminate()
+                    try:
+                        dialog.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        dialog.kill()
+                        dialog.wait()
 
 
 def main():
