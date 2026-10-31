@@ -1,6 +1,7 @@
 """Bootstrap without Electron, and cancel a first-run helper safely."""
 
 import os
+import signal
 import sys
 import tempfile
 import time
@@ -195,3 +196,104 @@ class RuntimeBootstrap(unittest.TestCase):
             pid = int((app / "helper.pid").read_text())
             with self.assertRaises(ProcessLookupError):
                 os.kill(pid, 0)
+
+    def test_native_cancellation_wins_when_the_helper_finishes_between_polls(self):
+        task = Mock(pid=123, returncode=0)
+        task.poll.side_effect = [None, 0]
+        dialog = Mock()
+        # The first sample sees a live dialog. It closes while the helper
+        # finishes, before the next iteration can enter its cancellation check.
+        dialog.poll.side_effect = [None, 1, 1]
+
+        def launch(command, **options):
+            if "--bootstrap" in command:
+                options["stdout"].write("/cached/electron\n")
+                return task
+            return dialog
+
+        with (
+            patch.object(bootstrap, "ensure_runtime", side_effect=ValueError("no cache")),
+            patch.object(bootstrap.subprocess, "Popen", side_effect=launch),
+            patch.object(bootstrap.os, "killpg"),
+            patch.object(bootstrap.time, "sleep"),
+            patch.object(bootstrap, "DIALOG_DELAY_SECONDS", 0),
+            patch.dict(os.environ, {"DPE_CLIENT_OFFLINE": "0", "DISPLAY": ":fixture"}),
+            self.assertRaisesRegex(InterruptedError, "cancelled"),
+        ):
+            bootstrap.prepare(Path("/fixture"), Path("/fixture/profile"))
+        dialog.stdin.close.assert_called_once()
+
+    def test_setup_completion_stops_descendants_even_after_the_leader_exits(self):
+        def running(pid):
+            try:
+                return Path(f"/proc/{pid}/stat").read_text().split(") ", 1)[1][0] != "Z"
+            except FileNotFoundError:
+                return False
+
+        worker = (
+            "import os, pathlib, signal, sys, time\n"
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            "pathlib.Path(sys.argv[1]).write_text(str(os.getpid()))\n"
+            "time.sleep(10)\n"
+        )
+        for outcome in ("cancel", "failure", "success"):
+            with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as temporary:
+                app = Path(temporary)
+                pid_file = app / "worker.pid"
+                helper = app / "integration/updater/runtime.py"
+                helper.parent.mkdir(parents=True)
+                helper.write_text(
+                    "import pathlib, subprocess, sys, time\n"
+                    "pid = pathlib.Path(sys.argv[1], 'worker.pid')\n"
+                    f"subprocess.Popen([sys.executable, '-c', {worker!r}, str(pid)], "
+                    "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+                    "for _ in range(200):\n"
+                    " if pid.exists(): break\n"
+                    " time.sleep(.01)\n"
+                    + (
+                        "time.sleep(10)\n"
+                        if outcome == "cancel"
+                        else "raise SystemExit('synthetic setup failure')\n"
+                        if outcome == "failure"
+                        else "print('/cached/electron')\n"
+                    )
+                )
+                helper.with_name("bootstrap_dialog.py").write_text(
+                    "import pathlib, time\n"
+                    "pid = pathlib.Path(__file__).parents[2] / 'worker.pid'\n"
+                    "for _ in range(200):\n"
+                    " if pid.exists(): break\n"
+                    " time.sleep(.01)\n"
+                    "raise SystemExit(1)\n"
+                )
+                try:
+                    with (
+                        patch.object(
+                            bootstrap, "ensure_runtime", side_effect=ValueError("no cache")
+                        ),
+                        patch.object(bootstrap, "DIALOG_DELAY_SECONDS", 0),
+                        patch.dict(
+                            os.environ,
+                            {
+                                "DPE_CLIENT_OFFLINE": "0",
+                                "DISPLAY": ":fixture" if outcome == "cancel" else "",
+                                "WAYLAND_DISPLAY": "",
+                            },
+                        ),
+                    ):
+                        if outcome == "success":
+                            self.assertEqual(
+                                bootstrap.prepare(app, app / "profile"), "/cached/electron"
+                            )
+                        else:
+                            error = InterruptedError if outcome == "cancel" else RuntimeError
+                            with self.assertRaises(error):
+                                bootstrap.prepare(app, app / "profile")
+                    pid = int(pid_file.read_text())
+                    deadline = time.monotonic() + 1
+                    while running(pid) and time.monotonic() < deadline:
+                        time.sleep(0.01)
+                    self.assertFalse(running(pid), "setup left its private-output child running")
+                finally:
+                    if pid_file.exists() and running(pid := int(pid_file.read_text())):
+                        os.kill(pid, signal.SIGKILL)

@@ -1,0 +1,11 @@
+test_null_fix_does_not_hide_later_valid_advisory_or_override (__main__.AdvisoryControls.test_null_fix_does_not_hide_later_valid_advisory_or_override) ... ok
+test_no_seed_feed_preserves_failure_until_actual_first_observation (__main__.DiscoveryControls.test_no_seed_feed_preserves_failure_until_actual_first_observation) ... ok
+test_rejected_seed_blocks_backfill_but_keeps_new_release_discovery (__main__.DiscoveryControls.test_rejected_seed_blocks_backfill_but_keeps_new_release_discovery) ... ok
+test_all_partial_artifact_subsets_recover_without_overwrite (__main__.SigningControls.test_all_partial_artifact_subsets_recover_without_overwrite) ... ok
+test_final_verify_rejects_concurrent_bad_signature_without_overwrite (__main__.SigningControls.test_final_verify_rejects_concurrent_bad_signature_without_overwrite) ... ok
+test_mismatched_existing_key_rejects_retry_without_publishing_missing_signature (__main__.SigningControls.test_mismatched_existing_key_rejects_retry_without_publishing_missing_signature) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.680s
+
+OK

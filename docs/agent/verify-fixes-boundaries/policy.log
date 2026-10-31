@@ -1,0 +1,18 @@
+test_advisories_without_a_usable_fix_do_not_block_client_work_or_bypass_cooldown (test_update_policy.UpdatePolicy.test_advisories_without_a_usable_fix_do_not_block_client_work_or_bypass_cooldown) ... ok
+test_bundled_binary_change_does_not_schedule_native_rebuild (test_update_policy.UpdatePolicy.test_bundled_binary_change_does_not_schedule_native_rebuild) ... ok
+test_discord_switches_schedule_each_client_independently (test_update_policy.UpdatePolicy.test_discord_switches_schedule_each_client_independently) ... ok
+test_electron_switches_control_scheduling_and_target_lock (test_update_policy.UpdatePolicy.test_electron_switches_control_scheduling_and_target_lock) ... ok
+test_exhausted_budget_defers_without_consuming_work_then_recovers (test_update_policy.UpdatePolicy.test_exhausted_budget_defers_without_consuming_work_then_recovers) ... ok
+test_four_days_since_last_attempt_not_publication_and_clients_never_wait (test_update_policy.UpdatePolicy.test_four_days_since_last_attempt_not_publication_and_clients_never_wait) ... ok
+test_one_channel_failure_does_not_fail_other_channels (test_update_policy.UpdatePolicy.test_one_channel_failure_does_not_fail_other_channels) ... ok
+test_running_compiler_not_cancelled_or_duplicated (test_update_policy.UpdatePolicy.test_running_compiler_not_cancelled_or_duplicated) ... ok
+test_same_inputs_and_failed_jobs_are_not_redispatched (test_update_policy.UpdatePolicy.test_same_inputs_and_failed_jobs_are_not_redispatched) ... ok
+test_security_bypass_only_for_affected_current_and_fixed_candidate (test_update_policy.UpdatePolicy.test_security_bypass_only_for_affected_current_and_fixed_candidate) ... ok
+test_source_job_results_require_the_job_to_succeed (test_update_policy.UpdatePolicy.test_source_job_results_require_the_job_to_succeed) ... ok
+test_source_result_is_independent_of_client_failure (test_update_policy.UpdatePolicy.test_source_result_is_independent_of_client_failure) ... ok
+test_successful_github_rerun_updates_failed_work_without_dispatch (test_update_policy.UpdatePolicy.test_successful_github_rerun_updates_failed_work_without_dispatch) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.046s
+
+OK

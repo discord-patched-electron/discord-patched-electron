@@ -334,12 +334,53 @@ class ModuleUpdates(unittest.TestCase):
                 member.type = tarfile.SYMTYPE
                 member.linkname = "../tool/index.js"
                 archive.addfile(member)
+                member = tarfile.TarInfo("files/index.js")
+                member.size = len(b"module fixture")
+                archive.addfile(member, io.BytesIO(b"module fixture"))
+                member = tarfile.TarInfo("files/nested/deeper")
+                member.type = tarfile.DIRTYPE
+                archive.addfile(member)
+                for name, target in (
+                    ("alias", "nested/deeper"),
+                    ("alias/entry.js", "../../index.js"),
+                ):
+                    member = tarfile.TarInfo("files/" + name)
+                    member.type, member.linkname = tarfile.SYMTYPE, target
+                    archive.addfile(member)
             compressed = root / "module.br"
             compressed.write_bytes(
                 subprocess.check_output(["brotli", "--stdout"], input=raw.getvalue())
             )
-            client.extract_module(compressed, root)
-            self.assertEqual((root / "node_modules/.bin/tool").readlink(), Path("../tool/index.js"))
+            client.extract_module(compressed, root / "files")
+            published = root / "published-module"
+            (root / "files").rename(published)
+            self.assertEqual(
+                (published / "node_modules/.bin/tool").readlink(), Path("../tool/index.js")
+            )
+            self.assertEqual((published / "alias/entry.js").read_bytes(), b"module fixture")
+            self.assertTrue((published / "alias/entry.js").resolve().is_relative_to(published))
+
+    def test_links_cannot_depend_on_the_temporary_extraction_directory_name(self):
+        for link in ("../files/index.js", "nested/../../files/index.js"):
+            with self.subTest(link=link), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                raw = io.BytesIO()
+                with tarfile.open(fileobj=raw, mode="w") as archive:
+                    entry = tarfile.TarInfo("files/index.js")
+                    entry.size = len(b"module fixture")
+                    archive.addfile(entry, io.BytesIO(b"module fixture"))
+                    entry = tarfile.TarInfo("files/entry.js")
+                    entry.type = tarfile.SYMTYPE
+                    entry.linkname = link
+                    archive.addfile(entry)
+                compressed = root / "module.br"
+                compressed.write_bytes(
+                    subprocess.check_output(["brotli", "--stdout"], input=raw.getvalue())
+                )
+                # Publication renames files/ to a content-keyed cache directory.
+                # These targets only appear internal before that rename.
+                with self.assertRaisesRegex(ValueError, "archive link"):
+                    client.extract_module(compressed, root / "files")
 
     def test_extraction_limit_includes_trailing_decompressed_data(self):
         with tempfile.TemporaryDirectory() as temporary:

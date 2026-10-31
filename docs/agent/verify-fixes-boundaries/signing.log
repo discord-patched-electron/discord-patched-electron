@@ -1,0 +1,13 @@
+test_approval_rejects_a_manifest_not_covered_by_the_signed_list (test_release_signing.ReleaseSigning.test_approval_rejects_a_manifest_not_covered_by_the_signed_list) ... ok
+test_interrupted_signing_can_retry_without_partial_new_signatures (test_release_signing.ReleaseSigning.test_interrupted_signing_can_retry_without_partial_new_signatures) ... ok
+test_retry_after_each_interrupted_signature_publication (test_release_signing.ReleaseSigning.test_retry_after_each_interrupted_signature_publication) ... ok
+test_retry_preserves_valid_signatures_from_partial_publication (test_release_signing.ReleaseSigning.test_retry_preserves_valid_signatures_from_partial_publication) ... ok
+test_sign_verify_retry_and_reject_tampering (test_release_signing.ReleaseSigning.test_sign_verify_retry_and_reject_tampering) ... ok
+test_signed_checksums_bind_manifest_and_non_arch_assets (test_release_signing.ReleaseSigning.test_signed_checksums_bind_manifest_and_non_arch_assets) ... ok
+test_unsigned_legacy_is_allowed_only_when_explicitly_requested (test_release_signing.ReleaseSigning.test_unsigned_legacy_is_allowed_only_when_explicitly_requested) ... ok
+test_valid_signature_cannot_authorize_incomplete_or_ambiguous_checksums (test_release_signing.ReleaseSigning.test_valid_signature_cannot_authorize_incomplete_or_ambiguous_checksums) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.676s
+
+OK

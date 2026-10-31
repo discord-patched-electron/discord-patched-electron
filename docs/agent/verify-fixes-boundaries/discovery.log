@@ -1,0 +1,20 @@
+test_activation_seeds_only_prerelease_without_historical_backfill (test_discovery.Discovery.test_activation_seeds_only_prerelease_without_historical_backfill) ... ok
+test_annotated_and_lightweight_tags (test_discovery.Discovery.test_annotated_and_lightweight_tags) ... ok
+test_client_only_change_does_not_queue_more_native_builds (test_discovery.Discovery.test_client_only_change_does_not_queue_more_native_builds) ... ok
+test_disabled_pending_work_is_retired_without_changing_running_or_completed_work (test_discovery.Discovery.test_disabled_pending_work_is_retired_without_changing_running_or_completed_work) ... ok
+test_initial_feed_outage_does_not_permanently_skip_the_seed (test_discovery.Discovery.test_initial_feed_outage_does_not_permanently_skip_the_seed) ... ok
+test_invalid_source_does_not_block_another_prerelease (test_discovery.Discovery.test_invalid_source_does_not_block_another_prerelease) ... ok
+test_moved_and_missing_tags_do_not_replace_pinned_bytes (test_discovery.Discovery.test_moved_and_missing_tags_do_not_replace_pinned_bytes) ... ok
+test_only_the_official_prerelease_feed_is_requested (test_discovery.Discovery.test_only_the_official_prerelease_feed_is_requested) ... ok
+test_prerelease_history_survives_but_only_newest_pending_release_is_built (test_discovery.Discovery.test_prerelease_history_survives_but_only_newest_pending_release_is_built) ... ok
+test_release_id_cannot_be_silently_retagged (test_discovery.Discovery.test_release_id_cannot_be_silently_retagged) ... ok
+test_release_pagination_does_not_stop_on_old_publication_dates (test_discovery.Discovery.test_release_pagination_does_not_stop_on_old_publication_dates) ... ok
+test_same_failed_key_is_not_automatically_retried (test_discovery.Discovery.test_same_failed_key_is_not_automatically_retried) ... ok
+test_unknown_new_version_format_is_recorded_not_silently_dropped (test_discovery.Discovery.test_unknown_new_version_format_is_recorded_not_silently_dropped) ... ok
+test_withdrawn_or_replaced_release_is_not_queued (test_discovery.Discovery.test_withdrawn_or_replaced_release_is_not_queued) ... ok
+test_withdrawn_seed_does_not_cause_historical_backfill (test_discovery.Discovery.test_withdrawn_seed_does_not_cause_historical_backfill) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.048s
+
+OK

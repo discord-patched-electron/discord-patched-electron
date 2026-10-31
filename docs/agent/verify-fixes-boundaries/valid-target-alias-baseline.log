@@ -1,0 +1,2 @@
+BASELINE ACCEPTED valid target alias
+CONTROL PASSED: actual link stays internal and readable after relocation

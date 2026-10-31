@@ -1,6 +1,9 @@
 """Exercise the real preload boundary with a fake V4L2 driver; no camera needed."""
 
 import os
+import resource
+import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -85,3 +88,43 @@ class CameraProbe(unittest.TestCase):
     def test_unknown_voice_layout_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unknown camera"):
             scope(self.root / "driver.so")
+
+    def test_launcher_keeps_camera_probe_active_after_relocation_to_a_path_with_spaces(self):
+        with tempfile.TemporaryDirectory(prefix="camera launcher ") as temporary:
+            app = Path(temporary)
+            shutil.copytree(ROOT / "integration/launcher", app / "integration/launcher")
+            voice = app / "modules/discord_voice"
+            voice.mkdir(parents=True)
+            (voice / "discord_voice.node").symlink_to(self.root / "discord_voice.node")
+            (app / "runtime").mkdir()
+            (app / "runtime/electron").symlink_to(self.root / "check")
+            (app / "libdpe-camera-probe.so").symlink_to(self.root / "libdpe-camera-probe.so")
+            (app / "camera-probe.conf").write_text(f"{self.probe['start']} {self.probe['end']}\n")
+            launcher = app / "launch.sh"
+            launcher.write_text(
+                (ROOT / "integration/launcher/discord-launcher.sh")
+                .read_text()
+                .replace("root=/usr/lib/@PKGNAME@", "root=" + shlex.quote(str(app)))
+                .replace("@PKGNAME@", "dpe-camera-fixture")
+                .replace("@DESKTOP_ID@", "dpe-camera-fixture")
+                .replace("@PROFILE_NAME@", "test-profile")
+            )
+            environment = {
+                key: value
+                for key, value in os.environ.items()
+                if not key.startswith(("DPE_", "LD_", "DISCORD_"))
+            }
+            result = subprocess.run(
+                ["bash", str(launcher), "--ignore-flags"],
+                env={
+                    **environment,
+                    "XDG_CONFIG_HOME": str(app / "config"),
+                    "LD_PRELOAD": str(self.root / "driver.so"),
+                },
+                preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)),
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, "")

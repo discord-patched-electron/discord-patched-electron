@@ -1,0 +1,7 @@
+$ uv run ruff check . && uv run ruff format --check . && oxlint integration tests && oxfmt --check . && uv run python scripts/check_style.py && uv run actionlint
+All checks passed!
+185 files already formatted
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 197ms on 146 files using 20 threads.

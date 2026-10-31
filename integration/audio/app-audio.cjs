@@ -152,11 +152,12 @@ function wrapCapture(
       warn("Application audio unavailable: no unambiguous process for the selected window.");
     }
   }
-  function select(id, type) {
+  function select(id, type, accept) {
     const same = source?.id === id && source?.type === type;
-    if (same) return;
+    if (same) return accept();
     const first = source === null;
     stop();
+    const result = accept();
     source = { id, type, kind: sourceKind(id, type) };
     if (!first) hint = 0;
     warned = false;
@@ -172,6 +173,18 @@ function wrapCapture(
         update();
       }, interval);
       timer.unref?.();
+    }
+    return result;
+  }
+  function selectSource(id, type, accept) {
+    try {
+      return select(id, type, accept);
+    } catch (error) {
+      source = null;
+      requested = 0;
+      hint = 0;
+      stop();
+      throw error;
     }
   }
   const methods = {
@@ -195,13 +208,13 @@ function wrapCapture(
     },
     setDesktopSource(id, hook, type) {
       if (disposed) return;
-      select(id, type);
-      return instance.setDesktopSource(id, hook, type);
+      return selectSource(id, type, () => instance.setDesktopSource(id, hook, type));
     },
     setDesktopSourceWithOptions(options) {
       if (disposed) return;
-      select(options.sourceId, options.type);
-      return instance.setDesktopSourceWithOptions(options);
+      return selectSource(options.sourceId, options.type, () =>
+        instance.setDesktopSourceWithOptions(options),
+      );
     },
     clearDesktopSource() {
       if (disposed) return;

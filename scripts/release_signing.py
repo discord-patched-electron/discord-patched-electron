@@ -2,12 +2,13 @@
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
-from common import ROOT, read_json
+from common import ROOT, read_json, sha256
 
 PUBLIC_KEY = ROOT / "packaging/release-signing-key.asc"
 KEY_ASSET = "release-signing-key.asc"
@@ -25,6 +26,28 @@ def signature_files(directory: Path) -> list[Path]:
     return [Path(str(path) + ".sig") for path in payloads(directory)] + [directory / KEY_ASSET]
 
 
+def verify_checksums(directory: Path):
+    """Bind the signed list to the manifest and every payload it describes."""
+    sums = {}
+    for line in (directory / "SHA256SUMS").read_text().splitlines():
+        match = re.fullmatch(r"([a-f0-9]{64})  ([A-Za-z0-9._+-]+)", line)
+        if not match or match[2] in sums:
+            raise ValueError("Invalid or duplicate signed checksum entry")
+        sums[match[2]] = match[1]
+    if sums.get("release.json") != sha256(directory / "release.json"):
+        raise ValueError("Release manifest differs from its signed checksum")
+    assets = read_json(directory / "release.json")["assets"]
+    if not isinstance(assets, dict) or set(sums) != {*assets, "release.json"}:
+        raise ValueError("Signed checksum list must cover exactly the release assets and manifest")
+    for name, expected in assets.items():
+        if (
+            name in ("release.json", "SHA256SUMS")
+            or sums.get(name) != expected
+            or sha256(directory / name) != expected
+        ):
+            raise ValueError("Release asset differs from its signed checksum: " + name)
+
+
 def verify(directory: Path, *, required: bool = True):
     files = signature_files(directory)
     if not required and not any(path.exists() for path in files):
@@ -33,6 +56,14 @@ def verify(directory: Path, *, required: bool = True):
         raise ValueError("Release signatures or public key are missing")
     if (directory / KEY_ASSET).read_bytes() != PUBLIC_KEY.read_bytes():
         raise ValueError("Release signing key differs from the pinned project key")
+    _verify_signatures([(Path(str(path) + ".sig"), path) for path in payloads(directory)])
+    verify_checksums(directory)
+
+
+def _verify_signatures(pairs: list[tuple[Path, Path]]):
+    """Verify supplied signatures; callers separately enforce completeness."""
+    if not pairs:
+        return
     with tempfile.TemporaryDirectory(prefix="release-verify-") as temporary:
         keyring = Path(temporary) / "public.gpg"
         subprocess.run(
@@ -49,7 +80,7 @@ def verify(directory: Path, *, required: bool = True):
             check=True,
             capture_output=True,
         )
-        for path in payloads(directory):
+        for signature, path in pairs:
             subprocess.run(
                 [
                     "gpgv",
@@ -57,7 +88,7 @@ def verify(directory: Path, *, required: bool = True):
                     temporary,
                     "--keyring",
                     str(keyring),
-                    str(path) + ".sig",
+                    str(signature),
                     str(path),
                 ],
                 check=True,
@@ -68,14 +99,29 @@ def verify(directory: Path, *, required: bool = True):
 def sign(directory: Path, secret: bytes):
     if not secret:
         raise ValueError("Configure the RELEASE_SIGNING_KEY Actions secret")
-    if any(path.exists() for path in signature_files(directory)):
-        verify(directory)
+    verify_checksums(directory)
+    key = directory / KEY_ASSET
+    if key.exists() and key.read_bytes() != PUBLIC_KEY.read_bytes():
+        raise ValueError("Release signing key differs from the pinned project key")
+    pairs = [(Path(str(path) + ".sig"), path) for path in payloads(directory)]
+    _verify_signatures([(signature, path) for signature, path in pairs if signature.exists()])
+    missing = [(signature, path) for signature, path in pairs if not signature.exists()]
+    if not missing and key.is_file():
         return
-    with tempfile.TemporaryDirectory(prefix="release-sign-") as temporary:
+    # Prepare and verify before exposing new artifacts. Publication can itself be
+    # interrupted; valid existing files are checked above and retained on retry.
+    with (
+        tempfile.TemporaryDirectory(prefix=".release-sign-", dir=directory) as staging,
+        tempfile.TemporaryDirectory(prefix="release-sign-") as temporary,
+    ):
+        staged = [(Path(staging) / signature.name, path) for signature, path in missing]
         command = ["gpg", "--batch", "--homedir", temporary]
         try:
-            subprocess.run([*command, "--import"], input=secret, check=True, capture_output=True)
-            for path in payloads(directory):
+            if staged:
+                subprocess.run(
+                    [*command, "--import"], input=secret, check=True, capture_output=True
+                )
+            for signature, path in staged:
                 subprocess.run(
                     [
                         *command,
@@ -85,7 +131,7 @@ def sign(directory: Path, secret: bytes):
                         "",
                         "--detach-sign",
                         "--output",
-                        str(path) + ".sig",
+                        str(signature),
                         str(path),
                     ],
                     check=True,
@@ -97,7 +143,15 @@ def sign(directory: Path, secret: bytes):
                 check=False,
                 capture_output=True,
             )
-    shutil.copyfile(PUBLIC_KEY, directory / KEY_ASSET)
+        _verify_signatures(staged)
+        shutil.copyfile(PUBLIC_KEY, Path(staging) / KEY_ASSET)
+        for path in [*(signature for signature, _ in staged), Path(staging) / KEY_ASSET]:
+            try:
+                # Same-filesystem exclusive publication never overwrites a file
+                # from an earlier or concurrent attempt. Verify the result below.
+                os.link(path, directory / path.name)
+            except FileExistsError:
+                pass
     verify(directory)
 
 

@@ -297,6 +297,7 @@ def validate_generation(root: Path, app: Path, policy: dict, digest: str) -> tup
         or info["channel"] != policy["channel"]
         or info["electron_channel"] != policy["electron_channel"]
         or not all((generation / name).is_file() for name in REQUIRED_FILES)
+        or not os.access(generation / "electron", os.X_OK)
         or (generation / "resources").resolve() != (app / "resources").resolve()
         or checksum(generation / "electron") != info["executable_sha256"]
         or ("files" in info and runtime_files(generation) != info["files"])

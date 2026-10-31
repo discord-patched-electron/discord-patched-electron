@@ -615,6 +615,35 @@ class LaunchFlags(unittest.TestCase):
         self.assertEqual(next(self.root.glob("*.backup-*")).read_text(), original)
         self.assertTrue(self.read()["fileManaged"])
 
+    def test_invalid_utf8_can_be_repaired_and_original_bytes_are_preserved(self):
+        original = b"# saved with a different encoding: caf\xe9\n--manual=value\n"
+        self.file.write_bytes(original)
+        with self.assertRaises(ValueError):
+            self.read()
+        repaired = self.read(recoverInvalid=True, tolerateFileErrors=True)
+        self.assertTrue(any("UTF-8" in warning for warning in repaired["warnings"]))
+        self.assertIn("\\xe9", repaired["config"]["extra"])
+        self.assertEqual(self.file.read_bytes(), original)
+        # A valid replacement must not depend on decoding the broken old file.
+        self.config["extra"] = "--manual=repaired"
+        self.save()
+        self.assertEqual(next(self.root.glob("*.backup-*")).read_bytes(), original)
+        self.assertIn("--manual=repaired", self.read()["effective"])
+
+    def test_invalid_utf8_legacy_flags_can_be_repaired_without_rewriting_legacy(self):
+        legacy = self.root / "discord-canary-prerelease-patched-electron-bin-flags.conf"
+        original = b"# old encoding: \xff\n--legacy=value\n"
+        legacy.write_bytes(original)
+        with self.assertRaises(ValueError):
+            self.read()
+        repaired = self.read(recoverInvalid=True, tolerateFileErrors=True)
+        self.assertTrue(any("UTF-8" in warning for warning in repaired["warnings"]))
+        self.assertIn("\\xff", repaired["config"]["extra"])
+        self.config["extra"] = "--legacy=repaired"
+        self.save()
+        self.assertEqual(legacy.read_bytes(), original)
+        self.assertIn("--legacy=repaired", self.read()["effective"])
+
     def test_reserved_markers_cannot_corrupt_saved_section(self):
         self.save()
         original = self.file.read_bytes()
