@@ -1,7 +1,7 @@
 # OpenAsar settings entry and diagnostics
 
 The renderer adapter replaces the pinned upstream settings injection at runtime;
-the pinned source remains unchanged. **DPE OpenAsar** is a native Discord settings
+the pinned source remains unchanged. **DPE Settings** is a native Discord settings
 layout entry immediately above Log Out, using Discord's settings cog and default
 row variant. It opens the existing configuration window. Both this entry and the
 audio dialog use the [shared Discord UI integration](discord-ui.md).

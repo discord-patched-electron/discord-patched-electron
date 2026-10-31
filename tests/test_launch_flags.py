@@ -76,7 +76,7 @@ class LaunchFlags(unittest.TestCase):
         self.assertIn("--class=discord-canary", result["effective"])
         self.assertIn("--enable-libopenh264", result["effective"])
         codec = "--openh264-library-path=" + str(
-            self.profile / "discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+            self.profile / "dpe-codecs/openh264/libopenh264-2.5.1-linux64.7.so"
         )
         self.assertIn(codec, result["effective"])
         self.config["profiles"]["balanced"]["flags"] = "--custom=value"

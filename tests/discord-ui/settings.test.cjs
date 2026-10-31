@@ -75,7 +75,7 @@ test("lazy native layout gets Discord's cog and ordinary sidebar action above tr
   );
   assert.equal(entry.type, f.context.logout.type);
   assert.equal(entry.icon, f.context.SettingsIcon);
-  assert.equal(entry.useTitle(), "DPE OpenAsar");
+  assert.equal(entry.useTitle(), "DPE Settings");
   assert.equal(entry.variant, undefined, "do not inherit the destructive logout style");
   assert.equal(entry.buildLayout().length, 0);
   entry.onClick();

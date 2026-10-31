@@ -32,6 +32,11 @@ REPOSITORY = "discord-patched-electron/discord-patched-electron"
 CACHE_REPOSITORY = "discord-patched-electron/cache"
 CHECK_INTERVAL = 15 * 60
 REQUIRED_FILES = ("electron", "icudtl.dat", "resources.pak", "LICENSE", "LICENSES.chromium.html")
+RELEASE_PROOF_LIMITS = {
+    "release.json": 4 * 1024 * 1024,
+    "SHA256SUMS": 1024 * 1024,
+    "SHA256SUMS.sig": 64 * 1024,
+}
 FAILURES = (
     OSError,
     ValueError,
@@ -126,31 +131,58 @@ def approved_release(
 ) -> dict:
     """Verify a signed release and the exact record written by manual approval.
 
-    Retained copies can authorize offline use, but a signed prerelease alone or
-    a release whose approval record names other bytes cannot authorize updates.
+    The channel's committed approval record is the discovery authority. GitHub's
+    latest-release label is updated afterward and is not needed for verification.
+    Retained copies can authorize offline use, but signed assets alone cannot.
     """
     channel, track = policy["channel"], policy["electron_channel"]
     if channel not in ("canary", "ptb", "stable") or track not in ("prerelease", "stable"):
         raise ValueError("Invalid update channel")
+    approval_name = (
+        "approved-release.json"
+        if (channel, track) == ("canary", "prerelease")
+        else f"approved-{channel}-{track}-release.json"
+    )
     if fetch:
         download(
-            f"https://api.github.com/repos/{REPOSITORY}/releases/latest", directory / "github.json"
+            f"https://raw.githubusercontent.com/{REPOSITORY}/main/config/{approval_name}",
+            directory / "approval.json",
+            limit=16 * 1024,
         )
-    release = read_object(directory / "github.json")
-    tag = release["tag_name"]
+    approval = read_object(directory / "approval.json")
+    tag = approval.get("tag")
     if (
-        release.get("draft") is not False
-        or release.get("prerelease") is not False
-        or not re.fullmatch(r"[A-Za-z0-9._+-]+", tag)
+        type(approval.get("schema")) is not int
+        or approval["schema"] != 1
+        or not isinstance(tag, str)
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,199}", tag)
+        or not isinstance(approval.get("version"), str)
+        or not re.fullmatch(r"\d{8}\.\d{6}", approval["version"])
+        or not isinstance(approval.get("manifest_sha256"), str)
+        or not re.fullmatch(r"[a-f0-9]{64}", approval["manifest_sha256"])
+        or not isinstance(approval.get("approved_by"), str)
+        or not approval["approved_by"].strip()
+        or len(approval["approved_by"]) > 256
     ):
-        raise ValueError("Runtime updates require a published approved release")
-    assets = {asset["name"]: asset["browser_download_url"] for asset in release["assets"]}
-    for name in ("release.json", "SHA256SUMS", "SHA256SUMS.sig"):
-        url = f"https://github.com/{REPOSITORY}/releases/download/{tag}/{name}"
-        if assets.get(name) != url:
+        raise ValueError("Release has no valid manual approval")
+    assets = {
+        name: f"https://github.com/{REPOSITORY}/releases/download/{tag}/{name}"
+        for name in RELEASE_PROOF_LIMITS
+    }
+    if fetch:
+        for name, url in assets.items():
+            download(url, directory / name, limit=RELEASE_PROOF_LIMITS[name])
+    else:
+        # Recheck retained API-era evidence, including its original release
+        # eligibility and fixed asset URLs. New proof has the same legacy shape.
+        release = read_object(directory / "github.json")
+        if release.get("tag_name") != tag:
+            raise ValueError("Release has no matching manual approval")
+        if release.get("draft") is not False or release.get("prerelease") is not False:
+            raise ValueError("Runtime updates require a published approved release")
+        retained = {asset["name"]: asset["browser_download_url"] for asset in release["assets"]}
+        if any(retained.get(name) != url for name, url in assets.items()):
             raise ValueError("Missing or unexpected signed release asset")
-        if fetch:
-            download(url, directory / name)
     verify_signature(directory, key)
     manifest = read_object(directory / "release.json")
     runtime = object_value(manifest["runtime"], "Release runtime")
@@ -175,24 +207,8 @@ def approved_release(
         and release_version(manifest["version"]) > release_version(running_application)
     ):
         raise ValueError("Install the application update before its Electron or Discord modules")
-    approval_name = (
-        "approved-release.json"
-        if (channel, track) == ("canary", "prerelease")
-        else f"approved-{channel}-{track}-release.json"
-    )
-    if fetch:
-        download(
-            f"https://raw.githubusercontent.com/{REPOSITORY}/main/config/{approval_name}",
-            directory / "approval.json",
-        )
-    approval = read_object(directory / "approval.json")
-    if (
-        approval.get("schema") != 1
-        or approval.get("tag") != tag
-        or approval.get("version") != manifest["version"]
-        or approval.get("manifest_sha256") != checksum(directory / "release.json")
-        or not isinstance(approval.get("approved_by"), str)
-        or not approval["approved_by"].strip()
+    if approval["version"] != manifest["version"] or approval["manifest_sha256"] != checksum(
+        directory / "release.json"
     ):
         raise ValueError("Release has no matching manual approval")
     minimum = manifest["minimum_glibc"]
@@ -201,13 +217,30 @@ def approved_release(
     local = os.confstr("CS_GNU_LIBC_VERSION").split()[-1]
     if tuple(map(int, local.split("."))) < tuple(map(int, minimum.split("."))):
         raise ValueError("New runtime requires a newer system glibc")
+    if fetch:
+        # Bootstrap API 1 and older cached-client readers require github.json.
+        # This explicitly marked adapter describes verified manual eligibility,
+        # not an API response or GitHub's current draft/prerelease labels. Write
+        # it only after the approval, signature and installation gates all pass.
+        write_json(
+            directory / "github.json",
+            {
+                "source": "manual-approval",
+                "tag_name": tag,
+                "draft": False,
+                "prerelease": False,
+                "assets": [
+                    {"name": name, "browser_download_url": url} for name, url in assets.items()
+                ],
+            },
+        )
     return manifest
 
 
 def latest(directory: Path, policy: dict, key: Path) -> dict:
     manifest = approved_release(directory, policy, key, fetch=True)
     runtime = manifest["runtime"]
-    tag = read_object(directory / "github.json")["tag_name"]
+    tag = read_object(directory / "approval.json")["tag"]
     return {
         "schema": 1,
         "channel": policy["channel"],

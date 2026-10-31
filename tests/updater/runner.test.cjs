@@ -108,7 +108,7 @@ test("cancellation terminates a helper group even when its children ignore SIGTE
       // An adopted child can briefly remain a zombie until init reaps it.
       assert.match(fs.readFileSync(`/proc/${pid}/stat`, "utf8"), /\) Z /);
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (!["ENOENT", "ESRCH"].includes(error.code)) throw error;
     }
   }
 });
@@ -121,7 +121,8 @@ test("cancellation also stops children with private pipes after the helper exits
     try {
       return !/\) Z /.test(fs.readFileSync(`/proc/${pid}/stat`, "utf8"));
     } catch (error) {
-      if (error.code === "ENOENT") return false;
+      // procfs can report ESRCH if the process exits between open and read.
+      if (["ENOENT", "ESRCH"].includes(error.code)) return false;
       throw error;
     }
   };
@@ -164,7 +165,7 @@ test("helper completion cleans up private-output children on success and failure
     try {
       return !/\) Z /.test(fs.readFileSync(`/proc/${pid}/stat`, "utf8"));
     } catch (error) {
-      if (error.code === "ENOENT") return false;
+      if (["ENOENT", "ESRCH"].includes(error.code)) return false;
       throw error;
     }
   };

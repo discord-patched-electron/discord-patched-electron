@@ -6,6 +6,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+from build_ui import build as build_ui
 from common import ROOT, download, read_json, sha256, write_json
 from desktop_identity import desktop_id
 from patch_app_audio import SIDECARS
@@ -98,11 +99,20 @@ def stage(
         ROOT / "packaging/release-signing-key.asc",
         output / "integration/updater/release-signing-key.asc",
     )
+    shutil.copy2(
+        ROOT / "discord-patched-electron.png", output / "integration/updater/logos/dpe.png"
+    )
     for source, destination in SIDECARS.items():
         (output / "integration/audio" / destination).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(
             ROOT / "integration/audio" / source, output / "integration/audio" / destination
         )
+    with tempfile.TemporaryDirectory(prefix="dpe-ui-") as temporary:
+        bundled = build_ui(Path(temporary))
+        shutil.copy2(bundled / "config-app.js", output / "integration/updater/config-app.js")
+        for directory in ("integration/discord-ui", "integration/audio/discord-ui"):
+            shutil.copy2(bundled / "ui-runtime.cjs", output / directory / "ui-runtime.cjs")
+            shutil.copy2(bundled / "PREACT-LICENSE.txt", output / directory / "PREACT-LICENSE.txt")
     scripts = output / "scripts"
     scripts.mkdir()
     for name in (
@@ -186,9 +196,13 @@ def validate_payload_entry(
             "whitney_400.woff",
             "ggsans-400-normal.woff2",
             "ggsans-500-medium.woff2",
+            "ggsans-600-semibold.woff2",
+            "ggsans-700-bold.woff2",
             "connecting.webp",
             "connecting-dark.webm",
             "connecting-light.webm",
+            "libopenh264-2.5.1-linux64.7.so",
+            "libopenh264-2.5.1-linux64.7.so.bz2",
         )
         or (
             path.suffix in (".asar", ".node", ".distro", ".br") and relative != "resources/app.asar"

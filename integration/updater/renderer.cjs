@@ -19,7 +19,9 @@ function source(config, root) {
   if (injectionEnd < 0) throw new Error("Unsupported OpenAsar settings injection");
   script =
     script.slice(0, script.indexOf("// Settings injection")) +
-    require("../discord-ui/source.cjs").call(require("../discord-ui/settings.cjs"), {}) +
+    require("../discord-ui/source.cjs").call(require("../discord-ui/settings.cjs"), {
+      version: require("./presentation.cjs").metadata(root).dpe,
+    }) +
     ";\n" +
     script.slice(injectionEnd);
   return script

@@ -9,6 +9,7 @@ from pathlib import Path
 from application import prepare as prepare_application
 from client import FAILURES, ensure_client
 from installation import publish
+from openh264 import ensure_requested as ensure_openh264
 from runtime import ensure_runtime
 from support import progress, read_object
 
@@ -18,6 +19,7 @@ def check(app: Path, client_root: Path, channel: str) -> dict:
     incoming = prepare_application(app, client_root.parent)
     if incoming:
         return {"application": str(incoming)}
+    ensure_openh264(client_root.parent)
     progress("check", "Checking patched Electron")
     executable = ensure_runtime(app, client_root.parent, offline=offline)
     progress("check", "Checking Discord modules")

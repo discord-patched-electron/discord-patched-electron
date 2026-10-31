@@ -97,6 +97,15 @@ def build(
         prepare(core, channel, electron, str(ROOT / "node_modules/.bin/asar"), install_root=output)
         shutil.move(core / "resources", output / "resources")
         shutil.copy2(core / "discord.png", output)
+        codec_helpers = output / "integration/updater"
+        codec_helpers.mkdir(parents=True)
+        for filename in (
+            "openh264.py",
+            "openh264.json",
+            "support.py",
+            "OPENH264-BINARY-LICENSE.txt",
+        ):
+            shutil.copy2(ROOT / "integration/updater" / filename, codec_helpers / filename)
     if capacity:
         archive = artifact / "binary" / ("runtime-dist.zip" if candidate else "reference-dist.zip")
         extract(archive, output / "runtime", capacity["archive_sha256"])
@@ -185,6 +194,13 @@ def build(
             "schema": 1,
             "channel": channel,
             "client_version": client["version"],
+            "source_commit": subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+            ).strip(),
+            "openasar_commit": read_json(ROOT / "config/openasar.lock.json")["commit"],
+            "source_dirty": bool(
+                subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True)
+            ),
             "runtime_kind": "compiled" if capacity else "bundled-baseline",
             "capacity": capacity,
             "runtime_provenance": {
@@ -206,7 +222,7 @@ def build(
             "Extract the whole folder, then run ./launch.sh. You can move the folder.\n"
             "First launch downloads patched Electron from GitHub and Discord modules directly from Discord. Later package upgrades reuse the verified Electron cache.\n"
             "Discord and patched Electron update automatically after testing. Your settings and installed Vencord or Equicord are preserved.\n"
-            "OpenAsar is included. Find its settings in User Settings > DPE OpenAsar.\n"
+            "OpenAsar is included. Find its settings in User Settings > DPE Settings.\n"
             "Use Launch presets and flags to inspect or edit launch options. If flags prevent startup, close Discord and run ./launch.sh --ignore-flags.\n"
             "Requires x86-64-v3, Linux desktop libraries, Python 3.11 or newer, Brotli, GnuPG (gpg and gpgv), PipeWire and PulseAudio tools.\n"
             f"Settings: ~/.config/discord-{channel}-patched-electron.conf\n"

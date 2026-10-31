@@ -68,7 +68,7 @@ def prepare(app: Path, profile: Path) -> Path | None:
                 raise ValueError(
                     "This update needs a newer bootstrap package; update it with your package manager"
                 )
-            tag = read_object(directory / "github.json")["tag_name"]
+            tag = read_object(directory / "approval.json")["tag"]
             url = f"https://github.com/discord-patched-electron/discord-patched-electron/releases/download/{tag}/application.zip"
             archive = directory / "application.zip"
             download(url, archive, limit=64 * 1024 * 1024, label="Discord Patched Electron")

@@ -55,12 +55,57 @@ module.exports = function assetHandler(
     if (parsed.host !== "app") return new Response(null, { status: 404 });
     const name = parsed.pathname.slice(1);
     try {
+      if (name === "config-app.js") {
+        let file = path.join(__dirname, name);
+        try {
+          await fs.access(file);
+        } catch {
+          file = path.join(__dirname, "../../out/ui/config-app.js");
+        }
+        return new Response(await fs.readFile(file), {
+          headers: {
+            "content-type": "text/javascript",
+            "content-security-policy": "default-src 'none'",
+          },
+        });
+      }
       if (
-        ["launch-settings.js", "launch-settings.css", "config-tabs.js", "flag-editor.js"].includes(
-          name,
-        )
+        [
+          "welcome-background.png",
+          "dpe-logo.png",
+          "vencord-logo.png",
+          "vencord-dark-logo.png",
+          "equicord-logo.png",
+        ].includes(name)
       ) {
-        const contents = await fs.readFile(path.join(__dirname, name));
+        let file = path.join(__dirname, "logos", name.replace("-logo", ""));
+        if (name === "dpe-logo.png") {
+          try {
+            await fs.access(file);
+          } catch {
+            // Source checkouts share the existing README artwork. Packaged
+            // applications stage that same image in the local logos directory.
+            file = path.join(__dirname, "../../discord-patched-electron.png");
+          }
+        }
+        return new Response(await fs.readFile(file), {
+          headers: { "content-type": "image/png", "content-security-policy": "default-src 'none'" },
+        });
+      }
+      if (
+        [
+          "launch-settings.js",
+          "launch-settings.css",
+          "config-tabs.js",
+          "flag-editor.js",
+          "settings-controls.js",
+          "settings-icons.js",
+        ].includes(name)
+      ) {
+        const contents =
+          name === "settings-icons.js"
+            ? `window.DPEFallbackIcons = (${require("../discord-ui/icons.cjs").toString()})();`
+            : await fs.readFile(path.join(__dirname, name));
         return new Response(contents, {
           headers: {
             "content-type": {
@@ -97,7 +142,7 @@ module.exports = function assetHandler(
           headers: {
             "content-type": mime,
             "content-security-policy":
-              "default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src dpe-splash: https://fonts.gstatic.com; connect-src dpe-splash:; worker-src blob: dpe-splash:; img-src dpe-splash: data:",
+              "default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src dpe-splash: data: https://fonts.gstatic.com; connect-src dpe-splash:; worker-src blob: dpe-splash:; img-src 'self' dpe-splash: data:",
           },
         });
       }

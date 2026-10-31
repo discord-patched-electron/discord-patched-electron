@@ -469,15 +469,12 @@ class ApplicationUpdates(unittest.TestCase):
         self.run_loader("--launch")
         second, archive = self.payload("second", "20261027.130000")
         proof = self.approve(second)
+        requested = []
 
         def download(url, target, **_kwargs):
-            name = (
-                "github.json"
-                if url.endswith("/latest")
-                else "approval.json"
-                if "/config/" in url
-                else url.rsplit("/", 1)[-1]
-            )
+            requested.append(url)
+            self.assertNotIn("api.github.com", url)
+            name = "approval.json" if "/config/" in url else url.rsplit("/", 1)[-1]
             shutil.copyfile(archive if name == "application.zip" else proof / name, target)
 
         with (
@@ -494,6 +491,12 @@ class ApplicationUpdates(unittest.TestCase):
         ):
             incoming = application.prepare(self.first_app, self.profile)
             self.assertIsNotNone(incoming)
+            # The unchanged installed Bootstrap API 1 loader accepted this proof
+            # without an API request or replacement of the installed bootstrap.
+            self.assertEqual(
+                read_json(incoming.parent / "proof/github.json")["source"], "manual-approval"
+            )
+            self.assertEqual(len(requested), 5)
             self.assertEqual((self.first_app / "updater.py").read_text(), 'VERSION = "first"\n')
             self.assertEqual(application.prepare(self.first_app, self.profile), incoming)
         self.assertEqual(self.run_loader("--launch").stdout.strip(), "second")
@@ -674,6 +677,8 @@ class BootstrapDownloads(unittest.TestCase):
     def test_permanent_http_failure_and_oversize_response_are_not_retried(self):
         for failure in (
             urllib.error.HTTPError(self.url, 404, "missing", {}, None),
+            urllib.error.HTTPError(self.url, 429, "limited", {"Retry-After": "120"}, None),
+            urllib.error.HTTPError(self.url, 503, "busy", {"Retry-After": "120"}, None),
             self.response(b"", 64 * 1024 * 1024 + 1),
         ):
             with self.subTest(failure=failure):

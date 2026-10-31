@@ -11,9 +11,10 @@ dpe_restore_codec_environment() {
   fi
 }
 
-dpe_preload_openh264() {
+dpe_resolve_openh264() {
+  export DPE_OPENH264_LIBRARY=''
   [[ ${DPE_IGNORE_FLAGS:-0} != 1 ]] || return 0
-  local arg enabled=0 library='' directory filename
+  local arg enabled=0 library=''
   for arg in "$@"; do
     case "$arg" in
       --ignore-flags) return 0 ;;
@@ -22,6 +23,13 @@ dpe_preload_openh264() {
     esac
   done
   [[ $enabled == 1 && -n $library ]] || return 0
+  export DPE_OPENH264_LIBRARY=$library
+}
+
+dpe_preload_openh264() {
+  dpe_resolve_openh264 "$@"
+  local library=$DPE_OPENH264_LIBRARY directory filename
+  [[ -n $library ]] || return 0
   if [[ ! -f $library || ! -r $library ]]; then
     printf 'Software H.264 decoding needs a readable OpenH264 library: %s. Restart after the codec is available.\n' "$library" >&2
     return 0
@@ -38,7 +46,7 @@ dpe_preload_openh264() {
   export DPE_CODEC_ORIGINAL_LD_LIBRARY_PATH=${LD_LIBRARY_PATH-}
   export DPE_CODEC_PRELOAD_ACTIVE=1
   # LD_PRELOAD cannot represent spaces; directory search can. The normal
-  # OpenAsar cache contains only its codec, not general runtime libraries.
+  # DPE codec cache contains only its codec, not general runtime libraries.
   export LD_LIBRARY_PATH="$directory${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   export LD_PRELOAD="$filename${LD_PRELOAD:+:$LD_PRELOAD}"
 }

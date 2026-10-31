@@ -1,16 +1,16 @@
 {
-  "reference": "Discord Canary 1.0.2366",
+  "reference": "Discord Canary web assets, 31 October 2026",
   "assets": {
     "ggsans-400-normal.woff2": {
-      "url": "https://discord.com/assets/ac3f027697c11abd84295888e843f3d2.woff2",
-      "sha256": "49ea2d11bfc1a1d42beb815cf3546cf228f819325eb200585f6992e94e0e0238",
-      "size": 29668,
+      "url": "https://canary.discord.com/assets/66d715454104d24e.woff2",
+      "sha256": "8e401b056dc1eb48d44a01407ceb54372bbc44797d3259069ce96a96dfd8c104",
+      "size": 38156,
       "type": "font/woff2"
     },
     "ggsans-500-medium.woff2": {
-      "url": "https://discord.com/assets/bf3d19297ef12291559b3edae977480c.woff2",
-      "sha256": "2018aec4e18a463f6d362cd32b69a822ac1470b6dd7cb8e9f0dc330ba87f4b59",
-      "size": 30600,
+      "url": "https://canary.discord.com/assets/b272b33815319bae.woff2",
+      "sha256": "440ad8b1449985479bc37265e9912bbf2bf56fe9ffd14709358a8e9c2d5f8e5b",
+      "size": 39424,
       "type": "font/woff2"
     },
     "connecting-dark.webm": {
@@ -24,6 +24,18 @@
       "sha256": "367d97f3a8375d0af13b0651c13bcfd5bb52c6a7ff36abf17e5edaecbb2bc1eb",
       "size": 164410,
       "type": "video/webm"
+    },
+    "ggsans-600-semibold.woff2": {
+      "url": "https://canary.discord.com/assets/2df2c3ff74408972.woff2",
+      "sha256": "ae99aaede2f373187a4fe442a2cb0ab9c2945efbab01cf33e01be517c0c4f813",
+      "size": 39764,
+      "type": "font/woff2"
+    },
+    "ggsans-700-bold.woff2": {
+      "url": "https://canary.discord.com/assets/189422196a4f8b53.woff2",
+      "sha256": "13da02ce62b1a388a7c8d6f3bd286fe774ee2b91ac63d281523e80b2a8a063bc",
+      "size": 39724,
+      "type": "font/woff2"
     }
   }
 }

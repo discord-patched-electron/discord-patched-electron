@@ -9,8 +9,9 @@
   },
   "devDependencies": {
     "@electron/asar": "4.3.1",
+    "oxfmt": "0.74.0",
     "oxlint": "1.89.0",
-    "oxfmt": "0.74.0"
+    "preact": "11.1.1"
   },
   "scripts": {
     "lint": "uv run ruff check . && uv run ruff format --check . && oxlint integration tests && oxfmt --check . && uv run python scripts/check_style.py && uv run actionlint",

@@ -579,7 +579,12 @@ class Controller:
         self.enabled = message.get("enabled") is True
         self.inline_picker = message.get("picker") == "inline"
         self.hint = integer(message.get("hint"))
-        self.auto_detect = message.get("autoDetect") is not False
+        # Re-enabling audio for an existing video requests the chooser, even if
+        # the same native PID/portal identity could still be detected. This is
+        # generation-local and does not change the user's saved preference.
+        self.auto_detect = (
+            message.get("autoDetect") is not False and message.get("forcePicker") is not True
+        )
         self.observations = []
         if self.auto_detect:
             self.set_observations(message.get("observations", []))
@@ -699,14 +704,42 @@ class Controller:
                             names.append(name)
                     if entry.get("media.name"):
                         media.setdefault(pid, set()).add(clean(entry["media.name"]))
-            # Bound the local protocol and keep selection deterministic.
-            choices = dict(
-                sorted(choices.items(), key=lambda item: (item[1][1].casefold(), item[0]))[:80]
-            )
-            self.choices = choices
             from window_inventory import desktop_note, windows
 
             inventory = windows()
+            active = {
+                audio_pid(p)
+                for node, p in playback_entries(objects, pulse)
+                if node.get("info", {}).get("state") == "running"
+            }
+            active.update(
+                audio_pid(stream.get("properties", {}))
+                for stream in pulse
+                if stream.get("corked") is False and stream.get("mute") is not True
+            )
+            media_apps = {
+                audio_pid(p)
+                for p in entries
+                if str(p.get("media.role", "")).casefold() in ("video", "music", "game")
+            }
+            window_roots = [root for w in inventory if (root := process_identity(w["pid"]))]
+            hinted = process_identity(self.hint)
+
+            def priority(item):
+                pid, (_identity, label) = item
+                return (
+                    not (hinted and descendant(pid, hinted)),
+                    pid not in active,
+                    pid not in media_apps,
+                    not any(descendant(pid, root) for root in window_roots),
+                    label.casefold(),
+                    pid,
+                )
+
+            # Suggest only an offered app; confirmation still goes through the
+            # picker. Never auto-share based on this ranking or keyboard focus.
+            choices = dict(sorted(choices.items(), key=priority)[:80])
+            self.choices = choices
             rows = ["system", "Entire system (except Discord)"]
             options = [
                 {

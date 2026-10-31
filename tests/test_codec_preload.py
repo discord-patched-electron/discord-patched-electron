@@ -14,6 +14,33 @@ SHELL = 'source "$1"; shift; dpe_restore_codec_environment; dpe_preload_openh264
 
 
 class CodecPreload(unittest.TestCase):
+    def test_resolution_exports_only_the_final_enabled_library(self):
+        script = (
+            'source "$1"; shift; dpe_resolve_openh264 "$@"; printf "%s" "$DPE_OPENH264_LIBRARY"'
+        )
+        for flags, expected in (
+            (
+                [
+                    "--enable-libopenh264",
+                    "--openh264-library-path=/first",
+                    "--openh264-library-path=/last",
+                ],
+                "/last",
+            ),
+            (["--openh264-library-path=/unused"], ""),
+            (["--enable-libopenh264", "--openh264-library-path=/unused", "--ignore-flags"], ""),
+            ([], ""),
+        ):
+            with self.subTest(flags=flags):
+                result = subprocess.run(
+                    ["bash", "-c", script, "resolve", str(HELPER), *flags],
+                    env={**os.environ, "DPE_OPENH264_LIBRARY": "/stale", "DPE_IGNORE_FLAGS": "0"},
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                self.assertEqual(result.stdout, expected)
+
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory(prefix="codec tests ")

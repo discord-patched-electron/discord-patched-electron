@@ -62,6 +62,31 @@ test("splash media is pinned, cached outside the app, and reusable offline", asy
   assert.equal((await absent({ url })).status, 503);
 });
 
+test("project logos are local PNGs and image routes stay explicitly allowlisted", async () => {
+  const handler = assetHandler("/unused", () => assert.fail("logos must be local"), true);
+  for (const name of [
+    "dpe-logo.png",
+    "vencord-logo.png",
+    "vencord-dark-logo.png",
+    "equicord-logo.png",
+  ]) {
+    const response = await handler({ url: "dpe-splash://app/" + name });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "image/png");
+    const data = Buffer.from(await response.arrayBuffer());
+    assert.equal(data.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  }
+  for (const name of [
+    "logos/vencord.png",
+    "logos/README.md",
+    "unknown-logo.png",
+    "%2fdpe-logo.png",
+  ])
+    assert.equal((await handler({ url: "dpe-splash://app/" + name })).status, 404);
+  const config = await handler({ url: "dpe-splash://app/config.html" });
+  assert.match(config.headers.get("content-security-policy"), /img-src 'self' dpe-splash: data:/);
+});
+
 test("upstream settings and its local editor work without remote executable code", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "openasar-editor-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -71,9 +96,10 @@ test("upstream settings and its local editor work without remote executable code
   const config = await handler({ url: "dpe-splash://app/config.html" });
   assert.equal(config.status, 200);
   const adapted = await config.text();
-  assert.match(adapted, /id="t_flags" role="tab"/);
-  assert.equal((adapted.match(/<textarea/g) || []).length, 2);
-  assert.match(adapted, /id="essential-section"/);
+  assert.match(adapted, /id="app"/);
+  assert.match(adapted, /<script src="config-app\.js" defer><\/script>/);
+  assert.equal((adapted.match(/<script /g) || []).length, 1);
+  assert.doesNotMatch(adapted, /https?:[^\s]+\.js/);
   assert.doesNotMatch(adapted, /id="preset"/);
   assert.ok(!adapted.includes("[ 'Focus',"));
   assert.equal(
@@ -87,8 +113,9 @@ test("upstream settings and its local editor work without remote executable code
   for (const name of [
     "launch-settings.js",
     "launch-settings.css",
-    "config-tabs.js",
     "flag-editor.js",
+    "settings-controls.js",
+    "settings-icons.js",
   ]) {
     const local = await handler({ url: "dpe-splash://app/" + name });
     assert.equal(local.status, 200);

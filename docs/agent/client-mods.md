@@ -111,3 +111,47 @@ Self-update follow-up validation:
 
 Release artifacts retain the mod report and updater-handler reports alongside
 the launch results; generated mod payloads and profiles are not uploaded.
+
+## Settings installation and first launch (31 October 2026)
+
+The project-owned Mods panel exposes three fixed choices through main-frame-only
+IPC. `mod_manager.py` reads the active version from `installer.db`, downloads the
+same checksum-pinned official CLI installers used by CI, and runs the installer
+against a private copy of the bootstrap. It verifies the resulting official loader,
+payload existence and unchanged bootstrap backup before swapping the live loader.
+The updater's installation lock prevents a simultaneous host publication. No shell
+command, installer URL or installation path can be supplied by the settings page.
+Removing a mod restores the bootstrap and retains the external mod data.
+
+Welcome opens after the first client/runtime download, before ordinary client
+startup. Existing profiles without a completed setup marker also see Welcome
+when the active loader has no mod. A bounded read-only status probe reuses the
+installer detector; unreadable state does not count as no mod. Completed profiles
+and existing mods skip this upgrade prompt, while pending setup resumes.
+A successful mod install stays on the choice page without completing setup or
+restarting. Next advances to Configure more or Restart to finish. Closing the
+Settings child opened by Configure more completes setup and restarts through the
+launcher, as does the explicit Restart to finish action. Only that onboarding
+child owns the Settings close-triggered restart. Closing Welcome cancels any
+pending child handoff, saves completion, then launches Discord. Its native close
+is deferred until that handoff so Electron cannot quit and kill the save worker.
+Ordinary Settings closure has no restart side effect. Duplicate
+actions share one child or are blocked while completion runs. Failed installs,
+completion writes and restart attempts remain retryable. Later mod changes in
+ordinary Settings require a manual restart.
+The pre-Electron bootstrap downloader stays responsible for obtaining a runtime
+before Welcome can open.
+
+Validation: `tests/test_mod_manager.py` covers active-version selection, custom
+loader preservation, staged switching, failure rollback, removal, installer hash
+verification and updater locking. `tests/updater/mod-settings.test.cjs` covers IPC
+scope, allowlisted choices, progress, busy state, restart requirements and onboarding
+migration. A fresh isolated profile in `out/mod-settings-live/result.json` also ran
+both actual pinned installers through the new helper: Vencord installation,
+Equicord switching and removal all succeeded, with the original bootstrap restored.
+No account login, messages, calls or physical capture were used.
+
+The subsequent [installer resilience review](mod-network-resilience-20261031.md)
+isolates payload files as well as the bootstrap, adds verified short-lived
+download reuse and classifies installer failures. It also removes DPE's own
+REST release discovery while preserving the official mod self-updaters.

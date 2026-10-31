@@ -25,6 +25,13 @@ adapter is included. Open-source licences and codec patent rights are separate;
 see the [codec licensing investigation](docs/agent/codec-support.md#software-hevc-and-licensing-review)
 before changing or redistributing codec components.
 
+The external OpenH264 decoder downloads directly from Cisco into each user's
+profile. Its version and SHA-256 checksums are pinned in
+[`integration/updater/openh264.json`](integration/updater/openh264.json).
+The codec binary and compressed download are excluded from release packages.
+The [complete Cisco binary license](integration/updater/OPENH264-BINARY-LICENSE.txt)
+is also available beside the OpenH264 controls in Settings.
+
 ## Discord client files
 
 Discord client and native module binaries are proprietary. They are fetched from
@@ -59,6 +66,16 @@ and checked against the hashes and sizes in `integration/updater/splash-media.js
 The pinned CDN archive also supplies the settings screen's MIT-licensed Monaco
 editor. Its license and third-party notices ship under `bootstrap/cdn/monaco-editor/`.
 The original settings page loads Roboto through Google Fonts when available.
+
+## UI components
+
+The settings interface and audio search field use [Preact](https://preactjs.com/),
+pinned in `bun.lock` and bundled locally without a CDN dependency. Its MIT license
+ships beside the runtime as `integration/discord-ui/PREACT-LICENSE.txt`.
+Fallback icons use [Bootstrap Icons](https://github.com/twbs/icons/tree/v1.13.1)
+under the MIT license in `integration/discord-ui/BOOTSTRAP-ICONS-LICENSE.txt`.
+The generic download arrow is an original project drawing on the same icon grid.
+Discord's own icons are resolved from the running client and are not redistributed.
 
 ## Python dependencies
 

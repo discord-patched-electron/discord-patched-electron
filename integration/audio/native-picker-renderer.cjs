@@ -104,7 +104,9 @@ module.exports = function nativePicker(request, ui, discover) {
     function Picker(props) {
       const [tab, setTab] = React.useState("apps"),
         [query, setQuery] = React.useState(""),
-        [selected, setSelected] = React.useState(null),
+        [selected, setSelected] = React.useState(
+          () => request.options.find((o) => o.id !== "system")?.id ?? null,
+        ),
         [icons, setIcons] = React.useState(session.icons);
       const scrollerRef = React.useRef(null),
         controlsRef = React.useRef(null),
@@ -143,16 +145,20 @@ module.exports = function nativePicker(request, ui, discover) {
           const layout = layoutRef.current,
             root = layout?.closest('[data-mana-component="modal"]');
           const tabs = layout?.querySelectorAll('[role="tab"]'),
-            action = layout?.querySelector(".dpe-native-primary button");
+            action = layout?.querySelector(".dpe-native-primary button"),
+            refresh = layout?.querySelector(".dpe-native-refresh button");
           const input = layout?.querySelector(".dpe-native-audio-search input");
           const sources = layout?.querySelectorAll('[role="radio"]');
           const valid =
             root?.isConnected &&
             tabs?.length === 2 &&
             action &&
+            action.textContent.trim() === "Share" &&
             action.disabled === (!system && selected === null) &&
+            refresh?.disabled === system &&
             tabs[system ? 1 : 0].getAttribute("aria-selected") === "true" &&
-            (system ? !input : input?.value === query) &&
+            input?.disabled === system &&
+            input?.value === query &&
             sources?.length === (system ? 0 : apps.length) &&
             Array.from(sources).every(
               (node) =>
@@ -194,7 +200,6 @@ module.exports = function nativePicker(request, ui, discover) {
         }
 
         if (value === tab) return;
-        setSelected(null);
         setTab(value);
         const scroller = scrollerRef.current?.getScrollerNode?.() ?? scrollerRef.current;
         scroller?.scrollTo?.({ top: 0 });
@@ -211,14 +216,12 @@ module.exports = function nativePicker(request, ui, discover) {
         setQuery(value);
         const scroller = scrollerRef.current?.getScrollerNode?.() ?? scrollerRef.current;
         scroller?.scrollTo?.({ top: 0 });
-        const match = request.options.find((o) => o.id === selected);
-        if (
-          match &&
-          !`${match.label} ${match.detail}`
-            .toLocaleLowerCase()
-            .includes(value.trim().toLocaleLowerCase())
-        )
-          setSelected(null);
+        const matches = request.options.filter(
+          (o) =>
+            o.id !== "system" &&
+            `${o.label} ${o.detail}`.toLocaleLowerCase().includes(value.trim().toLocaleLowerCase()),
+        );
+        if (!matches.some((o) => o.id === selected)) setSelected(matches[0]?.id ?? null);
       }
       const controls = h(
         "header",
@@ -246,9 +249,6 @@ module.exports = function nativePicker(request, ui, discover) {
           ],
         }),
       );
-      const hint = system
-        ? "Includes all applications except Discord"
-        : "Includes windows from the same app";
       const selection = system ? "system" : selected;
       const title = system ? "Share your system audio" : "Share audio from an application";
       const body = system
@@ -353,20 +353,24 @@ module.exports = function nativePicker(request, ui, discover) {
               id: `${request.key}-sources`,
               "aria-label": system ? "System Audio" : "Applications",
             },
-            h("h2", null, title),
-            !system &&
+            h(
+              "div",
+              { className: "dpe-native-audio-body" },
+              h("h2", null, title),
               h(
                 "div",
-                { className: "dpe-native-audio-search" },
+                { className: "dpe-native-audio-search", "aria-hidden": system },
                 h(SearchBar, {
                   query,
+                  disabled: system,
                   onChange: search,
                   onClear: () => search(""),
                   placeholder: "Search",
                   "aria-label": "Search applications",
                 }),
               ),
-            body,
+              body,
+            ),
           ),
           h(
             "footer",
@@ -378,20 +382,33 @@ module.exports = function nativePicker(request, ui, discover) {
               h(
                 "p",
                 null,
-                hint,
-                " ",
                 h(
                   "span",
-                  { className: "dpe-native-detection-link" },
-                  h("span", { "aria-hidden": true }, "· "),
-                  h(
-                    "a",
-                    {
-                      href: "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/wayland-audio.md#automatic-detection",
-                      target: "_blank",
-                      rel: "noopener noreferrer",
-                    },
-                    "Automatic detection",
+                  { className: "dpe-native-scope" },
+                  ...[
+                    ["Includes windows from the same app", system],
+                    ["Includes all applications except Discord", !system],
+                  ].map(([text, hidden]) =>
+                    h(
+                      "span",
+                      { key: text, "aria-hidden": hidden },
+                      text,
+                      " ",
+                      h(
+                        "span",
+                        { className: "dpe-native-detection-link" },
+                        h("span", { "aria-hidden": true }, "· "),
+                        h(
+                          "a",
+                          {
+                            href: "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/wayland-audio.md#automatic-detection",
+                            target: "_blank",
+                            rel: "noopener noreferrer",
+                          },
+                          "Automatic detection",
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -412,25 +429,25 @@ module.exports = function nativePicker(request, ui, discover) {
                 "span",
                 { className: "dpe-native-primary" },
                 h(Button, {
-                  text: system ? "Share Audio" : "Make Selection",
+                  text: "Share",
                   variant: "primary",
                   size: "md",
                   disabled: selection === null,
                   onClick: () => session.finish({ selection }),
                 }),
               ),
-              !system &&
-                h(
-                  "span",
-                  { className: "dpe-native-refresh" },
-                  h(Button, {
-                    icon: RefreshIcon,
-                    variant: "secondary",
-                    size: "md",
-                    "aria-label": "Refresh applications",
-                    onClick: () => session.finish({ selection: "refresh" }),
-                  }),
-                ),
+              h(
+                "span",
+                { className: "dpe-native-refresh" },
+                h(Button, {
+                  icon: RefreshIcon,
+                  disabled: system,
+                  variant: "secondary",
+                  size: "md",
+                  "aria-label": "Refresh applications",
+                  onClick: () => session.finish({ selection: "refresh" }),
+                }),
+              ),
             ),
           ),
         ),

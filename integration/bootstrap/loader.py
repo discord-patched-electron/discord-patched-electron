@@ -268,7 +268,10 @@ def download(url, target):
         ) as error:
             if attempt == 2 or (
                 isinstance(error, urllib.error.HTTPError)
-                and error.code not in (408, 429, 500, 502, 503, 504)
+                and (
+                    error.code not in (408, 500, 502, 503, 504)
+                    or (error.headers and error.headers.get("Retry-After"))
+                )
             ):
                 raise
             print(f"Application download interrupted; retrying: {error}", file=sys.stderr)

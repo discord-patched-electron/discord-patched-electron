@@ -558,12 +558,33 @@ class DistributionBoundary(unittest.TestCase):
                 "integration/launcher/flags.py",
                 "integration/discord-ui/runtime.cjs",
                 "integration/discord-ui/source.cjs",
+                "integration/discord-ui/presentation.cjs",
+                "integration/discord-ui/icons.cjs",
+                "integration/discord-ui/BOOTSTRAP-ICONS-LICENSE.txt",
+                "integration/updater/presentation.cjs",
+                "integration/updater/native-presentation.cjs",
                 "integration/discord-ui/settings.cjs",
+                "integration/discord-ui/components.css",
                 "integration/launcher/presets.json",
                 "integration/launcher/codec-preload.sh",
-                "integration/updater/launch-settings.html",
+                "integration/updater/openh264.py",
+                "integration/updater/openh264.json",
+                "integration/updater/OPENH264-BINARY-LICENSE.txt",
+                "integration/updater/logos/welcome-background.png",
+                "integration/updater/config-app.js",
+                "integration/discord-ui/ui-runtime.cjs",
+                "integration/discord-ui/PREACT-LICENSE.txt",
+                "integration/audio/discord-ui/ui-runtime.cjs",
+                "integration/audio/discord-ui/PREACT-LICENSE.txt",
             ):
                 self.assertEqual((app / name).stat().st_mode & 0o444, 0o444)
+            self.assertNotIn(
+                'require("preact")', (app / "integration/discord-ui/ui-runtime.cjs").read_text()
+            )
+            self.assertEqual(
+                (app / "integration/discord-ui/ui-runtime.cjs").read_bytes(),
+                (app / "integration/audio/discord-ui/ui-runtime.cjs").read_bytes(),
+            )
             with patch("stage_updater.read_json", return_value={**lock, "sha256": "b" * 64}):
                 with self.assertRaisesRegex(ValueError, "checksum"):
                     stage(
@@ -595,8 +616,12 @@ class DistributionBoundary(unittest.TestCase):
                 "whitney_400.woff",
                 "ggsans-400-normal.woff2",
                 "ggsans-500-medium.woff2",
+                "ggsans-600-semibold.woff2",
+                "ggsans-700-bold.woff2",
                 "connecting-dark.webm",
                 "connecting-light.webm",
+                "libopenh264-2.5.1-linux64.7.so",
+                "libopenh264-2.5.1-linux64.7.so.bz2",
             ):
                 path = app / name
                 path.write_bytes(b"unwanted client")

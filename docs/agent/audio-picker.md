@@ -3,6 +3,29 @@
 For current cross-desktop automatic detection and its off switch, see
 [audio auto-detection](audio-auto-detection.md). Earlier detection notes below are historical.
 
+## Current custom picker (31 October 2026)
+
+The production selector now uses `audio-picker.cjs` directly. Its closed shadow
+root contains a browser modal, native HTML controls and the reusable Discord-style
+primitives in `integration/discord-ui/components.css`. It inherits Discord's live
+semantic theme tokens, gg sans font, root text size and Electron zoom. It no longer
+looks up, initializes or waits for Discord's private React components.
+
+The existing source ranking, application preselection, search, stable footer,
+refresh, keyboard containment and scope descriptions remain. Closing the host
+cancels the request, and one unreadable application icon cannot stop later icons.
+Zenity remains the fallback if the in-window dialog cannot open. The legacy native
+adapter and its contract tests are retained as historical probes, outside the
+production opening path.
+
+`tests/audio/picker-smoke.cjs` checks the production controls with isolated
+fixtures. `tests/audio/discord-picker-smoke.cjs` checks them in a fresh signed-out
+Canary window, using its actual Ash, Dark, Onyx and Light styles without invoking
+capture or screenshare controllers. See the [UI validation and polish
+review](discord-native-ui-20261031.md#audio-picker-and-shared-primitives).
+
+## Historical native-component implementation
+
 The Wayland voice wrapper displays its manual audio selector in Discord's main
 renderer. The native path preserves the approved wide screenshare layout using
 Discord's bare ModalRoot (size xl), pill SegmentedControl, SearchBar, Clickable
@@ -11,6 +34,58 @@ or underline TabBar. Our scoped layout CSS uses a 50 × 35 rem panel, 12.5 × 10
 cards, 15 × 2.5 rem search field and corner footer (800 × 560, 200 × 160 and
 240 × 40 CSS pixels at Discord's default font size). Native components supply their
 interaction behavior; the dialog follows Discord's current theme.
+
+### Screenshare reference correction (2026-10-31)
+
+Discord's own screen/window source tiles use `Clickable`, not a separate exported
+card component. Inspection of the current screenshare presentation CSS confirmed
+`--background-base-lower`, `--interactive-text-default`,
+`--interactive-background-active`, `--interactive-text-active`, the corresponding
+hover tokens, a subtle border and a brand-colored selected border. Both audio
+renderers now use those tokens, a 0.25 rem radius and no selected checkmark.
+No hashed class names or module IDs from that inspection enter production code.
+
+The first offered application is selected. The helper ranks a matching native
+capture hint first, then running audio, media roles and applications with windows;
+ties use the label and PID. Ranking only suggests a source: confirmation still
+requires Share. Search selects the first visible match if the previous selection
+is filtered out; no matches disable Share. Switching tabs preserves the application
+selection. System audio stays selected and cannot be toggled off.
+
+Refresh remains visible and disabled on System Audio. Share keeps its label and
+width in both tabs. The hidden search slot and overlapping footer descriptions
+reserve the same space, including when the descriptions wrap. Only the active
+description and documentation link are visible and focusable. Symmetric scrollbar
+gutters center the heading, search and cards; the dialog is centered in the viewport.
+The first card row retains its position when search finds nothing. Longer lists
+scroll from that same anchor.
+
+Reference comparison (screenshot proportions estimated; compact rem dimensions
+retained to respect the earlier scaling correction):
+
+| Detail           | Discord reference                        | Built picker                                               |
+| ---------------- | ---------------------------------------- | ---------------------------------------------------------- |
+| Source selection | Filled tile, thin brand border, no tick  | Same native theme tokens and selection treatment           |
+| Centering        | Heading and cards centered in the dialog | Heading, search and card row centered within 1 CSS pixel   |
+| Footer           | Corner summary and stable action group   | Choose audio source, Share and fixed Refresh slot          |
+| Scale            | Follows Discord UI settings              | 50 × 35 rem panel with viewport limits and wrapping footer |
+
+UI polish findings:
+
+| Severity | Location                                                                             | Before                                                         | After                                                        | Why                                                           |
+| -------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| MEDIUM   | `integration/audio/native-picker.css`, `integration/audio/audio-picker.css`          | Tick overlay, incorrect selected fill and off-center content   | Discord source-tile tokens, no overlay and symmetric gutters | Match the supplied screenshare reference.                     |
+| MEDIUM   | `integration/audio/native-picker-renderer.cjs`, `integration/audio/audio-picker.cjs` | Changing action labels and disappearing Refresh moved controls | Share and Refresh retain their slots across tabs             | Keep pointer and keyboard targets stable.                     |
+| MEDIUM   | `integration/audio/pipewire_audio.py`                                                | Picker opened with no suggested application                    | Rank offered sources and preselect the first app             | Reduce manual selection without starting audio automatically. |
+
+Validation: 396 Python tests, 134 JavaScript tests and repository lint pass.
+Actual native and fallback Electron smoke checks cover source selection, empty
+search, exact footer-action coordinates across tabs, native contract failures,
+keyboard navigation, 80 long labels, six viewport layouts, font size and zoom.
+Evidence: `out/picker-reference-fix-native-final/`,
+`out/picker-reference-fix-fallback-final/` and `out/picker-reference-css/rules.json`.
+No account, live call or physical camera was used. Custom themes and assistive
+technology remain unverified. Approve — inspected states only.
 
 ### Discord UI scaling
 
@@ -29,19 +104,21 @@ button measurements, horizontal containment and footer reachability. Evidence:
 `out/picker-ui-scale-fallback-verified-2/scaling.json`. The tests exercise the same
 rendering mechanisms without changing an account's saved accessibility settings.
 
-Both scaling suites and all 59 audio unit tests pass. The full test run passes
+Historical validation for the earlier scaling change: both scaling suites and
+all 59 audio unit tests passed. That full test run passed
 387 Python tests and 118 of 121 JavaScript tests; three OpenAsar settings tests
 fail in concurrent updater changes. Repository lint reports formatting errors in
 seven updater/settings files outside this audio change; scoped audio formatting
 and `git diff --check` pass. The earlier all-green run below predates those edits.
 
-### Compact layout and Zen artwork correction
+### Earlier compact layout and Zen artwork correction
 
 The screenshot's physical dimensions had been applied directly as CSS pixels,
 making the picker too large. Both renderers now use the compact dimensions above.
 The heading and search use fixed spacing, and the result region reserves one card
 row even when empty. System audio retains its automatically selected, non-toggleable
-behavior, with the same filled card, brand border and checkmark as a selected app.
+behavior, with the same filled card and brand border as a selected app. The
+checkmark used in this earlier revision was removed by the reference correction above.
 
 The footer reads “Includes windows from the same app · Automatic detection”; its
 link targets the user guide's new automatic-detection section. System audio keeps
@@ -55,11 +132,11 @@ and symlinks outside allowed roots remain rejected. No desktop command is execut
 
 UI polish review:
 
-| Severity | Location                                                                         | Before                                                   | After                                                            | Why                                                                     |
-| -------- | -------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| MEDIUM   | `integration/audio/native-picker.css:1`, `integration/audio/audio-picker.css:12` | Oversized panel and controls; empty search moved content | Compact dimensions and fixed heading/search spacing              | Preserve component density and stable interaction targets.              |
-| MEDIUM   | `integration/audio/native-picker.css`, `integration/audio/audio-picker.css`      | System audio lost its card boundary                      | Filled selected card with border and checkmark, without a toggle | Borders communicate selection consistently.                             |
-| MEDIUM   | `integration/audio/app-icons.cjs`                                                | Zen's installed icon fell back to a generic glyph        | Resolve package symlinks and binary-name variants                | Use recognizable application artwork without changing capture identity. |
+| Severity | Location                                                                         | Before                                                   | After                                               | Why                                                                     |
+| -------- | -------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------- |
+| MEDIUM   | `integration/audio/native-picker.css:1`, `integration/audio/audio-picker.css:12` | Oversized panel and controls; empty search moved content | Compact dimensions and fixed heading/search spacing | Preserve component density and stable interaction targets.              |
+| MEDIUM   | `integration/audio/native-picker.css`, `integration/audio/audio-picker.css`      | System audio lost its card boundary                      | Filled selected card with border, without a toggle  | Borders communicate selection consistently.                             |
+| MEDIUM   | `integration/audio/app-icons.cjs`                                                | Zen's installed icon fell back to a generic glyph        | Resolve package symlinks and binary-name variants   | Use recognizable application artwork without changing capture identity. |
 
 Validation covers real native and fallback rendering, empty-search coordinates,
 selected system cards, docs-link dispatch to the host window-open handler, Zen's

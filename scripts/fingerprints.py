@@ -1,6 +1,6 @@
 """Content identities shared across Discord clients; packaging changes avoid rebuilds."""
 
-from common import digest, hash_files, package_name
+from common import ROOT, digest, hash_files, package_name
 from runtime_fingerprints import runtime_key
 
 
@@ -17,6 +17,12 @@ def integration_key(
                 [
                     "scripts/prepare_app.py",
                     "scripts/stage_updater.py",
+                    "scripts/build_ui.py",
+                    "package.json",
+                    *sorted(
+                        str(file.relative_to(ROOT))
+                        for file in (ROOT / "integration/updater/ui").glob("*.jsx")
+                    ),
                     "scripts/application_payload.py",
                     "integration/bootstrap/loader.py",
                     "integration/updater/application.py",
@@ -26,15 +32,19 @@ def integration_key(
                     "integration/updater/installation.py",
                     "integration/updater/client_mods.py",
                     "integration/updater/profile.cjs",
+                    "integration/updater/presentation.cjs",
+                    "integration/updater/native-presentation.cjs",
+                    "integration/updater/mod-settings.cjs",
+                    "integration/updater/mod_manager.py",
+                    "integration/updater/diagnostics.cjs",
                     "integration/updater/flags.cjs",
                     "integration/launcher/flags.py",
                     "integration/launcher/presets.json",
                     "integration/launcher/codec-preload.sh",
                     "integration/updater/relaunch.cjs",
                     "integration/updater/launch-settings.cjs",
-                    "integration/updater/config-tabs.js",
+                    "integration/updater/settings-controls.js",
                     "integration/updater/flag-editor.js",
-                    "integration/updater/launch-settings.html",
                     "integration/updater/launch-settings.css",
                     "integration/updater/launch-settings.js",
                     "integration/updater/config-preload.cjs",
@@ -50,6 +60,9 @@ def integration_key(
                     "integration/updater/bootstrap_dialog.py",
                     "integration/updater/bootstrap-dialog.ui",
                     "integration/updater/check.py",
+                    "integration/updater/openh264.py",
+                    "integration/updater/openh264.json",
+                    "integration/updater/OPENH264-BINARY-LICENSE.txt",
                     "integration/updater/support.py",
                     "integration/updater/entry.cjs",
                     "integration/updater/module-updater.cjs",
@@ -60,6 +73,14 @@ def integration_key(
                     "integration/updater/splash.cjs",
                     "integration/updater/window.cjs",
                     "integration/updater/splash-assets.cjs",
+                    "integration/updater/logos/vencord.png",
+                    "integration/updater/logos/vencord-dark.png",
+                    "integration/updater/logos/equicord.png",
+                    "integration/updater/logos/welcome-background.png",
+                    "integration/updater/logos/VENCORD-LICENSE.txt",
+                    "integration/updater/logos/EQUICORD-LICENSE.txt",
+                    "integration/updater/logos/README.md",
+                    "discord-patched-electron.png",
                     "integration/updater/splash-state.cjs",
                     "integration/updater/splash-preload.cjs",
                     "integration/updater/failure.cjs",
@@ -76,7 +97,18 @@ def integration_key(
                     "integration/audio/app-audio.cjs",
                     "integration/discord-ui/runtime.cjs",
                     "integration/discord-ui/source.cjs",
+                    "integration/discord-ui/presentation.cjs",
+                    "integration/discord-ui/icons.cjs",
+                    "integration/discord-ui/ui-runtime.cjs",
+                    "integration/discord-ui/PREACT-LICENSE.txt",
+                    "integration/discord-ui/BOOTSTRAP-ICONS-LICENSE.txt",
                     "integration/discord-ui/settings.cjs",
+                    "integration/discord-ui/stream-audio.cjs",
+                    "integration/discord-ui/components.css",
+                    "integration/audio/audio-picker.cjs",
+                    "integration/audio/search-view.cjs",
+                    "integration/audio/audio-picker.css",
+                    "integration/audio/app-icons.cjs",
                     "scripts/patch_desktop_core.py",
                     "integration/desktop/safe-storage.cjs",
                     "integration/audio/voice-devices.cjs",

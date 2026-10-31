@@ -20,6 +20,7 @@ class UpdateCheck(unittest.TestCase):
             root = Path(temporary)
             executable, host = root / "runtime/electron", root / "prepared"
             with (
+                patch.object(update_check, "ensure_openh264") as codec,
                 patch.object(update_check, "ensure_runtime", return_value=executable),
                 patch.object(update_check, "ensure_client", return_value=host),
                 patch.object(update_check, "publish", return_value=root / "app-1.0.1") as publish,
@@ -31,6 +32,7 @@ class UpdateCheck(unittest.TestCase):
                 patch.dict(os.environ, {"DPE_PREPARE_ONLY": "1", "DPE_CLIENT_OFFLINE": "0"}),
             ):
                 result = update_check.check(root / "app", root / "dpe-updater", "canary")
+                codec.assert_called_once_with(root)
                 self.assertEqual(result, {"runtime": str(executable), "host": str(host)})
                 publish.assert_not_called()
                 os.environ["DPE_PREPARE_ONLY"] = "0"
@@ -40,6 +42,16 @@ class UpdateCheck(unittest.TestCase):
                 self.assertEqual(
                     result["voice"], str(root / "app-1.0.1/modules/discord_voice-7/discord_voice")
                 )
+
+    def test_codec_failure_prevents_client_activation(self):
+        with (
+            patch.object(update_check, "prepare_application", return_value=None),
+            patch.object(update_check, "ensure_openh264", side_effect=ValueError("codec")),
+            patch.object(update_check, "publish") as publish,
+        ):
+            with self.assertRaisesRegex(ValueError, "codec"):
+                update_check.check(Path("/app"), Path("/profile/dpe-updater"), "canary")
+            publish.assert_not_called()
 
     def test_launch_uses_the_completed_result_and_rejects_unsafe_paths(self):
         with tempfile.TemporaryDirectory() as temporary:

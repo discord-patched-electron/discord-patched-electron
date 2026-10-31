@@ -54,6 +54,15 @@ function installVoice(voice) {
   };
 }
 
+function disableStreamAudio() {
+  const resolve = (name) =>
+    require.resolve("./discord-ui/" + name, { paths: [__dirname, path.dirname(__dirname)] });
+  const source = require(resolve("source.cjs"));
+  return require("electron").webFrame.executeJavaScript(
+    source.call(require(resolve("stream-audio.cjs")), { action: "disable" }),
+  );
+}
+
 function wrap(
   instance,
   {
@@ -61,6 +70,7 @@ function wrap(
     warn = (message) => console.warn("[dpe-app-audio]", message),
     pickerUI = audioPicker,
     autoDetect = detection.enabled,
+    disableAudio = disableStreamAudio,
   } = {},
 ) {
   const nativeTransport = instance.setTransportOptions.bind(instance);
@@ -76,9 +86,15 @@ function wrap(
   let lastState = null;
   let observationTimer;
   let closePicker = null;
+  let pickerRequest = null;
+  let sourceIdentity = null;
+  let audioInitialized = false;
+  let pendingAudioState = false;
+  let forcePicker = false;
   function dismissPicker() {
     closePicker?.();
     closePicker = null;
+    pickerRequest = null;
   }
   function silence() {
     if (!readyPid) return;
@@ -106,7 +122,7 @@ function wrap(
     helper = child;
     let lastObservations = "";
     observationTimer = setInterval(() => {
-      if (helper !== child || disposed || !automatic) return;
+      if (helper !== child || disposed || !automatic || forcePicker) return;
       const message = JSON.stringify({ generation, observations: observations.snapshot() });
       if (message !== lastObservations) child.stdin.write(message + "\n");
       lastObservations = message;
@@ -143,16 +159,49 @@ function wrap(
         if (value.generation !== generation || !source || !requested || pickerPending) continue;
         if (value.state === "choosing") {
           silence();
-          dismissPicker();
+          pickerRequest = value.request;
           const requestGeneration = generation;
           const reply = (selection) => {
-            if (helper !== child || disposed || generation !== requestGeneration) return;
+            if (
+              helper !== child ||
+              disposed ||
+              generation !== requestGeneration ||
+              pickerRequest !== value.request
+            )
+              return;
             child.stdin.write(
               JSON.stringify({ generation, request: value.request, selection }) + "\n",
             );
+            if (selection === "none") {
+              // Clear the request as well as the transport so re-enabling the
+              // Discord checkbox starts a new selection rather than staying muted.
+              requested = 0;
+              hint = 0;
+              forcePicker = false;
+              configure();
+              try {
+                Promise.resolve(disableAudio())
+                  .then((updated) => {
+                    if (updated === false)
+                      warn(
+                        "Audio is off, but Discord's stream-audio setting could not be updated.",
+                      );
+                  })
+                  .catch(() =>
+                    warn("Audio is off, but Discord's stream-audio setting could not be updated."),
+                  );
+              } catch {
+                warn("Audio is off, but Discord's stream-audio setting could not be updated.");
+              }
+            }
           };
           try {
-            closePicker = pickerUI.show(value.options, reply);
+            if (closePicker?.update) closePicker.update(value.options, reply);
+            else {
+              dismissPicker();
+              pickerRequest = value.request;
+              closePicker = pickerUI.show(value.options, reply);
+            }
           } catch {
             reply("fallback");
           }
@@ -195,6 +244,7 @@ function wrap(
       stopHelper();
       return;
     }
+    audioInitialized = true;
     automatic = autoDetect();
     const child = ensureHelper();
     child.stdin.write(
@@ -203,6 +253,7 @@ function wrap(
         enabled: true,
         hint,
         autoDetect: automatic,
+        forcePicker,
         observations: observations.snapshot(),
         picker: pickerUI.available() ? "inline" : "native",
       }) + "\n",
@@ -212,6 +263,12 @@ function wrap(
     // Global picker events also reach ordinary voice/webcam connections. They
     // have no share to reconfigure and must not acquire audio routes.
     if (!source && !requested && !helper) return;
+    if (event === "begin" || event === "cancel") {
+      sourceIdentity = null;
+      audioInitialized = false;
+      pendingAudioState = false;
+      forcePicker = false;
+    }
     if (event === "cancel") source = false;
     configure();
   }
@@ -219,20 +276,34 @@ function wrap(
   instance.setOnDesktopSourceEnded((...args) => {
     if (disposed) return;
     source = false;
+    sourceIdentity = null;
     requested = 0;
+    audioInitialized = pendingAudioState = forcePicker = false;
     if (!pickerPending) observations.clear();
     configure();
     return endedCallback?.(...args);
   });
-  function setSource(method, args) {
+  function setSource(method, args, id, type) {
     if (disposed) return;
+    const changed =
+      !source || !sourceIdentity || sourceIdentity[0] !== id || sourceIdentity[1] !== type;
+    if (changed) {
+      // A video-source selection gets the user's normal automatic-detection
+      // preference. Re-enabling audio on that same video is an explicit choice.
+      sourceIdentity = [id, type];
+      audioInitialized = pendingAudioState || requested > 0;
+      forcePicker = false;
+    }
+    pendingAudioState = false;
     source = true;
-    configure();
+    if (changed || (!helper && requested && !pickerPending)) configure();
     try {
       return method.apply(instance, args);
     } catch (error) {
       // A rejected native source must not leave the previous app audible.
       source = false;
+      sourceIdentity = null;
+      audioInitialized = pendingAudioState = forcePicker = false;
       configure();
       throw error;
     }
@@ -249,6 +320,12 @@ function wrap(
             ? options.soundsharePid
             : 0;
         changed = value !== requested;
+        if (changed) {
+          if (value === 0) forcePicker = false;
+          else if (requested === 0) forcePicker = source && audioInitialized && !pickerPending;
+        }
+        if (source) audioInitialized = true;
+        pendingAudioState = true;
         requested = value;
         hint = value > 1 ? value : 0;
       }
@@ -263,16 +340,23 @@ function wrap(
       }
     },
     setDesktopSource(id, hook, type) {
-      return setSource(instance.setDesktopSource, [id, hook, type]);
+      return setSource(instance.setDesktopSource, [id, hook, type], id, type);
     },
     setDesktopSourceWithOptions(options) {
-      return setSource(instance.setDesktopSourceWithOptions, [options]);
+      return setSource(
+        instance.setDesktopSourceWithOptions,
+        [options],
+        options?.sourceId,
+        options?.type,
+      );
     },
     clearDesktopSource() {
       if (disposed) return;
       source = false;
+      sourceIdentity = null;
       requested = 0;
       hint = 0;
+      audioInitialized = pendingAudioState = forcePicker = false;
       if (!pickerPending) observations.clear();
       configure();
       return instance.clearDesktopSource();

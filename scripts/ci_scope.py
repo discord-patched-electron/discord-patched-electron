@@ -18,6 +18,7 @@ RULES = (
     (
         (
             "scripts/releases.py",
+            "scripts/publish_working_tree.py",
             "scripts/release_proposals.py",
             "scripts/publish_aur.py",
             "scripts/release_signing.py",
@@ -70,6 +71,7 @@ RULES = (
             "integration/discord-ui/*",
             "tests/discord-ui/*",
             "scripts/patch_app_audio.py",
+            "scripts/build_ui.py",
             "scripts/patch_pulse_audio.py",
             "scripts/desktop_identity.py",
         ),
@@ -116,6 +118,7 @@ RULES = (
             "scripts/build_local_app.py",
             "scripts/package_release.py",
             "scripts/check_release_packages.py",
+            "scripts/check_working_tree.py",
             "scripts/smoke_packages.py",
             "scripts/fingerprints.py",
             "config/openasar.lock.json",

@@ -1,0 +1,9 @@
+{
+  "version": "2.5.1",
+  "filename": "libopenh264-2.5.1-linux64.7.so",
+  "url": "https://ciscobinary.openh264.org/libopenh264-2.5.1-linux64.7.so.bz2",
+  "archive_size": 619625,
+  "archive_sha256": "82e436db8606433e3f823c7fff3269c43b3ba3f12510a851ef7b156b80ad1b11",
+  "library_size": 1684440,
+  "library_sha256": "d828a944d4d2bb64195ada89cf2cde9bc41733b1547d0788ef49fb8cb231b76f"
+}

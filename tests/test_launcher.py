@@ -27,6 +27,16 @@ class Launcher(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             shutil.copytree(ROOT / "integration/launcher", root / "integration/launcher")
+            updater = root / "integration/updater"
+            updater.mkdir(parents=True)
+            # Exercise the shell's preparation boundary without network access.
+            # The downloader and real codec loading have separate test suites.
+            (updater / "openh264.py").write_text(
+                "import os,sys\n"
+                "assert sys.argv[1] == os.environ['DPE_PROFILE_DIR']\n"
+                "assert os.environ['DPE_OPENH264_LIBRARY']\n"
+                "assert os.environ['DPE_OPENH264_OFFLINE'] == os.environ.get('DPE_CLIENT_OFFLINE', '0')\n"
+            )
             if broken_resolver:
                 (root / "integration/launcher/flags.py").write_text(
                     "raise RuntimeError('must not run')"
@@ -59,8 +69,6 @@ class Launcher(unittest.TestCase):
                 selected.parent.mkdir()
                 selected.write_bytes(runtime.read_bytes())
                 selected.chmod(0o755)
-                updater = root / "integration/updater"
-                updater.mkdir(parents=True)
                 (root / "client-distribution.json").write_text("{}")
                 for source in (ROOT / "integration/updater").glob("*.py"):
                     (updater / source.name).write_bytes(source.read_bytes())

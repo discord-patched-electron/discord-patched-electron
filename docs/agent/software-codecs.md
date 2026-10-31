@@ -64,11 +64,9 @@ removes the previous codec preload, and repeated relaunches do not accumulate it
 The preload is applied before the existing camera helper; its original loader
 environment does not retain that helper from the preceding launch.
 
-This uses an already-present trusted codec, normally Discord's asset cache.
-It does not download one or alter existing codec download policy. A missing
-library does not prevent startup; software H.264 needs another launch once the
-library becomes available. The built-in software encoder does not depend on
-this external decoder library.
+The initial fix used an already-present trusted codec. The 31 October follow-up
+below adds acquisition for fresh profiles. The built-in software encoder does
+not depend on this external decoder library.
 
 ## Validation
 
@@ -107,3 +105,66 @@ The preset matrix also uses the production codec helper.
 These are synthetic checks on the local AMD RX 7900 GRE, with the existing
 verified runtime. They do not establish behavior in Discord's native call stack,
 on other GPUs, for unsupported bit depths/chroma formats, or in long calls.
+
+## Fresh-profile acquisition follow-up, 31 October 2026
+
+The previous preload fix assumed the library already existed. DPE did not acquire
+it. A new profile reported the missing 2.5.1 library, and a real client launch
+using Discord's asset directory left only `libopenh264-2.7.0-linux64.8.so` there.
+The pinned OpenAsar flags still name 2.5.1. Sharing that directory therefore does
+not preserve the decoder required by the tested runtime.
+
+`integration/updater/openh264.py` now downloads the exact Cisco HTTPS archive
+specified in `openh264.json`. The compressed archive and extracted library both
+have pinned sizes and SHA-256 checksums. Extraction is bounded, installation is
+atomic and fsynced, a profile lock serializes concurrent preparations, and a
+transport interruption gets one retry. Failed verification never replaces the
+previous bytes. A valid cache needs no network or rewrite.
+
+The managed path is now
+`{PROFILE_DIR}/dpe-codecs/openh264/libopenh264-2.5.1-linux64.7.so`, outside Discord's
+asset cache. `{OPENH264_LIBRARY_PATH}` resolves there without modifying the user's
+saved flags. The final resolved flags determine whether to prepare the codec.
+Disabled defaults, recovery, a removed enable flag and custom library paths do
+not trigger acquisition. Custom libraries remain user-managed.
+
+The startup helper prepares the codec before the installed client is published
+and executed. Quickstart preserves the user's actual offline selection separately
+from its offline update check, so a missing codec is still prepared on an online
+quickstart. Explicit offline mode requires a verified codec cache and reports
+clear reconnect guidance when it is missing or damaged. It never preloads a
+known-invalid managed cache. Local nonportable builds use the same helper.
+
+The binary downloads directly to the end user's device and is excluded from
+packages. The full Cisco binary notice is included, linked beside the essential
+flags, with the provider attribution and disable/re-enable instructions.
+
+Validation artifacts are under `out/validation-storage/openh264-reliability/`:
+
+- `isolated-acquisition.json`: real HTTPS acquisition, unchanged offline reuse,
+  and replacement of a corrupt test cache. The library hash is
+  `d828a944d4d2bb64195ada89cf2cde9bc41733b1547d0788ef49fb8cb231b76f`, matching the
+  earlier sandboxed decoder evidence.
+- `decoding/software-codecs.json`: all six required native codec cases passed
+  again, including software H.264 on Wayland and X11. Each required renderer had
+  Seccomp 2 and NoNewPrivs 1. The diagnostic no-preload control failed as expected,
+  and software HEVC remains unsupported.
+- Acquisition regression tests cover concurrent starts, independent Discord cache
+  cleanup, corruption, symlinks, interrupted transfers, permanent HTTP failure,
+  bounded/truncated archives, offline mode and custom-path selection. Launcher
+  tests cover resolved flags, recovery and real dynamic loading.
+
+No runtime recompilation, account login or call was used.
+
+Final startup checks also passed from the runtime-free release package, including
+first launch and relaunch. `quickstart-repair/launch-report.json` verifies that a
+corrupt managed codec is replaced before an online Quickstart. The
+`offline-reviewed/launch-report.json` verifies an offline relaunch preserves the
+valid file's inode and modification time. Both checks inspect the real browser
+process mappings and require the verified managed library to be preloaded.
+Discord rewrites `process.title`, collapsing `/proc/cmdline` and clearing the
+original environment storage; the launch checker accounts for that representation.
+
+All 432 Python tests, 177 JavaScript tests, lint and release-package validation
+passed. The final launchable app is
+`out/validation-storage/openh264-onboarding-reviewed/`.

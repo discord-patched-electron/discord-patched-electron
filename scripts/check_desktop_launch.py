@@ -22,6 +22,28 @@ from common import read_json, sha256, write_json
 from desktop_identity import desktop_id
 
 
+def verify_codec(app: Path, profile: Path, browser_pid: int) -> dict | None:
+    # Discord's process.title collapses argv into a single string and clears
+    # the original environment storage exposed by /proc. Inspect the known
+    # managed path in that title, then require the actual mapped library.
+    arguments = Path(f"/proc/{browser_pid}/cmdline").read_bytes().replace(b"\0", b" ").decode()
+    manifest = app / "integration/updater/openh264.json"
+    if (
+        not re.search(r"(?:^|\s)--enable-libopenh264(?:=|\s|$)", arguments)
+        or not manifest.is_file()
+    ):
+        return None
+    metadata = read_json(manifest)
+    library = profile / "dpe-codecs/openh264" / metadata["filename"]
+    if f"--openh264-library-path={library}" not in arguments:
+        return None
+    mapped = str(library) in Path(f"/proc/{browser_pid}/maps").read_text().replace("\\040", " ")
+    digest = sha256(library)
+    if not mapped or digest != metadata["library_sha256"]:
+        raise ValueError("OpenH264 was not verified and preloaded")
+    return {"sha256": digest, "preloaded": True}
+
+
 def check(
     app: Path,
     output: Path,
@@ -30,7 +52,10 @@ def check(
     read_only_app: bool = False,
     runtime_archive: Path | None = None,
     application_archive: Path | None = None,
+    expect_setup: bool = False,
+    setup_configure: bool = False,
 ):
+    expect_setup = expect_setup or setup_configure
     app, output = app.resolve(), output.resolve()
     if output.exists():
         raise ValueError("Choose a fresh report directory")
@@ -64,6 +89,7 @@ def check(
         **os.environ,
         "DPE_PROFILE_DIR": str(profile),
         "EQUICORD_USER_DATA_DIR": str(profile / "equicord"),
+        "VENCORD_USER_DATA_DIR": str(profile / "vencord"),
         "WAYLAND_DEBUG": "client",
         "DPE_CLIENT_PINNED": "1",
         "DPE_RUNTIME_BUNDLED": "1",
@@ -82,6 +108,10 @@ def check(
         "app": str(app),
         "targets": [],
         "updater_ui_seen": False,
+        "setup_expected": expect_setup,
+        "setup_seen": False,
+        "setup_configure_expected": setup_configure,
+        "client_before_done": False,
     }
     channel = read_json(app / "local-build.json")["channel"]
     host = {"stable": "discord.com", "ptb": "ptb.discord.com", "canary": "canary.discord.com"}[
@@ -101,7 +131,9 @@ def check(
         )
         try:
             deadline = time.monotonic() + 120
-            while time.monotonic() < deadline and process.poll() is None:
+            while time.monotonic() < deadline and (
+                process.poll() is None or report.get("setup_done_sent")
+            ):
                 try:
                     with urllib.request.urlopen(
                         f"http://127.0.0.1:{port}/json/list", timeout=2
@@ -112,56 +144,112 @@ def check(
                     ]
                     if any(t.get("url") == "dpe-splash://app/index.html" for t in targets):
                         report["updater_ui_seen"] = True
+                    welcome_target = next(
+                        (
+                            t
+                            for t in targets
+                            if t.get("url") == "dpe-splash://app/config.html?mode=welcome"
+                        ),
+                        None,
+                    )
+                    if welcome_target:
+                        report["setup_seen"] = True
+                    configure_target = next(
+                        (t for t in targets if t.get("url") == "dpe-splash://app/config.html"),
+                        None,
+                    )
+                    discord_pages = []
                     for target in targets:
                         if target.get("type") != "page" or not target.get("url", "").startswith(
                             f"https://{host}/"
                         ):
                             continue
-                        script = r"""
-const ws = new WebSocket(process.argv[1]);
-const timer = setTimeout(() => {ws.close(); process.exit(2)}, 5000);
-ws.addEventListener("open", () => ws.send(JSON.stringify({id:1, method:"Runtime.evaluate", params:{
- expression:'JSON.stringify({ready:document.readyState,title:document.title,loginForm:!!document.querySelector("input[name=email]"),passwordField:!!document.querySelector("input[type=password]"),equicordNative:typeof VencordNative!=="undefined",equicordRenderer:typeof Vencord!=="undefined"&&!!Vencord.Plugins,discordNative:typeof DiscordNative!=="undefined",modSelfUpdate:globalThis.__DPE_MOD_SELF_UPDATE__})', returnByValue:true}})));
-ws.addEventListener("message", event => { const value=JSON.parse(event.data); if(value.id!==1)return;
- clearTimeout(timer); console.log(value.result?.result?.value || "{}"); ws.close(); });
-ws.addEventListener("error", () => process.exit(3));
-"""
-                        result = subprocess.run(
-                            [
-                                "node",
-                                "--input-type=module",
-                                "-e",
-                                script,
-                                target["webSocketDebuggerUrl"],
-                            ],
-                            capture_output=True,
-                            text=True,
-                            timeout=8,
+                        page = inspect_discord(target["webSocketDebuggerUrl"])
+                        if page["discordNative"]:
+                            discord_pages.append(page)
+                        else:
+                            report["presentation_helper_seen"] = True
+                    verify_setup = expect_setup or report["setup_seen"]
+                    if verify_setup and not report.get("setup_done_sent"):
+                        if discord_pages:
+                            report["client_before_done"] = True
+                            break
+                        if welcome_target:
+                            report["setup_gated"] = True
+                    if welcome_target and not (
+                        report.get("setup_done_sent") or report.get("setup_configure_sent")
+                    ):
+                        setup = complete_setup(
+                            welcome_target["webSocketDebuggerUrl"], configure=setup_configure
                         )
-                        if result.returncode == 0:
-                            page = json.loads(result.stdout)
-                            report["page"] = page
-                            if (
-                                page.get("ready") == "complete"
-                                and page.get("loginForm")
-                                and page.get("passwordField")
-                            ):
-                                mod_loaded = bool(
-                                    page.get("equicordNative") and page.get("equicordRenderer")
+                        if setup:
+                            report["setup"] = setup
+                            report["setup_choice_sent"] = report.get(
+                                "setup_choice_sent", False
+                            ) or setup.get("choiceSent", False)
+                            report["setup_done_sent"] = setup.get("doneSent", False)
+                            report["setup_configure_sent"] = setup.get("configureSent", False)
+                    if (
+                        setup_configure
+                        and report.get("setup_configure_sent")
+                        and not report.get("setup_done_sent")
+                        and welcome_target is None
+                        and configure_target is not None
+                    ):
+                        configured = close_setup_settings(configure_target["webSocketDebuggerUrl"])
+                        report["configure"] = configured
+                        if configured.get("closeSent"):
+                            report["welcome_closed_before_configure_finish"] = True
+                            report["setup_done_sent"] = True
+                    marker = profile / "dpe-updater/mods.json"
+                    if report.get("setup_done_sent") and marker.exists():
+                        report["setup_complete"] = (
+                            read_json(marker).get("setupComplete") is True
+                            and welcome_target is None
+                            and (not setup_configure or configure_target is None)
+                        )
+                    for page in discord_pages:
+                        report["page"] = page
+                        if (
+                            page.get("ready") == "complete"
+                            and page.get("loginForm")
+                            and page.get("passwordField")
+                        ):
+                            mod_loaded = bool(
+                                page.get("equicordNative") and page.get("equicordRenderer")
+                            )
+                            report["passed"] = bool(page.get("discordNative")) and (
+                                mod_loaded
+                                if equicord
+                                else not (
+                                    page.get("equicordNative") or page.get("equicordRenderer")
                                 )
-                                report["passed"] = bool(page.get("discordNative")) and (
-                                    mod_loaded
-                                    if equicord
-                                    else not (
-                                        page.get("equicordNative") or page.get("equicordRenderer")
-                                    )
+                            )
+                            if report["passed"]:
+                                report["passed"] = False
+                                with urllib.request.urlopen(
+                                    f"http://127.0.0.1:{port}/json/version", timeout=2
+                                ) as response:
+                                    browser = json.load(response)["webSocketDebuggerUrl"]
+                                processes = cdp(browser, "SystemInfo.getProcessInfo")
+                                browser_pid = next(
+                                    (
+                                        int(item["id"])
+                                        for item in processes.get("processInfo", [])
+                                        if item["type"] == "browser"
+                                    ),
+                                    None,
                                 )
-                                if report["passed"]:
-                                    report["runtime_executable"] = str(
-                                        Path(f"/proc/{process.pid}/exe").resolve(strict=True)
-                                    )
-                                    break
-                    if report["passed"]:
+                                if browser_pid is None:
+                                    raise ValueError("Could not identify the browser process")
+                                report["runtime_executable"] = str(
+                                    Path(f"/proc/{browser_pid}/exe").resolve(strict=True)
+                                )
+                                if codec := verify_codec(app, profile, browser_pid):
+                                    report["openh264"] = codec
+                                report["passed"] = True
+                                break
+                    if report["passed"] and (not verify_setup or report.get("setup_complete")):
                         break
                 except (OSError, ValueError, subprocess.SubprocessError, urllib.error.URLError):
                     pass
@@ -170,7 +258,7 @@ ws.addEventListener("error", () => process.exit(3));
         finally:
             # Ask Chromium to close before terminating its process tree, so the
             # smoke check does not itself manufacture GPU/zygote crash reports.
-            if process.poll() is None:
+            if process.poll() is None or report.get("setup_done_sent"):
                 try:
                     with urllib.request.urlopen(
                         f"http://127.0.0.1:{port}/json/version", timeout=2
@@ -193,6 +281,18 @@ ws.addEventListener("error", () => process.exit(0));
                         capture_output=True,
                         timeout=5,
                     )
+                    # Done relaunches through the launcher, so the original Popen
+                    # may have exited before this browser releases its profile.
+                    closing_deadline = time.monotonic() + 8
+                    while time.monotonic() < closing_deadline:
+                        try:
+                            with urllib.request.urlopen(
+                                f"http://127.0.0.1:{port}/json/version", timeout=1
+                            ):
+                                pass
+                        except OSError:
+                            break
+                        time.sleep(0.1)
                 except (OSError, ValueError, KeyError, subprocess.SubprocessError):
                     pass
             try:
@@ -217,6 +317,19 @@ ws.addEventListener("error", () => process.exit(0));
         or "App threw an error during load" in console
     )
     report["passed"] = report["passed"] and not report["uncaught_exception"]
+    if expect_setup or report["setup_seen"]:
+        report["passed"] = (
+            report["passed"]
+            and report.get("setup_complete", False)
+            and report.get("setup_gated", False)
+            and not report["client_before_done"]
+        )
+    if setup_configure:
+        report["passed"] = (
+            report["passed"]
+            and report.get("setup_configure_sent", False)
+            and report.get("welcome_closed_before_configure_finish", False)
+        )
     current = profile / "dpe-updater/current.json"
     if current.exists():
         generation = read_json(current)
@@ -253,6 +366,89 @@ ws.addEventListener("error", () => process.exit(0));
     return report
 
 
+def inspect_discord(websocket: str) -> dict:
+    """Distinguish the desktop client from the isolated presentation helper."""
+    expression = r"""JSON.stringify({
+      ready:document.readyState, title:document.title,
+      loginForm:!!document.querySelector('input[name=email]'),
+      passwordField:!!document.querySelector('input[type=password]'),
+      equicordNative:typeof VencordNative!=='undefined',
+      equicordRenderer:typeof Vencord!=='undefined'&&!!Vencord.Plugins,
+      discordNative:typeof DiscordNative!=='undefined',
+      modSelfUpdate:globalThis.__DPE_MOD_SELF_UPDATE__
+    })"""
+    result = cdp(websocket, "Runtime.evaluate", {"expression": expression, "returnByValue": True})
+    page = json.loads(result.get("result", {}).get("value", "{}"))
+    if not isinstance(page, dict) or not isinstance(page.get("discordNative"), bool):
+        # A failed inspection is unknown, not proof that the desktop is absent.
+        # The caller retries before advancing either onboarding action.
+        raise ValueError("Could not classify the Discord target")
+    return page
+
+
+def close_setup_settings(websocket: str) -> dict:
+    """Close the ready onboarding Settings only after Welcome has disappeared."""
+    expression = r"""(() => {
+      const onboarding = window.Native?.isOnboardingSettings?.() === true;
+      const note = document.getElementById('onboarding-close-note');
+      const restart = document.getElementById('b_restart');
+      const close = document.getElementById('b_close');
+      const closeSent = onboarding && document.readyState === 'complete'
+        && document.body.dataset.presentationReady === 'true'
+        && document.visibilityState === 'visible'
+        && !!note?.getClientRects().length
+        && note.textContent.trim() === 'Closing settings will launch Discord.'
+        && !!restart && !restart.disabled && !!close && !close.disabled;
+      if (closeSent) setTimeout(() => close.click(), 250);
+      return JSON.stringify({onboarding, closeSent});
+    })()"""
+    result = cdp(websocket, "Runtime.evaluate", {"expression": expression, "returnByValue": True})
+    return json.loads(result.get("result", {}).get("value", "{}"))
+
+
+def complete_setup(websocket: str, *, configure: bool = False) -> dict:
+    """Advance one Welcome page, without a mod; never touch the account page."""
+    expression = r"""(() => {
+      const welcome = window.Native?.getMode() === 'welcome';
+      const next = document.getElementById('setup-next');
+      const done = document.getElementById('setup-done');
+      const configure = document.getElementById('setup-configure');
+      const useConfigure = USE_CONFIGURE;
+      const ready = button => welcome && button && !button.disabled
+        && document.body.dataset.presentationReady === 'true'
+        && document.visibilityState === 'visible'
+        && button.getClientRects().length > 0;
+      const choiceSent = !!ready(next);
+      const configureSent = !choiceSent && useConfigure && !!ready(configure);
+      const doneSent = !choiceSent && !useConfigure && !!ready(done);
+      if (choiceSent) next.click();
+      if (configureSent) configure.click();
+      if (doneSent) done.click();
+      return JSON.stringify({welcome, choiceSent, configureSent, doneSent});
+    })()""".replace("USE_CONFIGURE", json.dumps(configure))
+    result = cdp(websocket, "Runtime.evaluate", {"expression": expression, "returnByValue": True})
+    return json.loads(result.get("result", {}).get("value", "{}"))
+
+
+def cdp(websocket: str, method: str, params: dict | None = None) -> dict:
+    """Perform one bounded DevTools request against this fixture's loopback browser."""
+    script = r"""
+const ws = new WebSocket(process.argv[1]);
+const timer = setTimeout(() => {ws.close(); process.exit(2)}, 5000);
+ws.addEventListener("open", () => ws.send(JSON.stringify({id:1, method:process.argv[2], params:JSON.parse(process.argv[3])})));
+ws.addEventListener("message", event => { const value=JSON.parse(event.data); if(value.id!==1)return;
+ clearTimeout(timer); console.log(JSON.stringify(value.result || {})); ws.close(); });
+ws.addEventListener("error", () => process.exit(3));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script, websocket, method, json.dumps(params or {})],
+        capture_output=True,
+        text=True,
+        timeout=8,
+    )
+    return json.loads(result.stdout) if result.returncode == 0 else {}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("app", type=Path)
@@ -274,6 +470,16 @@ if __name__ == "__main__":
         "--read-only-app", action="store_true", help="Do not update the installed build manifest"
     )
     parser.add_argument("--application-archive", type=Path)
+    parser.add_argument(
+        "--expect-setup",
+        action="store_true",
+        help="Verify Welcome gates Discord until Restart to finish, and continue without a mod",
+    )
+    parser.add_argument(
+        "--setup-configure",
+        action="store_true",
+        help="Verify Configure more replaces Welcome and closing Settings starts Discord",
+    )
     args = parser.parse_args()
     first = check(
         args.app,
@@ -282,14 +488,19 @@ if __name__ == "__main__":
         read_only_app=args.read_only_app,
         runtime_archive=args.runtime_archive,
         application_archive=args.application_archive,
+        expect_setup=args.expect_setup,
+        setup_configure=args.setup_configure,
     )
     passed = first["passed"]
     if passed and args.relaunch:
-        passed = check(
+        second = check(
             args.app,
             args.output / "relaunch",
             Path(first["profile"]),
             args.equicord,
             args.read_only_app,
-        )["passed"]
+        )
+        passed = second["passed"] and (
+            not (args.expect_setup or args.setup_configure) or not second["setup_seen"]
+        )
     raise SystemExit(0 if passed else 1)

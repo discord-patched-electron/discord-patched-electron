@@ -12,14 +12,19 @@ DPE matches the selected portal stream to Discord's active video connection.
 When it identifies a window, it selects that application's audio. A confirmed
 whole-monitor share selects system audio, excluding Discord.
 
-| Desktop / backend                                   | Detection paths                                                                                                                           |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| niri                                                | Direct active-cast and window-process mapping on supported versions.                                                                      |
-| KDE Plasma                                          | Portal app ID; KWin stream metadata with optional `kdotool`.                                                                              |
-| GNOME / Mutter                                      | Exact shared-window ID with [Window Calls](https://extensions.gnome.org/extension/4724/window-calls/); portal app ID when available.      |
-| Hyprland                                            | Portal app ID with current restore metadata, matched through `hyprctl` or audio metadata.                                                 |
-| Sway, other wlroots desktops, COSMIC, other portals | Standard portal monitor selections. Window audio needs identifiable app metadata or a native process hint; otherwise selection is manual. |
-| X11                                                 | Existing native/window-PID path, enabled with `DPE_APP_AUDIO=1`.                                                                          |
+| Desktop / backend                                   | Window detection | Detection paths                                                                                                                                                         |
+| --------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| niri                                                | ✅ Automatic     | Direct active-cast and window-process mapping on supported versions.                                                                                                    |
+| KDE Plasma                                          | ⚠️ Dependencies  | `kdotool` enables KWin stream mapping. Portal app IDs can also match audio metadata without it.                                                                         |
+| GNOME / Mutter                                      | ⚠️ Dependencies  | [Window Calls](https://extensions.gnome.org/extension/4724/window-calls/) enables exact shared-window mapping. Portal app IDs can also match audio metadata without it. |
+| Hyprland                                            | ✅ Automatic     | Current portal restore metadata, matched through `hyprctl` or audio metadata.                                                                                           |
+| Sway, other wlroots desktops, COSMIC, other portals | ❌ Unavailable   | No compositor-specific window detection. Select window audio manually.                                                                                                  |
+
+**Key:** ✅ Works by default · ⚠️ Requires extra dependencies · ❌ Unsupported.
+These statuses describe window detection. Standard portal monitor selections
+can still select system audio on other desktops, and a native process hint can
+identify an application. On X11, enable the native/window-PID path with
+`DPE_APP_AUDIO=1`.
 
 The portal observer uses `busctl` if installed. Desktop tools and extensions are
 optional; DPE does not install or enable them. GNOME/Hyprland/Plasma portal app IDs
@@ -27,7 +32,7 @@ may require the portal to return restore metadata. Older portal versions, denied
 D-Bus observation, regions, virtual outputs and ambiguous app instances can still
 need manual selection. Window titles and keyboard focus are not used to guess.
 
-To always choose audio manually on Wayland, open **DPE OpenAsar → Settings** and
+To always choose audio manually on Wayland, open **DPE Settings → General** and
 turn off **Automatically detect screen-share audio**. It applies to your next
 share without restarting Discord, including on niri and when Discord supplies a
 process hint. For a temporary override, launch with `DPE_AUDIO_AUTO_DETECT=0`.

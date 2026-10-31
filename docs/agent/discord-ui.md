@@ -1,7 +1,37 @@
 # Shared Discord UI integration
 
-`integration/discord-ui/` is the common page-world integration for OpenAsar's
-settings entry and the native audio selector:
+`integration/discord-ui/` provides the DPE Settings entry and shared custom UI
+primitives. Settings is composed from named Preact components under
+`integration/updater/ui/`. The audio search is a Preact component inside stable
+picker factories. Neither depends on private Discord component exports to render.
+The native audio adapter below is retained
+only for historical contract probes.
+
+- `components.css` defines reusable Discord-style buttons, segmented navigation,
+  inputs, sidebar rows, switches, notices and semantic color tokens. The settings
+  window and isolated audio dialog share it. Discord's live tokens override the
+  standalone palette. It is staged beside both consumers and included in the
+  application compatibility identity.
+
+Welcome uses those local components before Discord's desktop renderer starts.
+`updater/native-presentation.cjs` obtains current tokens, fonts and icons from a
+hidden, sandboxed public Discord shell in a disposable session. Only its login
+document and static script, stylesheet and font assets are allowed. API requests,
+auth sockets, permissions and navigation are blocked. The helper has no native
+bridge or access to the account profile, and closes before Welcome appears.
+
+Sanitized presentation snapshots and verified font bytes are cached per channel.
+A previously captured live client theme and zoom take precedence over public
+defaults; offline launches reuse the cache. A trusted running Discord window is
+preferred when available. Welcome waits for presentation, fonts and local images
+before showing, then holds its icons steady while theme changes still apply.
+An unavailable or changed upstream shell falls back to the measured local palette,
+icons and checksum-pinned gg sans weights 400–700. An offline profile without
+cached fonts keeps a system-font fallback. Font files are excluded from packages.
+The settings probe accepts `--media-cache` to verify actual gg sans rendering with
+a disposable profile instead of silently testing only system-font fallbacks.
+
+The page-world integration remains responsible for the native settings entry:
 
 - `runtime.cjs` owns webpack discovery, component signatures, safe export traversal,
   ambiguity checks and module lifecycle hooks. One runtime instance is shared per
@@ -10,7 +40,10 @@ settings entry and the native audio selector:
   exposes no Node bridge or general IPC interface to the page.
 - `settings.cjs` extends Discord's user settings layout. It inserts an ordinary
   sidebar action immediately before `logout_sidebar_item`, with Discord's own
-  `SettingsIcon`. There is no DOM insertion, copied class name, custom SVG or CSS.
+  `SettingsIcon`. A separate version-footer adapter restores the clickable DPE
+  version beside Discord's copy-build-info control. It reuses only the native
+  version span's classes and styles, observes mounts without polling, and adds a
+  scoped keyboard focus rule using Discord's focus token.
 - `integration/audio/native-picker-discovery.cjs` contains audio-specific component
   contracts. The existing renderer, bridge, cancellation logic and fallback remain
   audio adapters; they use the same runtime and serialization path as settings.
@@ -36,6 +69,13 @@ and current Canary's native layout builder and sidebar renderer. The implementat
 does not require Vencord and does not replace its sections.
 
 ## Packaging
+
+`scripts/build_ui.py` bundles the pinned Preact dependency and JSX locally. The
+installed application includes `config-app.js`, a self-contained audio runtime,
+and the MIT license, without `node_modules` or remote executable dependencies.
+Standalone makepkg recipes include these bundles in their checksummed support
+archive, so package preparation does not require Bun. Source checkouts build UI
+as part of the settings test and packaging commands.
 
 The application stages `integration/discord-ui/`. Voice-module staging copies the
 same shared runtime/serializer into its local `discord-ui/` directory, so the

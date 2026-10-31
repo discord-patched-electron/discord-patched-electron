@@ -1,4 +1,7 @@
+import contextlib
 import importlib
+import io
+import json
 import unittest
 from unittest.mock import Mock, patch
 
@@ -142,6 +145,109 @@ class CaptureDetection(unittest.TestCase):
             niri.assert_not_called()
             self.assertEqual(controller.observations, [])
 
+    def test_forced_reenable_bypasses_every_detection_backend_until_next_source(self):
+        with (
+            patch.object(audio, "process_identity", side_effect=identity),
+            patch.object(audio, "discord_root", return_value=identity(100)),
+            patch.object(audio, "descendant", side_effect=descendant),
+            patch.object(audio, "graph", return_value=self.objects),
+            patch.object(audio, "command", return_value="[]"),
+            patch.object(audio, "video_sources", return_value={(42, "100")}),
+            patch.object(audio.time, "monotonic", return_value=10),
+            patch.dict(audio.os.environ, {"NIRI_SOCKET": "fixture"}),
+            patch.object(audio, "niri_request") as niri,
+            patch.object(audio, "Route") as route,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            controller = self.controller()
+            controller.choose = Mock(return_value=None)
+            controller.detect_portal = Mock()
+            controller.update(
+                {
+                    "generation": 1,
+                    "enabled": True,
+                    "autoDetect": True,
+                    "forcePicker": True,
+                    "hint": 200,
+                    "observations": [self.observation],
+                }
+            )
+            controller.tick()
+            controller.choose.assert_called_once()
+            controller.detect_portal.assert_not_called()
+            niri.assert_not_called()
+            route.assert_not_called()
+            self.assertEqual(controller.hint, 200)
+            self.assertEqual(controller.observations, [])
+            self.assertEqual(controller.detection_deadline, 0)
+            controller.update({"generation": 1, "observations": [self.observation]})
+            controller.tick()
+            self.assertEqual(controller.observations, [])
+            route.assert_not_called()
+            # The next video selection uses the saved preference, not the prior
+            # generation's request to make an explicit audio choice.
+            route.return_value.capture_pid = 900
+            with patch.dict(audio.os.environ, {}, clear=True):
+                controller.update(
+                    {
+                        "generation": 2,
+                        "enabled": True,
+                        "autoDetect": True,
+                        "forcePicker": False,
+                        "hint": 200,
+                    }
+                )
+                controller.tick()
+            route.assert_called_once()
+            self.assertEqual(controller.last["state"], "ready")
+            self.assertEqual(controller.last["backend"], "native-hint")
+
+    def test_forced_chooser_emits_options_and_respects_a_different_app_than_hint(self):
+        pulse = [
+            {
+                "corked": False,
+                "mute": False,
+                "properties": {"application.process.id": str(pid), "application.name": label},
+            }
+            for pid, label in [(200, "Shared window"), (300, "Music player")]
+        ]
+        with (
+            patch.object(audio, "process_identity", side_effect=identity),
+            patch.object(audio, "discord_root", return_value=identity(100)),
+            patch.object(audio, "descendant", side_effect=descendant),
+            patch.object(audio, "graph", return_value=self.objects),
+            patch.object(audio, "command", return_value=json.dumps(pulse)),
+            patch.object(audio, "video_sources", return_value={(42, "100")}),
+            patch("window_inventory.windows", return_value=[]),
+            patch.object(audio, "Route") as route,
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            controller = self.controller()
+            controller.update(
+                {
+                    "generation": 1,
+                    "enabled": True,
+                    "autoDetect": True,
+                    "forcePicker": True,
+                    "hint": 200,
+                    "picker": "inline",
+                }
+            )
+            controller.tick()
+            choosing = json.loads(output.getvalue().splitlines()[-1])
+            self.assertEqual(choosing["state"], "choosing")
+            self.assertEqual([o["id"] for o in choosing["options"]], ["system", "200", "300"])
+            route.assert_not_called()
+            controller.update({"generation": 1, "request": choosing["request"], "selection": "300"})
+            route.return_value.capture_pid = 900
+            controller.tick()
+            self.assertEqual(controller.target, identity(300))
+            self.assertEqual(controller.last["backend"], "selection")
+            self.assertEqual(controller.last["state"], "ready")
+            controller.tick()
+            route.assert_called_once()
+            self.assertEqual(controller.target, identity(300))
+
     def test_observations_bind_to_serial_and_never_override_open_manual_picker(self):
         with (
             patch.object(audio, "process_identity", side_effect=identity),
@@ -223,3 +329,42 @@ class CaptureDetection(unittest.TestCase):
             controller.detect_portal = Mock()
             controller.tick()
             controller.detect_portal.assert_not_called()
+
+    def test_manual_picker_ranks_playing_media_then_native_hint_without_sharing(self):
+        pulse = [
+            {
+                "corked": paused,
+                "mute": False,
+                "properties": {
+                    "application.process.id": str(pid),
+                    "application.name": label,
+                    "media.role": role,
+                },
+            }
+            for pid, label, role, paused in [
+                (200, "C paused player", "Music", True),
+                (300, "B video", "Video", False),
+                (400, "A notification", "Notification", False),
+                (100, "Discord", "Video", False),
+            ]
+        ]
+        with (
+            patch.object(audio, "process_identity", side_effect=identity),
+            patch.object(audio, "discord_root", return_value=identity(100)),
+            patch.object(audio, "descendant", side_effect=descendant),
+            patch("window_inventory.windows", return_value=[]),
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            controller = self.controller()
+            controller.inline_picker = True
+            controller.choose([], pulse, (42, "100"))
+            options = json.loads(output.getvalue().splitlines()[-1])["options"]
+            self.assertEqual([o["id"] for o in options], ["system", "300", "400", "200"])
+            self.assertIsNone(controller.choice)
+            self.assertIsNone(controller.route)
+            controller.reset()
+            controller.hint = 200
+            controller.choose([], pulse, (42, "100"))
+            options = json.loads(output.getvalue().splitlines()[-1])["options"]
+            self.assertEqual(options[1]["id"], "200")
+            self.assertIsNone(controller.choice)

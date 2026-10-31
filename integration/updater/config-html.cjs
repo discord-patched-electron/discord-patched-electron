@@ -1,56 +1,11 @@
-// Adapt only the served copy; the pinned, checksum-verified source stays intact.
+// Keep the pinned OpenAsar source verified and untouched. DPE owns its local UI.
 const fs = require("node:fs");
 const path = require("node:path");
-const focus =
-  "    [ 'Focus', 'Which aspect of the client to focus on', 'cmdPreset', [ 'performance', 'battery life', 'balanced' ], () => config.cmdPreset ],";
 module.exports = function configHtml(source) {
-  const target = '<div id="container"></div>';
-  if (source.split(focus).length !== 2 || source.split(target).length !== 2)
+  if (!source.includes('<div id="container"></div>'))
     throw new Error("Unsupported pinned OpenAsar settings layout");
-  return source
-    .replace("<title>OpenAsar Config</title>", "<title>DPE OpenAsar Config</title>")
-    .replace(
-      focus,
-      "    [ 'Automatically detect screen-share audio', 'On Wayland, select audio from the shared app or screen when it can be identified. Turn off to choose manually. Applies to your next share.', 'audioAutoDetect', true ],",
-    )
-    .replace(
-      /<header>[\s\S]*?<\/header>/,
-      `
-      <header>
-        <h1>DPE OpenAsar Config</h1>
-        <a id="config-github" href="https://github.com/discord-patched-electron/discord-patched-electron" target="_blank" rel="noreferrer">
-          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-          GitHub
-        </a>
-        <nav role="tablist" aria-label="OpenAsar">
-          <button type="button" id="t_settings" role="tab" aria-selected="true" aria-controls="container" class="active">Settings</button>
-          <button type="button" id="t_theming" role="tab" aria-selected="false" aria-controls="container" tabindex="-1">Theming</button>
-          <button type="button" id="t_flags" role="tab" aria-selected="false" aria-controls="flags-panel" tabindex="-1">Flags</button>
-          <button type="button" id="t_troubleshooting" role="tab" aria-selected="false" aria-controls="troubleshooting-panel" tabindex="-1">Troubleshooting</button>
-        </nav>
-      </header><p id="external-link-error" role="alert" hidden></p>`,
-    )
-    .replace(
-      target,
-      `<main>
-      <div id="container" role="tabpanel" aria-labelledby="t_settings"></div>
-      ${fs.readFileSync(path.join(__dirname, "launch-settings.html"), "utf8")}
-      <section id="troubleshooting-panel" role="tabpanel" aria-labelledby="t_troubleshooting" hidden>
-        <h2>Troubleshooting</h2>
-        <p>Open diagnostic pages for Discord’s Electron runtime.</p>
-        ${Object.entries(require("./diagnostics.cjs").pages)
-          .map(
-            ([name, page]) =>
-              `<div class="flag-row"><div><strong>${page.title}</strong><p class="hint">${page.description}</p></div><button type="button" data-diagnostic="${name}">Open ${page.title}</button></div>`,
-          )
-          .join("")}
-        <p id="diagnostic-error" role="alert" hidden></p>
-      </section>
-      </main>`,
-    ).concat(`
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="stylesheet" href="launch-settings.css">
-      <script src="flag-editor.js" defer></script>
-      <script src="launch-settings.js" defer></script>
-      <script src="config-tabs.js" defer></script>`);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DPE Settings</title>
+    <style>${fs.readFileSync(path.join(__dirname, "../discord-ui/components.css"), "utf8")}</style>
+    <link rel="stylesheet" href="launch-settings.css"><script src="config-app.js" defer></script>
+    </head><body class="dpe-ui"><div id="app"></div></body></html>`;
 };

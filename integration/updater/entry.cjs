@@ -25,6 +25,31 @@ function start() {
       args: options.args ?? require("./relaunch.cjs").arguments(),
     });
 
+  const existingProfile = fs.existsSync(path.join(process.env.DPE_PROFILE_DIR, "settings.json"));
+  const mods = require("./mod-settings.cjs");
+  if (mods.needsOnboarding({ existingProfile })) {
+    // Do not evaluate the Discord bootstrap or create its window before Done.
+    // Welcome finishes by relaunching so new mod loaders and launch flags apply.
+    require("./profile.cjs").paths(app, info, installed).init();
+    require("./window.cjs"); // Register the local scheme before Electron becomes ready.
+    if (!require("./profile.cjs").config().multiInstance && !app.requestSingleInstanceLock()) {
+      app.exit(0);
+      return;
+    }
+    app.on("second-instance", () => {
+      const current = mods.activeWindow();
+      if (current?.isVisible()) {
+        current.show();
+        current.focus();
+      }
+    });
+    void app
+      .whenReady()
+      .then(() => mods.onboard())
+      .catch(fail);
+    return;
+  }
+
   function supply(relative, value) {
     const filename = path.join(bootstrap, relative);
     require.cache[filename] = { id: filename, filename, loaded: true, exports: value };
@@ -73,6 +98,14 @@ function start() {
     app.whenReady().then(() => setTimeout(() => updater.checkForUpdates(), 1000).unref());
 }
 
+function fail(error) {
+  console.error(error);
+  app.whenReady().then(() => {
+    dialog.showErrorBox("Discord could not start", String(error.message));
+    app.exit(1);
+  });
+}
+
 try {
   // Electron overwrites CHROME_DESKTOP from the outer loader's package.json
   // before this entry runs. Mod loaders commonly call themselves "discord".
@@ -83,9 +116,5 @@ try {
   if (process.env.DPE_UPDATER_UI === "1") require("./startup.cjs");
   else start();
 } catch (error) {
-  console.error(error);
-  app.whenReady().then(() => {
-    dialog.showErrorBox("Discord could not start", String(error.message));
-    app.exit(1);
-  });
+  fail(error);
 }

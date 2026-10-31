@@ -1,9 +1,8 @@
-(() => {
+export function initializeFlags() {
   const $ = (id) => document.getElementById(id);
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const editor = window.FlagEditor;
-  const warningIcon =
-    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M5 5.782V2.5h-.25a.75.75 0 0 1 0-1.5h6.5a.75.75 0 0 1 0 1.5H11v3.282l3.666 5.76C15.619 13.04 14.543 15 12.767 15H3.233c-1.776 0-2.852-1.96-1.899-3.458L5 5.782zM9.5 2.5h-3V6a.75.75 0 0 1-.117.403L4.73 9h6.54L9.617 6.403A.75.75 0 0 1 9.5 6V2.5zm-6.9 9.847L3.775 10.5h8.45l1.175 1.847a.75.75 0 0 1-.633 1.153H3.233a.75.75 0 0 1-.633-1.153z"/></svg>';
+  const ui = window.DPEControls;
   let data, config, saved, fileRevision;
   let dirty = false,
     saving = false,
@@ -11,13 +10,16 @@
     fileError = false,
     pending = false;
   let generation = 0,
-    previewTimer;
+    previewTimer,
+    pendingFocus;
   function error(message = "") {
     $("error").textContent = message;
     $("error").hidden = !message;
   }
   function actionState() {
-    $("b_restart").disabled = dirty || fileError || pending || saving;
+    window.LaunchSettings.setDirty?.(dirty);
+    $("b_restart").disabled =
+      dirty || fileError || pending || saving || document.body.dataset.modBusy === "true";
     $("b_restart").title = dirty ? "Save flags before restarting" : "";
     $("save").disabled = !dirty || loading || pending || saving;
   }
@@ -57,12 +59,25 @@
       ...data.catalog.experiments,
     }))
       $(key).checked = editor.selected(text, item);
+    ui.sync($("settings"));
   }
   function enableControls(enabled) {
+    if (!enabled && $("settings").contains(document.activeElement))
+      pendingFocus = document.activeElement;
     pending = !enabled;
     for (const input of $("settings").querySelectorAll("input, textarea, select"))
       input.disabled = !enabled;
     essentialState();
+    ui.sync($("settings"));
+    if (enabled && pendingFocus) {
+      if (
+        document.activeElement === document.body &&
+        pendingFocus.isConnected &&
+        !pendingFocus.disabled
+      )
+        pendingFocus.focus({ preventScroll: true });
+      pendingFocus = undefined;
+    }
     actionState();
   }
   function markDirty(rewrite = false) {
@@ -135,15 +150,10 @@
     const copy = document.createElement("div");
     const label = document.createElement("label");
     label.htmlFor = key;
-    const icon = document.createElement("span");
-    icon.className = "risk-icon";
-    icon.classList.toggle("danger", Boolean(item.knownCrash));
-    icon.setAttribute("role", "img");
-    icon.setAttribute("aria-label", item.knownCrash ? "Known to crash!" : "May break Discord");
+    const icon = ui.experimental(Boolean(item.knownCrash));
     icon.title = item.knownCrash
-      ? "Reproduced in local runtime tests; other GPUs may differ."
+      ? "Reproduced in local runtime tests. Other GPUs may differ."
       : "May break Discord";
-    icon.innerHTML = warningIcon;
     label.append(icon, item.label);
     const hint = document.createElement("p");
     hint.className = "hint";
@@ -170,7 +180,7 @@
     input.id = key;
     input.name = key;
     input.type = "checkbox";
-    input.className = "flag-switch";
+    input.className = "dpe-switch";
     input.setAttribute("aria-describedby", hint.id);
     input.addEventListener("change", () =>
       configure(
@@ -179,7 +189,7 @@
       ),
     );
     copy.append(label, hint);
-    row.append(copy, input);
+    row.append(copy, ui.switchControl(input));
     $("advanced-options").append(row);
   }
   async function load() {
@@ -207,9 +217,10 @@
         ...data.catalog.experiments,
       }))
         option(key, item);
-      document.querySelectorAll(".risk-icon").forEach((icon) => {
-        icon.innerHTML = warningIcon;
+      document.querySelectorAll(".risk-icon:not([data-dpe-icon])").forEach((slot) => {
+        slot.dataset.dpeIcon = "experimental";
       });
+      ui.updateIcons();
       $("flags").title = data.flagsFile;
       warnings(data.warnings);
       $("recovery").hidden = !data.recovery;
@@ -288,7 +299,7 @@
     }
   });
   $("b_restart").onclick = async () => {
-    if (dirty || fileError || pending || saving) return;
+    if (dirty || fileError || pending || saving || document.body.dataset.modBusy === "true") return;
     try {
       const result = await window.LaunchSettings.restart();
       if (result?.error) error(result.error);
@@ -302,5 +313,12 @@
       event.returnValue = "";
     }
   });
+  $("advanced").addEventListener("toggle", () => {
+    $("advanced-label").textContent = $("advanced").open
+      ? "Hide Advanced Settings"
+      : "Show Advanced Settings";
+  });
+  window.addEventListener("dpe-mod-busy", actionState);
+  ui.switchControl($("edit-essential"));
   void load();
-})();
+}

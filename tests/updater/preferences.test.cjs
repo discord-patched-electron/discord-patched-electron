@@ -122,6 +122,42 @@ test("renderer installs the shared UI only in Discord windows", (t) => {
   assert.equal(calls, 3);
 });
 
+test("the native settings footer receives release, local and development versions safely", (t) => {
+  const root = fixture(t);
+  fs.mkdirSync(path.join(root, "bootstrap/src"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, "bootstrap/src/mainWindow.js"),
+    "let lastBgPrimary = '';\n// Settings injection\nlabel = 'OpenAsar <channel> (<hash>)';\nconst injCSS = null;",
+  );
+  const policy = path.join(root, "runtime-update.json");
+  const local = path.join(root, "local-build.json");
+  for (const [release, build, expected] of [
+    ["2026.10.31", {}, "2026.10.31"],
+    [
+      undefined,
+      { source_commit: "abcdef1" + "a".repeat(33), source_dirty: true },
+      "abcdef1 + changes",
+    ],
+    [undefined, {}, "Development"],
+    ['dev ${globalThis.executed=true} "quoted"', {}, 'dev ${globalThis.executed=true} "quoted"'],
+  ]) {
+    fs.writeFileSync(policy, JSON.stringify({ release_version: release }));
+    fs.writeFileSync(local, JSON.stringify(build));
+    const context = vm.createContext({
+      document: { documentElement: {}, querySelectorAll: () => [], createElement: () => ({}) },
+      MutationObserver: class {
+        observe() {}
+      },
+    });
+    vm.runInContext(renderer.source({}, root), context);
+    assert.equal(
+      vm.runInContext('globalThis[Symbol.for("dpe.discordSettingsFooter")].version', context),
+      expected,
+    );
+    assert.equal(context.executed, undefined);
+  }
+});
+
 test("current and legacy theme tokens update the cache without losing other user data", async () => {
   const body = { parentElement: null };
   let values = {

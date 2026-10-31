@@ -45,15 +45,17 @@ These links install the latest tested release.
 [Pre-release builds](https://github.com/discord-patched-electron/discord-patched-electron/releases)
 are available for testing.
 
-## Configure OpenAsar and flags
+## Settings and client mods
 
-Open Discord's **User Settings**, then click **DPE OpenAsar**
-above **Log Out** in the left sidebar to open
-**DPE OpenAsar Config**.
+Open Discord's **User Settings**, then click **DPE Settings**
+above **Log Out** in the left sidebar.
 
-Use **Settings** and **Theming** to configure OpenAsar. The **Flags** tab provides
+First-run setup offers Vencord, Equicord or no client mod. Use **Mods** to change
+your choice later; see [client mods](docs/client-mods.md).
+
+Use **General** and **Appearance** to configure OpenAsar. The **Flags** tab provides
 display options, graphics presets under **Advanced**, and a box for custom
-Electron flags. After changing flags, choose **Save**, then **Restart** to apply
+Electron flags. After changing flags, choose **Save**, then **Restart Discord** to apply
 them. See [launcher settings](docs/linux-launcher.md) for more details.
 
 The **Troubleshooting** tab opens GPU, media, WebRTC and other diagnostic pages

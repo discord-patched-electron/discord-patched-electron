@@ -61,6 +61,23 @@ class Recipes(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
+            # The extracted recipe must stage its verified UI bundle without
+            # invoking Bun or needing this checkout's node_modules.
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import sys; from pathlib import Path; from unittest.mock import patch; "
+                    "sys.path.insert(0, 'support/scripts'); from build_ui import build; "
+                    "guard=patch('build_ui.subprocess.run', side_effect=AssertionError('build tool invoked')); "
+                    "guard.start(); output=build(Path('ui-check')); "
+                    "assert (output/'config-app.js').stat().st_size > 1000; "
+                    "assert (output/'ui-runtime.cjs').stat().st_size > 1000; "
+                    "assert 'MIT' in (output/'PREACT-LICENSE.txt').read_text()",
+                ],
+                cwd=directory,
+                check=True,
+            )
 
     def test_makepkg_source_symlink_keeps_staging_inside_srcdir(self):
         with tempfile.TemporaryDirectory() as temp:

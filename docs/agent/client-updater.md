@@ -116,9 +116,24 @@ downloads or installs modules on that path.
 
 ## Patched Electron updates
 
-`integration/updater/runtime.py` checks the project's GitHub `releases/latest`
-endpoint. A public, approved app release can contain alpha/beta Electron.
+`integration/updater/runtime.py` fetches the channel's small approval record from
+`raw.githubusercontent.com`, then downloads its exact signed release assets.
+It makes no GitHub REST API requests. A manually approved app release can contain alpha/beta Electron.
 Checks cover channel, track, version ordering and minimum glibc.
+
+The retained `github.json` file is now an explicitly marked `manual-approval`
+compatibility descriptor for Bootstrap API 1. It is written only after signature
+and approval validation; its legacy eligibility fields are not a fetched GitHub
+API response. Existing cached API-era proof remains readable and revalidated.
+This avoids the shared anonymous API quota and the race between approval and
+GitHub's Latest-label promotion, without requiring a token or bootstrap upgrade.
+
+Shared downloads publish complete files atomically and retry a transient transport
+failure once. Partial, oversized or invalid responses never replace a complete
+file. Server rate-limit/reset and Retry-After cooldowns survive subsequent calls
+within the profile. The startup error page stops automatic retries for throttling
+instead of requesting the same URL every ten seconds. Verified installed versions
+remain usable when an optional update check fails.
 
 The verification chain is:
 

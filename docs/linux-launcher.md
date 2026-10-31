@@ -3,9 +3,11 @@
 The app uses Wayland in a Wayland session and X11 otherwise. Hardware video
 decoding is enabled when your driver supports it. Most users can keep the defaults.
 
-Software H.264 decoding uses the cached OpenH264 library. The launcher loads it
-before sandbox startup so decoding works with the sandbox enabled. If the library
-is missing, startup continues; restart once it is available to use software H.264.
+Software H.264 decoding uses OpenH264. DPE downloads the verified library directly
+from Cisco when it is missing or damaged, then loads it before sandbox startup.
+Later launches reuse the library in the profile's `dpe-codecs/openh264` folder,
+separate from Discord's own codec cache. If preparation fails, check your
+connection and choose **Retry** in the startup window.
 
 VP8, VP9 and AV1 also support software decoding. **HEVC requires working hardware
 decoding in this build**; selecting Software video decoding prevents HEVC playback.
@@ -18,21 +20,21 @@ See the [codec checks](agent/codec-support.md) for tested formats and hardware.
 
 ## Appearance and startup
 
-Open Discord's **User Settings**, then click **DPE OpenAsar**
+Open Discord's **User Settings**, then click **DPE Settings**
 above **Log Out** in the left sidebar. This opens
-**DPE OpenAsar Config**.
+**DPE Settings**.
 
-| Setting        | What it does                                                                    |
-| -------------- | ------------------------------------------------------------------------------- |
-| Custom CSS     | Changes Discord's appearance with your own CSS.                                 |
-| Splash Theming | Uses your Discord or custom theme colors during startup. Enabled by default.    |
-| Quickstart     | Opens an existing installation sooner and checks for updates in the background. |
+| Setting                       | What it does                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------- |
+| Custom CSS                    | Changes Discord's appearance with your own CSS.                                 |
+| Match the splash screen theme | Uses your Discord or custom theme colors during startup. Enabled by default.    |
+| Quickstart                    | Opens an existing installation sooner and checks for updates in the background. |
 
 ## Launch flags and GPU acceleration
 
-In **DPE OpenAsar Config**, select **Flags**. The Flags box shows your overrides,
+In **DPE Settings**, select **Flags**. The Flags box shows your overrides,
 one per line. App defaults are applied separately. Choose **Save**, then
-**Restart** to apply changes. Save stays disabled until something changes.
+**Restart Discord** to apply changes. Save stays disabled until something changes.
 
 Expand **Advanced** for video processing, GPU/CPU rendering and driver options. **Known to crash!** marks
 options that crashed in local testing; other hardware may behave differently.
@@ -82,7 +84,7 @@ discord-canary-prerelease-patched-electron-bin --ignore-flags
 
 This skips saved presets, flag files and all supplied arguments before they are
 read. It preserves your settings. Repair them in the editor, then choose
-**Restart**. For tarballs use `./launch.sh --ignore-flags`;
+**Restart Discord**. For tarballs use `./launch.sh --ignore-flags`;
 `DPE_IGNORE_FLAGS=1` provides the same recovery mode.
 
 Close Discord completely before trying an environment variable in a terminal.
@@ -103,10 +105,19 @@ Other controls work the same way:
 | `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use.      |
 
 Offline mode needs an existing installation verified against the package or an
-approved release. If an older cache is rejected, launch online once to repair it.
+approved release, including its OpenH264 cache when enabled. If a cache is missing
+or rejected, launch online once to prepare or repair it.
 
 For tarball installations, replace the command with `./launch.sh`.
 To remove Vencord or Equicord for troubleshooting, use its [installer](client-mods.md).
+
+## Settings windows
+
+Welcome uses a compact portrait window and opens floating on niri. Settings opens
+in a resizable portrait window with Discord as its parent. Some Electron Wayland
+versions do not pass that parent hint to the compositor; if Settings tiles, use
+your compositor's initial floating rule for the title `DPE Settings`. DPE does not
+change window-manager configuration or move the window after it opens.
 
 ## Profiles
 

@@ -43,6 +43,10 @@ else
   rm -f -- "$flags_result"
   trap - EXIT
 fi
+# Preserve the requested offline mode: quickstart's update check is offline,
+# but an online first launch must still acquire the codec before client exec.
+dpe_resolve_openh264 "${flags[@]}"
+export DPE_OPENH264_OFFLINE=${DPE_CLIENT_OFFLINE:-0}
 export DPE_RUNTIME_EXECUTABLE="$root/runtime/electron"
 # Apply Ubuntu's installed sandbox rule to both the startup UI and the client.
 runtime_command=()
@@ -85,6 +89,8 @@ if [[ -f "$root/client-distribution.json" ]]; then
   DPE_VOICE_ROOT=${installed_paths[3]}
   rm -f -- "$launch_result"
   trap - EXIT
+elif [[ -n $DPE_OPENH264_LIBRARY ]]; then
+  python3 -E -s -B "$root/integration/updater/openh264.py" "$DPE_PROFILE_DIR"
 fi
 dpe_preload_openh264 "${flags[@]}"
 if [[ ${DPE_CAMERA_FAST_PROBE:-1} != 0 ]]; then

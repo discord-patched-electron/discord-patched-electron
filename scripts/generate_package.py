@@ -11,9 +11,11 @@ import io
 import re
 import shlex
 import tarfile
+import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
+from build_ui import build as build_ui
 from channels import enabled_discord_channels, require_enabled_discord
 from common import (
     ROOT,
@@ -44,6 +46,7 @@ SUPPORT = [
     "scripts/application_payload.py",
     "integration/bootstrap/loader.py",
     "scripts/stage_updater.py",
+    "scripts/build_ui.py",
     "scripts/updater_python.py",
     "scripts/stage_openasar.py",
     "uv.lock",
@@ -52,12 +55,15 @@ SUPPORT = [
     "packaging/release-signing-key.asc",
     "config/openasar.lock.json",
     "packaging/discord-canary.png",
+    "discord-patched-electron.png",
+    "package.json",
+    "bun.lock",
     "THIRD_PARTY.md",
     "LICENSE",
 ]
 SUPPORT += [
     str(path.relative_to(ROOT))
-    for name in ("audio", "desktop", "updater", "launcher")
+    for name in ("audio", "desktop", "updater", "launcher", "discord-ui")
     for path in sorted((ROOT / "integration" / name).rglob("*"))
     if path.is_file() and "__pycache__" not in path.parts
 ]
@@ -146,6 +152,14 @@ def generate(
             member.size = len(data)
             member.mode = 0o644
             archive.addfile(member, io.BytesIO(data))
+        with tempfile.TemporaryDirectory(prefix="dpe-recipe-ui-") as temporary:
+            bundled = build_ui(Path(temporary))
+            for file in sorted(bundled.iterdir()):
+                data = file.read_bytes()
+                member = tarfile.TarInfo("support/prebuilt-ui/" + file.name)
+                member.size = len(data)
+                member.mode = 0o644
+                archive.addfile(member, io.BytesIO(data))
     write_file(output / "support.tar", buffer.getvalue())
     launcher = (
         (ROOT / "integration/launcher/discord-launcher.sh")

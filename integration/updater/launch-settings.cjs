@@ -3,6 +3,28 @@ const { execFile } = require("node:child_process");
 const path = require("node:path");
 const preferences = require("./profile.cjs");
 const relaunch = require("./relaunch.cjs");
+const closing = new WeakMap();
+
+function confirmClose(window) {
+  const state = closing.get(window);
+  if (!state?.dirty || state.discardApproved) return true;
+  const discard =
+    dialog.showMessageBoxSync(window, {
+      type: "question",
+      buttons: ["Keep editing", "Discard changes"],
+      defaultId: 0,
+      cancelId: 0,
+      title: "Unsaved flags",
+      message: "Discard your unsaved flags?",
+    }) === 1;
+  if (discard) state.discardApproved = true;
+  return discard;
+}
+
+function resetCloseApproval(window) {
+  const state = closing.get(window);
+  if (state) state.discardApproved = false;
+}
 
 function resolve(config, { recoverInvalid = false, save = false, fileRevision } = {}) {
   return new Promise((resolve, reject) => {
@@ -48,6 +70,18 @@ function resolve(config, { recoverInvalid = false, save = false, fileRevision } 
 
 // Share the existing OpenAsar window and its sandboxed main-frame IPC.
 function attach(current) {
+  const state = { dirty: false, discardApproved: false };
+  closing.set(current, state);
+  current.webContents.ipc.on("dpe-launch-dirty", (event, dirty) => {
+    if (
+      event.sender !== current.webContents ||
+      event.senderFrame !== current.webContents.mainFrame ||
+      typeof dirty !== "boolean"
+    )
+      return;
+    if (state.dirty !== dirty) state.discardApproved = false;
+    state.dirty = dirty;
+  });
   const handle = (name, callback) =>
     current.webContents.ipc.handle(name, async (event, ...args) => {
       if (
@@ -82,23 +116,25 @@ function attach(current) {
     return result;
   });
   handle("dpe-launch-restart", () => {
+    const mods = require("./mod-settings.cjs");
+    if (mods.isOnboardingSettings(current)) return mods.finishSettings(current);
+    if (mods.isOnboarding()) {
+      const error = "Close Settings to finish setup and restart Discord.";
+      current.webContents.send("dpe-setup-reminder", error);
+      return { error };
+    }
     // Restart from the editor leaves recovery after the saved file is repaired.
     relaunch.restart(app, { normal: true });
     return { restarting: true };
   });
   current.webContents.on("will-prevent-unload", (event) => {
-    const response = dialog.showMessageBoxSync(current, {
-      type: "question",
-      buttons: ["Keep editing", "Discard changes"],
-      defaultId: 0,
-      cancelId: 0,
-      title: "Unsaved flags",
-      message: "Discard your unsaved flags?",
-    });
-    if (response === 1) event.preventDefault();
+    // Ordinary Settings still prompts on its renderer guard. Onboarding checks
+    // before saving completion, and consumes that same discard decision here.
+    state.dirty = true;
+    if (confirmClose(current)) event.preventDefault();
   });
 }
 function open() {
   return require("./config.cjs").open("flags");
 }
-module.exports = { open, attach, resolve };
+module.exports = { open, attach, resolve, confirmClose, resetCloseApproval };

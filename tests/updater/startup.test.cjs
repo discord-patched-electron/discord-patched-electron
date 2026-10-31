@@ -149,7 +149,11 @@ test("failure guidance distinguishes quotas, space, permissions, offline setup a
     ],
     ["EDQUOT: write failed", /quota.*profile location with more quota/],
     ["Permission denied: profile", /writable/],
+    ["Download temporarily limited. Try again after 23:00 UTC.", /after 23:00 UTC/],
+    ["HTTP Error 429: Too Many Requests", /Wait before trying again/],
+    ["HTTP Error 403: Forbidden", /server refused/],
     ["First launch requires an internet connection", /DPE_CLIENT_OFFLINE/],
+    ["OpenH264 is not cached or needs repair", /DPE_CLIENT_OFFLINE/],
     ["Unsupported Discord client layout", /latest package/],
     ["Unsupported PulseAudio mixer layout: unknown Attach instructions", /latest package/],
   ]) {

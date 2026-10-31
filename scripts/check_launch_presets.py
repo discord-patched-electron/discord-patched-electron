@@ -36,7 +36,7 @@ def main():
     (output / "config").mkdir()
     settings = {"openH264Enabled": bool(args.openh264)}
     if args.openh264:
-        library = profile / "discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+        library = profile / "dpe-codecs/openh264/libopenh264-2.5.1-linux64.7.so"
         library.parent.mkdir(parents=True)
         shutil.copy2(args.openh264, library)
     env = {

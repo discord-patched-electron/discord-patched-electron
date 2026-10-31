@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { wrap, installVoice } = require("../../integration/audio/wayland-audio.cjs");
-function fixture(t, pickerUI, autoDetect) {
+function fixture(t, pickerUI, autoDetect, disableAudio) {
   const calls = [],
     children = [];
   let ended;
@@ -39,14 +39,25 @@ function fixture(t, pickerUI, autoDetect) {
     children.push(child);
     return child;
   }
-  const adapter = wrap(native, { spawnHelper, warn() {}, pickerUI, autoDetect });
+  const disabled = [],
+    warnings = [];
+  const adapter = wrap(native, {
+    spawnHelper,
+    warn: (message) => warnings.push(message),
+    pickerUI,
+    autoDetect,
+    disableAudio: () => {
+      disabled.push(true);
+      return disableAudio ? disableAudio() : true;
+    },
+  });
   t.after(() => adapter.destroy());
   const ready = (child, pid, generation = child.messages.at(-1).generation) =>
     child.stdout.emit(
       "data",
       Buffer.from(JSON.stringify({ generation, pid, state: "ready" }) + "\n"),
     );
-  return { adapter, native, calls, children, ready, end: () => ended() };
+  return { adapter, native, calls, children, ready, disabled, warnings, end: () => ended() };
 }
 test("rejected native sources silence the old app and close its helper", (t) => {
   for (const method of ["setDesktopSource", "setDesktopSourceWithOptions"]) {
@@ -312,4 +323,333 @@ test("auto-detection preference is re-read for each new share", (t) => {
   automatic = true;
   f.adapter.setDesktopSource("screen:1:0");
   assert.equal(f.children[0].messages.at(-1).autoDetect, true);
+});
+
+test("refresh updates the mounted picker and replaces its request callback", (t) => {
+  const shown = [],
+    updates = [];
+  let closed = 0;
+  const f = fixture(t, {
+    available: () => true,
+    show(options, reply) {
+      shown.push({ options, reply });
+      const close = () => closed++;
+      close.update = (options, reply) => updates.push({ options, reply });
+      return close;
+    },
+  });
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  const child = f.children[0];
+  const { generation } = child.messages.at(-1);
+  const choose = (request, options = []) =>
+    child.stdout.emit(
+      "data",
+      Buffer.from(JSON.stringify({ generation, state: "choosing", request, options }) + "\n"),
+    );
+  choose(1);
+  shown[0].reply("refresh");
+  assert.deepEqual(child.messages.at(-1), { generation, request: 1, selection: "refresh" });
+  choose(2, [{ id: "200", label: "Music" }]);
+  assert.equal(shown.length, 1);
+  assert.equal(closed, 0);
+  assert.equal(updates.length, 1);
+  const count = child.messages.length;
+  shown[0].reply("200");
+  assert.equal(child.messages.length, count, "old request callback is stale");
+  updates[0].reply("200");
+  assert.deepEqual(child.messages.at(-1), { generation, request: 2, selection: "200" });
+  f.ready(child, 2500, generation);
+  assert.equal(closed, 1);
+});
+
+test("cancelling a refresh cannot reopen the picker when a late choice arrives", (t) => {
+  const shown = [];
+  const f = fixture(t, {
+    available: () => true,
+    show(options, reply) {
+      shown.push(reply);
+      return () => {};
+    },
+  });
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  const child = f.children[0];
+  const { generation } = child.messages.at(-1);
+  const choose = (request) =>
+    child.stdout.emit(
+      "data",
+      Buffer.from(JSON.stringify({ generation, state: "choosing", request, options: [] }) + "\n"),
+    );
+  choose(1);
+  shown[0]("refresh");
+  shown[0]("none");
+  choose(2);
+  assert.equal(shown.length, 1);
+  assert.deepEqual(child.messages.at(-1), { generation, request: 1, selection: "none" });
+  assert.equal(
+    child.closed,
+    true,
+    "cancelled helper cannot continue capturing or reopening the picker",
+  );
+  assert.equal(f.disabled.length, 1, "the native Share Stream Audio preference is turned off once");
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
+  f.ready(child, 2500, generation);
+  shown[0]("200");
+  shown[0]("none");
+  assert.equal(f.disabled.length, 1, "a stale picker cannot change current preferences");
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  assert.equal(f.children.length, 2, "re-enabling audio creates a fresh selection");
+  assert.equal(f.children[1].messages.at(-1).forcePicker, true);
+  f.ready(f.children[1], 2600);
+  assert.equal(f.calls.at(-1).soundsharePid, 2600);
+});
+
+test("cancellation stays silent when Discord's preference action is unavailable or rejects", async (t) => {
+  for (const disableAudio of [
+    () => false,
+    () => Promise.reject(Error("unavailable")),
+    () => {
+      throw Error("unavailable");
+    },
+  ]) {
+    let reply;
+    const f = fixture(
+      t,
+      {
+        available: () => true,
+        show(_options, callback) {
+          reply = callback;
+          return () => {};
+        },
+      },
+      undefined,
+      disableAudio,
+    );
+    f.adapter.setDesktopSource("screen:0:0");
+    f.adapter.setTransportOptions({ soundsharePid: 1 });
+    const child = f.children[0],
+      { generation } = child.messages.at(-1);
+    child.stdout.emit(
+      "data",
+      Buffer.from(
+        JSON.stringify({ generation, state: "choosing", request: 1, options: [] }) + "\n",
+      ),
+    );
+    reply("none");
+    await new Promise(setImmediate);
+    assert.equal(child.closed, true);
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
+    assert.equal(f.warnings.length, 1);
+  }
+});
+
+test("window audio re-enable requests a chooser even with a valid native PID hint", (t) => {
+  for (const sourceFirst of [false, true]) {
+    const shown = [];
+    const f = fixture(
+      t,
+      {
+        available: () => true,
+        show(options, reply) {
+          shown.push({ options, reply });
+          return () => {};
+        },
+      },
+      () => true,
+    );
+    const selectVideo = () =>
+      f.adapter.setDesktopSourceWithOptions({ sourceId: "window-1", type: "window" });
+    if (sourceFirst) selectVideo();
+    f.adapter.setTransportOptions({ soundsharePid: 200, soundshareEventDriven: true });
+    if (!sourceFirst) selectVideo();
+    const initial = f.children[0];
+    assert.equal(
+      initial.messages.at(-1).forcePicker,
+      false,
+      "initial setup preserves automatic detection in either call order",
+    );
+    assert.equal(initial.messages.at(-1).autoDetect, true);
+    f.ready(initial, 2500);
+    const before = f.calls.length;
+    f.adapter.setTransportOptions({ soundsharePid: 0 });
+    assert.equal(f.calls.length, before + 1, "disabling emits one native reset");
+    assert.equal(initial.closed, true);
+    f.adapter.setTransportOptions({
+      soundsharePid: 200,
+      soundshareEventDriven: true,
+      encryptionKey: "unchanged",
+    });
+    const reopened = f.children[1],
+      configuration = reopened.messages.at(-1);
+    assert.equal(configuration.forcePicker, true);
+    assert.equal(configuration.autoDetect, true, "the saved automatic preference is not changed");
+    assert.equal(configuration.hint, 200, "the hint still ranks suggestions");
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
+    assert.equal(f.calls.at(-1).encryptionKey, "unchanged");
+    f.ready(initial, 2800);
+    assert.equal(f.calls.at(-1).soundsharePid, 0, "late old audio stays silent");
+    reopened.stdout.emit(
+      "data",
+      Buffer.from(
+        JSON.stringify({
+          generation: configuration.generation,
+          state: "choosing",
+          request: 1,
+          options: [{ id: "300", label: "Music" }],
+        }) + "\n",
+      ),
+    );
+    assert.equal(shown.length, 1);
+    const count = reopened.messages.length;
+    f.adapter.setTransportOptions({ soundsharePid: 200 });
+    selectVideo();
+    assert.equal(
+      reopened.messages.length,
+      count,
+      "repeated transport/source setters keep the same chooser request",
+    );
+    shown[0].reply("300");
+    assert.equal(reopened.messages.at(-1).selection, "300");
+    f.ready(reopened, 2600, configuration.generation);
+    assert.equal(f.calls.at(-1).soundsharePid, 2600);
+    const voice = { echoCancellation: true, noiseCancellation: true };
+    f.adapter.setTransportOptions(voice);
+    assert.equal(f.calls.at(-1), voice, "voice processing options pass through unchanged");
+    f.adapter.destroy();
+  }
+});
+
+test("enabling a share that started without audio is an explicit choice", (t) => {
+  for (const sourceFirst of [false, true]) {
+    const f = fixture(t, undefined, () => true);
+    if (sourceFirst) f.adapter.setDesktopSource("window:1:0", false, "window");
+    f.adapter.setTransportOptions({ soundsharePid: 0 });
+    if (!sourceFirst) f.adapter.setDesktopSource("window:1:0", false, "window");
+    assert.equal(f.children.length, 0);
+    f.adapter.setTransportOptions({ soundsharePid: 200 });
+    assert.equal(f.children[0].messages.at(-1).forcePicker, true);
+    assert.equal(f.children[0].messages.at(-1).autoDetect, true);
+    f.adapter.destroy();
+  }
+});
+
+test("new video sources restore automatic preference and discard old manual replies", (t) => {
+  let reply;
+  const f = fixture(
+    t,
+    {
+      available: () => true,
+      show(_options, callback) {
+        reply = callback;
+        return () => {};
+      },
+    },
+    () => true,
+  );
+  f.adapter.setDesktopSourceWithOptions({ sourceId: "window-1", type: "window" });
+  f.adapter.setTransportOptions({ soundsharePid: 200 });
+  f.ready(f.children[0], 2500);
+  f.adapter.setTransportOptions({ soundsharePid: 0 });
+  f.adapter.setTransportOptions({ soundsharePid: 200 });
+  const child = f.children[1],
+    generation = child.messages.at(-1).generation;
+  child.stdout.emit(
+    "data",
+    Buffer.from(JSON.stringify({ generation, state: "choosing", request: 1, options: [] }) + "\n"),
+  );
+  f.adapter.setTransportOptions({ soundsharePid: 300 });
+  f.adapter.setDesktopSourceWithOptions({ sourceId: "window-2", type: "window" });
+  assert.equal(child.messages.at(-1).forcePicker, false);
+  assert.equal(child.messages.at(-1).hint, 300);
+  assert.equal(child.messages.at(-1).autoDetect, true);
+  const count = child.messages.length;
+  reply("system");
+  f.ready(child, 2500, generation);
+  assert.equal(child.messages.length, count);
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
+  f.ready(child, 2600);
+  assert.equal(f.calls.at(-1).soundsharePid, 2600);
+});
+
+test("native picker pending and callback order do not turn a new capture into a re-enable", (t) => {
+  const previous = process.env.DPE_AUDIO_AUTO_DETECT;
+  process.env.DPE_AUDIO_AUTO_DETECT = "0"; // No portal monitor in this fixture.
+  t.after(() => {
+    if (previous === undefined) delete process.env.DPE_AUDIO_AUTO_DETECT;
+    else process.env.DPE_AUDIO_AUTO_DETECT = previous;
+  });
+  let selected, cancelled;
+  const voice = {
+    presentNativeScreenSharePicker() {},
+    setNativeScreenSharePickerCallbacks(a, b) {
+      selected = a;
+      cancelled = b;
+    },
+    releaseNativeDesktopVideoSourcePickerStream() {},
+  };
+  installVoice(voice);
+  voice.setNativeScreenSharePickerCallbacks(
+    () => {},
+    () => {},
+    () => {},
+  );
+  t.after(() => voice.releaseNativeDesktopVideoSourcePickerStream());
+  for (const sourceFirst of [true, false]) {
+    const f = fixture(t, undefined, () => true),
+      idle = fixture(t, undefined, () => true);
+    const options = { echoCancellation: true };
+    idle.adapter.setTransportOptions(options);
+    f.adapter.setDesktopSourceWithOptions({ sourceId: "window-1", type: "window" });
+    f.adapter.setTransportOptions({ soundsharePid: 200 });
+    const old = f.children[0];
+    f.ready(old, 2500);
+    voice.presentNativeScreenSharePicker();
+    assert.equal(old.closed, true);
+    f.adapter.setTransportOptions({ soundsharePid: 0 });
+    f.adapter.setTransportOptions({ soundsharePid: 300 });
+    assert.equal(f.children.length, 1, "audio waits while the native video picker is pending");
+    const selectVideo = () =>
+      f.adapter.setDesktopSourceWithOptions({ sourceId: "window-2", type: "window" });
+    if (sourceFirst) selectVideo();
+    selected(false, null);
+    if (!sourceFirst) selectVideo();
+    const child = f.children.at(-1),
+      configuration = child.messages.at(-1);
+    assert.equal(configuration.forcePicker, false);
+    assert.equal(configuration.autoDetect, true);
+    assert.equal(configuration.hint, 300);
+    f.ready(old, 2800);
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
+    f.ready(child, 2600, configuration.generation);
+    assert.equal(f.calls.at(-1).soundsharePid, 2600);
+    assert.deepEqual(idle.calls, [options]);
+    assert.equal(idle.children.length, 0, "ordinary voice connections ignore global picker events");
+    cancelled(false);
+    f.ready(child, 2900, configuration.generation);
+    assert.equal(f.calls.at(-1).soundsharePid, 0);
+    f.adapter.destroy();
+    idle.adapter.destroy();
+  }
+});
+
+test("repeated source setters can recover a failed helper and rejected null options stay silent", (t) => {
+  const f = fixture(t, undefined, () => true);
+  const options = { sourceId: "window-1", type: "window" };
+  f.adapter.setDesktopSourceWithOptions(options);
+  f.adapter.setTransportOptions({ soundsharePid: 200 });
+  const first = f.children[0];
+  f.ready(first, 2500);
+  first.emit("exit", 1);
+  f.adapter.setDesktopSourceWithOptions(options);
+  assert.equal(f.children.length, 2);
+  assert.equal(f.children[1].messages.at(-1).forcePicker, false);
+  f.ready(f.children[1], 2600);
+  f.native.setDesktopSourceWithOptions = () => {
+    throw Error("invalid source options");
+  };
+  assert.throws(() => f.adapter.setDesktopSourceWithOptions(null), /invalid source options/);
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
+  assert.equal(f.children[1].closed, true);
 });

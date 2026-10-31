@@ -448,7 +448,7 @@ def expand_variables(flag, profile, desktop):
         "DESKTOP_ID": desktop,
         "PROFILE_DIR": str(profile),
         "OPENH264_LIBRARY_PATH": str(
-            profile / "discord_asset_cache/openh264/libopenh264-2.5.1-linux64.7.so"
+            profile / "dpe-codecs/openh264/libopenh264-2.5.1-linux64.7.so"
         ),
     }
     result = VARIABLE.sub(lambda match: values[match[1]], flag)

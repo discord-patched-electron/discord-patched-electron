@@ -221,9 +221,8 @@ class RuntimeUpdates(unittest.TestCase):
 
     def download(self, url, target, **_options):
         self.downloads.append(url)
-        if url == f"https://api.github.com/repos/{runtime.REPOSITORY}/releases/latest":
-            write_json(target, self.github)
-        elif (
+        self.assertNotIn("api.github.com", url, "Shipped update checks must not consume REST quota")
+        if (
             url
             == f"https://raw.githubusercontent.com/{runtime.REPOSITORY}/main/config/approved-release.json"
         ):
@@ -235,7 +234,8 @@ class RuntimeUpdates(unittest.TestCase):
             shutil.copyfile(self.archive, target)
         else:
             prefix = f"https://github.com/{runtime.REPOSITORY}/releases/download/{self.tag}/"
-            self.assertTrue(url.startswith(prefix), url)
+            if not url.startswith(prefix):
+                raise FileNotFoundError("No published fixture asset at " + url)
             name = url.removeprefix(prefix)
             self.assertIn(name, ("release.json", "SHA256SUMS", "SHA256SUMS.sig"))
             shutil.copyfile(self.release / name, target)
@@ -289,7 +289,7 @@ class RuntimeUpdates(unittest.TestCase):
 
     def test_first_install_downloads_pins_when_candidate_is_not_approved_and_reuses_offline(self):
         self.updater_only_package()
-        self.github["prerelease"] = True
+        self.approval["approved_by"] = ""
         executable = runtime.ensure_runtime(self.app, self.profile)
         self.assertEqual(executable.parent.name, self.policy["archive_sha256"])
         self.assertEqual(sum(url.endswith(".zip") for url in self.downloads), 1)
@@ -411,7 +411,7 @@ class RuntimeUpdates(unittest.TestCase):
             )
         self.assertFalse((runtime.cache_root(other_profile, self.app) / "current.json").exists())
 
-    def test_wrong_channel_track_glibc_and_unapproved_releases_are_rejected(self):
+    def test_wrong_channel_track_glibc_and_dirty_releases_are_rejected(self):
         for change in (
             {"channel": "stable"},
             {"electron_version": "46.0.0"},
@@ -428,14 +428,70 @@ class RuntimeUpdates(unittest.TestCase):
                 self.assertFalse((self.cache / "current.json").exists())
                 self.manifest = original
                 self.clear_cooldown()
-        self.sign()
-        for field in ("draft", "prerelease"):
-            self.github[field] = True
+
+    def test_approval_drives_discovery_without_latest_release_metadata(self):
+        directory = self.root / "approval-check"
+        directory.mkdir()
+        key = self.app / "integration/updater/release-signing-key.asc"
+        # The approval workflow commits this exact record before updating the
+        # GitHub latest/prerelease labels. Other channels can also own latest.
+        self.github.update(tag_name="unrelated-latest", prerelease=True)
+        with patch.object(runtime, "download", wraps=self.download) as network:
             self.assertEqual(
-                runtime.ensure_runtime(self.app, self.profile), self.app / "runtime/electron"
+                runtime.approved_release(directory, self.policy, key, fetch=True), self.manifest
             )
-            self.github[field] = False
-            self.clear_cooldown()
+        self.assertEqual(len(network.call_args_list), 4)
+        self.assertTrue(self.downloads[0].endswith("/config/approved-release.json"))
+        self.assertEqual(network.call_args_list[0].kwargs["limit"], 16 * 1024)
+        self.assertEqual(
+            [call.kwargs["limit"] for call in network.call_args_list[1:]],
+            list(runtime.RELEASE_PROOF_LIMITS.values()),
+        )
+        descriptor = runtime.read_object(directory / "github.json")
+        self.assertEqual(descriptor["source"], "manual-approval")
+        self.assertEqual(descriptor["tag_name"], self.tag)
+        self.assertIs(descriptor["draft"], False)
+        self.assertIs(descriptor["prerelease"], False)
+        with patch.object(runtime, "download", side_effect=AssertionError("offline network")):
+            self.assertEqual(runtime.approved_release(directory, self.policy, key), self.manifest)
+
+    def test_invalid_approval_is_rejected_before_any_asset_request(self):
+        directory = self.root / "invalid-approval"
+        directory.mkdir()
+        key = self.app / "integration/updater/release-signing-key.asc"
+        original = copy.deepcopy(self.approval)
+        for change in (
+            {"schema": True},
+            {"schema": 2},
+            {"tag": "../other"},
+            {"tag": ".."},
+            {"tag": "tag?download=other"},
+            {"tag": "tag%2fother"},
+            {"tag": "a" * 201},
+            {"tag": []},
+            {"version": 20261025},
+            {"version": "20261025.12000"},
+            {"manifest_sha256": "not-a-checksum"},
+            {"approved_by": "  "},
+        ):
+            with self.subTest(change=change):
+                self.approval = {**original, **change}
+                self.downloads.clear()
+                with self.assertRaisesRegex(ValueError, "manual approval"):
+                    runtime.approved_release(directory, self.policy, key, fetch=True)
+                self.assertEqual(len(self.downloads), 1)
+                self.assertFalse((directory / "github.json").exists())
+
+    def test_legacy_cached_release_eligibility_is_still_reverified(self):
+        key = self.app / "integration/updater/release-signing-key.asc"
+        write_json(self.release / "approval.json", self.approval)
+        for field in ("draft", "prerelease"):
+            with self.subTest(field=field):
+                write_json(self.release / "github.json", {**self.github, field: True})
+                with self.assertRaisesRegex(ValueError, "published approved"):
+                    runtime.approved_release(self.release, self.policy, key)
+        write_json(self.release / "github.json", self.github)
+        self.assertEqual(runtime.approved_release(self.release, self.policy, key), self.manifest)
 
     def test_release_requires_the_exact_manual_approval_record(self):
         original = copy.deepcopy(self.approval)
@@ -500,12 +556,12 @@ class RuntimeUpdates(unittest.TestCase):
         )
         self.sign()
         with self.modules() as (root, downloaded):
-            self.github["prerelease"] = True
+            approved = copy.deepcopy(self.approval)
+            self.approval["approved_by"] = ""
             first = client.ensure_client(root, "canary")
             self.assertEqual(len(downloaded), len(client.REQUIRED))
-            for approval in ({**self.approval, "manifest_sha256": "0" * 64}, self.approval):
-                # A signed stable release with no matching approval remains blocked.
-                self.github["prerelease"] = False
+            for approval in ({**approved, "manifest_sha256": "0" * 64}, approved):
+                # Signed assets with no matching approval remain blocked.
                 self.approval = approval
                 (root / "approvals/last-check.json").unlink()
                 selected = client.ensure_client(root, "canary")

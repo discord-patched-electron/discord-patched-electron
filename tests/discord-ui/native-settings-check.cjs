@@ -37,7 +37,7 @@ module.exports = async function checkSettings(run) {
       emptyPanel: entry.layout.length === 0, chunks: ids.length,
     };
   })()`);
-  assert.equal(result.label, "DPE OpenAsar");
+  assert.equal(result.label, "DPE Settings");
   assert.equal(result.next, "logout_sidebar_item");
   assert.equal(result.nativeIcon, true);
   assert.equal(result.type, result.nativeType);

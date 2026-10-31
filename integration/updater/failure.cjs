@@ -10,6 +10,11 @@ module.exports = function failure(error) {
       .at(-1)
       .replace(/; the updater will retry\./, ", then try again.");
     retry = false;
+  } else if (/Download temporarily limited|rate limit|HTTP Error (403|429)/i.test(details)) {
+    message = /Download temporarily limited/.test(details)
+      ? details.slice(details.indexOf("Download temporarily limited")).split("\n")[0]
+      : "The download server refused the request or reached its rate limit. Wait before trying again.";
+    retry = false;
   } else if (/Disk quota exceeded|EDQUOT|\[Errno 122\]/i.test(details)) {
     message =
       "Your storage quota was exceeded. Free drive space may still be available. Remove files from the affected filesystem or use a profile location with more quota, then try again.";
@@ -19,6 +24,10 @@ module.exports = function failure(error) {
     retry = false;
   } else if (/Permission denied|Read-only file system/i.test(details)) {
     message = "Make sure your Discord profile is writable by your user, then try again.";
+    retry = false;
+  } else if (/OpenH264 is not cached or needs repair/.test(details)) {
+    message =
+      "Connect to the internet and launch without DPE_CLIENT_OFFLINE=1 to prepare OpenH264 for software H.264 decoding.";
     retry = false;
   } else if (/First launch requires|reconnect to repair/.test(details)) {
     message =

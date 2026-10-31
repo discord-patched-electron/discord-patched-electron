@@ -6,10 +6,12 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from build_ui import build as build_ui
 from common import ROOT, read_json, run, sha256, write_json
 
 
-def check(runtime, output):
+def check(runtime, output, media_cache=None):
+    build_ui()
     runtime, output = runtime.resolve(), output.resolve()
     if output.exists() or output.is_relative_to(runtime.parent):
         raise ValueError("Choose a fresh output outside the input distribution")
@@ -20,6 +22,20 @@ def check(runtime, output):
     run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
     (output / "profile").mkdir()
     (output / "config").mkdir()
+    if media_cache is not None:
+        # Optional local, verified fonts make visual checks exercise actual gg sans.
+        # No client profile, account data or executable payload is copied.
+        media = read_json(ROOT / "integration/updater/splash-media.json")["assets"]
+        destination = output / "profile/discord_asset_cache/openasar"
+        destination.mkdir(parents=True)
+        for item in media.values():
+            if item["type"] != "font/woff2":
+                continue
+            filename = item["sha256"] + ".woff2"
+            source = media_cache / filename
+            if sha256(source) != item["sha256"]:
+                raise ValueError("Test font does not match its pinned checksum")
+            shutil.copyfile(source, destination / filename)
     env = {
         **os.environ,
         "DPE_SETTINGS_OUTPUT": str(output),
@@ -31,6 +47,7 @@ def check(runtime, output):
         "DPE_IGNORE_FLAGS": "0",
         "DPE_DEFAULT_FLAGS": "1",
         "XDG_CONFIG_HOME": str(output / "config"),
+        "DPE_SETTINGS_EXPECT_FONTS": "1" if media_cache is not None else "0",
     }
     env.pop("ELECTRON_RUN_AS_NODE", None)
     with (output / "console.log").open("w") as log:
@@ -53,8 +70,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("runtime", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--media-cache", type=Path, help="Verified local font cache for visual checks"
+    )
     args = parser.parse_args()
-    if not check(args.runtime, args.output)["passed"]:
+    if not check(args.runtime, args.output, args.media_cache)["passed"]:
         raise SystemExit(1)
 
 

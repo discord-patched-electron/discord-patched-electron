@@ -87,7 +87,12 @@ app.whenReady().then(async () => {
     assert.equal(initial.searchWidth, 240);
     assert.equal(initial.tabs, 2);
     assert.equal(initial.buttons, 3);
-    assert.equal(initial.disabled, true);
+    assert.equal(initial.disabled, false);
+    assert.equal(
+      await run(`document.querySelector('[data-source-id="200"]').getAttribute("aria-checked")`),
+      "true",
+    );
+    assert.equal(await isolated("audioTest.replies.length"), 0);
     if (fs.existsSync("/usr/share/applications/zen.desktop"))
       await until(`!!document.querySelector('[data-source-id="200"] img')?.naturalWidth`);
     assert.equal(
@@ -105,6 +110,22 @@ app.whenReady().then(async () => {
         `['h2','.dpe-native-audio-search','.dpe-native-audio-footer'].map(s=>{const r=document.querySelector('.dpe-native-audio-layout '+s).getBoundingClientRect();return [r.x,r.y,r.width,r.height]})`,
       );
     const originalPositions = await positions();
+    const alignment = await run(`(() => {
+      const modal=document.querySelector('[data-mana-component=modal]').getBoundingClientRect();
+      const title=document.querySelector('.dpe-native-audio-content h2').getBoundingClientRect();
+      const search=document.querySelector('.dpe-native-audio-search').getBoundingClientRect();
+      const cards=[...document.querySelectorAll('[role=radio]')].map(n=>n.getBoundingClientRect());
+      return { modalX:modal.x+modal.width/2,modalY:modal.y+modal.height/2,viewportX:innerWidth/2,viewportY:innerHeight/2,titleX:title.x+title.width/2,searchX:search.x+search.width/2,cardsX:(cards[0].left+cards.at(-1).right)/2 };
+    })()`);
+    for (const [left, right] of [
+      [alignment.modalX, alignment.viewportX],
+      [alignment.modalY, alignment.viewportY],
+      [alignment.titleX, alignment.modalX],
+      [alignment.searchX, alignment.modalX],
+      [alignment.cardsX, alignment.modalX],
+    ])
+      assert.ok(Math.abs(left - right) < 1, JSON.stringify(alignment));
+    fs.writeFileSync(path.join(output, "alignment.json"), JSON.stringify(alignment, null, 2));
     const rect = await run(
       `(()=>{const r=document.querySelector('[data-mana-component=modal]').getBoundingClientRect();return {x:Math.floor(r.x),y:Math.floor(r.y),width:Math.ceil(r.width),height:Math.ceil(r.height)};})()`,
     );
@@ -117,6 +138,16 @@ app.whenReady().then(async () => {
     fs.writeFileSync(
       path.join(output, "midnight.png"),
       (await window.webContents.capturePage(rect)).toPNG(),
+    );
+    fs.writeFileSync(
+      path.join(output, "theme.json"),
+      JSON.stringify(
+        await run(
+          `(()=>{const s=getComputedStyle(document.querySelector('[data-mana-component=modal]'));return Object.fromEntries(['--background-base-low','--background-base-lower','--background-base-lowest','--background-surface-high','--background-surface-higher','--background-modifier-selected','--background-mod-subtle'].map(k=>[k,s.getPropertyValue(k)]))})()`,
+        ),
+        null,
+        2,
+      ),
     );
     async function search(value) {
       await run(
@@ -137,7 +168,10 @@ app.whenReady().then(async () => {
     await run(`document.querySelector('[data-source-id="200"]').click()`);
     await search("  VIDEO  ");
     assert.equal(await run(`document.querySelectorAll('[role=radio]').length`), 1);
-    assert.equal(await run(`document.querySelector('.dpe-native-primary button').disabled`), true);
+    assert.equal(
+      await run(`document.querySelector('[data-source-id="300"]').getAttribute('aria-checked')`),
+      "true",
+    );
     await search("no match");
     assert.equal(await run(`!!document.querySelector('.dpe-native-empty')`), true);
     assert.deepEqual(
@@ -159,14 +193,30 @@ app.whenReady().then(async () => {
     assert.equal(await isolated("audioTest.replies.at(-1)"), "200");
     await isolated("audioTest.open()");
     await until(`!!document.querySelector('[role=tab]')`);
+    const actionPositions = () =>
+      run(
+        `['.dpe-native-primary button','.dpe-native-refresh button','.dpe-native-skip button'].map(s=>{const r=document.querySelector(s).getBoundingClientRect();return [r.x,r.y,r.width,r.height]})`,
+      );
+    await pause();
+    const appActions = await actionPositions();
     await run(`document.querySelectorAll('.dpe-native-audio-tabs [role=tab]')[1].click()`);
     await until(`!!document.querySelector('.dpe-native-system')`);
     await pause();
     assert.equal(
       await run(
-        `(()=>{const n=document.querySelector('.dpe-native-system'),s=getComputedStyle(n);return s.borderTopStyle==='solid' && s.borderTopWidth==='1px' && s.backgroundColor!=='rgba(0, 0, 0, 0)' && getComputedStyle(n,'::after').content.includes('✓') && n.getAttribute('aria-label').includes('selected')})()`,
+        `(()=>{const n=document.querySelector('.dpe-native-system'),s=getComputedStyle(n);return s.borderTopStyle==='solid' && s.borderTopWidth==='1px' && s.backgroundColor!=='rgba(0, 0, 0, 0)' && !getComputedStyle(n,'::after').content.includes('✓') && n.getAttribute('aria-label').includes('selected')})()`,
       ),
       true,
+    );
+    assert.deepEqual(
+      await actionPositions(),
+      appActions,
+      "tab switch keeps every footer action in place",
+    );
+    assert.equal(await run(`document.querySelector('.dpe-native-refresh button').disabled`), true);
+    assert.equal(
+      await run(`document.querySelector('.dpe-native-primary button').textContent`),
+      "Share",
     );
     fs.writeFileSync(
       path.join(output, "system.png"),
