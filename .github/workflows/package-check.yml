@@ -37,6 +37,14 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Bundle the pinned UI before entering the read-only container
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          python scripts/build_ui.py --output out/arch-ui
+          mv out/arch-ui prebuilt-ui
       - name: Fetch the exact discovered client snapshot
         if: env.CLIENTS_STATE != ''
         env:
