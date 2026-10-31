@@ -1,4 +1,4 @@
-"""Read compositor window metadata for the explicit audio picker only.
+"""Read compositor window metadata for labels and exact portal app-ID matching.
 
 Window titles are labels, never capture authorization or an automatic match.
 No focus changes, shell Eval, extension installation, or persistent title logs.
@@ -13,11 +13,11 @@ from pathlib import Path
 def desktop_note():
     desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
     if "kde" in desktop and not Path("/usr/bin/kdotool").is_file():
-        return "On Plasma, select audio manually. Optional kdotool adds window titles; application audio works without it."
+        return "On Plasma, select audio manually. Optional kdotool helps identify shared applications; application audio works without it."
     if "gnome" in desktop:
-        return "On GNOME, select audio manually. Optional Window Calls adds window titles; application audio works without it."
+        return "On GNOME, select audio manually. Optional Window Calls helps identify shared windows; application audio works without it."
     if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") or os.environ.get("SWAYSOCK"):
-        return "NOTE: This desktop exposes window names, but not an exact shared-window audio mapping. Select audio below."
+        return "Automatic detection could not identify this share. Select audio below."
     return ""
 
 
@@ -43,6 +43,7 @@ def normalize(rows, backend):
                     "title": "".join(c for c in title if c.isprintable())[:160],
                     "app_id": app_id[:160],
                     "backend": backend,
+                    "id": row.get("id") if type(row.get("id")) is int else None,
                 }
             )
     return result
@@ -74,7 +75,7 @@ def windows():
         desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
         if "kde" in desktop:
             # Optional kdotool API: a single read-only query, no window mutation.
-            script = "output_result(JSON.stringify(workspace.windowList().map(w=>({pid:w.pid,title:w.caption,app_id:w.resourceClass}))));"
+            script = "output_result(JSON.stringify(workspace.windowList().map(w=>({pid:w.pid,title:w.caption,app_id:w.desktopFileName||w.resourceClass}))));"
             return normalize(
                 json.loads(run(["/usr/bin/kdotool", "kwinscript", "--inline", script])), "kwin"
             )

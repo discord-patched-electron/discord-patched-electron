@@ -97,9 +97,21 @@ function showFallback(
   list.append(legend);
   const empty = element("p", "", "empty");
   empty.setAttribute("role", "status");
-  const hint = element("p", "Includes windows and tabs from the same app.", "hint");
+  list.append(empty);
+  const hint = element("p", "", "hint");
+  const scope = element("span");
+  const separator = element("span", "· ");
+  separator.setAttribute("aria-hidden", "true");
+  const detection = element("a", "Automatic detection");
+  detection.href =
+    "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/wayland-audio.md#automatic-detection";
+  detection.target = "_blank";
+  detection.rel = "noopener noreferrer";
+  const detectionLink = element("span", "", "detection-link");
+  detectionLink.append(separator, detection);
+  hint.append(scope, " ", detectionLink);
   hint.id = "audio-description";
-  content.append(title, searchField, list, empty);
+  content.append(title, searchField, list);
   const footer = element("footer");
   const summary = element("div", "", "summary");
   const summaryTitle = element("strong", "Choose audio source");
@@ -122,6 +134,10 @@ function showFallback(
   const rows = options.map((option) => {
     const system = option.id === "system";
     const row = element(system ? "div" : "label", "", system ? "source system-source" : "source");
+    if (system) {
+      row.setAttribute("role", "group");
+      row.setAttribute("aria-label", "System audio, selected");
+    }
     const radio = system ? null : element("input");
     if (radio) {
       radio.type = "radio";
@@ -182,9 +198,9 @@ function showFallback(
     });
     content.setAttribute("aria-labelledby", tabButtons[index].id);
     title.textContent = index ? "Share your system audio" : "Share audio from an application";
-    hint.textContent = index
-      ? "Includes all applications except Discord."
-      : "Includes windows and tabs from the same app.";
+    scope.textContent = index
+      ? "Includes all applications except Discord"
+      : "Includes windows from the same app";
     share.textContent = index ? "Share Audio" : "Make Selection";
     refresh.hidden = index === 1;
     searchField.hidden = index === 1;

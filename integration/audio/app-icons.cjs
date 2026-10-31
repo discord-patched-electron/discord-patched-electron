@@ -19,7 +19,13 @@ function createResolver({ dataDirs, legacyIcons, extraRoots } = {}) {
   ];
   dataDirs = [...new Set(dataDirs.filter((dir) => path.isAbsolute(dir)))].slice(0, 16);
   legacyIcons ??= path.join(home, ".icons");
-  extraRoots ??= [path.join(home, ".local/share/flatpak/app"), "/var/lib/flatpak/app"];
+  extraRoots ??= [
+    path.join(home, ".local/share/flatpak/app"),
+    "/var/lib/flatpak/app",
+    // Distribution desktop icons can link to their application's package tree.
+    "/opt",
+    "/usr/lib",
+  ];
   const roots = [...dataDirs, legacyIcons, ...extraRoots]
     .filter(Boolean)
     .map((dir) => path.resolve(dir));
@@ -110,7 +116,14 @@ function createResolver({ dataDirs, legacyIcons, extraRoots } = {}) {
   }
   return (candidates) => {
     const names = Array.isArray(candidates)
-      ? [...new Set(candidates.filter(validName))].slice(0, 4)
+      ? [
+          ...new Set(
+            candidates
+              .filter(validName)
+              .slice(0, 4)
+              .flatMap((name) => [name, name.replace(/-bin$/, "")]),
+          ),
+        ]
       : [];
     const key = JSON.stringify(names);
     if (!cache.has(key))

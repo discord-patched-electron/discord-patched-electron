@@ -71,7 +71,8 @@ def compatibility_key() -> str:
     ]
     files += [
         str(path.relative_to(PACKAGE_ROOT))
-        for path in sorted((PACKAGE_ROOT / "integration/audio").iterdir())
+        for directory in ("audio", "discord-ui")
+        for path in sorted((PACKAGE_ROOT / "integration" / directory).iterdir())
         if path.is_file()
     ]
     return identity({name: checksum(PACKAGE_ROOT / name) for name in files})

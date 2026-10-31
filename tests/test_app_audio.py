@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -27,6 +28,20 @@ class AppAudioPatch(unittest.TestCase):
             report = patch(directory, adapter)
             native.assert_called_once_with(directory / "discord_voice.node")
             self.assertEqual(report["native_buffer_patch"], {"fixture": True})
+            for name in ("runtime.cjs", "source.cjs"):
+                self.assertEqual(
+                    (directory / "discord-ui" / name).read_bytes(),
+                    (ROOT / "integration/discord-ui" / name).read_bytes(),
+                )
+            subprocess.run(
+                [
+                    "node",
+                    "-e",
+                    "require(process.argv[1])",
+                    str(directory / "native-picker-bridge.cjs"),
+                ],
+                check=True,
+            )
             content = wrapper.read_bytes()
             self.assertTrue(report["enabled_by_default"])
             self.assertEqual(report["default_sessions"], ["wayland"])

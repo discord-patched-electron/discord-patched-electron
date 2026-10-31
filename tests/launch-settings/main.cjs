@@ -107,6 +107,42 @@ app
   .whenReady()
   .then(async () => {
     await open();
+    await click("t_settings");
+    const detectionToggle = '[aria-label="Automatically detect screen-share audio"]';
+    assert.equal(await evaluate(`document.querySelector('${detectionToggle}').checked`), true);
+    await evaluate(`document.querySelector('${detectionToggle}').click()`);
+    await until(() => values.openasar.audioAutoDetect === false);
+    assert.equal(
+      require(path.join(root, "integration/audio/portal-detection.cjs")).enabled(),
+      false,
+    );
+    await click("t_flags");
+    await click("t_settings");
+    assert.equal(await evaluate(`document.querySelector('${detectionToggle}').checked`), false);
+    await evaluate(`document.querySelector('${detectionToggle}').click()`);
+    await until(() => values.openasar.audioAutoDetect === true);
+    checks.push("Audio auto-detection toggle persists and is read by the capture adapter");
+    await click("t_flags");
+    await click("t_troubleshooting");
+    assert.equal(await get('$("troubleshooting-panel").hidden'), false);
+    assert.equal(await get('$("flags-panel").hidden'), true);
+    assert.equal(await get('$("container").hidden'), true);
+    for (const name of Object.keys(
+      require(path.join(root, "integration/updater/diagnostics.cjs")).pages,
+    )) {
+      await evaluate(`window.Native.openDiagnostic(${JSON.stringify(name)})`);
+      const diagnostic = BrowserWindow.getAllWindows().find((item) => item !== window);
+      assert.ok(diagnostic, name);
+      assert.equal(diagnostic.webContents.getURL().split("#")[0], `chrome://${name}/`);
+      await evaluate(`window.Native.openDiagnostic(${JSON.stringify(name)})`);
+      assert.equal(BrowserWindow.getAllWindows().length, 2);
+      diagnostic.destroy();
+    }
+    await assert.rejects(evaluate('window.Native.openDiagnostic("crash")'), /Unknown diagnostic/);
+    checks.push(
+      "Troubleshooting opens each supported page in Electron, reuses windows and rejects unknown pages",
+    );
+    await click("t_flags");
     assert.equal(BrowserWindow.getAllWindows().length, 1);
     assert.equal(await evaluate("document.title"), "DPE OpenAsar Config");
     assert.equal(await evaluate('document.querySelector("h1").textContent'), "DPE OpenAsar Config");
@@ -138,7 +174,7 @@ app
     );
     assert.deepEqual(
       await evaluate('[...document.querySelectorAll("[role=tab]")].map(x=>x.textContent)'),
-      ["Settings", "Theming", "Flags"],
+      ["Settings", "Theming", "Flags", "Troubleshooting"],
     );
     assert.equal(await evaluate('document.querySelectorAll("textarea").length'), 2);
     assert.equal(await get('$("preset")'), null);
@@ -211,7 +247,7 @@ app
     assert.equal(await evaluate("typeof window.require"), "undefined");
     assert.equal(await get('$("flags").value'), "--legacy-ui=kept");
     assert.ok((await editor.resolve()).effective.includes("--enable-libopenh264"));
-    checks.push("One OpenAsar window, three tabs, flags editor and collapsed optional sections");
+    checks.push("One OpenAsar window, four tabs, flags editor and collapsed optional sections");
     assert.equal(await get('$("essential-section").hidden'), false);
     assert.equal(await get('$("essential-flags").disabled'), true);
     assert.equal(

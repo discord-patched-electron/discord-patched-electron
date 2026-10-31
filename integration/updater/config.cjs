@@ -80,6 +80,11 @@ function open(tab = "settings") {
     if (!Object.hasOwn(links, name)) throw new Error("Unknown project link");
     await shell.openExternal(links[name]);
   });
+  window.webContents.ipc.handle("dpe-config-diagnostic", async (event, name) => {
+    if (event.sender !== window?.webContents || event.senderFrame !== window.webContents.mainFrame)
+      throw new Error("Invalid settings window");
+    await require("./diagnostics.cjs").open(name);
+  });
   window.once("closed", () => {
     ipcMain.removeHandler("dpe-config-open-link");
     for (const [name, listener] of listeners) ipcMain.removeListener(name, listener);

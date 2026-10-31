@@ -3,12 +3,14 @@ const { app, BrowserWindow } = require("electron");
 const fs = require("node:fs"),
   path = require("node:path"),
   assert = require("node:assert/strict");
+const ui = require("../../integration/discord-ui/source.cjs");
+const runtimeSource = require("../../integration/discord-ui/runtime.cjs").toString();
 const output = process.env.DPE_PICKER_OUTPUT;
 if (!output) throw Error("Set DPE_PICKER_OUTPUT to a fresh output directory");
 fs.mkdirSync(output, { recursive: true });
 app.setPath("userData", path.join(output, "profile"));
 app.disableHardwareAcceleration();
-const timeout = setTimeout(() => app.exit(2), 60000);
+const timeout = setTimeout(() => app.exit(2), 120000);
 app.whenReady().then(async () => {
   const window = new BrowserWindow({
     width: 1269,
@@ -19,6 +21,11 @@ app.whenReady().then(async () => {
       contextIsolation: true,
       sandbox: false,
     },
+  });
+  let openedLink;
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    openedLink = url;
+    return { action: "deny" };
   });
   const run = (code) => window.webContents.executeJavaScript(code),
     isolated = (code) => window.webContents.executeJavaScriptInIsolatedWorld(999, [{ code }]);
@@ -36,14 +43,23 @@ app.whenReady().then(async () => {
   try {
     await window.loadURL("https://canary.discord.com/login");
     await until('!!document.querySelector("input[name=email]")');
+    const settingsResult = await require("../discord-ui/native-settings-check.cjs")(run);
+    fs.writeFileSync(
+      path.join(output, "native-settings.json"),
+      JSON.stringify(settingsResult, null, 2),
+    );
     // Register the same lazy UI chunks as the screenshare entry point, without
     // executing its controller, opening the video picker or starting capture.
     await run(
-      `(async()=>{const rs=[],c=[['dpe-test-chunks'],{},r=>rs.push(r)];webpackChunkdiscord_app.push(c);webpackChunkdiscord_app.splice(webpackChunkdiscord_app.indexOf(c),1);const req=rs.sort((a,b)=>Object.keys(b.c||{}).length-Object.keys(a.c||{}).length)[0];const source=Object.values(req.m).map(String).find(s=>s.includes('openModalLazy')&&s.includes('getDesktopSource')&&s.includes('sourceName:null')&&s.length<10000);if(!source)throw Error('Screenshare entry unavailable');const ids=[...source.matchAll(/\\.e\\("(\\d+)"\\)/g)].map(m=>m[1]);await Promise.all(ids.map(id=>req.e(id)));})()`,
+      `(async()=>{const ui=globalThis[Symbol.for('dpe.discordUI')];const req=ui.runtimes('dpe-test-chunks').find(runtime=>ui.inspect(runtime).React);const source=Object.values(req.m).map(String).find(s=>s.includes('openModalLazy')&&s.includes('getDesktopSource')&&s.includes('sourceName:null')&&s.length<10000);if(!source)throw Error('Screenshare entry unavailable');const ids=[...source.matchAll(/\\.e\\("(\\d+)"\\)/g)].map(m=>m[1]);await Promise.all(ids.map(id=>req.e(id)));})()`,
     );
     console.log(
       await run(
-        `(${require("../../integration/audio/native-picker-renderer.cjs").toString()})({operation:'probe',key:'dpe-test-probe'},${require("../../integration/audio/native-picker-discovery.cjs").toString()})`,
+        ui.call(
+          require("../../integration/audio/native-picker-renderer.cjs"),
+          { operation: "probe", key: "dpe-test-probe" },
+          require("../../integration/audio/native-picker-discovery.cjs"),
+        ),
       ),
     );
     await isolated("audioTest.open()");
@@ -57,14 +73,31 @@ app.whenReady().then(async () => {
       `(()=>{const modal=document.querySelector('[data-mana-component=modal]'),r=modal.getBoundingClientRect(),card=document.querySelector('.dpe-native-audio-source').getBoundingClientRect(),search=document.querySelector('.dpe-native-audio-search').getBoundingClientRect();return {width:r.width,height:r.height,cardWidth:card.width,cardHeight:card.height,searchWidth:search.width,tabs:modal.querySelectorAll('[role=tab]').length,buttons:modal.querySelectorAll('[data-mana-component=button]').length,disabled:document.querySelector('.dpe-native-primary button').disabled};})()`,
     );
     console.log(initial);
-    assert.equal(initial.width, 1200);
-    assert.equal(initial.height, 720);
-    assert.equal(initial.cardWidth, 254);
-    assert.equal(initial.cardHeight, 206);
-    assert.equal(initial.searchWidth, 274);
+    assert.equal(initial.width, 800);
+    assert.equal(initial.height, 560);
+    assert.equal(initial.cardWidth, 200);
+    assert.equal(initial.cardHeight, 160);
+    assert.equal(initial.searchWidth, 240);
     assert.equal(initial.tabs, 2);
     assert.equal(initial.buttons, 3);
     assert.equal(initial.disabled, true);
+    if (fs.existsSync("/usr/share/applications/zen.desktop"))
+      await until(`!!document.querySelector('[data-source-id="200"] img')?.naturalWidth`);
+    assert.equal(
+      await run(`document.querySelector('.dpe-native-audio-summary a').hash`),
+      "#automatic-detection",
+    );
+    await run(`document.querySelector('.dpe-native-audio-summary a').click()`);
+    await pause();
+    assert.equal(
+      openedLink,
+      "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/wayland-audio.md#automatic-detection",
+    );
+    const positions = () =>
+      run(
+        `['h2','.dpe-native-audio-search','.dpe-native-audio-footer'].map(s=>{const r=document.querySelector('.dpe-native-audio-layout '+s).getBoundingClientRect();return [r.x,r.y,r.width,r.height]})`,
+      );
+    const originalPositions = await positions();
     const rect = await run(
       `(()=>{const r=document.querySelector('[data-mana-component=modal]').getBoundingClientRect();return {x:Math.floor(r.x),y:Math.floor(r.y),width:Math.ceil(r.width),height:Math.ceil(r.height)};})()`,
     );
@@ -100,6 +133,15 @@ app.whenReady().then(async () => {
     assert.equal(await run(`document.querySelector('.dpe-native-primary button').disabled`), true);
     await search("no match");
     assert.equal(await run(`!!document.querySelector('.dpe-native-empty')`), true);
+    assert.deepEqual(
+      await positions(),
+      originalPositions,
+      "empty search does not move heading, search or footer",
+    );
+    fs.writeFileSync(
+      path.join(output, "empty.png"),
+      (await window.webContents.capturePage(rect)).toPNG(),
+    );
     await run(
       `document.querySelector('.dpe-native-audio-search [role=button][aria-label]').click()`,
     );
@@ -112,6 +154,17 @@ app.whenReady().then(async () => {
     await until(`!!document.querySelector('[role=tab]')`);
     await run(`document.querySelectorAll('.dpe-native-audio-tabs [role=tab]')[1].click()`);
     await until(`!!document.querySelector('.dpe-native-system')`);
+    await pause();
+    assert.equal(
+      await run(
+        `(()=>{const n=document.querySelector('.dpe-native-system'),s=getComputedStyle(n);return s.borderTopStyle==='solid' && s.borderTopWidth==='1px' && s.backgroundColor!=='rgba(0, 0, 0, 0)' && getComputedStyle(n,'::after').content.includes('✓') && n.getAttribute('aria-label').includes('selected')})()`,
+      ),
+      true,
+    );
+    fs.writeFileSync(
+      path.join(output, "system.png"),
+      (await window.webContents.capturePage(rect)).toPNG(),
+    );
     await run(
       `document.querySelector('.dpe-native-system').click();document.querySelector('.dpe-native-system').click()`,
     );
@@ -172,6 +225,61 @@ app.whenReady().then(async () => {
     for (const result of layouts)
       for (const key of ["visible", "noOverflow", "lastReachable", "footerReachable"])
         assert.equal(result[key], true, `${result.width}x${result.height} ${key}`);
+    window.setContentSize(1269, 772);
+    const scaling = [];
+    for (const [zoom, fontScale] of [
+      [0.8, 100],
+      [1.25, 100],
+      [1.5, 100],
+      [2, 100],
+      [1, 75],
+      [1, 125],
+      [1, 150],
+      [1, 200],
+      [1.25, 150],
+    ]) {
+      window.webContents.setZoomFactor(zoom);
+      await run(
+        `document.documentElement.style.fontSize = "${fontScale}%"; new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+      );
+      const result = await run(`(() => {
+        const [modal, content, card, label, footer, visual] = ["[data-mana-component=modal]", ".dpe-native-audio-content", ".dpe-native-audio-source", ".dpe-native-audio-source strong", ".dpe-native-audio-footer", ".dpe-native-source-visual"].map(s => document.querySelector(s));
+        content.scrollTop = 0; modal.scrollTop = 0;
+        const box = card.getBoundingClientRect();
+        footer.scrollIntoView({block:'end'});
+        const f = footer.getBoundingClientRect(), m = modal.getBoundingClientRect();
+        return {root:parseFloat(getComputedStyle(document.documentElement).fontSize), cardWidth:box.width, cardHeight:box.height, text:parseFloat(getComputedStyle(label).fontSize), icon:visual.getBoundingClientRect().width, searchHeight:document.querySelector('.dpe-native-audio-search').getBoundingClientRect().height, buttonHeight:document.querySelector('.dpe-native-primary button').getBoundingClientRect().height, noOverflow:modal.scrollWidth<=modal.clientWidth+1&&content.scrollWidth<=content.clientWidth+1, footerReachable:f.top>=m.top-1&&f.bottom<=m.bottom+1};
+      })()`);
+      const ratio = fontScale / 100;
+      for (const [key, base] of Object.entries({
+        root: 16,
+        cardWidth: 200,
+        cardHeight: 160,
+        text: 16,
+        icon: 48,
+        searchHeight: 40,
+        buttonHeight: 40,
+      }))
+        assert.ok(
+          Math.abs(result[key] - base * ratio) < 0.1,
+          `${zoom} zoom, ${fontScale}% font: ${key}=${result[key]}`,
+        );
+      assert.equal(result.noOverflow, true, `${zoom} zoom, ${fontScale}% font: overflow`);
+      assert.equal(result.footerReachable, true, `${zoom} zoom, ${fontScale}% font: footer`);
+      if (zoom === 1 && fontScale === 150) {
+        await run(
+          `document.querySelector('[data-mana-component=modal]').scrollTop=0; document.querySelector('.dpe-native-audio-content').scrollTop=0; new Promise(requestAnimationFrame)`,
+        );
+        fs.writeFileSync(
+          path.join(output, "scaled.png"),
+          (await window.webContents.capturePage()).toPNG(),
+        );
+      }
+      scaling.push({ zoom, fontScale, ...result });
+    }
+    fs.writeFileSync(path.join(output, "scaling.json"), JSON.stringify(scaling, null, 2));
+    await run(`document.documentElement.style.removeProperty('font-size')`);
+    window.webContents.setZoomFactor(1);
     await isolated("audioTest.close()");
     await until(`!document.querySelector('.dpe-native-audio-layout')`);
     assert.equal(await isolated("audioTest.replies.length"), 3);
@@ -182,14 +290,14 @@ app.whenReady().then(async () => {
       require("../../integration/audio/native-picker-discovery.cjs").toString();
     for (const broken of ["Button", "Scroller"]) {
       const failure = await run(
-        `(${rendererSource})({operation:'open',key:'dpe-broken-${broken}',options:[{id:'42',label:'Player',detail:'Music'}],css:${JSON.stringify(fs.readFileSync(path.join(__dirname, "../../integration/audio/native-picker.css"), "utf8"))}}, key=>{const d=(${discoverySource})(key);d.components.${broken}=()=>null;return d;})`,
+        `(${rendererSource})({operation:'open',key:'dpe-broken-${broken}',options:[{id:'42',label:'Player',detail:'Music'}],css:${JSON.stringify(fs.readFileSync(path.join(__dirname, "../../integration/audio/native-picker.css"), "utf8"))}}, (${runtimeSource})(), (key, ui)=>{const d=(${discoverySource})(key, ui);d.components.${broken}=()=>null;return d;})`,
       );
       assert.equal(failure.reason, "render-contract");
       await until(`!document.querySelector('.dpe-native-audio-layout')`);
     }
     // A host update can unmount its contents without an explicit close callback.
     await run(
-      `globalThis.nativeHostResult=null;void (${rendererSource})({operation:'open',key:'dpe-unmount-test',options:[{id:'42',label:'Player',detail:'Music'}],css:${JSON.stringify(fs.readFileSync(path.join(__dirname, "../../integration/audio/native-picker.css"), "utf8"))}}, key=>{const d=(${discoverySource})(key), Root=d.components.ModalRoot,React=d.components.React;d.components.ModalRoot=props=>{const [visible,setVisible]=React.useState(true);globalThis.unmountPicker=()=>setVisible(false);return visible?React.createElement(Root,props):null;};return d;}).then(result=>{globalThis.nativeHostResult=result;})`,
+      `globalThis.nativeHostResult=null;void (${rendererSource})({operation:'open',key:'dpe-unmount-test',options:[{id:'42',label:'Player',detail:'Music'}],css:${JSON.stringify(fs.readFileSync(path.join(__dirname, "../../integration/audio/native-picker.css"), "utf8"))}}, (${runtimeSource})(), (key, ui)=>{const d=(${discoverySource})(key, ui), Root=d.components.ModalRoot,React=d.components.React;d.components.ModalRoot=props=>{const [visible,setVisible]=React.useState(true);globalThis.unmountPicker=()=>setVisible(false);return visible?React.createElement(Root,props):null;};return d;}).then(result=>{globalThis.nativeHostResult=result;})`,
     );
     await until(
       `globalThis[Symbol.for('dpe.audioPicker.sessions')].get('dpe-unmount-test')?.mounted`,
@@ -208,6 +316,9 @@ app.whenReady().then(async () => {
           initial,
           layouts,
           search: true,
+          stableEmptySearch: true,
+          documentationLink: true,
+          selectedSystemCard: true,
           keyboard: true,
           system: true,
           teardown: true,

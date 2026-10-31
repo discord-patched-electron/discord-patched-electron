@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const vm = require("node:vm");
 const { show } = require("../../integration/audio/native-picker-bridge.cjs");
 const render = require("../../integration/audio/native-picker-renderer.cjs");
+const ui = require("../../integration/discord-ui/source.cjs");
 const discover = require("../../integration/audio/native-picker-discovery.cjs");
 const tick = () => new Promise(setImmediate);
 const options = [{ id: "system" }, { id: "42", label: "Player", iconNames: ["player"] }];
@@ -13,9 +14,7 @@ function fixture(execute, resolveIcon = async () => null) {
     closedFallbacks = 0;
   const close = show(options, (value) => replies.push(value), {
     execute(code) {
-      const request = JSON.parse(
-        code.match(/\}\)\((\{"operation".*?\}),function discoverPicker/s)[1],
-      );
+      const request = JSON.parse(code.match(/\}\)\((\{"operation".*?\}),\(function discordUI/s)[1]);
       requests.push(request);
       return execute(request);
     },
@@ -119,7 +118,7 @@ test("no Discord module cache returns unavailable without executing app modules"
   for (const environment of [{}, { webpackChunkdiscord_app: [] }])
     assert.equal(
       vm.runInNewContext(
-        `(${render.toString()})({operation:'open',key:'test',options:[]},${discover.toString()})`,
+        ui.call(render, { operation: "open", key: "test", options: [] }, discover),
         environment,
       ).unavailable,
       true,
@@ -185,7 +184,9 @@ test("closing before a delayed page open tombstones that session", () => {
   const context = vm.createContext({});
   const invoke = (request) =>
     vm.runInContext(
-      `(${render.toString()})(${JSON.stringify(request)},()=>{throw Error('must not discover a cancelled open')})`,
+      ui.call(render, request, () => {
+        throw Error("must not discover a cancelled open");
+      }),
       context,
     );
   invoke({ operation: "close", key: "late" });

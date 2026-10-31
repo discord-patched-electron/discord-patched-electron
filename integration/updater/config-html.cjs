@@ -9,7 +9,10 @@ module.exports = function configHtml(source) {
     throw new Error("Unsupported pinned OpenAsar settings layout");
   return source
     .replace("<title>OpenAsar Config</title>", "<title>DPE OpenAsar Config</title>")
-    .replace(focus, "")
+    .replace(
+      focus,
+      "    [ 'Automatically detect screen-share audio', 'On Wayland, select audio from the shared app or screen when it can be identified. Turn off to choose manually. Applies to your next share.', 'audioAutoDetect', true ],",
+    )
     .replace(
       /<header>[\s\S]*?<\/header>/,
       `
@@ -23,6 +26,7 @@ module.exports = function configHtml(source) {
           <button type="button" id="t_settings" role="tab" aria-selected="true" aria-controls="container" class="active">Settings</button>
           <button type="button" id="t_theming" role="tab" aria-selected="false" aria-controls="container" tabindex="-1">Theming</button>
           <button type="button" id="t_flags" role="tab" aria-selected="false" aria-controls="flags-panel" tabindex="-1">Flags</button>
+          <button type="button" id="t_troubleshooting" role="tab" aria-selected="false" aria-controls="troubleshooting-panel" tabindex="-1">Troubleshooting</button>
         </nav>
       </header><p id="external-link-error" role="alert" hidden></p>`,
     )
@@ -31,6 +35,17 @@ module.exports = function configHtml(source) {
       `<main>
       <div id="container" role="tabpanel" aria-labelledby="t_settings"></div>
       ${fs.readFileSync(path.join(__dirname, "launch-settings.html"), "utf8")}
+      <section id="troubleshooting-panel" role="tabpanel" aria-labelledby="t_troubleshooting" hidden>
+        <h2>Troubleshooting</h2>
+        <p>Open diagnostic pages for Discord’s Electron runtime.</p>
+        ${Object.entries(require("./diagnostics.cjs").pages)
+          .map(
+            ([name, page]) =>
+              `<div class="flag-row"><div><strong>${page.title}</strong><p class="hint">${page.description}</p></div><button type="button" data-diagnostic="${name}">Open ${page.title}</button></div>`,
+          )
+          .join("")}
+        <p id="diagnostic-error" role="alert" hidden></p>
+      </section>
       </main>`,
     ).concat(`
       <meta name="viewport" content="width=device-width, initial-scale=1">

@@ -3,10 +3,14 @@ const { spawn } = require("node:child_process");
 const path = require("node:path");
 const { StringDecoder } = require("node:string_decoder");
 const audioPicker = require("./audio-picker.cjs");
+const detection = require("./portal-detection.cjs");
+const observations = detection.createObserver();
 let pickerPending = false;
 const listeners = new Set();
 function picker(event) {
   pickerPending = event === "begin";
+  if (event === "begin") observations.start();
+  if (event === "cancel") observations.clear();
   for (const listener of listeners) listener(event);
 }
 const installed = new WeakSet();
@@ -56,6 +60,7 @@ function wrap(
     spawnHelper = spawn,
     warn = (message) => console.warn("[dpe-app-audio]", message),
     pickerUI = audioPicker,
+    autoDetect = detection.enabled,
   } = {},
 ) {
   const nativeTransport = instance.setTransportOptions.bind(instance);
@@ -66,8 +71,10 @@ function wrap(
     source = false,
     disposed = false,
     readyPid = 0,
+    automatic = true,
     endedCallback;
   let lastState = null;
+  let observationTimer;
   let closePicker = null;
   function dismissPicker() {
     closePicker?.();
@@ -79,6 +86,7 @@ function wrap(
     nativeTransport({ soundsharePid: 0, soundshareLoopback: false });
   }
   function stopHelper() {
+    clearInterval(observationTimer);
     dismissPicker();
     if (!helper) return;
     const previous = helper;
@@ -96,6 +104,14 @@ function wrap(
       { stdio: ["pipe", "pipe", "pipe"] },
     );
     helper = child;
+    let lastObservations = "";
+    observationTimer = setInterval(() => {
+      if (helper !== child || disposed || !automatic) return;
+      const message = JSON.stringify({ generation, observations: observations.snapshot() });
+      if (message !== lastObservations) child.stdin.write(message + "\n");
+      lastObservations = message;
+    }, 400);
+    observationTimer.unref?.();
     let buffer = "";
     const decoder = new StringDecoder("utf8");
     child.stdin.on("error", () => {});
@@ -160,6 +176,7 @@ function wrap(
     });
     const failed = () => {
       if (helper === child) {
+        clearInterval(observationTimer);
         helper = null;
         dismissPicker();
         if (!disposed) silence();
@@ -178,12 +195,15 @@ function wrap(
       stopHelper();
       return;
     }
+    automatic = autoDetect();
     const child = ensureHelper();
     child.stdin.write(
       JSON.stringify({
         generation,
         enabled: true,
         hint,
+        autoDetect: automatic,
+        observations: observations.snapshot(),
         picker: pickerUI.available() ? "inline" : "native",
       }) + "\n",
     );
@@ -200,6 +220,7 @@ function wrap(
     if (disposed) return;
     source = false;
     requested = 0;
+    if (!pickerPending) observations.clear();
     configure();
     return endedCallback?.(...args);
   });
@@ -252,6 +273,7 @@ function wrap(
       source = false;
       requested = 0;
       hint = 0;
+      if (!pickerPending) observations.clear();
       configure();
       return instance.clearDesktopSource();
     },

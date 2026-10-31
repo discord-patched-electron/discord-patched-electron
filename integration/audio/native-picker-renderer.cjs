@@ -1,6 +1,6 @@
 "use strict";
 // Page-world presentation only. No Node APIs or fixed Discord module IDs.
-module.exports = function nativePicker(request, discover) {
+module.exports = function nativePicker(request, ui, discover) {
   const sessions = (globalThis[Symbol.for("dpe.audioPicker.sessions")] ||= new Map());
   const cancelled = (globalThis[Symbol.for("dpe.audioPicker.cancelled")] ||= new Set());
   if (request.operation === "close") {
@@ -20,7 +20,7 @@ module.exports = function nativePicker(request, discover) {
   }
   const unavailable = { unavailable: true };
   if (!["open", "probe"].includes(request.operation)) return unavailable;
-  const discovery = discover(request.key);
+  const discovery = discover(request.key, ui);
   if (request.operation === "probe")
     return { ...discovery.found, reason: discovery.reason, ambiguous: discovery.ambiguous };
   if (discovery.reason !== "ready") return { ...unavailable, reason: discovery.reason };
@@ -247,14 +247,18 @@ module.exports = function nativePicker(request, discover) {
         }),
       );
       const hint = system
-        ? "Includes all applications except Discord."
-        : "Includes windows and tabs from the same app.";
+        ? "Includes all applications except Discord"
+        : "Includes windows from the same app";
       const selection = system ? "system" : selected;
       const title = system ? "Share your system audio" : "Share audio from an application";
       const body = system
         ? h(
             "div",
-            { className: "dpe-native-audio-source dpe-native-system" },
+            {
+              className: "dpe-native-audio-source dpe-native-system",
+              role: "group",
+              "aria-label": "System audio, selected",
+            },
             h(ScreenIcon, { size: "custom", width: 48, height: 48, color: "currentColor" }),
             h("strong", null, "System audio"),
             h("small", null, "All applications except Discord"),
@@ -371,7 +375,26 @@ module.exports = function nativePicker(request, discover) {
               "div",
               { className: "dpe-native-audio-summary" },
               h("strong", null, "Choose audio source"),
-              h("p", null, hint),
+              h(
+                "p",
+                null,
+                hint,
+                " ",
+                h(
+                  "span",
+                  { className: "dpe-native-detection-link" },
+                  h("span", { "aria-hidden": true }, "· "),
+                  h(
+                    "a",
+                    {
+                      href: "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/wayland-audio.md#automatic-detection",
+                      target: "_blank",
+                      rel: "noopener noreferrer",
+                    },
+                    "Automatic detection",
+                  ),
+                ),
+              ),
             ),
             h(
               "div",

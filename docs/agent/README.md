@@ -26,6 +26,7 @@ that test run.
 ## Linux integration
 
 - [In-window audio picker and detection research](audio-picker.md)
+- [Cross-desktop audio detection](audio-auto-detection.md)
 - [Wayland application audio](wayland-audio.md)
 - [Audio investigation and mixer fix](audio-investigation.md)
 - [Camera startup](camera-startup.md)
@@ -33,6 +34,8 @@ that test run.
 - [OpenAsar playback crash and flag audit](video-playback.md)
 - [Editable presets, recovery and initial GPU flag research](launch-presets.md)
 - [Deeper Linux GPU flag audit, dependencies and codec tests](linux-gpu-flags.md)
+- [Shared Discord UI runtime and adapters](discord-ui.md)
+- [OpenAsar settings entry and diagnostic pages](openasar-settings.md)
 - [Compact Flags tab, file storage and automated codec checks](flags-file.md)
 - [Software codec initialization and sandbox fix](software-codecs.md)
 - [Codec playback verification and NVIDIA HEVC flags](codec-support.md)

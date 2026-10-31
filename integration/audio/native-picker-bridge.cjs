@@ -3,6 +3,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const render = require("./native-picker-renderer.cjs");
+const ui = require(
+  require.resolve("./discord-ui/source.cjs", {
+    paths: [__dirname, path.dirname(__dirname)],
+  }),
+);
 const discover = require("./native-picker-discovery.cjs");
 function show(options, respond, { execute, fallback, resolveIcon }) {
   const key = "dpe-audio-" + randomUUID(),
@@ -16,11 +21,7 @@ function show(options, respond, { execute, fallback, resolveIcon }) {
     next = 0,
     nativeCancelled = false;
   const run = (request) =>
-    Promise.resolve().then(() =>
-      execute(
-        `(${render.toString()})(${JSON.stringify({ ...request, key })},${discover.toString()})`,
-      ),
-    );
+    Promise.resolve().then(() => execute(ui.call(render, { ...request, key }, discover)));
   function clearTimers() {
     clearTimeout(pollTimer);
     clearTimeout(retryTimer);

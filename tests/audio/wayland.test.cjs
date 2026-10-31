@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { wrap, installVoice } = require("../../integration/audio/wayland-audio.cjs");
-function fixture(t, pickerUI) {
+function fixture(t, pickerUI, autoDetect) {
   const calls = [],
     children = [];
   let ended;
@@ -39,7 +39,7 @@ function fixture(t, pickerUI) {
     children.push(child);
     return child;
   }
-  const adapter = wrap(native, { spawnHelper, warn() {}, pickerUI });
+  const adapter = wrap(native, { spawnHelper, warn() {}, pickerUI, autoDetect });
   t.after(() => adapter.destroy());
   const ready = (child, pid, generation = child.messages.at(-1).generation) =>
     child.stdout.emit(
@@ -301,4 +301,15 @@ test("inline rendering failure requests the native picker without enabling audio
   );
   assert.deepEqual(child.messages.at(-1), { generation, request: 1, selection: "fallback" });
   assert.equal(f.calls.at(-1).soundsharePid, 0);
+});
+
+test("auto-detection preference is re-read for each new share", (t) => {
+  let automatic = false;
+  const f = fixture(t, undefined, () => automatic);
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 200 });
+  assert.equal(f.children[0].messages.at(-1).autoDetect, false);
+  automatic = true;
+  f.adapter.setDesktopSource("screen:1:0");
+  assert.equal(f.children[0].messages.at(-1).autoDetect, true);
 });

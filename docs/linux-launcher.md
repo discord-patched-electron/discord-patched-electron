@@ -18,8 +18,8 @@ See the [codec checks](agent/codec-support.md) for tested formats and hardware.
 
 ## Appearance and startup
 
-Open Discord's **User Settings**, then click **OpenAsar (discord-patched-electron …)**
-in the version information at the bottom of the left sidebar. This opens
+Open Discord's **User Settings**, then click **DPE OpenAsar**
+above **Log Out** in the left sidebar. This opens
 **DPE OpenAsar Config**.
 
 | Setting        | What it does                                                                    |

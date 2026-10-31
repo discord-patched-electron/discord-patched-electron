@@ -1,8 +1,11 @@
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "integration/audio"))
 
 spec = importlib.util.spec_from_file_location(
     "pipewire_audio",

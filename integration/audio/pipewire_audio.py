@@ -507,6 +507,12 @@ class Controller:
         self.enabled = False
         self.last = None
         self.hint = 0
+        self.auto_detect = True
+        self.observations = []
+        self.observation_serials = {}
+        self.detection_deadline = 0
+        self.detected = None
+        self.detected_source = None
         self.choice = None
         self.chooser = None
         self.choose_key = None
@@ -543,8 +549,14 @@ class Controller:
             self.choose_key = None
         self.pending_choice = False
         self.choices = {}
+        self.detected = None
+        self.detected_source = None
 
     def update(self, message):
+        if "observations" in message and "enabled" not in message:
+            if message.get("generation") == self.generation and self.auto_detect:
+                self.set_observations(message["observations"])
+            return
         if "selection" in message:
             if (
                 message["generation"] != self.generation
@@ -567,7 +579,65 @@ class Controller:
         self.enabled = message.get("enabled") is True
         self.inline_picker = message.get("picker") == "inline"
         self.hint = integer(message.get("hint"))
+        self.auto_detect = message.get("autoDetect") is not False
+        self.observations = []
+        if self.auto_detect:
+            self.set_observations(message.get("observations", []))
+        self.detection_deadline = time.monotonic() + 1.2 if self.auto_detect else 0
         self.emit()
+
+    def set_observations(self, values):
+        if isinstance(values, list) and len(values) <= 32:
+            self.observations = [
+                v
+                for v in values
+                if isinstance(v, dict)
+                and type(v.get("node")) is int
+                and type(v.get("token")) is int
+                and v.get("kind") in ("system", "application")
+            ]
+
+    def detect_portal(self, objects, pulse, source):
+        from capture_detection import target
+        from window_inventory import windows
+
+        if self.detected_source == source:
+            return self.detected
+        matching = [v for v in self.observations if v["node"] == source[0]]
+        for observation in matching:
+            token = observation["token"]
+            bound = self.observation_serials.setdefault(token, source[1])
+            if bound != source[1]:
+                return None
+        while len(self.observation_serials) > 64:
+            del self.observation_serials[next(iter(self.observation_serials))]
+        if not matching and not any(
+            n.get("id") == source[0]
+            and str(props(n).get("media.name", "")).startswith("kwin-screencast-")
+            for n in objects
+        ):
+            return None
+        entries = [p for _node, p in playback_entries(objects, pulse)]
+        entries += [s.get("properties", {}) for s in pulse]
+        result = target(
+            objects,
+            source,
+            self.observations,
+            windows(),
+            entries,
+            process_identity,
+            descendant,
+            audio_pid,
+        )
+        if result:
+            # Bind the observation to this node serial, and never remap an
+            # established app when its ID is reused or another instance appears.
+            owner = process_identity(result["pid"]) if result["kind"] == "application" else None
+            if result["kind"] == "application" and owner is None:
+                return None
+            result["identity"] = owner[:2] if owner else None
+            self.detected, self.detected_source = result, source
+        return result
 
     def choose(self, objects, pulse, key):
         if key != self.choose_key:
@@ -765,7 +835,7 @@ class Controller:
             return
         target = None
         niri_available = False
-        if os.environ.get("NIRI_SOCKET"):
+        if self.auto_detect and os.environ.get("NIRI_SOCKET"):
             try:
                 target = niri_target(sources, niri_request("Casts"), niri_request("Windows"))
                 niri_available = True
@@ -773,15 +843,20 @@ class Controller:
                 pass  # Older niri versions use the explicit audio selector.
         # A real process hint is usable only for a single confirmed native video
         # stream. Numeric video node IDs are never used as process hints.
-        if target is None and len(sources) == 1 and self.hint > 1:
+        if self.auto_detect and target is None and len(sources) == 1 and self.hint > 1:
             target = {
                 "kind": "application",
                 "pid": self.hint,
                 "key": ("hint", *next(iter(sources))),
                 "backend": "native-hint",
             }
-        if target is None and len(sources) == 1 and not niri_available:
-            target = self.choose(objects, pulse, next(iter(sources)))
+        source = next(iter(sources))
+        if target is None and self.auto_detect and not niri_available and self.choose_key != source:
+            target = self.detect_portal(objects, pulse, source)
+        if target is None:
+            if self.auto_detect and time.monotonic() < self.detection_deadline:
+                return
+            target = self.choose(objects, pulse, source)
         if target is None:
             if self.pending_choice:
                 return
@@ -790,8 +865,18 @@ class Controller:
             self.emit()
             return
         identity = None if target["kind"] == "system" else process_identity(target["pid"])
-        if target["kind"] != "system" and (identity is None or descendant(self.owner, identity)):
-            self.reset()
+        if target["kind"] != "system" and (
+            identity is None
+            or descendant(self.owner, identity)
+            or (target.get("identity") is not None and identity[:2] != target["identity"])
+        ):
+            if "identity" not in target:
+                self.reset()
+            else:
+                if self.route:
+                    self.route.close()
+                    self.route = None
+                self.emit(state="unavailable")
             return
         # Parentage can change while the same process survives its launcher.
         # Keep ancestry for routing, but use PID/start time for replacement checks.

@@ -67,6 +67,8 @@ RULES = (
     (
         (
             "integration/audio/*",
+            "integration/discord-ui/*",
+            "tests/discord-ui/*",
             "scripts/patch_app_audio.py",
             "scripts/patch_pulse_audio.py",
             "scripts/desktop_identity.py",

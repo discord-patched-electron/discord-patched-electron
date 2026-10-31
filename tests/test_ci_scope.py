@@ -25,6 +25,8 @@ class CheckSelection(unittest.TestCase):
             ".github/workflows/approve-release.yml": {"unit"},
             "tests/test_releases.py": {"unit"},
             "tests/audio/adapter.test.cjs": {"unit"},
+            "integration/discord-ui/runtime.cjs": {"unit", "packaging", "audio"},
+            "tests/discord-ui/settings.test.cjs": {"unit"},
             "integration/updater/launch-settings.css": {"unit", "packaging"},
             "integration/updater/openasar/config.html": {"unit", "packaging"},
             "integration/launcher/discord-launcher.sh": {"unit", "packaging", "launcher"},

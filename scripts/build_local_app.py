@@ -206,7 +206,7 @@ def build(
             "Extract the whole folder, then run ./launch.sh. You can move the folder.\n"
             "First launch downloads patched Electron from GitHub and Discord modules directly from Discord. Later package upgrades reuse the verified Electron cache.\n"
             "Discord and patched Electron update automatically after testing. Your settings and installed Vencord or Equicord are preserved.\n"
-            "OpenAsar is included. Find its settings in User Settings > OpenAsar.\n"
+            "OpenAsar is included. Find its settings in User Settings > DPE OpenAsar.\n"
             "Use Launch presets and flags to inspect or edit launch options. If flags prevent startup, close Discord and run ./launch.sh --ignore-flags.\n"
             "Requires x86-64-v3, Linux desktop libraries, Python 3.11 or newer, Brotli, GnuPG (gpg and gpgv), PipeWire and PulseAudio tools.\n"
             f"Settings: ~/.config/discord-{channel}-patched-electron.conf\n"

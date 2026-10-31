@@ -1,15 +1,78 @@
 # In-window audio picker
 
+For current cross-desktop automatic detection and its off switch, see
+[audio auto-detection](audio-auto-detection.md). Earlier detection notes below are historical.
+
 The Wayland voice wrapper displays its manual audio selector in Discord's main
 renderer. The native path preserves the approved wide screenshare layout using
 Discord's bare ModalRoot (size xl), pill SegmentedControl, SearchBar, Clickable
 source cards, scroller, icons and buttons. It does not use the compact form Modal
-or underline TabBar. Our scoped layout CSS keeps the 1200 × 720 panel, 254 × 206
-cards, 274 × 50 search field and corner footer. Native components supply their
+or underline TabBar. Our scoped layout CSS uses a 50 × 35 rem panel, 12.5 × 10 rem
+cards, 15 × 2.5 rem search field and corner footer (800 × 560, 200 × 160 and
+240 × 40 CSS pixels at Discord's default font size). Native components supply their
 interaction behavior; the dialog follows Discord's current theme.
 
-`native-picker-discovery.cjs` discovers loaded components by signatures, without
-fixed module IDs. The pill control is part of the lazy screenshare chunks. Only
+### Discord UI scaling
+
+Discord's zoom setting calls Electron's zoom API; its font-size setting changes
+the root element's font size. Both picker renderers use `rem` dimensions, spacing,
+text and artwork so they follow that root size as well as the host's zoom. There
+is no separate transform, cached scale or extra multiplication of Discord's zoom.
+Viewport limits and a wrapping footer keep actions reachable when enlarged.
+Thin borders and focus outlines retain their normal CSS-pixel thickness.
+
+The native and fallback smoke suites change these settings while the picker stays
+open: 80%, 125%, 150% and 200% zoom; 75%, 125%, 150% and 200% root font size; and
+125% zoom combined with 150% font size. They assert card, text, icon, search and
+button measurements, horizontal containment and footer reachability. Evidence:
+`out/picker-ui-scale-native-verified/scaling.json` and
+`out/picker-ui-scale-fallback-verified-2/scaling.json`. The tests exercise the same
+rendering mechanisms without changing an account's saved accessibility settings.
+
+Both scaling suites and all 59 audio unit tests pass. The full test run passes
+387 Python tests and 118 of 121 JavaScript tests; three OpenAsar settings tests
+fail in concurrent updater changes. Repository lint reports formatting errors in
+seven updater/settings files outside this audio change; scoped audio formatting
+and `git diff --check` pass. The earlier all-green run below predates those edits.
+
+### Compact layout and Zen artwork correction
+
+The screenshot's physical dimensions had been applied directly as CSS pixels,
+making the picker too large. Both renderers now use the compact dimensions above.
+The heading and search use fixed spacing, and the result region reserves one card
+row even when empty. System audio retains its automatically selected, non-toggleable
+behavior, with the same filled card, brand border and checkmark as a selected app.
+
+The footer reads “Includes windows from the same app · Automatic detection”; its
+link targets the user guide's new automatic-detection section. System audio keeps
+its own scope text. The separator wraps with the link on smaller viewports.
+
+Zen's installed `zen.desktop` points at `zen-browser`, whose hicolor icon is a
+symlink into `/opt/zen-browser-bin`. Icon resolution now permits bounded image
+reads from `/opt` and `/usr/lib` package trees, and tries the desktop name without
+a binary's `-bin` suffix. Arbitrary paths, remote URLs, non-images, excessive sizes
+and symlinks outside allowed roots remain rejected. No desktop command is executed.
+
+UI polish review:
+
+| Severity | Location                                                                         | Before                                                   | After                                                            | Why                                                                     |
+| -------- | -------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| MEDIUM   | `integration/audio/native-picker.css:1`, `integration/audio/audio-picker.css:12` | Oversized panel and controls; empty search moved content | Compact dimensions and fixed heading/search spacing              | Preserve component density and stable interaction targets.              |
+| MEDIUM   | `integration/audio/native-picker.css`, `integration/audio/audio-picker.css`      | System audio lost its card boundary                      | Filled selected card with border and checkmark, without a toggle | Borders communicate selection consistently.                             |
+| MEDIUM   | `integration/audio/app-icons.cjs`                                                | Zen's installed icon fell back to a generic glyph        | Resolve package symlinks and binary-name variants                | Use recognizable application artwork without changing capture identity. |
+
+Validation covers real native and fallback rendering, empty-search coordinates,
+selected system cards, docs-link dispatch to the host window-open handler, Zen's
+installed artwork, keyboard navigation, six viewport/zoom cases and 80 long labels.
+Evidence: `out/picker-compact-native-verified/` and
+`out/picker-compact-fallback-verified/`. All 387 Python tests, 121 JavaScript tests
+and lint pass. Earlier dimensions and counts below describe historical runs.
+Not verified: live calls, assistive technology, custom user themes, external browser
+launch for this link, and slowed animation playback. Approve — inspected states only.
+
+`native-picker-discovery.cjs` supplies audio component contracts to the
+[shared Discord UI runtime](discord-ui.md), which also hosts the OpenAsar settings
+entry. Both use signature-based discovery without fixed module IDs. The pill control is part of the lazy screenshare chunks. Only
 its presentation module is initialized if registered; the screenshare controller,
 source enumeration and capture hooks are never invoked. If those chunks or
 components are unavailable or rendering fails, `audio-picker.cjs` uses the
@@ -27,7 +90,8 @@ audio. Refresh discovers streams that appeared after the dialog opened.
 
 Discovery, rendering and lifecycle management are separate adapters:
 
-- `native-picker-discovery.cjs` inspects webpack runtimes for React and modal APIs
+- The shared `integration/discord-ui/runtime.cjs` inspects webpack exports, while
+  `native-picker-discovery.cjs` selects React and modal APIs
   instead of picking the largest cache. It also recognizes renamed `webpackChunk*`
   globals, nested/default exports, memo and forward-ref wrappers. Components stay
   within one compatible runtime. Throwing getters, cycles and localization proxies

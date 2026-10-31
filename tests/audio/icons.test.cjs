@@ -63,3 +63,20 @@ test("invalid, remote, absent, oversized and non-image icons keep the generic fa
   assert.equal(await f.resolve(["large"]), null);
   assert.equal(await f.resolve(["text"]), null);
 });
+test("binary suffixes and package-tree symlinks resolve Zen-style desktop icons", async (t) => {
+  const f = await fixture(t);
+  const packageRoot = path.join(f.directory, "opt", "browser");
+  await fs.mkdir(packageRoot, { recursive: true });
+  await fs.writeFile(path.join(packageRoot, "icon.svg"), svg);
+  await f.write("applications/zen.desktop", "[Desktop Entry]\nIcon=zen-browser\nExec=never-run\n");
+  const link = await f.write("icons/hicolor/scalable/apps/zen-browser.svg", "placeholder");
+  await fs.unlink(link);
+  await fs.symlink(path.join(packageRoot, "icon.svg"), link);
+  const resolve = createResolver({
+    dataDirs: [f.root],
+    legacyIcons: "",
+    extraRoots: [packageRoot],
+  });
+  assert.match(await resolve(["zen-bin"]), /^data:image\/svg\+xml;base64,/);
+  assert.equal(await f.resolve(["zen-bin"]), null, "unapproved symlink targets remain excluded");
+});

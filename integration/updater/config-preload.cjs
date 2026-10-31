@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("Native", {
   set: (config) => ipcRenderer.send("cs", config),
   get: () => ipcRenderer.sendSync("cg"),
   open: () => ipcRenderer.send("of"),
+  openDiagnostic: (name) => ipcRenderer.invoke("dpe-config-diagnostic", name),
   openLink: (name) => ipcRenderer.invoke("dpe-config-open-link", name),
   onTab: (callback) => ipcRenderer.on("dpe-config-tab", (_event, tab) => callback(tab)),
 });

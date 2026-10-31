@@ -19,6 +19,11 @@ app.whenReady().then(async () => {
       contextIsolation: true,
     },
   });
+  let openedLink;
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    openedLink = url;
+    return { action: "deny" };
+  });
   const run = (code) => window.webContents.executeJavaScriptInIsolatedWorld(999, [{ code }]);
   window.webContents.on("console-message", (event) => console.log(event.message));
   try {
@@ -44,8 +49,11 @@ app.whenReady().then(async () => {
       result.modal = query('dialog').matches(':modal');
       result.dialogFocused = pickerRoot.activeElement === query('dialog');
       result.cornerLabel = query('.summary strong').textContent === 'Choose audio source';
-      result.appCopy = query('.hint').textContent === 'Includes windows and tabs from the same app.';
+      result.appCopy = query('.hint span').textContent === 'Includes windows from the same app';
       result.searchAppearance = query('[type=search]').placeholder === 'Search' && !!query('.search-field svg');
+      result.docsLink = query('.hint a').hash === '#automatic-detection';
+      const positions = () => JSON.stringify(['h2','.search-field','footer'].map(s=>{const r=query(s).getBoundingClientRect();return [r.x,r.y,r.width,r.height]}));
+      const beforeSearch = positions();
       result.disabledInitially = query('.primary').disabled;
       result.literalMetadata = query('small').nextElementSibling === null && pickerRoot.textContent.includes('<b>not markup</b>') && !query('b');
       query('[value="200"]').click();
@@ -60,6 +68,7 @@ app.whenReady().then(async () => {
       result.mediaSearch = !query('[value="200"]').closest('label').hidden && query('[value="300"]').closest('label').hidden;
       query('[type=search]').value = 'no-results';
       query('[type=search]').dispatchEvent(new Event('input'));
+      result.stableEmptySearch = positions() === beforeSearch;
       result.noMatches = !query('.empty').hidden && !query('.clear-search').hidden;
       query('.clear-search').click();
       query('[value="300"]').click();
@@ -77,7 +86,8 @@ app.whenReady().then(async () => {
       query('[value="200"]').click();
       query('#audio-tab-1').click();
       result.tabClearsSelection = !query('[value="200"]').checked;
-      result.systemCopy = query('.hint').textContent === 'Includes all applications except Discord.';
+      result.systemCopy = query('.hint span').textContent === 'Includes all applications except Discord';
+      result.systemCard = getComputedStyle(query('.system-source')).borderTopWidth === '1px' && getComputedStyle(query('.system-source'),'::after').content.includes('✓') && getComputedStyle(query('.system-source')).backgroundColor !== 'rgba(0, 0, 0, 0)';
       result.systemAutomatic = !query('[value="system"]') && !query('.primary').disabled && query('[type=search]').hidden;
       query('.system-source').click();
       query('.system-source').click();
@@ -97,8 +107,14 @@ app.whenReady().then(async () => {
       return result;
     })()`);
     for (const [name, value] of Object.entries(result)) assert.equal(value, true, name);
+    await run(`pickerRoot.querySelector('.hint a').click()`);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(
+      openedLink,
+      "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/wayland-audio.md#automatic-detection",
+    );
     await run(
-      `dismiss(); options[1] = {id:'200', label:'Helium', detail:'Music', iconNames:['helium-browser']}; options[2] = {id:'300', label:'mpv', detail:'Video playback', iconNames:['mpv']}; openPicker(); document.fonts.ready`,
+      `dismiss(); options[1] = {id:'200', label:'Zen Browser', detail:'Music', iconNames:['zen-bin']}; options[2] = {id:'300', label:'mpv', detail:'Video playback', iconNames:['mpv']}; openPicker(); document.fonts.ready`,
     );
     await run(
       "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
@@ -219,6 +235,61 @@ app.whenReady().then(async () => {
         assert.equal(passed, true, `${width}x${height} @${zoom}: ${name}`);
       overflow.push({ width, height, zoom, ...check });
     }
+    window.setContentSize(1269, 772);
+    const scaling = [];
+    for (const [zoom, fontScale] of [
+      [0.8, 100],
+      [1.25, 100],
+      [1.5, 100],
+      [2, 100],
+      [1, 75],
+      [1, 125],
+      [1, 150],
+      [1, 200],
+      [1.25, 150],
+    ]) {
+      window.webContents.setZoomFactor(zoom);
+      await run(
+        `document.documentElement.style.fontSize = "${fontScale}%"; new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+      );
+      const result = await run(`(() => {
+        const [modal, content, card, label, footer, visual] = ["dialog", ".content", ".source:not([hidden])", ".source:not([hidden]) strong", "footer", ".source:not([hidden]) .source-visual"].map(s => pickerRoot.querySelector(s));
+        content.scrollTop = 0; modal.scrollTop = 0;
+        const box = card.getBoundingClientRect();
+        footer.scrollIntoView({block:'end'});
+        const f = footer.getBoundingClientRect(), m = modal.getBoundingClientRect();
+        return {root:parseFloat(getComputedStyle(document.documentElement).fontSize), cardWidth:box.width, cardHeight:box.height, text:parseFloat(getComputedStyle(label).fontSize), icon:visual.getBoundingClientRect().width, searchHeight:pickerRoot.querySelector('.search-field').getBoundingClientRect().height, buttonHeight:pickerRoot.querySelector('.primary').getBoundingClientRect().height, noOverflow:modal.scrollWidth<=modal.clientWidth+1&&content.scrollWidth<=content.clientWidth+1, footerReachable:f.top>=m.top-1&&f.bottom<=m.bottom+1};
+      })()`);
+      const ratio = fontScale / 100;
+      for (const [key, base] of Object.entries({
+        root: 16,
+        cardWidth: 200,
+        cardHeight: 160,
+        text: 16,
+        icon: 48,
+        searchHeight: 40,
+        buttonHeight: 40,
+      }))
+        assert.ok(
+          Math.abs(result[key] - base * ratio) < 0.1,
+          `${zoom} zoom, ${fontScale}% font: ${key}=${result[key]}`,
+        );
+      assert.equal(result.noOverflow, true, `${zoom} zoom, ${fontScale}% font: overflow`);
+      assert.equal(result.footerReachable, true, `${zoom} zoom, ${fontScale}% font: footer`);
+      if (zoom === 1 && fontScale === 150) {
+        await run(
+          `pickerRoot.querySelector('dialog').scrollTop=0; pickerRoot.querySelector('.content').scrollTop=0; new Promise(requestAnimationFrame)`,
+        );
+        fs.writeFileSync(
+          path.join(output, "scaled.png"),
+          (await window.webContents.capturePage()).toPNG(),
+        );
+      }
+      scaling.push({ zoom, fontScale, ...result });
+    }
+    fs.writeFileSync(path.join(output, "scaling.json"), JSON.stringify(scaling, null, 2));
+    await run(`document.documentElement.style.removeProperty('font-size')`);
+    window.webContents.setZoomFactor(1);
     await run(`dismiss(); options = ${JSON.stringify(baseline)}; openPicker();`);
     window.webContents.setZoomFactor(1);
     window.setContentSize(1269, 772);

@@ -19,6 +19,19 @@
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const container = document.getElementById("container");
   const panel = document.getElementById("flags-panel");
+  const troubleshooting = document.getElementById("troubleshooting-panel");
+  for (const button of troubleshooting.querySelectorAll("[data-diagnostic]")) {
+    button.onclick = async () => {
+      const error = document.getElementById("diagnostic-error");
+      error.hidden = true;
+      try {
+        await window.Native.openDiagnostic(button.dataset.diagnostic);
+      } catch (failure) {
+        error.textContent = failure.message;
+        error.hidden = false;
+      }
+    };
+  }
   const handlers = new Map(tabs.map((tab) => [tab.id, tab.onclick]));
   function select(tab) {
     const flags = tab.id === "t_flags";
@@ -28,9 +41,11 @@
       item.setAttribute("aria-selected", String(active));
       item.tabIndex = active ? 0 : -1;
     }
-    container.hidden = flags;
+    const diagnostic = tab.id === "t_troubleshooting";
+    container.hidden = flags || diagnostic;
+    troubleshooting.hidden = !diagnostic;
     panel.hidden = !flags;
-    if (!flags) container.setAttribute("aria-labelledby", tab.id);
+    if (!flags && !diagnostic) container.setAttribute("aria-labelledby", tab.id);
     handlers.get(tab.id)?.();
     // The upstream settings list rebuilds its controls when changing tabs.
     for (const input of container.querySelectorAll("input, select")) {

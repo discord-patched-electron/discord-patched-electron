@@ -72,44 +72,55 @@ test("custom CSS cannot become template-literal JavaScript", (t) => {
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(
     path.join(directory, "mainWindow.js"),
-    "let lastBgPrimary = '';\noldCollector();\n// Settings injection\nlabel = 'OpenAsar <channel> (<hash>)';\nresult = `<css>`;",
+    "let lastBgPrimary = '';\noldCollector();\n// Settings injection\nlabel = 'OpenAsar <channel> (<hash>)';\nconst injCSS = null; result = `<css>`;",
   );
   const css = 'body::before {content:"${globalThis.executed=true} `$& \\"}';
-  const context = { result: "" };
-  vm.runInNewContext(renderer.source({ css }, "nightly-test", root), context);
+  const context = {
+    result: "",
+    document: { querySelector: () => null, querySelectorAll: () => [] },
+    setInterval() {},
+  };
+  vm.runInNewContext(renderer.source({ css }, root), context);
   assert.equal(context.result, css);
   assert.equal(context.executed, undefined);
 });
 
-for (const version of ["20261026.123456", null]) {
-  test(`OpenAsar settings identify the ${version ? "packaged release" : "development build"}`, (t) => {
-    const root = fixture(t);
-    fs.mkdirSync(path.join(root, "bootstrap/src"), { recursive: true });
-    fs.writeFileSync(
-      path.join(root, "bootstrap/src/mainWindow.js"),
-      "let lastBgPrimary = '';\noldCollector();\n// Settings injection\nlabel = 'OpenAsar <channel> (<hash>)';",
-    );
-    fs.writeFileSync(
-      path.join(root, "runtime-update.json"),
-      JSON.stringify({ release_version: version }),
-    );
-    const previous = process.env.DPE_APP_ROOT;
-    process.env.DPE_APP_ROOT = root;
-    t.after(() => {
-      if (previous === undefined) delete process.env.DPE_APP_ROOT;
-      else process.env.DPE_APP_ROOT = previous;
-    });
-    const app = new EventEmitter();
+test("renderer installs the shared UI only in Discord windows", (t) => {
+  const root = fixture(t);
+  fs.mkdirSync(path.join(root, "bootstrap/src"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, "bootstrap/src/mainWindow.js"),
+    "let lastBgPrimary = '';\n// Settings injection\nlabel = 'OpenAsar <channel> (<hash>)';\nconst injCSS = null;",
+  );
+  const previous = process.env.DPE_APP_ROOT;
+  process.env.DPE_APP_ROOT = root;
+  t.after(() => {
+    if (previous === undefined) delete process.env.DPE_APP_ROOT;
+    else process.env.DPE_APP_ROOT = previous;
+  });
+  const app = new EventEmitter();
+  let calls = 0;
+  renderer(app, { pageReady() {} }, {});
+  for (const url of [
+    "https://canary.discord.com/channels/@me",
+    "https://discord.com/app",
+    "https://ptb.discord.com/app",
+    "https://discord.com.evil.test",
+    "file:///test",
+  ]) {
     const webContents = new EventEmitter();
-    const context = {};
-    webContents.getURL = () => "https://canary.discord.com/channels/@me";
-    webContents.executeJavaScript = async (script) => vm.runInNewContext(script, context);
-    renderer(app, { pageReady() {} }, {});
+    webContents.getURL = () => url;
+    webContents.executeJavaScript = async (code) => {
+      calls++;
+      const context = {};
+      vm.runInNewContext(code, context);
+      assert.ok(vm.runInNewContext('globalThis[Symbol.for("dpe.discordUI")]', context));
+    };
     app.emit("browser-window-created", {}, { webContents });
     webContents.emit("did-finish-load");
-    assert.equal(context.label, `OpenAsar (discord-patched-electron ${version || "development"})`);
-  });
-}
+  }
+  assert.equal(calls, 3);
+});
 
 test("current and legacy theme tokens update the cache without losing other user data", async () => {
   const body = { parentElement: null };

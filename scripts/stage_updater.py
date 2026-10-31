@@ -88,7 +88,7 @@ def stage(
     # Official mod installers use this to identify the installation. The loader
     # reads the live client metadata from Discord's per-user installation.
     write_json(resources / "build_info.json", {"releaseChannel": channel, "version": version})
-    for directory in ("updater", "audio", "desktop", "launcher"):
+    for directory in ("updater", "audio", "desktop", "launcher", "discord-ui"):
         shutil.copytree(
             ROOT / "integration" / directory,
             output / "integration" / directory,
@@ -99,6 +99,7 @@ def stage(
         output / "integration/updater/release-signing-key.asc",
     )
     for source, destination in SIDECARS.items():
+        (output / "integration/audio" / destination).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(
             ROOT / "integration/audio" / source, output / "integration/audio" / destination
         )

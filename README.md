@@ -47,14 +47,17 @@ are available for testing.
 
 ## Configure OpenAsar and flags
 
-Open Discord's **User Settings**, then click **OpenAsar (discord-patched-electron …)**
-in the version information at the bottom of the left sidebar to open
+Open Discord's **User Settings**, then click **DPE OpenAsar**
+above **Log Out** in the left sidebar to open
 **DPE OpenAsar Config**.
 
 Use **Settings** and **Theming** to configure OpenAsar. The **Flags** tab provides
 display options, graphics presets under **Advanced**, and a box for custom
 Electron flags. After changing flags, choose **Save**, then **Restart** to apply
 them. See [launcher settings](docs/linux-launcher.md) for more details.
+
+The **Troubleshooting** tab opens GPU, media, WebRTC and other diagnostic pages
+inside Discord’s Electron runtime.
 
 ## Guides
 

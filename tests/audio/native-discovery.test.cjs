@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const vm = require("node:vm");
+const ui = require("../../integration/discord-ui/source.cjs");
 const discover = require("../../integration/audio/native-picker-discovery.cjs");
 // Independent component doubles: public prop contracts, not Discord module IDs
 // or copied bundles. Calling any of these during discovery is a test failure.
@@ -63,7 +64,7 @@ function inspect(runtimes, extra = {}) {
     for (const runtime of runtimes) chunk[2](runtime);
   };
   const context = { webpackChunk_renamedByDiscord: chunks, ...extra };
-  const result = vm.runInNewContext(`(${discover.toString()})('fixture')`, context);
+  const result = vm.runInNewContext(ui.call(discover, "fixture"), context);
   assert.equal(chunks.length, 0, "temporary chunks are removed");
   return result;
 }

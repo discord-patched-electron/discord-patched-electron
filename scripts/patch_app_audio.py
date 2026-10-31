@@ -11,6 +11,11 @@ INSERT = "    instance = require('./dpe-app-audio.cjs').wrap(instance);\n"
 EXPORT = "module.exports = VoiceEngine;"
 INSTALL = "require('./dpe-app-audio.cjs').installVoice(VoiceEngine);\n"
 SIDECARS = {
+    "../discord-ui/runtime.cjs": "discord-ui/runtime.cjs",
+    "../discord-ui/source.cjs": "discord-ui/source.cjs",
+    "portal-detection.cjs": "portal-detection.cjs",
+    "portal-monitor.py": "portal-monitor.py",
+    "capture_detection.py": "capture_detection.py",
     "native-picker-discovery.cjs": "native-picker-discovery.cjs",
     "native-picker-renderer.cjs": "native-picker-renderer.cjs",
     "native-picker-bridge.cjs": "native-picker-bridge.cjs",
@@ -48,13 +53,14 @@ def patch(directory: Path, adapter: Path) -> dict:
     elif source.count(INSTALL + EXPORT) != 1:
         raise ValueError("Unexpected native picker adapter")
     for name in SIDECARS:
-        if not adapter.with_name(name).is_file():
+        if not (adapter.parent / name).is_file():
             raise ValueError("Missing application audio helper: " + name)
     native = patch_pulse_audio(directory / "discord_voice.node")
     wrapper.write_text(source)
     shutil.copy2(adapter, directory / "dpe-app-audio.cjs")
     for name, destination in SIDECARS.items():
-        shutil.copy2(adapter.with_name(name), directory / destination)
+        (directory / destination).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(adapter.parent / name, directory / destination)
     return {
         "input_sha256": before,
         "output_sha256": sha256(wrapper),
@@ -64,7 +70,7 @@ def patch(directory: Path, adapter: Path) -> dict:
         "default_sessions": ["wayland"],
         "disable_environment": "DPE_APP_AUDIO=0",
         "helper_sha256": {
-            destination: sha256(adapter.with_name(name)) for name, destination in SIDECARS.items()
+            destination: sha256(adapter.parent / name) for name, destination in SIDECARS.items()
         },
         "x11_enable_environment": "DPE_APP_AUDIO=1",
         "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
