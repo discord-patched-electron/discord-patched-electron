@@ -305,7 +305,7 @@ def read_state(root):
     path = root / "state.json"
     try:
         state = read(path)
-        references = [state.get(key) for key in ("current", "previous", "pending")]
+        references = [state.get(key) for key in ("current", "previous", "pending", "baseline")]
         rejected = state.get("rejected", [])
         if not isinstance(rejected, list):
             raise ValueError("Invalid rejected application list")
@@ -354,8 +354,22 @@ def select(root, package, policy, *, archive=None, launch=False):
                 app, _ = generation(root, trial["digest"], package, policy)
                 return app, None
         else:
-            state.setdefault("rejected", []).append(trial["digest"])
+            if (root / ("started-" + trial["token"])).is_file():
+                state.setdefault("rejected", []).append(trial["digest"])
+            else:
+                # Setup may be cancelled or fail offline before Discord starts.
+                # Keep the verified update available, without replacing a newer one.
+                state.setdefault("pending", trial["digest"])
             state.pop("trial")
+        write(state_file, state)
+    baseline = policy["application"]
+    if state.get("baseline") != baseline["archive_sha256"]:
+        # A changed package pin permits one fresh trial, including when migrating
+        # state from an older loader. The same pin must not revive every crash.
+        state["baseline"] = baseline["archive_sha256"]
+        state["rejected"] = [
+            digest for digest in state.get("rejected", []) if digest != state["baseline"]
+        ]
         write(state_file, state)
     running = state.get("running")
     if (
@@ -369,7 +383,6 @@ def select(root, package, policy, *, archive=None, launch=False):
         # update underneath it or mistake that intentional exit for a failure.
         app, _ = generation(root, running["digest"], package, policy)
         return app, None
-    baseline = policy["application"]
     candidates = [
         state.get("trial", {}).get("digest"),
         state.get("pending"),
@@ -498,8 +511,10 @@ def main():
         "PYTHONNOUSERSITE": "1",
     }
     environment.pop("DPE_APPLICATION_READY", None)
+    environment.pop("DPE_APPLICATION_STARTED", None)
     if token:
         environment["DPE_APPLICATION_READY"] = str(root / ("ready-" + token))
+        environment["DPE_APPLICATION_STARTED"] = str(root / ("started-" + token))
     arguments = args.args[1:] if args.args[:1] == ["--"] else args.args
     os.execve(app / "launch.sh", [str(app / "launch.sh"), *arguments], environment)
 

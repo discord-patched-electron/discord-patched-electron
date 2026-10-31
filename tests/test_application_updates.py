@@ -104,11 +104,15 @@ class ApplicationUpdates(unittest.TestCase):
         source = self.directory / label
         source.mkdir()
         script = (
-            "#!/bin/sh\nexit 1\n"
+            '#!/bin/sh\nif [ "${1:-}" = cancel ]; then exit 1; fi\n'
+            'if [ -n "${DPE_APPLICATION_STARTED:-}" ]; then printf started > "$DPE_APPLICATION_STARTED"; fi\n'
+            'if [ "${1:-}" = crash ]; then exit 1; fi\n'
+        )
+        script += (
+            "exit 1\n"
             if broken
-            else '#!/bin/sh\nif [ "${1:-}" = cancel ]; then exit 1; fi\nif [ -n "${DPE_APPLICATION_READY:-}" ]; then printf ready > "$DPE_APPLICATION_READY"; fi\nprintf "%s\\n" '
-            + label
-            + "\n"
+            else 'if [ -n "${DPE_APPLICATION_READY:-}" ]; then printf ready > "$DPE_APPLICATION_READY"; fi\n'
+            + f'printf "%s\\n" {label}\n'
         )
         (source / "launch.sh").write_text(script)
         (source / "launch.sh").chmod(0o755)
@@ -356,6 +360,61 @@ class ApplicationUpdates(unittest.TestCase):
         self.assertIn(second["archive_sha256"], state["rejected"])
         self.assertEqual(Path(self.stage(second, archive).stdout.strip()), self.first_app)
 
+    def test_interrupted_update_setup_remains_pending_and_can_finish_offline(self):
+        self.run_loader("--launch")
+        second, archive = self.payload("second", "20261027.130000")
+        self.stage(second, archive)
+        self.run_loader("--launch")
+        self.run_loader("--resolve")
+        third, archive = self.payload("third", "20261028.120000")
+        third_app = Path(self.stage(third, archive).stdout.strip())
+        for _ in range(2):
+            self.assertEqual(self.run_loader("--launch", "--", "cancel", check=False).returncode, 1)
+            self.assertEqual(Path(self.run_loader("--resolve").stdout.strip()), third_app)
+            state = read_json(self.root / "state.json")
+            self.assertEqual(state["current"], second["archive_sha256"])
+            self.assertEqual(state["pending"], third["archive_sha256"])
+            self.assertNotIn(third["archive_sha256"], state.get("rejected", []))
+            self.assertEqual(Path(self.stage(third, archive).stdout.strip()), third_app)
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "third")
+        self.run_loader("--resolve")
+        self.assertEqual(read_json(self.root / "state.json")["current"], third["archive_sha256"])
+        with patch.dict(os.environ, {"DPE_APPLICATION_VERSION": third["version"]}):
+            self.assertEqual(
+                runtime.approved_release(
+                    self.approve(third), self.policy, self.package / "release-signing-key.asc"
+                )["application"],
+                third,
+            )
+
+    def test_changed_package_pin_retries_a_previously_rejected_update(self):
+        self.run_loader("--launch")
+        second, archive = self.payload("second", "20261027.130000")
+        self.stage(second, archive)
+        self.run_loader("--launch")
+        third, archive = self.payload("third", "20261028.120000")
+        self.stage(third, archive)
+        self.assertEqual(self.run_loader("--launch", "--", "crash", check=False).returncode, 1)
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "second")
+        self.assertIn(third["archive_sha256"], read_json(self.root / "state.json")["rejected"])
+        write_json(self.package / "bootstrap.json", {**self.policy, "application": third})
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "third")
+        self.run_loader("--resolve")
+        state = read_json(self.root / "state.json")
+        self.assertEqual(state["current"], third["archive_sha256"])
+        self.assertNotIn(third["archive_sha256"], state["rejected"])
+
+    def test_confirmed_launch_does_not_inherit_trial_markers(self):
+        self.run_loader("--launch")
+        self.run_loader("--resolve")
+        started, ready = self.directory / "stale-started", self.directory / "stale-ready"
+        self.environment.update(
+            DPE_APPLICATION_STARTED=str(started), DPE_APPLICATION_READY=str(ready)
+        )
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "first")
+        self.assertFalse(started.exists())
+        self.assertFalse(ready.exists())
+
     def test_tampered_cache_falls_back_without_changing_older_files(self):
         self.run_loader("--launch")
         second, archive = self.payload("second", "20261027.130000")
@@ -525,6 +584,9 @@ class ApplicationUpdates(unittest.TestCase):
         write_json(self.package / "bootstrap.json", updated)
         loader.install(self.root, self.package, updated, broken, archive)
         self.assertEqual(self.run_loader("--launch", check=False).returncode, 1)
+        self.assertEqual(self.run_loader("--launch").stdout.strip(), "first")
+
+        # An unchanged package pin must not keep reviving a crashing trial.
         self.assertEqual(self.run_loader("--launch").stdout.strip(), "first")
 
     def test_application_archive_rejects_traversal_links_duplicates_and_extra_files(self):
