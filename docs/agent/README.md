@@ -46,6 +46,7 @@ current setup instructions or authorization to repeat earlier actions.
 
 - [Build and release history](handoff-history.md)
 - [Updater implementation history](updater-history.md)
+- [Offline installation reliability review, 30 October](installation-reliability-review-20261030.md)
 - [Early implementation milestones](status.md)
 - [Original plan](plan.md)
 - [Initial build capacity experiment](build-capacity.md)
