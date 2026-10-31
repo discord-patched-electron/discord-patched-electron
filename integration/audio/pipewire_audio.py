@@ -10,6 +10,7 @@ PipeWire implementation. The protocol on stdin/stdout contains no audio data.
 from __future__ import annotations
 
 import argparse
+import configparser
 import ctypes
 import json
 import os
@@ -93,6 +94,64 @@ def props(obj):
 
 def graph():
     return json.loads(command(["/usr/bin/pw-dump"]))
+
+
+def audio_pid(properties):
+    """Resolve a playback owner; sandbox PIDs must never become host PIDs."""
+    instance = properties.get("pipewire.access.portal.instance_id")
+    app_id = properties.get("pipewire.access.portal.app_id")
+    if instance is not None:
+        # PipeWire-Pulse supplies the Flatpak instance from peer credentials.
+        # Its pipewire.sec.pid belongs to the server, not the playback app.
+        if not str(instance).isascii() or not str(instance).isdecimal() or not app_id:
+            return -1
+        try:
+            info = Path(f"/run/user/{os.getuid()}/.flatpak/{instance}/bwrapinfo.json")
+            pid = integer(json.loads(info.read_text()).get("child-pid"))
+            identity = process_identity(pid)
+            if identity is None:
+                return -1
+            metadata = configparser.ConfigParser(interpolation=None)
+            metadata.read_string(Path(f"/proc/{pid}/root/.flatpak-info").read_text())
+            if (
+                metadata.get("Application", "name") == app_id
+                and metadata.get("Instance", "instance-id") == str(instance)
+                and process_identity(pid) == identity
+            ):
+                return pid
+        except (OSError, ValueError, configparser.Error):
+            pass
+        return -1
+    if app_id:  # A sandbox without a verified instance cannot use a host PID.
+        return -1
+    return integer(properties.get("application.process.id"))
+
+
+def playback_entries(objects, pulse):
+    """Join both server views before resolving ownership or building labels."""
+    clients = {x["id"]: props(x) for x in objects if x["type"] == "PipeWire:Interface:Client"}
+    streams = {
+        str(s.get("properties", {}).get("object.serial")): s.get("properties", {})
+        for s in pulse
+        if "object.serial" in s.get("properties", {})
+    }
+    for node in objects:
+        p = props(node)
+        if (
+            node["type"] != "PipeWire:Interface:Node"
+            or p.get("media.class") != "Stream/Output/Audio"
+        ):
+            continue
+        if str(p.get("node.name", "")).startswith("dpe-audio-"):
+            continue
+        client = clients.get(integer(p.get("client.id")), {})
+        # Pulse's stream view can carry app metadata absent from pw-dump.
+        properties = {**client, **p, **streams.get(str(p.get("object.serial")), {})}
+        # Sandbox identity comes from the client, never a stream override.
+        for name in ("pipewire.access.portal.instance_id", "pipewire.access.portal.app_id"):
+            if name in client:
+                properties[name] = client[name]
+        yield node, properties
 
 
 def video_sources(objects, owner):
@@ -319,27 +378,23 @@ class Route:
         desired = {}
         sinks = None
         native_pulse_serials = set()
-        clients = {x["id"]: props(x) for x in objects if x["type"] == "PipeWire:Interface:Client"}
 
-        def wanted(pid):
+        def wanted(pid, sandbox=False):
             return (
-                process_identity(pid) is not None
+                (identity := process_identity(pid)) is not None
                 and not descendant(pid, excluded)
+                and not descendant(excluded[0], identity)
                 and not descendant(pid, process_identity(os.getpid()))
-                and (target is None or descendant(pid, target))
+                and (
+                    target is None
+                    or descendant(pid, target)
+                    or (sandbox and descendant(target[0], identity))
+                )
             )
 
-        for node in objects:
-            if node["type"] != "PipeWire:Interface:Node":
-                continue
-            p = props(node)
-            if p.get("media.class") != "Stream/Output/Audio" or str(
-                p.get("node.name", "")
-            ).startswith("dpe-audio-"):
-                continue
-            client = clients.get(integer(p.get("client.id")), {})
-            pid = integer(p.get("application.process.id", client.get("application.process.id")))
-            if not wanted(pid):
+        for _node, p in playback_entries(objects, pulse):
+            pid = audio_pid(p)
+            if not wanted(pid, bool(p.get("pipewire.access.portal.instance_id"))):
                 continue
             serial = str(p.get("object.serial", ""))
             if not serial.isdecimal():
@@ -362,13 +417,13 @@ class Route:
             ]
         for stream in pulse:
             p = stream.get("properties", {})
-            pid = integer(p.get("application.process.id"))
+            pid = audio_pid(p)
             identity = process_identity(pid)
             # pipewire-pulse exposes the same stream twice. Never mix it twice.
             if (
                 identity is None
                 or str(p.get("object.serial")) in native_pulse_serials
-                or not wanted(pid)
+                or not wanted(pid, bool(p.get("pipewire.access.portal.instance_id")))
             ):
                 continue
             if "object.serial" in p:  # A PipeWire stream with no matching node is stale.
@@ -455,6 +510,10 @@ class Controller:
         self.choice = None
         self.chooser = None
         self.choose_key = None
+        self.inline_picker = False
+        self.request = 0
+        self.pending_choice = False
+        self.choices = {}
 
     def emit(self, pid=0, state="waiting", backend=None):
         value = {
@@ -482,11 +541,31 @@ class Controller:
             self.chooser = None
             self.choice = None
             self.choose_key = None
+        self.pending_choice = False
+        self.choices = {}
 
     def update(self, message):
+        if "selection" in message:
+            if (
+                message["generation"] != self.generation
+                or message.get("request") != self.request
+                or not self.pending_choice
+            ):
+                return
+            self.pending_choice = False
+            value = message["selection"]
+            if value == "fallback":
+                self.inline_picker = False
+                self.choose_key = None
+            elif value == "refresh":
+                self.choose_key = None
+            else:
+                self.accept_choice(value)
+            return
         self.reset()
         self.generation = message["generation"]
         self.enabled = message.get("enabled") is True
+        self.inline_picker = message.get("picker") == "inline"
         self.hint = integer(message.get("hint"))
         self.emit()
 
@@ -497,38 +576,76 @@ class Controller:
             self.choice = None
             self.choose_key = key
             choices = {}
-            clients = {
-                x["id"]: props(x) for x in objects if x["type"] == "PipeWire:Interface:Client"
-            }
-            entries = [
-                {**clients.get(integer(props(x).get("client.id")), {}), **props(x)}
-                for x in objects
-                if x["type"] == "PipeWire:Interface:Node"
-                and props(x).get("media.class") == "Stream/Output/Audio"
-            ]
+            media = {}
+            icons = {}
+            entries = [p for _node, p in playback_entries(objects, pulse)]
             entries += [
                 s.get("properties", {})
                 for s in pulse
                 if "object.serial" not in s.get("properties", {})
             ]
             for entry in entries:
-                pid = integer(entry.get("application.process.id"))
+                pid = audio_pid(entry)
                 identity = process_identity(pid)
-                if identity and not descendant(pid, self.excluded):
-                    label = str(
-                        entry.get(
-                            "application.name",
-                            entry.get("application.process.binary", "Application"),
-                        )
-                    )[:120]
-                    label = "".join(c for c in label if c.isprintable())
+                if (
+                    identity
+                    and not descendant(pid, self.excluded)
+                    and not descendant(self.excluded[0], identity)
+                    and not descendant(pid, process_identity(os.getpid()))
+                ):
+                    # Metadata improves labels/search across desktops. It never
+                    # grants capture authority or merges unrelated processes.
+                    def clean(value):
+                        return "".join(c for c in str(value) if c.isprintable())[:120]
+
+                    label = next(
+                        (
+                            clean(entry[name])
+                            for name in (
+                                "application.name",
+                                "application.id",
+                                "application.process.binary",
+                                "node.description",
+                            )
+                            if entry.get(name)
+                        ),
+                        "Application",
+                    )
                     choices[pid] = (identity, label)
+                    names = icons.setdefault(pid, [])
+                    for field in (
+                        "application.icon_name",
+                        "application.id",
+                        "pipewire.access.portal.app_id",
+                        "application.process.binary",
+                    ):
+                        name = entry.get(field)
+                        if (
+                            isinstance(name, str)
+                            and name not in names
+                            and len(name) <= 160
+                            and len(names) < 4
+                        ):
+                            names.append(name)
+                    if entry.get("media.name"):
+                        media.setdefault(pid, set()).add(clean(entry["media.name"]))
+            # Bound the local protocol and keep selection deterministic.
+            choices = dict(
+                sorted(choices.items(), key=lambda item: (item[1][1].casefold(), item[0]))[:80]
+            )
             self.choices = choices
             from window_inventory import desktop_note, windows
 
             inventory = windows()
             rows = ["system", "Entire system (except Discord)"]
-            for pid, (_identity, label) in sorted(choices.items()):
+            options = [
+                {
+                    "id": "system",
+                    "label": "System audio",
+                    "detail": "All applications except Discord",
+                }
+            ]
+            for pid, (_identity, label) in choices.items():
                 owners = [
                     w
                     for w in inventory
@@ -540,7 +657,38 @@ class Controller:
                     if len(titles) == 1
                     else (f" — {len(titles)} windows" if titles else "")
                 )
-                rows.extend([str(pid), label + " (all audio)" + detail])
+                tracks = sorted(media.get(pid, set()))
+                description = detail.removeprefix(" — ") or (
+                    tracks[0] if tracks else "Application audio"
+                )
+                if len(tracks) > 1:
+                    description += f" · {len(tracks)} audio streams"
+                options.append(
+                    {
+                        "id": str(pid),
+                        "label": label,
+                        "detail": description,
+                        "iconNames": icons.get(pid, []),
+                    }
+                )
+                rows.extend([str(pid), label + " — " + description])
+            if self.inline_picker:
+                self.request += 1
+                self.pending_choice = True
+                self.last = None  # Ensure disappearance/cancellation emits a close state.
+                print(
+                    json.dumps(
+                        {
+                            "generation": self.generation,
+                            "state": "choosing",
+                            "request": self.request,
+                            "options": options,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
+                return None
             identity = (os.environ.get("CHROME_DESKTOP") or "discord-canary.desktop").removesuffix(
                 ".desktop"
             )
@@ -554,14 +702,17 @@ class Controller:
                     "--window-icon=" + icon,
                     "--list",
                     "--title=Screen-share audio",
-                    "--text=Choose an application for this share. Audio from its other windows is included."
+                    "--text=Choose audio for your shared screen or window. "
+                    "Application audio includes its other windows."
                     + ("\n\n" + desktop_note() if desktop_note() else ""),
+                    "--no-markup",
                     "--column=Process",
                     "--column=Application",
                     "--hide-column=1",
                     "--print-column=1",
                     "--ok-label=Share audio",
                     "--cancel-label=No audio",
+                    "--extra-button=Refresh applications",
                     "--width=520",
                     "--height=360",
                     "--",
@@ -575,23 +726,29 @@ class Controller:
         if self.chooser and self.chooser.poll() is not None:
             child, self.chooser = self.chooser, None
             value = child.communicate()[0].decode().strip()
+            if value == "Refresh applications":
+                self.choose_key = None
+                return None
             if child.returncode == 0:
-                if value == "system":
-                    self.choice = {
-                        "kind": "system",
-                        "key": ("manual", *key),
-                        "backend": "selection",
-                    }
-                elif integer(value) in self.choices:
-                    identity = self.choices[integer(value)][0]
-                    if process_identity(identity[0]) == identity:
-                        self.choice = {
-                            "kind": "application",
-                            "pid": identity[0],
-                            "key": ("manual", *key),
-                            "backend": "selection",
-                        }
+                self.accept_choice(value)
         return self.choice
+
+    def accept_choice(self, value):
+        if value == "system":
+            self.choice = {
+                "kind": "system",
+                "key": ("manual", *self.choose_key),
+                "backend": "selection",
+            }
+        elif isinstance(value, str) and integer(value) in self.choices:
+            identity = self.choices[integer(value)][0]
+            if process_identity(identity[0]) == identity:
+                self.choice = {
+                    "kind": "application",
+                    "pid": identity[0],
+                    "key": ("manual", *self.choose_key),
+                    "backend": "selection",
+                }
 
     def tick(self):
         if process_identity(self.owner) != self.owner_identity:
@@ -601,6 +758,11 @@ class Controller:
         objects = graph()
         pulse = json.loads(command(["/usr/bin/pactl", "-f", "json", "list", "sink-inputs"]))
         sources = video_sources(objects, self.owner)
+        if len(sources) != 1:
+            if self.route or self.chooser or self.choice or self.choose_key:
+                self.reset()
+            self.emit()
+            return
         target = None
         niri_available = False
         if os.environ.get("NIRI_SOCKET"):
@@ -621,6 +783,8 @@ class Controller:
         if target is None and len(sources) == 1 and not niri_available:
             target = self.choose(objects, pulse, next(iter(sources)))
         if target is None:
+            if self.pending_choice:
+                return
             if self.route:
                 self.reset()
             self.emit()

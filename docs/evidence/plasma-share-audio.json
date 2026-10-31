@@ -1,0 +1,469 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "checks": {
+    "python_tests": 275,
+    "javascript_tests": 60,
+    "bun_run_test": "passed",
+    "bun_run_lint": "passed"
+  },
+  "limitations": [
+    "No live Plasma Discord call",
+    "No real Flatpak or Snap Spotify session",
+    "No end-to-end voice dropout measurement"
+  ],
+  "sources": {
+    "integration/audio/app-audio.cjs": "31aa153032eeac700863cdbf0594b180e386b64fd1f38b5f34c6b7c5e3461227",
+    "integration/audio/pipewire_audio.py": "a3223a1f71b969c5397d5e3dce7e92fda90ea49f58194414595f5a2dc0ee0ca4",
+    "integration/audio/voice-devices.cjs": "1776acb8515b94be72a342c82a9c0f9f1d680ff57386751e3df02a6badecd73d",
+    "integration/audio/wayland-audio.cjs": "6282cd29e08fbbc89b749d27df2ea6dcd0e53ae751137d55782c330a84e6e092",
+    "integration/audio/window_inventory.py": "973e55336fbc0f5b0ca326f6e6a555edb63054d5d523e203af7cd61b4d2f6987"
+  },
+  "native": {
+    "pipewire": {
+      "local_report": "out/plasma-final-pipewire-20261031/audio-report.json",
+      "all_cases_passed": true,
+      "identity": {
+        "adapter_patch": {
+          "adapter_sha256": "31aa153032eeac700863cdbf0594b180e386b64fd1f38b5f34c6b7c5e3461227",
+          "default_sessions": [
+            "wayland"
+          ],
+          "disable_environment": "DPE_APP_AUDIO=0",
+          "enabled_by_default": true,
+          "helper_sha256": {
+            "dpe-pipewire-audio.py": "a3223a1f71b969c5397d5e3dce7e92fda90ea49f58194414595f5a2dc0ee0ca4",
+            "dpe-voice-devices.cjs": "1776acb8515b94be72a342c82a9c0f9f1d680ff57386751e3df02a6badecd73d",
+            "dpe-wayland-audio.cjs": "6282cd29e08fbbc89b749d27df2ea6dcd0e53ae751137d55782c330a84e6e092",
+            "window_inventory.py": "973e55336fbc0f5b0ca326f6e6a555edb63054d5d523e203af7cd61b4d2f6987"
+          },
+          "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+          "native_buffer_patch": {
+            "already_patched": false,
+            "buffer_bytes": 192000,
+            "input_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5",
+            "offset": 4597792,
+            "output_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+            "patch": "clear-pulse-mixer-before-attach-v1"
+          },
+          "output_sha256": "849c47170bceb5f85c3dafcec580dc1fbd130eee098eca6dc1793bc022f2153b",
+          "publishable": false,
+          "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+          "x11_enable_environment": "DPE_APP_AUDIO=1"
+        },
+        "channel": "canary",
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "executable": "DiscordCanary",
+        "runtime_kind": "bundled",
+        "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "voice_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8"
+      },
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "PulseAudio (on PipeWire 1.6.10)",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "manual"
+      },
+      "fixture": {
+        "completed_phases": [
+          "app-a",
+          "app-b",
+          "system",
+          "disabled",
+          "audio-cancelled",
+          "cancelled",
+          "re-enabled",
+          "app-exited",
+          "cleared"
+        ],
+        "compositor": "niri",
+        "events": [
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "type": "screenshare_finish"
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 137,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 129,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 240,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 129,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "error": "Portal request was cancelled",
+            "event": "error"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "type": "screenshare_finish"
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 237,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          }
+        ],
+        "hidden_device_leaks": 0,
+        "internal_device_control": true,
+        "offload_adm_controls": true,
+        "passed": true,
+        "pcmFormats": {
+          "app-a:1:48000:1440": 39,
+          "app-a:1:48000:1920": 1,
+          "app-a:1:8000:240": 40,
+          "app-b:1:48000:1440": 39,
+          "app-b:1:48000:1920": 1,
+          "app-b:1:8000:240": 40,
+          "app-exited:1:8000:12800": 1,
+          "audio-cancelled:1:8000:12800": 1,
+          "cancelled:1:8000:12800": 1,
+          "cleared:1:8000:12800": 1,
+          "disabled:1:8000:12800": 1,
+          "re-enabled:1:48000:1440": 40,
+          "re-enabled:1:8000:240": 39,
+          "re-enabled:1:8000:320": 1,
+          "system:1:48000:1440": 39,
+          "system:1:48000:1920": 1,
+          "system:1:8000:240": 40
+        },
+        "portal": "controlled test portal backed by real niri screencasts",
+        "real_discord_call_verified": false,
+        "stage": {
+          "stage": "cleared:record"
+        },
+        "versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "152.0.7977.167",
+          "cldr": "48.0",
+          "electron": "44.9.3",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "149",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026d",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.2.124.43-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        },
+        "wayland_video_verified": true
+      },
+      "real_discord_call_verified": false,
+      "microphone_call_verified": false
+    },
+    "pulseaudio": {
+      "local_report": "out/plasma-final-pulseaudio-20261031/audio-report.json",
+      "all_cases_passed": true,
+      "identity": {
+        "adapter_patch": {
+          "adapter_sha256": "31aa153032eeac700863cdbf0594b180e386b64fd1f38b5f34c6b7c5e3461227",
+          "default_sessions": [
+            "wayland"
+          ],
+          "disable_environment": "DPE_APP_AUDIO=0",
+          "enabled_by_default": true,
+          "helper_sha256": {
+            "dpe-pipewire-audio.py": "a3223a1f71b969c5397d5e3dce7e92fda90ea49f58194414595f5a2dc0ee0ca4",
+            "dpe-voice-devices.cjs": "1776acb8515b94be72a342c82a9c0f9f1d680ff57386751e3df02a6badecd73d",
+            "dpe-wayland-audio.cjs": "6282cd29e08fbbc89b749d27df2ea6dcd0e53ae751137d55782c330a84e6e092",
+            "window_inventory.py": "973e55336fbc0f5b0ca326f6e6a555edb63054d5d523e203af7cd61b4d2f6987"
+          },
+          "input_sha256": "3930f736ba8b95a2e5773d014868f449e7e927ecac39d1471d2c40b2473b2bc2",
+          "native_buffer_patch": {
+            "already_patched": false,
+            "buffer_bytes": 192000,
+            "input_sha256": "d7937236a8bc448aebe68b9a2819eb255d45e0457a4adaf80582d4f5fc3045a5",
+            "offset": 4597792,
+            "output_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8",
+            "patch": "clear-pulse-mixer-before-attach-v1"
+          },
+          "output_sha256": "849c47170bceb5f85c3dafcec580dc1fbd130eee098eca6dc1793bc022f2153b",
+          "publishable": false,
+          "trace_requires_environment": "DPE_APP_AUDIO_TRACE=1",
+          "x11_enable_environment": "DPE_APP_AUDIO=1"
+        },
+        "channel": "canary",
+        "client_digest": "304f9d9504197597443044707bdf324b996c66e0cbe3c6a334f160bdf202d27f",
+        "client_version": "1.0.2357",
+        "executable": "DiscordCanary",
+        "runtime_kind": "bundled",
+        "runtime_sha256": "23014a8d2dc83233e361abacf2de7854128b49a95dd8e394ac03a62187debaa4",
+        "voice_sha256": "2352578d855e5ff75c0433fe8ca0ffa6d599691a506a7908da3d0d6523cc91b8"
+      },
+      "lifecycle": {
+        "default_devices_unchanged": true,
+        "helper_crash_cleanup_verified": true,
+        "niri_version": {
+          "cli": "26.04 (e19df12)",
+          "compositor": "26.04 (e19df12)"
+        },
+        "pulse_server": "pulseaudio",
+        "remaining_capture_streams": 0,
+        "remaining_private_nodes": [],
+        "remaining_private_sinks": [],
+        "selection": "auto"
+      },
+      "fixture": {
+        "completed_phases": [
+          "app-a",
+          "app-b",
+          "system",
+          "disabled",
+          "audio-cancelled",
+          "cancelled",
+          "re-enabled",
+          "app-exited",
+          "cleared"
+        ],
+        "compositor": "niri",
+        "events": [
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "type": "screenshare_finish"
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 110,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 111,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 222,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 111,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          },
+          {
+            "error": "Portal request was cancelled",
+            "event": "error"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "type": "screenshare_finish"
+            }
+          },
+          {
+            "event": "selected"
+          },
+          {
+            "event": "video-status",
+            "value": {
+              "activity": -1,
+              "desktopCapturerType": "screen",
+              "pipewireFrames": 222,
+              "type": "screenshare_finish",
+              "x11Frames": 0
+            }
+          }
+        ],
+        "hidden_device_leaks": 0,
+        "internal_device_control": true,
+        "offload_adm_controls": true,
+        "passed": true,
+        "pcmFormats": {
+          "app-a:1:48000:0": 1,
+          "app-a:1:48000:480": 76,
+          "app-a:1:48000:960": 1,
+          "app-a:1:8000:160": 1,
+          "app-a:1:8000:560": 1,
+          "app-a:1:8000:80": 74,
+          "app-b:1:48000:480": 75,
+          "app-b:1:48000:960": 1,
+          "app-b:1:8000:160": 2,
+          "app-b:1:8000:560": 1,
+          "app-b:1:8000:80": 74,
+          "app-exited:1:8000:12800": 1,
+          "audio-cancelled:1:8000:12800": 1,
+          "cancelled:1:8000:12800": 1,
+          "cleared:1:8000:12800": 1,
+          "disabled:1:8000:12880": 1,
+          "re-enabled:1:48000:0": 1,
+          "re-enabled:1:48000:480": 77,
+          "re-enabled:1:8000:560": 1,
+          "re-enabled:1:8000:80": 76,
+          "system:1:48000:0": 1,
+          "system:1:48000:2400": 1,
+          "system:1:48000:480": 72,
+          "system:1:48000:960": 2,
+          "system:1:8000:160": 2,
+          "system:1:8000:400": 1,
+          "system:1:8000:640": 1,
+          "system:1:8000:80": 69
+        },
+        "portal": "controlled test portal backed by real niri screencasts",
+        "real_discord_call_verified": false,
+        "stage": {
+          "stage": "cleared:record"
+        },
+        "versions": {
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "ares": "1.34.9",
+          "brotli": "1.2.0",
+          "chrome": "152.0.7977.167",
+          "cldr": "48.0",
+          "electron": "44.9.3",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "149",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "node": "24.22.1",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.11",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2026d",
+          "undici": "7.30.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.2.124.43-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0"
+        },
+        "wayland_video_verified": true
+      },
+      "real_discord_call_verified": false,
+      "microphone_call_verified": false
+    }
+  }
+}

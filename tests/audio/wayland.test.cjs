@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { wrap, installVoice } = require("../../integration/audio/wayland-audio.cjs");
-function fixture(t) {
+function fixture(t, pickerUI) {
   const calls = [],
     children = [];
   let ended;
@@ -39,7 +39,7 @@ function fixture(t) {
     children.push(child);
     return child;
   }
-  const adapter = wrap(native, { spawnHelper, warn() {} });
+  const adapter = wrap(native, { spawnHelper, warn() {}, pickerUI });
   t.after(() => adapter.destroy());
   const ready = (child, pid, generation = child.messages.at(-1).generation) =>
     child.stdout.emit(
@@ -219,4 +219,86 @@ test("helper exit or failure silences capture and ignores stale messages", (t) =
     f.ready(child, 2700);
     assert.equal(f.calls.at(-1).soundsharePid, 0);
   }
+});
+
+test("share setup avoids redundant native audio resets and passes voice options unchanged", (t) => {
+  const f = fixture(t);
+  f.adapter.setDesktopSource("screen:0:0");
+  assert.equal(f.calls.length, 0);
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  assert.equal(f.calls.length, 1);
+  f.ready(f.children[0], 2500);
+  const options = { echoCancellation: true, noiseCancellation: true };
+  f.adapter.setTransportOptions(options);
+  assert.equal(f.calls.at(-1), options);
+  const before = f.calls.length;
+  f.adapter.clearDesktopSource();
+  assert.equal(f.calls.length, before + 1);
+  f.adapter.clearDesktopSource();
+  f.adapter.destroy();
+  assert.equal(f.calls.length, before + 1);
+});
+
+test("inline picker binds replies to the source and closes when the helper stops", (t) => {
+  const shown = [];
+  let closed = 0;
+  const f = fixture(t, {
+    available: () => true,
+    show(options, reply) {
+      shown.push({ options, reply });
+      return () => closed++;
+    },
+  });
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  const child = f.children[0];
+  const { generation, picker } = child.messages.at(-1);
+  assert.equal(picker, "inline");
+  const options = [{ id: "200", label: "音楽", detail: "<b>Track</b>" }];
+  const message = Buffer.from(
+    JSON.stringify({ generation, state: "choosing", request: 3, options }) + "\n",
+  );
+  const split = message.indexOf(Buffer.from("音")) + 1;
+  child.stdout.emit("data", message.subarray(0, split));
+  child.stdout.emit("data", message.subarray(split));
+  assert.deepEqual(shown[0].options, options);
+  shown[0].reply("200");
+  assert.deepEqual(child.messages.at(-1), { generation, request: 3, selection: "200" });
+  f.adapter.setDesktopSource("screen:1:0");
+  const count = child.messages.length;
+  shown[0].reply("system");
+  assert.equal(child.messages.length, count);
+  assert.equal(closed, 1);
+  child.stdout.emit(
+    "data",
+    Buffer.from(
+      JSON.stringify({
+        generation: child.messages.at(-1).generation,
+        state: "choosing",
+        request: 4,
+        options,
+      }) + "\n",
+    ),
+  );
+  f.end();
+  assert.equal(closed, 2);
+});
+
+test("inline rendering failure requests the native picker without enabling audio", (t) => {
+  const f = fixture(t, {
+    available: () => true,
+    show() {
+      throw new Error("no DOM");
+    },
+  });
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  const child = f.children[0];
+  const { generation } = child.messages.at(-1);
+  child.stdout.emit(
+    "data",
+    Buffer.from(JSON.stringify({ generation, state: "choosing", request: 1, options: [] }) + "\n"),
+  );
+  assert.deepEqual(child.messages.at(-1), { generation, request: 1, selection: "fallback" });
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
 });

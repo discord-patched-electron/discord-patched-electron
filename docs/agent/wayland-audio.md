@@ -36,13 +36,21 @@ a selected application PID, and `screen:0:0` also represents selected windows.
 The portal broker can own the passed PipeWire FD; its security PID is not the
 native capture consumer's PID.
 
-Other compositors and older niri versions use an explicit **Screen-share audio**
-dialog after the native video picker. Choose the playing application, **Entire
-system (except Discord)**, or **No audio**. Video stays on Discord's native path;
+Other compositors and older niri versions use a **Share audio** modal inside
+Discord after the native video picker. Choose a playing application, **System
+audio**, or **Continue without audio**. A native dialog remains the fallback.
+See [picker implementation and detection research](audio-picker.md). Video stays on Discord's native path;
 the dialog selects only audio.
 Compositor-independent automatic window/PID discovery is not promised. The
 explicit picker lists audio-owning processes; separate siblings can appear as
-separate entries. Flatpak/PID namespace remapping is not yet qualified.
+separate entries. PipeWire and Pulse stream metadata are joined by object serial
+before discovering and routing applications. For Flatpak clients exposing a portal
+instance ID, the helper resolves the instance's `bwrapinfo.json` child PID and
+checks its live `.flatpak-info` application and instance IDs. A sandbox PID is
+never used as a host PID when this metadata is present. Missing or stale instance
+metadata leaves that source unavailable. Desktop Flatpak/Snap playback remains
+unqualified; real PulseAudio without portal instance metadata has no new sandbox
+mapping. **Refresh** rebuilds a picker opened before playback began.
 
 Audio selection operates at application level. On niri, browsers such as Zen
 use the same automatic process matching as other applications; there is no
@@ -93,6 +101,10 @@ Discord's public device enumeration and device-change callback. This prevents
 the internal routes from producing a **New audio devices detected** prompt.
 Real device notifications, native device indices and the audio server's default
 devices remain intact.
+Unchanged filtered device notifications are suppressed, including private sink
+creation and removal. Snapshots retain native index changes and camera updates.
+The Wayland wrapper also avoids redundant native silence commands and passes
+ordinary voice transport updates through without adding sound-share fields.
 
 The native libpulse capture path otherwise requests a two-second default buffer
 on PulseAudio. The adapter supplies `PULSE_LATENCY_MSEC=40` only if
@@ -101,6 +113,30 @@ created in that native process; it changes no server configuration. An explicit
 user value is preserved. Helper subprocesses use their own explicit buffer sizes.
 See [libpulse buffer handling](https://github.com/pulseaudio/pulseaudio/blob/master/src/pulse/stream.c)
 and [PipeWire's libpulse environment documentation](https://docs.pipewire.org/page_man_pipewire-pulse_1.html).
+
+### Plasma picker regression checks (31 October 2026)
+
+The reported screenshot is the manual selector, not a capture failure. Its KDE
+note now explains that optional `kdotool` adds window titles and is not required
+for application audio. A pending audio picker closes when its video source ends.
+
+Unit cases cover missing PipeWire metadata filled from Pulse, Flatpak namespace
+PID collisions, separate sandbox instances, stale/reused sandbox roots, Discord
+exclusion, manual selection without compositor metadata, refresh, picker teardown,
+private-device notification suppression and unchanged voice transport options.
+These checks do not establish dropout-free audio in a live Plasma Discord call.
+
+All 275 Python and 60 JavaScript tests and lint passed. The final helper also
+passed isolated native Canary tests with manual selection on PipeWire-Pulse and
+automatic selection on real PulseAudio, using the retained bundled runtime.
+Both verified audio isolation, native video, unchanged default devices and crash
+cleanup. See the [validation summary](../evidence/plasma-share-audio.json).
+
+The sandbox lookup follows [Flatpak's instance implementation](https://github.com/flatpak/flatpak/blob/main/common/flatpak-instance.c).
+PipeWire-Pulse supplies the instance metadata in its
+[server implementation](https://github.com/PipeWire/pipewire/blob/master/src/modules/module-protocol-pulse/server.c).
+Do not use `pipewire.sec.pid` for Pulse playback ownership: it identifies the
+server, as documented in [PipeWire properties](https://docs.pipewire.org/page_man_pipewire-props_7.html).
 
 ## CI validation
 

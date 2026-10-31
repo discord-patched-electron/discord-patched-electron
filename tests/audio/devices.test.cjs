@@ -71,3 +71,33 @@ test("enumeration preserves receivers, return values, errors and extra callback 
     (value) => value === error,
   );
 });
+
+test("private sink churn does not notify Discord or reset call devices", () => {
+  let change;
+  const voice = {
+    setDeviceChangeCallback(cb) {
+      change = cb;
+    },
+  };
+  install(voice);
+  const output = { guid: "headphones", name: "Headphones", index: 1 };
+  const input = { guid: "mic", name: "Microphone", index: 2 };
+  const camera = { guid: "camera", name: "Camera" };
+  const privateSink = { guid: "dpe-audio-" + "a".repeat(32) + "-mix" };
+  const events = [];
+  voice.setDeviceChangeCallback((...args) => events.push(args));
+  change([input], [output], [camera]);
+  change([input, privateSink], [output, privateSink], [camera]);
+  change([input], [output], [camera]);
+  assert.equal(events.length, 1);
+  output.index = 3;
+  change([input], [output], [camera]);
+  assert.equal(events.length, 2, "a native index change must reach Discord");
+  change([input], [output], []);
+  assert.equal(events.length, 3, "camera hotplug is preserved");
+  change([], [output], []);
+  assert.equal(events.length, 4, "microphone removal is preserved");
+  voice.setDeviceChangeCallback((...args) => events.push(args));
+  change([], [output], []);
+  assert.equal(events.length, 5, "a replacement subscriber receives its initial state");
+});
