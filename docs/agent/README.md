@@ -22,6 +22,7 @@ that test run.
 - [Update discovery and scheduling](discovery.md)
 - [Client and Electron updater](client-updater.md)
 - [Vencord and Equicord preservation](client-mods.md)
+- [Installer resilience and GitHub API limits](mod-network-resilience-20261031.md)
 
 ## Linux integration
 
@@ -42,6 +43,8 @@ that test run.
 - [External links, test-profile isolation and Zen verification](external-links.md)
 - [Canary window identity and runtime reuse after updates](desktop-identity.md)
 - [Local runtime checks](linux-runtime.md)
+
+- [Discord-style settings, setup and working-tree checks](discord-native-ui-20261031.md)
 
 ## History and evidence
 
