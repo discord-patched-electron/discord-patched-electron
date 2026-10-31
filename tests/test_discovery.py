@@ -1,12 +1,15 @@
 import copy
+import io
 import sys
+import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from common import ROOT, read_json
-from discover import GitHub, parse_tags, pending, reconcile
+from common import ROOT, read_json, write_json
+from discover import GitHub, main, parse_tags, pending, reconcile
 
 NOW = "2026-10-23T20:00:00Z"
 
@@ -58,6 +61,49 @@ class Discovery(unittest.TestCase):
         self.assertEqual(self.verify.call_count, 1)
         self.assertEqual(self.reconcile(state), state)
         self.assertEqual(self.verify.call_count, 1)
+
+    def test_initial_feed_outage_does_not_permanently_skip_the_seed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state_path = root / "state.json"
+            manifest = root / "manifest.json"
+            write_json(manifest, {})
+            github = Mock()
+            github.releases.side_effect = [RuntimeError("synthetic outage"), self.records]
+            github.source_tags.return_value = self.tags
+            github.get.return_value = []
+            with (
+                patch("sys.argv", ["discover", "--state", str(state_path), "--output", str(root)]),
+                patch("sys.stdout", new_callable=io.StringIO),
+                patch("discover.os.environ", {}),
+                patch("discover.GitHub", return_value=github),
+                patch("discover.download", return_value=manifest),
+                patch("discover.normalize", side_effect=lambda ch, _data: self.clients[ch]),
+                patch("discover.inspect_clients"),
+                patch("discover.datetime", wraps=datetime) as clock,
+            ):
+                clock.now.return_value = datetime.fromisoformat(NOW)
+                main()
+                interrupted = read_json(state_path)
+                self.assertEqual(interrupted["releases"], {})
+                self.assertEqual(interrupted["electron_discovery_error"], "synthetic outage")
+                self.assertEqual(interrupted["clients"]["canary"], self.clients["canary"])
+                main()
+            recovered = read_json(state_path)
+            self.assertNotIn("electron_discovery_error", recovered)
+            self.assertEqual(list(recovered["releases"]), ["prerelease:46.0.0-alpha.1"])
+            self.assertEqual(len(pending(recovered)), 1)
+            self.assertEqual(recovered["activated_at"], interrupted["activated_at"])
+            github.verify_commit.assert_called_once_with(self.tags["v46.0.0-alpha.1"])
+
+    def test_withdrawn_seed_does_not_cause_historical_backfill(self):
+        state = self.reconcile()
+        historical = release("46.0.0-alpha.0", 20)
+        self.tags[historical["tag_name"]] = "a" * 40
+        updated = self.reconcile(state, records=[historical])
+        self.assertEqual(list(updated["releases"]), ["prerelease:46.0.0-alpha.1"])
+        self.assertEqual(updated["releases"]["prerelease:46.0.0-alpha.1"]["status"], "withdrawn")
+        self.assertEqual(pending(updated), [])
 
     def test_prerelease_history_survives_but_only_newest_pending_release_is_built(self):
         before = self.reconcile()

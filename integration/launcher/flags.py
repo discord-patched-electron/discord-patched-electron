@@ -244,8 +244,29 @@ def preset_body(config, data, *, retired=False):
     return text + "\n" if text else ""
 
 
+def decode_file(raw, *, recover=False):
+    if raw is None:
+        return "", []
+    try:
+        return raw.decode("utf-8"), []
+    except UnicodeDecodeError as error:
+        if not recover:
+            raise ValueError(
+                "Flags file is not valid UTF-8. Start with --ignore-flags to repair it."
+            ) from error
+        # Do not turn undecodable bytes into active command-line options. Show
+        # escaped text for explicit repair; save_file backs up the original bytes.
+        text = "".join(
+            "# preserved: " + row
+            for row in raw.decode("utf-8", errors="backslashreplace").splitlines(keepends=True)
+        )
+        return text, [
+            "Flags file is not valid UTF-8. Showing escaped contents as comments for repair; the original file is preserved."
+        ]
+
+
 def load_file(state, legacy, settings, data, *, recover=False):
-    text = state["raw"].decode("utf-8") if state["raw"] is not None else ""
+    text, decoding_warnings = decode_file(state["raw"], recover=recover)
     rows = text.splitlines(keepends=True)
     starts = [i for i, row in enumerate(rows) if row.strip() == BEGIN]
     ends = [i for i, row in enumerate(rows) if row.strip() == END]
@@ -260,14 +281,13 @@ def load_file(state, legacy, settings, data, *, recover=False):
                 [str(error), "Showing defaults. Save to replace invalid launch preferences."],
             )
         config = copy.deepcopy(config)
-        old = snapshot(legacy)["raw"]
-        old = old.decode("utf-8") if old is not None else ""
+        old, legacy_warnings = decode_file(snapshot(legacy)["raw"], recover=recover)
         # Preserve the old precedence once, then use only this canonical file.
         parts = [config["extra"], old, text]
         config["extra"] = "\n".join(part.rstrip("\n") for part in parts if part)
         if parts[-1].endswith("\n"):
             config["extra"] += "\n"
-        return config, warnings, False
+        return config, decoding_warnings + legacy_warnings + warnings, False
     outside, body = "", ""
     try:
         if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:

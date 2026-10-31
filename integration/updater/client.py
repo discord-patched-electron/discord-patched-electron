@@ -17,6 +17,7 @@ import sys
 import tarfile
 import tempfile
 import time
+from collections import deque
 from pathlib import Path, PurePosixPath
 
 import runtime
@@ -244,6 +245,30 @@ class ArchiveStream:
         return data
 
 
+def archive_path(root: Path, relative: PurePosixPath) -> Path:
+    """Follow links without ever leaving root, even temporarily before re-entry."""
+    pending = deque(relative.parts)
+    resolved = []
+    followed = 0
+    while pending:
+        part = pending.popleft()
+        if part == "..":
+            if not resolved:
+                raise ValueError(f"Unsafe Discord archive link: {relative}")
+            resolved.pop()
+            continue
+        target = root.joinpath(*resolved, part)
+        if target.is_symlink():
+            followed += 1
+            link = PurePosixPath(target.readlink())
+            if link.is_absolute() or followed > 40:
+                raise ValueError(f"Unsafe Discord archive link: {relative}")
+            pending.extendleft(reversed(link.parts))
+        else:
+            resolved.append(part)
+    return root.joinpath(*resolved)
+
+
 def extract_module(archive: Path, destination: Path, *, limit: int = 2 * 1024 * 1024 * 1024):
     """Extract files/ with internal relative symlinks; reject traversal and devices."""
     with tempfile.TemporaryFile() as errors:
@@ -253,6 +278,8 @@ def extract_module(archive: Path, destination: Path, *, limit: int = 2 * 1024 * 
             stderr=errors,
         )
         total = 0
+        root = destination.resolve()
+        links = []
         stream = ArchiveStream(process.stdout, limit)
         try:
             with tarfile.open(fileobj=stream, mode="r|") as bundle:
@@ -271,19 +298,19 @@ def extract_module(archive: Path, destination: Path, *, limit: int = 2 * 1024 * 
                         or not (member.isfile() or member.isdir() or member.issym())
                     ):
                         raise ValueError(f"Unsafe Discord archive entry: {member.name}")
-                    target = destination.joinpath(*name.parts[1:])
-                    if (
-                        not target.resolve().is_relative_to(destination.resolve())
-                        or target.is_symlink()
-                    ):
+                    # Check parents before writing through any previously extracted
+                    # alias. Resolving only the final path can hide a root escape
+                    # followed by re-entry through the temporary staging name.
+                    parent = archive_path(root, PurePosixPath(*name.parts[1:-1]))
+                    target = parent / name.name
+                    if target.is_symlink():
                         raise ValueError(f"Unsafe Discord archive path: {member.name}")
                     if member.issym():
-                        if Path(member.linkname).is_absolute() or not (
-                            target.parent / member.linkname
-                        ).resolve().is_relative_to(destination.resolve()):
+                        if PurePosixPath(member.linkname).is_absolute():
                             raise ValueError(f"Unsafe Discord archive link: {member.name}")
                         target.parent.mkdir(parents=True, exist_ok=True)
                         target.symlink_to(member.linkname)
+                        links.append(target.relative_to(root))
                         continue
                     if member.isdir():
                         target.mkdir(parents=True, exist_ok=True)
@@ -295,6 +322,10 @@ def extract_module(archive: Path, destination: Path, *, limit: int = 2 * 1024 * 
                     with bundle.extractfile(member) as source, target.open("xb") as output:
                         shutil.copyfileobj(source, output)
                     target.chmod(0o700 if member.mode & 0o111 else 0o600)
+            # Forward links may acquire new meaning as later aliases are added.
+            # Validate the complete graph before the caller can publish it.
+            for link in links:
+                archive_path(root, PurePosixPath(link))
             while stream.read(1024 * 1024):
                 pass
             if process.wait(timeout=60):
@@ -434,10 +465,6 @@ def ensure_client(
         try:
             previous = current_host(root, channel)
         except FAILURES as error:
-            if offline:
-                raise ValueError(
-                    "Cached Discord client is incomplete; reconnect to repair it"
-                ) from error
             print(
                 f"Discord cache unavailable; checking for a complete client: {error}",
                 file=sys.stderr,
@@ -450,11 +477,23 @@ def ensure_client(
             print("Cached Discord client has no matching package pins or approval", file=sys.stderr)
             previous = None
         if offline:
-            if previous is None:
-                raise ValueError(
-                    "First launch requires an internet connection; reconnect to repair an unapproved cached client"
-                )
-            return previous
+            if previous is not None:
+                return previous
+            # A failed publication or application rollback can leave the pointer
+            # absent or unusable while the exact authorized generation survives.
+            # Derive candidates from verified sources, never from directory names.
+            compatibility = compatibility_key()
+            for source in sorted(sources, key=lambda item: item["approved_version"], reverse=True):
+                generation = identity({**source, "compatibility": compatibility})
+                try:
+                    cached = validate_host(root, channel, generation)
+                except FAILURES:
+                    continue
+                write_json(root / "current.json", generation)
+                return cached
+            raise ValueError(
+                "First launch requires an internet connection; reconnect to repair an incomplete or unapproved cached client"
+            )
         try:
             state = sources[0]
             for source in sources[1:]:

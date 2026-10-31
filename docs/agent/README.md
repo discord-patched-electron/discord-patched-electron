@@ -44,6 +44,10 @@ that test run.
 These pages explain past decisions and preserve test results. They are not
 current setup instructions or authorization to repeat earlier actions.
 
+- [Offline reliability and safety review, 30–31 October](reliability-review-20261030.md)
+- [Reliability fixes and regression checks, 31 October](reliability-fixes-20261031.md)
+- [Ongoing project-wide reliability work](project-reliability-20261031.md)
+- [Reliability delivery audit and final validation](reliability-delivery-audit-20261031.md)
 - [Build and release history](handoff-history.md)
 - [Updater implementation history](updater-history.md)
 - [Early implementation milestones](status.md)

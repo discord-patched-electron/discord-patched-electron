@@ -92,6 +92,32 @@ class UpdatePolicy(unittest.TestCase):
         self.assertEqual([i["channel"] for i in result["clients"]], ["canary"])
         self.assertEqual(result["electron"]["action"], "no-new-work")
 
+    def test_advisories_without_a_usable_fix_do_not_block_client_work_or_bypass_cooldown(self):
+        for patched, affected in (
+            (None, "< 46.0.0-alpha.2"),
+            ("46.0.0-alpha.2", None),
+            (123, "< 46.0.0-alpha.2"),
+            ("46.0.0-alpha.2", 123),
+        ):
+            with self.subTest(patched=patched, affected=affected):
+                self.state["security_advisories"] = [
+                    {
+                        "ghsa_id": "GHSA-synthetic",
+                        "severity": "high",
+                        "vulnerabilities": [
+                            {
+                                "package": {"ecosystem": "npm", "name": "electron"},
+                                "patched_versions": patched,
+                                "vulnerable_version_range": affected,
+                            }
+                        ],
+                    }
+                ]
+                result = plan(self.state, self.policy, self.sources, "2026-10-25T03:00:00Z")
+                self.assertEqual(result["electron"]["action"], "deferred")
+                self.assertEqual(result["electron"]["urgent_reasons"], [])
+                self.assertEqual(len(result["clients"]), 1)
+
     def test_exhausted_budget_defers_without_consuming_work_then_recovers(self):
         self.state["blacksmith_reservations"] = {
             str(i): {"at": "2026-10-24T00:00:00+00:00", "minutes": 960, "runtime_key": str(i)}

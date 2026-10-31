@@ -228,6 +228,12 @@ gates pass. It receives `RELEASE_SIGNING_KEY`, a dedicated Ed25519 key with no
 personal signing keys. The public key is pinned in `packaging/release-signing-key.asc`
 and uploaded with each release. New manifests require signatures for approval.
 Signatures are verified against the pinned key before upload and approval.
+Verification also checks that the signed checksum list covers the current
+manifest and exactly its assets, with matching hashes. Valid signatures over a
+stale list cannot authorize changed metadata or replacement package bytes.
+Local signing retries verify and retain existing valid signatures, then add only
+missing artifacts. New signatures are verified before publication. A damaged
+signature or mismatched public key stops the retry without overwriting that file.
 
 The local backup and revocation certificate are in
 `~/.local/share/discord-patched-electron/signing`, outside the repository. Back up

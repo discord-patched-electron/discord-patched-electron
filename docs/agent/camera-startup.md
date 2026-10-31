@@ -29,6 +29,9 @@ allows drivers to adjust unsupported requests, and other callers still receive
 that behavior. Unknown voice layouts fail package preparation for review. The
 proprietary binary is not rewritten, and no Electron or Chromium rebuild is needed.
 `DPE_CAMERA_FAST_PROBE=0` disables the helper for troubleshooting.
+For bundled paths containing spaces, the launcher resolves the helper by basename
+through its library search directory. Direct-path loading is retained where possible,
+including paths containing semicolons, which are library-search separators.
 
 ## Physical measurements
 

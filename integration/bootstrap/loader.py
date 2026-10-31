@@ -310,10 +310,12 @@ def read_state(root):
         if not isinstance(rejected, list):
             raise ValueError("Invalid rejected application list")
         references.extend(rejected)
-        for key in ("running", "trial"):
-            if key not in state:
-                continue
-            process = state[key]
+        instances = state.get("instances", [])
+        if not isinstance(instances, list):
+            raise ValueError("Invalid application instances")
+        records = [(key, state[key]) for key in ("running", "trial") if key in state]
+        records.extend(("instance", process) for process in instances)
+        for key, process in records:
             if (
                 not isinstance(process, dict)
                 or type(process["pid"]) is not int
@@ -338,6 +340,25 @@ def read_state(root):
         return {}
 
 
+def live_instances(state):
+    records = ([state["running"]] if state.get("running") else []) + state.get("instances", [])
+    return [
+        record
+        for record in records
+        if record["process"] and process_identity(record["pid"]) == record["process"]
+    ]
+
+
+def record_launch(root, state, digest):
+    # Track every launch: single-instance forwarders disappear on the next prune,
+    # while independently surviving multi-instance processes keep their generation.
+    records = [record for record in live_instances(state) if record["pid"] != os.getpid()]
+    records.append({"digest": digest, "pid": os.getpid(), "process": process_identity(os.getpid())})
+    state["running"] = records[0]
+    state["instances"] = records[1:]
+    write(root / "state.json", state)
+
+
 def select(root, package, policy, *, archive=None, launch=False):
     state_file = root / "state.json"
     state = read_state(root)
@@ -352,22 +373,19 @@ def select(root, package, policy, *, archive=None, launch=False):
         elif trial["process"] and process_identity(trial["pid"]) == trial["process"]:
             if launch:
                 app, _ = generation(root, trial["digest"], package, policy)
+                record_launch(root, state, trial["digest"])
                 return app, None
         else:
             state.setdefault("rejected", []).append(trial["digest"])
             state.pop("trial")
         write(state_file, state)
-    running = state.get("running")
-    if (
-        launch
-        and running
-        and running["pid"] != os.getpid()
-        and running["process"]
-        and process_identity(running["pid"]) == running["process"]
-    ):
-        # A second launch must forward to the running instance, not activate an
-        # update underneath it or mistake that intentional exit for a failure.
+    running = next(
+        (record for record in live_instances(state) if record["pid"] != os.getpid()), None
+    )
+    if launch and running:
+        # Forwarders and independent instances must both retain the live code.
         app, _ = generation(root, running["digest"], package, policy)
+        record_launch(root, state, running["digest"])
         return app, None
     baseline = policy["application"]
     candidates = [
@@ -432,12 +450,7 @@ def select(root, package, policy, *, archive=None, launch=False):
         }
         state.pop("pending", None)
     if launch:
-        state["running"] = {
-            "digest": digest,
-            "pid": os.getpid(),
-            "process": process_identity(os.getpid()),
-        }
-        write(state_file, state)
+        record_launch(root, state, digest)
     return app, token
 
 
