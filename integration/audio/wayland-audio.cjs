@@ -1,6 +1,8 @@
 "use strict";
 const { spawn } = require("node:child_process");
 const path = require("node:path");
+const { StringDecoder } = require("node:string_decoder");
+const audioPicker = require("./audio-picker.cjs");
 let pickerPending = false;
 const listeners = new Set();
 function picker(event) {
@@ -50,7 +52,11 @@ function installVoice(voice) {
 
 function wrap(
   instance,
-  { spawnHelper = spawn, warn = (message) => console.warn("[dpe-app-audio]", message) } = {},
+  {
+    spawnHelper = spawn,
+    warn = (message) => console.warn("[dpe-app-audio]", message),
+    pickerUI = audioPicker,
+  } = {},
 ) {
   const nativeTransport = instance.setTransportOptions.bind(instance);
   let helper = null,
@@ -62,11 +68,18 @@ function wrap(
     readyPid = 0,
     endedCallback;
   let lastState = null;
+  let closePicker = null;
+  function dismissPicker() {
+    closePicker?.();
+    closePicker = null;
+  }
   function silence() {
+    if (!readyPid) return;
     readyPid = 0;
     nativeTransport({ soundsharePid: 0, soundshareLoopback: false });
   }
   function stopHelper() {
+    dismissPicker();
     if (!helper) return;
     const previous = helper;
     helper = null;
@@ -84,6 +97,7 @@ function wrap(
     );
     helper = child;
     let buffer = "";
+    const decoder = new StringDecoder("utf8");
     child.stdin.on("error", () => {});
     // The helper emits only its tiny protocol. Do not forward arbitrary stderr.
     child.stderr.on("data", (data) => {
@@ -93,8 +107,8 @@ function wrap(
     });
     child.stdout.on("data", (data) => {
       if (helper !== child || disposed) return;
-      buffer += data.toString();
-      if (buffer.length > 65536) {
+      buffer += decoder.write(data);
+      if (buffer.length > 262144) {
         silence();
         stopHelper();
         return;
@@ -111,6 +125,24 @@ function wrap(
         }
         if (value === null || typeof value !== "object" || Array.isArray(value)) continue;
         if (value.generation !== generation || !source || !requested || pickerPending) continue;
+        if (value.state === "choosing") {
+          silence();
+          dismissPicker();
+          const requestGeneration = generation;
+          const reply = (selection) => {
+            if (helper !== child || disposed || generation !== requestGeneration) return;
+            child.stdin.write(
+              JSON.stringify({ generation, request: value.request, selection }) + "\n",
+            );
+          };
+          try {
+            closePicker = pickerUI.show(value.options, reply);
+          } catch {
+            reply("fallback");
+          }
+          continue;
+        }
+        dismissPicker();
         const pid =
           value.state === "ready" && Number.isSafeInteger(value.pid) && value.pid > 1
             ? value.pid
@@ -129,6 +161,7 @@ function wrap(
     const failed = () => {
       if (helper === child) {
         helper = null;
+        dismissPicker();
         if (!disposed) silence();
       }
     };
@@ -139,13 +172,21 @@ function wrap(
   function configure() {
     if (disposed) return;
     ++generation;
+    dismissPicker();
     silence();
     if (!source || !requested || pickerPending) {
       stopHelper();
       return;
     }
     const child = ensureHelper();
-    child.stdin.write(JSON.stringify({ generation, enabled: true, hint }) + "\n");
+    child.stdin.write(
+      JSON.stringify({
+        generation,
+        enabled: true,
+        hint,
+        picker: pickerUI.available() ? "inline" : "native",
+      }) + "\n",
+    );
   }
   function onPicker(event) {
     // Global picker events also reach ordinary voice/webcam connections. They
@@ -178,13 +219,7 @@ function wrap(
   const methods = {
     setTransportOptions(options) {
       if (disposed) return;
-      if (
-        !source &&
-        !requested &&
-        !helper &&
-        !Object.hasOwn(options, "soundsharePid") &&
-        !Object.hasOwn(options, "soundshareLoopback")
-      )
+      if (!Object.hasOwn(options, "soundsharePid") && !Object.hasOwn(options, "soundshareLoopback"))
         return nativeTransport(options);
       let changed = false;
       if (Object.hasOwn(options, "soundsharePid")) {
@@ -196,13 +231,15 @@ function wrap(
         requested = value;
         hint = value > 1 ? value : 0;
       }
-      if (changed) readyPid = 0;
       nativeTransport({
         ...options,
-        soundsharePid: readyPid,
+        soundsharePid: changed ? 0 : readyPid,
         soundshareLoopback: false,
       });
-      if (changed) configure();
+      if (changed) {
+        readyPid = 0;
+        configure();
+      }
     },
     setDesktopSource(id, hook, type) {
       return setSource(instance.setDesktopSource, [id, hook, type]);

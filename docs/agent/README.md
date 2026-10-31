@@ -25,6 +25,7 @@ that test run.
 
 ## Linux integration
 
+- [In-window audio picker and detection research](audio-picker.md)
 - [Wayland application audio](wayland-audio.md)
 - [Audio investigation and mixer fix](audio-investigation.md)
 - [Camera startup](camera-startup.md)

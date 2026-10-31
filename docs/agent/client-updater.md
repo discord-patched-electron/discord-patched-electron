@@ -59,14 +59,26 @@ working application until those dependencies are installed.
 Background preparation leaves running code unchanged and offers the normal
 restart notification. At startup, the launcher hands off to the new application
 before preparing its Electron or Discord modules. The client/runtime updaters
-cannot advance past the selected application release. A trial becomes current
-after the matching Discord HTTPS window finishes loading; a process that exits first causes
-the next launch to fall back to the previous generation. Exited processes awaiting
-reaping do not count as running instances. Second launches retain
-the running generation so they cannot activate an update underneath it.
+cannot advance past the selected application release. The launcher writes a
+`started-<token>` marker immediately before its final exec into Discord, after
+Electron and module setup. A trial becomes current after the matching Discord
+HTTPS window finishes loading and writes `ready-<token>`. If setup exits before
+the started marker, the update stays pending and is retried on the next launch
+using verified cached code. If Discord starts but exits before confirmation, the
+next launch falls back to the previous generation and rejects that payload.
+Exited processes awaiting reaping do not count as running instances. Second
+launches retain the running generation so they cannot activate an update
+underneath it.
 
-Package upgrades retain a newer approved application. The archive hash identifies
-the payload; a changed package installation path uses a separate application cache.
+Package upgrades retain a newer approved application. A changed package pin
+allows one fresh trial of that payload even if it was previously rejected;
+an unchanged pin does not repeatedly revive a failed trial while a working
+fallback exists. State from older loaders receives this allowance once for the
+installed pin. Older rejections of other payloads remain rejected because their
+state does not distinguish setup interruptions from client crashes. This change
+requires an updated bootstrap package as well as the application launcher.
+The archive hash identifies the payload; a changed package installation path
+uses a separate application cache.
 Offline mode uses verified cached code. `DPE_APPLICATION_UPDATES=0` disables new
 application checks; cached pending updates can still activate on restart.
 The loader and downloaded code never write to the installed package.

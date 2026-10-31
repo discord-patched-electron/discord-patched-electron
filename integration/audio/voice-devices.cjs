@@ -1,4 +1,5 @@
 "use strict";
+const { isDeepStrictEqual } = require("node:util");
 const installed = new WeakSet();
 // Only our UUID-named internal sinks/monitors. Real hardware notifications and
 // other virtual audio devices remain visible; native routing still sees ours.
@@ -28,12 +29,26 @@ function install(voice) {
   }
   if (typeof voice.setDeviceChangeCallback === "function") {
     const original = voice.setDeviceChangeCallback.bind(voice);
-    voice.setDeviceChangeCallback = (callback) =>
-      original(
+    voice.setDeviceChangeCallback = (callback) => {
+      let previous;
+      return original(
         typeof callback === "function"
-          ? (inputs, outputs, ...rest) => callback(filter(inputs), filter(outputs), ...rest)
+          ? (inputs, outputs, ...rest) => {
+              const visible = [filter(inputs), filter(outputs), ...rest];
+              // Private sink creation/removal must not make Discord reapply its
+              // voice devices. Preserve real changes, including cameras and
+              // native device indices, and snapshot against in-place mutation.
+              if (isDeepStrictEqual(previous, visible)) return;
+              try {
+                previous = structuredClone(visible);
+              } catch {
+                previous = undefined;
+              }
+              return callback(...visible);
+            }
           : callback,
       );
+    };
   }
 }
 module.exports = { install, internal, filter };

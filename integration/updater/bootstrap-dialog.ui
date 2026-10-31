@@ -23,7 +23,7 @@
             <property name="spacing">8</property>
             <child>
               <object class="GtkLabel" id="status">
-                <property name="label">Downloading Electron for the first time...</property>
+                <property name="label">Preparing Electron for the first time...</property>
                 <property name="justify">center</property>
                 <property name="wrap">true</property>
                 <property name="xalign">0.5</property>

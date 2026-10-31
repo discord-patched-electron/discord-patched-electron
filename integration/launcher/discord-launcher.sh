@@ -144,4 +144,7 @@ export EQUICORD_USER_DATA_DIR=${EQUICORD_USER_DATA_DIR:-"$DPE_PROFILE_DIR/equico
 export DISABLE_UPDATER_AUTO_PATCHING=1
 # Ubuntu's installed profile grants the user-namespace sandbox to this app.
 # Enter that same profile when its verified runtime lives in the user cache.
+if [[ -n ${DPE_APPLICATION_STARTED:-} ]]; then
+  printf 'started\n' >"$DPE_APPLICATION_STARTED"
+fi
 exec "${runtime_command[@]}" "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"

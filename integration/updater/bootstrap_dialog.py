@@ -81,7 +81,7 @@ if __name__ == "__main__":
                     "--auto-close",
                     "--width=420",
                     "--title=Discord Patched Electron",
-                    "--text=Downloading Electron for the first time...",
+                    "--text=Preparing Electron for the first time...",
                 ],
             )
         except OSError:

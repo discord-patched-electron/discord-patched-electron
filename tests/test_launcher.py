@@ -23,6 +23,7 @@ class Launcher(unittest.TestCase):
                 "    assert 'DPE_CLIENT_HOST' not in os.environ\n"
                 "    assert os.environ['PYTHONPATH'].endswith('/python')\n"
                 "    from pathlib import Path\n"
+                "    assert not os.environ.get('DPE_APPLICATION_STARTED') or not Path(os.environ['DPE_APPLICATION_STARTED']).exists()\n"
                 "    root = Path(os.environ['DPE_APP_ROOT'])\n"
                 "    Path(os.environ['DPE_LAUNCH_RESULT']).write_text(json.dumps({'runtime': str(root / 'cached runtime/electron'), 'installed_runtime': str(root / 'cached runtime/electron'), 'host': str(root / 'prepared'), 'voice': '/fixture/voice'}))\n"
                 "    sys.exit(int(os.environ.get('DPE_FIXTURE_UI_STATUS', '0')))\n"
@@ -160,6 +161,20 @@ class Launcher(unittest.TestCase):
 
     def test_second_instance_exits_successfully_without_starting_another_runtime(self):
         self.assertIsNone(self.launch(env={"DPE_FIXTURE_UI_STATUS": "2"}, cached=True))
+
+    def test_trial_started_marker_is_written_only_for_the_final_client(self):
+        with tempfile.TemporaryDirectory() as temp:
+            marker = Path(temp) / "started-token"
+            environment = {"DPE_APPLICATION_STARTED": str(marker), "DPE_CLIENT_OFFLINE": "1"}
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.launch(env={**environment, "DPE_FIXTURE_UI_STATUS": "1"}, cached=True)
+            self.assertFalse(marker.exists())
+            self.assertIsNone(
+                self.launch(env={**environment, "DPE_FIXTURE_UI_STATUS": "2"}, cached=True)
+            )
+            self.assertFalse(marker.exists())
+            self.launch(env=environment, cached=True, unbundled=True)
+            self.assertEqual(marker.read_text(), "started\n")
 
     def test_runtime_free_launcher_uses_cached_electron_for_startup_and_final_client(self):
         result = self.launch(

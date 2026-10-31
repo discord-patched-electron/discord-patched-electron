@@ -11,6 +11,13 @@ INSERT = "    instance = require('./dpe-app-audio.cjs').wrap(instance);\n"
 EXPORT = "module.exports = VoiceEngine;"
 INSTALL = "require('./dpe-app-audio.cjs').installVoice(VoiceEngine);\n"
 SIDECARS = {
+    "native-picker-discovery.cjs": "native-picker-discovery.cjs",
+    "native-picker-renderer.cjs": "native-picker-renderer.cjs",
+    "native-picker-bridge.cjs": "native-picker-bridge.cjs",
+    "native-picker.css": "native-picker.css",
+    "app-icons.cjs": "app-icons.cjs",
+    "audio-picker.cjs": "audio-picker.cjs",
+    "audio-picker.css": "audio-picker.css",
     "wayland-audio.cjs": "dpe-wayland-audio.cjs",
     "pipewire_audio.py": "dpe-pipewire-audio.py",
     "voice-devices.cjs": "dpe-voice-devices.cjs",

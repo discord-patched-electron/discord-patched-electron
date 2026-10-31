@@ -13,9 +13,9 @@ from pathlib import Path
 def desktop_note():
     desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
     if "kde" in desktop and not Path("/usr/bin/kdotool").is_file():
-        return "NOTE: KDE Plasma requires kdotool for window detection. Audio selection remains manual."
+        return "On Plasma, select audio manually. Optional kdotool adds window titles; application audio works without it."
     if "gnome" in desktop:
-        return "NOTE: GNOME requires the Window Calls extension for window detection. Audio selection remains manual."
+        return "On GNOME, select audio manually. Optional Window Calls adds window titles; application audio works without it."
     if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") or os.environ.get("SWAYSOCK"):
         return "NOTE: This desktop exposes window names, but not an exact shared-window audio mapping. Select audio below."
     return ""
