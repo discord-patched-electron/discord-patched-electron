@@ -177,6 +177,28 @@ class ReleaseNotes(unittest.TestCase):
             self.assertNotIn(excluded, body)
         self.assertIn("Additional project changes", body)
 
+    def test_categories_reserve_new_for_explicit_features_and_escape_subjects(self):
+        commits = [
+            "feat(mods): Choose a client mod",
+            "fix: Restore saved choices",
+            "Add internal test coverage",
+            "perf(audio): Reduce refresh work",
+            "feat!: Show [choices] @everyone",
+        ]
+        with patch(
+            "releases.subprocess.check_output",
+            return_value="\n".join("e" * 40 + "\t" + title for title in commits),
+        ):
+            body = notes(manifest(source_commit="b" * 40), manifest())
+        self.assertIn("### Discord and Electron", body)
+        self.assertIn("### Fixes", body)
+        self.assertIn("### Improvements", body)
+        self.assertEqual(body.count("**NEW**"), 2)
+        self.assertIn("**NEW** Choose a client mod", body)
+        self.assertIn("- Add internal test coverage", body)
+        self.assertNotIn("@everyone", body)
+        self.assertIn(r"\[choices\]", body)
+
     def test_refresh_only_patches_bodies_and_preserves_each_release_approval_state(self):
         old, new = manifest("20261025.100000"), manifest()
         entries = [

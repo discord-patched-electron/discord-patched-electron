@@ -367,6 +367,19 @@ def approved_notes(body: str, manifest: dict) -> str:
     )
 
 
+def change_category(subject: str) -> tuple[str, str]:
+    """Only explicit feature commits earn NEW; unknown subjects stay neutral."""
+    conventional = re.match(
+        r"^(feat|fix|perf|refactor|chore|build|ci)(?:\([^)]*\))?!?:\s*(.+)$", subject
+    )
+    if conventional:
+        kind, title = conventional.groups()
+        return {"feat": "New", "fix": "Fixes"}.get(kind, "Improvements"), title
+    if re.match(r"^(Fix|Prevent|Restore|Correct|Repair)\b", subject, re.I):
+        return "Fixes", subject
+    return "Improvements", subject
+
+
 def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
     commit = manifest["source_commit"]
     log = ""
@@ -396,7 +409,7 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
             cwd=ROOT,
             text=True,
         )
-    changes = input_changes(manifest, previous)
+    changes = ["### Discord and Electron", "", *input_changes(manifest, previous)]
     project_changes = []
     for entry in log.splitlines():
         sha, subject = entry.split("\t", 1)
@@ -404,9 +417,14 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
             ("Approve tested ", "Propose Discord ", "Update release discovery state")
         ):
             continue
+        category, subject = change_category(subject)
         subject = re.sub(r"([\\`*_\[\]<>])", r"\\\1", subject).replace("@", "＠")
-        project_changes.append(f"- {subject} ([{sha[:7]}]({URL}/commit/{sha}))")
-    changes.extend(project_changes[:5])
+        badge = "**NEW** " if category == "New" else ""
+        project_changes.append((category, f"- {badge}{subject} ([{sha[:7]}]({URL}/commit/{sha}))"))
+    for category in ("New", "Improvements", "Fixes"):
+        entries = [line for group, line in project_changes[:5] if group == category]
+        if entries:
+            changes.extend(["", "### " + category, "", *entries])
     if len(project_changes) > 5:
         changes.append("- Additional project changes are in the full changelog.")
     if previous is None:

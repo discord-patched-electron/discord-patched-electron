@@ -38,7 +38,8 @@ containers don't verify a full desktop session or live call.
 
 After all checks pass, CI uploads every asset before publishing a public GitHub
 test release. Release notes include upstream versions, a distribution/package table,
-a link to check results and at most five relevant project commits since the
+a link to check results and at most five relevant project commits, grouped into new features, improvements
+and fixes, since the
 preceding release for the same channel and Electron track. All supported tag
 formats are recognized; ordering uses build versions rather than publication
 time. Notes show Discord/Electron version changes and same-version module or
