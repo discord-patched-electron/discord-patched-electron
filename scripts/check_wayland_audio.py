@@ -337,6 +337,11 @@ def session(output, pulse, selection):
             client_env = {**env, "DPE_FIXTURE_SELECTION": selection}
             if selection in {"manual", "interactive"}:
                 client_env.pop("NIRI_SOCKET")
+                # This run explicitly exercises the chooser, including system
+                # audio. Removing compositor access alone cannot disable source
+                # detection: portal source_type=1 identifies a whole screen on
+                # any desktop and correctly bypasses the chooser in auto mode.
+                client_env["DPE_AUDIO_AUTO_DETECT"] = "0"
             if selection == "interactive":
                 write_json(output / "operator-env.json", env)
             child = spawn(
