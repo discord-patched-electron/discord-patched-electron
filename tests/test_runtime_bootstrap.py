@@ -227,7 +227,9 @@ class RuntimeBootstrap(unittest.TestCase):
         def running(pid):
             try:
                 return Path(f"/proc/{pid}/stat").read_text().split(") ", 1)[1][0] != "Z"
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
+                # procfs can report ESRCH if the process exits after open()
+                # but before read(), rather than ENOENT at open().
                 return False
 
         worker = (
@@ -296,4 +298,7 @@ class RuntimeBootstrap(unittest.TestCase):
                     self.assertFalse(running(pid), "setup left its private-output child running")
                 finally:
                     if pid_file.exists() and running(pid := int(pid_file.read_text())):
-                        os.kill(pid, signal.SIGKILL)
+                        try:
+                            os.kill(pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass  # It exited between the status read and kill.
