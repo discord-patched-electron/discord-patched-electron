@@ -138,6 +138,7 @@ jobs:
         run: |
           uv sync --locked
           bun install --frozen-lockfile --ignore-scripts
+          python scripts/appimage.py --install out/appimage-tools --dependencies
           curl --fail --location --silent --show-error --retry 3 \
             https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_x86_64.tar.gz \
             --output "$RUNNER_TEMP/nfpm.tar.gz"
@@ -175,11 +176,21 @@ jobs:
         with:
           app: out/relocated app
           output: out/mod-launch
-      - name: Create Arch, Debian, RPM and portable packages
+      - name: Create Arch, Debian, RPM, AppImage and portable packages
         run: |
           python scripts/package_release.py "out/relocated app" --output out/packages --version "$VERSION" --epoch "$SOURCE_DATE_EPOCH"
           python scripts/check_release_packages.py out/packages
           python scripts/publish_aur.py --manifest out/packages/release.json --output out/aur-recipe
+      - name: Launch the AppImage with a fresh profile and cached signed payloads
+        run: |
+          mkdir out/appimage-extracted
+          (cd out/appimage-extracted && ../packages/"$PACKAGE"-x86_64.AppImage --appimage-extract)
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a python scripts/check_desktop_launch.py \
+            out/appimage-extracted/squashfs-root/usr/lib/dpe \
+            --launcher "out/packages/$PACKAGE-x86_64.AppImage" \
+            --output out/appimage-launch --relaunch --read-only-app \
+            --runtime-archive out/runtime/binary/runtime-dist.zip \
+            --application-archive out/packages/application.zip
       - name: Verify a signed application update without reinstalling or downloading Electron
         run: xvfb-run -a python scripts/check_application_update.py out/packages --output out/application-update --runtime-archive out/runtime/binary/runtime-dist.zip
       - name: Install the Debian package and check its shared libraries
@@ -239,6 +250,7 @@ jobs:
             out/packages/*.tar.gz
             out/packages/*.deb
             out/packages/*.rpm
+            out/packages/*.AppImage
             out/packages/*.pkg.tar.zst
             out/packages/release.json
             out/packages/SHA256SUMS
@@ -256,6 +268,8 @@ jobs:
             out/mod-launch/**/console.log
             out/mod-launch/mod-report.json
             out/mod-launch/*-self-update/report.json
+            out/appimage-launch/**/launch-report.json
+            out/appimage-launch/**/console.log
             out/deb-launch/**/launch-report.json
             out/deb-launch/**/console.log
             out/rpm-install.log

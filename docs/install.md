@@ -33,6 +33,9 @@ Download the `.deb` from **Latest**, then open a terminal in your downloads fold
 sudo apt install ./discord-canary-prerelease-patched-electron-bin-*.deb
 ```
 
+The local package does not add an APT repository. Install future bootstrap
+updates using the same command. Application updates remain automatic.
+
 ## Fedora
 
 Download the `.rpm` from **Latest**, then open a terminal in your downloads folder:
@@ -40,6 +43,37 @@ Download the `.rpm` from **Latest**, then open a terminal in your downloads fold
 ```sh
 sudo dnf install ./discord-canary-prerelease-patched-electron-bin-*.rpm
 ```
+
+The local package does not add a DNF repository. Install future bootstrap
+updates using the same command. Application updates remain automatic.
+
+## AppImage
+
+On releases that include an `.AppImage`, download it and allow it to run:
+
+```sh
+chmod +x discord-canary-prerelease-patched-electron-bin-x86_64.AppImage
+./discord-canary-prerelease-patched-electron-bin-x86_64.AppImage
+```
+
+The AppImage includes Python, GnuPG, Brotli, audio client tools and supporting
+libraries. Electron, Discord and the DPE application still download and update
+through the existing updater. It does not add itself to your app menu. Your host
+still supplies graphics drivers, display libraries, PipeWire services and desktop
+portals. Prefer the native Debian package on Ubuntu for its sandbox policy.
+
+If FUSE is unavailable, run it in extraction mode:
+
+```sh
+APPIMAGE_EXTRACT_AND_RUN=1 ./discord-canary-prerelease-patched-electron-bin-x86_64.AppImage
+```
+
+Electron, Discord and DPE application updates continue automatically. To update
+the bundled dependencies or bootstrap, replace the AppImage with a newer one.
+
+Keep the file in a permanent location before enabling autostart. If you move it,
+turn autostart off and on again. If the sandbox is blocked by your distribution,
+use the native package; do not disable the sandbox.
 
 ## Other distributions
 

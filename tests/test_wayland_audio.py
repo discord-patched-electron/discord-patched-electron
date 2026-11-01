@@ -16,6 +16,12 @@ spec.loader.exec_module(audio)
 
 
 class WaylandIdentity(unittest.TestCase):
+    def test_appimage_helpers_preserve_spaces_and_native_system_paths(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(audio.system_tool("pw-dump"), "/usr/bin/pw-dump")
+        with patch.dict("os.environ", {"DPE_TOOLS_DIR": "/tmp/image mount/usr/bin"}):
+            self.assertEqual(audio.system_tool("pw-dump"), "/tmp/image mount/usr/bin/pw-dump")
+
     def test_audio_picker_identity_preserves_selection_and_cancellation(self):
         for identity, root, reply, status, kind in (
             ("discord-canary", "/portable app", b"200\n", 0, "application"),

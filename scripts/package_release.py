@@ -1,6 +1,6 @@
 """Package a tested, relocatable app without compiling Electron.
 
-All four formats contain the same minimal bootstrap. The signed application
+All five formats contain the same minimal bootstrap. The signed application
 archive supplies the updater, OpenAsar and patches in the user's profile.
 """
 
@@ -16,6 +16,7 @@ import tarfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+from appimage import build as build_appimage
 from application_payload import ASSET, bootstrap, bundle
 from channels import require_enabled_discord
 from common import (
@@ -218,7 +219,14 @@ def tarball(app: Path, destination: Path, name: str, epoch: int):
         archive.add(app, arcname=name, filter=normalize)
 
 
-def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
+def package(
+    app: Path,
+    output: Path,
+    version: str,
+    epoch: int,
+    nfpm: str,
+    appimage_tools: Path = ROOT / "out/appimage-tools",
+):
     app, output = app.resolve(), output.resolve()
     build = read_json(app / "local-build.json")
     if not build.get("portable") or build.get("runtime_kind") != "compiled":
@@ -317,11 +325,14 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             check=True,
             env=environment,
         )
+    appimage_file = output / f"{name}-x86_64.AppImage"
+    build_appimage(app, appimage_file, epoch, build["channel"], appimage_tools)
     assets = [
         archive,
         *output.glob("*.deb"),
         *output.glob("*.rpm"),
         *output.glob("*.pkg.tar.zst"),
+        *output.glob("*.AppImage"),
         output / ASSET,
     ]
     write_json(
@@ -337,6 +348,9 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             "client": client_pins,
             "application": application,
             "package_distribution": "bootstrap-only",
+            "appimage_dependencies": read_json(
+                appimage_tools / "dependencies/usr/share/dpe-dependencies/build.json"
+            ),
             "client_distribution": "module-only",
             "bundled_discord_client": False,
             "bundled_electron": False,
@@ -383,8 +397,9 @@ def main():
         "--epoch", type=int, required=True, help="SOURCE_DATE_EPOCH for archive timestamps"
     )
     parser.add_argument("--nfpm", default="nfpm")
+    parser.add_argument("--appimage-tools", type=Path, default=ROOT / "out/appimage-tools")
     args = parser.parse_args()
-    package(args.app, args.output, args.version, args.epoch, args.nfpm)
+    package(args.app, args.output, args.version, args.epoch, args.nfpm, args.appimage_tools)
 
 
 if __name__ == "__main__":

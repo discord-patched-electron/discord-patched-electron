@@ -157,6 +157,7 @@ uv run python scripts/build_local_app.py --portable --discord canary \
 mv out/release-app 'out/relocated app'
 uv run python scripts/check_desktop_launch.py 'out/relocated app' \
   --output out/release-launch --relaunch
+uv run python scripts/appimage.py --install out/appimage-tools --dependencies
 uv run python scripts/package_release.py 'out/relocated app' \
   --output out/packages --version 20261024.120000 --epoch 1792843200
 uv run python scripts/check_release_packages.py out/packages
@@ -287,3 +288,8 @@ At the time, the official Arch repositories carried stable Discord, not Canary.
 installs its own executable, desktop file and icons. It is not a conflicting
 Canary package. Stable, PTB, standalone mod installers and separate clients are
 not blocked merely because they are related to Discord.
+
+AppImage uses the pinned tool and runtime in `config/appimage-tools.json`. It includes Python and user-space dependencies around
+the same bootstrap as the native packages and is covered by signed release
+checksums. See the [packaging review](packaging-ux-20261101.md) for repository
+publishing and self-contained AppImage options.

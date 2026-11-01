@@ -20,6 +20,7 @@ SIDECARS = {
     "../discord-ui/stream-audio.cjs": "discord-ui/stream-audio.cjs",
     "../discord-ui/icons.cjs": "discord-ui/icons.cjs",
     "../discord-ui/BOOTSTRAP-ICONS-LICENSE.txt": "discord-ui/BOOTSTRAP-ICONS-LICENSE.txt",
+    "system-tools.cjs": "system-tools.cjs",
     "portal-detection.cjs": "portal-detection.cjs",
     "portal-monitor.py": "portal-monitor.py",
     "capture_detection.py": "capture_detection.py",

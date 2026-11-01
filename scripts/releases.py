@@ -211,10 +211,13 @@ def reserve_tag(tag: str, commit: str):
 def verify_assets(directory: Path, manifest: dict):
     assets = manifest.get("assets", {})
     application = manifest.get("application")
-    if len(assets) != len(FORMATS) + bool(application) or any(
-        sum(name.endswith(ext) for name in assets) != 1 for ext in FORMATS
+    appimages = sum(name.endswith(".AppImage") for name in assets)
+    if (
+        appimages > 1
+        or len(assets) != len(FORMATS) + bool(application) + appimages
+        or any(sum(name.endswith(ext) for name in assets) != 1 for ext in FORMATS)
     ):
-        raise ValueError("Expected exactly four app package formats")
+        raise ValueError("Expected exactly four base package formats and at most one AppImage")
     if application and (
         application.get("bootstrap_api") != 1
         or application.get("asset") != "application.zip"
@@ -248,9 +251,14 @@ def install_notes(manifest: dict, *, approved: bool = False) -> str:
     for distribution, extension in (
         ("Debian / Ubuntu", ".deb"),
         ("Fedora", ".rpm"),
+        ("Portable launcher", ".AppImage"),
         ("Other distributions", ".tar.gz"),
         ("Arch Linux (maintainer/testing install)", ".pkg.tar.zst"),
     ):
+        if extension == ".AppImage" and not any(
+            name.endswith(extension) for name in manifest["assets"]
+        ):
+            continue
         name = next(name for name in manifest["assets"] if name.endswith(extension))
         download = f"[{extension}]({downloads}/{name})"
         if extension == ".pkg.tar.zst" and manifest.get("signing_required"):

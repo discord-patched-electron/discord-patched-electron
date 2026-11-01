@@ -1,4 +1,5 @@
 "use strict";
+const { systemTool } = require("./system-tools.cjs");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 const { StringDecoder } = require("node:string_decoder");
@@ -117,7 +118,7 @@ function wrap(
   function ensureHelper() {
     if (helper) return helper;
     const child = spawnHelper(
-      "/usr/bin/python3",
+      systemTool("python3"),
       [path.join(__dirname, "dpe-pipewire-audio.py"), "--owner", String(process.pid)],
       { stdio: ["pipe", "pipe", "pipe"] },
     );

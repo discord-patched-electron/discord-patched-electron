@@ -26,6 +26,10 @@ class AppAudioPatch(unittest.TestCase):
             )
             adapter = ROOT / "integration/audio/app-audio.cjs"
             report = patch(directory, adapter)
+            self.assertEqual(
+                (directory / "system-tools.cjs").read_bytes(),
+                (ROOT / "integration/audio/system-tools.cjs").read_bytes(),
+            )
             native.assert_called_once_with(directory / "discord_voice.node")
             self.assertEqual(report["native_buffer_patch"], {"fixture": True})
             for name in (
