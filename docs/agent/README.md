@@ -20,6 +20,7 @@ that test run.
 - [CPU target and build caching](build-caching.md)
 - [Source ports](source-ports.md)
 - [Update discovery and scheduling](discovery.md)
+- [Electron scheduling, retry and provider-usage reliability audit](electron-update-reliability-20261101.md)
 - [Client and Electron updater](client-updater.md)
 - [Vencord and Equicord preservation](client-mods.md)
 - [Installer resilience and GitHub API limits](mod-network-resilience-20261031.md)

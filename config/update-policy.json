@@ -15,5 +15,11 @@
     "critical",
     "high"
   ],
-  "urgent_versions": []
+  "urgent_versions": [],
+  "max_update_attempts": 3,
+  "retry_minutes": [
+    5,
+    15,
+    60
+  ]
 }

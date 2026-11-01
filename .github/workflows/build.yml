@@ -1,4 +1,5 @@
 name: Candidate Electron build
+run-name: Electron ${{ inputs.runtime_key || inputs.target }}
 on:
   workflow_dispatch:
     inputs:
@@ -22,6 +23,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   allowance:
+    concurrency:
+      group: electron-state-writer
+      cancel-in-progress: false
     if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main' && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -42,6 +46,9 @@ jobs:
         with:
           persist-credentials: false
       - run: python3 scripts/state_branch.py checkout out/state
+      - uses: ./.github/actions/blacksmith-usage
+        with:
+          token: ${{ secrets.BLACKSMITH_API_TOKEN }}
       - id: reserve
         name: Reserve the maximum allowance before runner allocation
         run: python3 scripts/blacksmith_budget.py

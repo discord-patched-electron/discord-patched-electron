@@ -67,7 +67,15 @@ def urgent(candidate: str, current: str, advisories: list, policy: dict) -> list
 
 def plan(state: dict, policy: dict, sources: dict, now: str) -> dict:
     good = policy["last_good_runtime"]
-    last_attempt = state.get("last_compiler_attempt_at", good["completed_at"])
+    # Source preparation never consumes the native-build cooldown. Reservations
+    # include manual builds and survive workflow cancellation/deletion.
+    last_attempt = max(
+        [
+            good["completed_at"],
+            *[r["at"] for r in state.get("blacksmith_reservations", {}).values()],
+        ],
+        key=date,
+    )
     due = date(last_attempt) + timedelta(hours=policy["electron_interval_hours"])
     available = [
         r
@@ -76,7 +84,15 @@ def plan(state: dict, policy: dict, sources: dict, now: str) -> dict:
         and r["channel"] in enabled_electron_channels()
         and version_key(r["version"]) > version_key(good["version"])
     ]
-    candidate = max(available, key=lambda r: version_key(r["version"])) if available else None
+    # Prefer a known security fix over a newer release with no proven fix.
+    fixes = [
+        r
+        for r in available
+        if urgent(r["version"], good["version"], state.get("security_advisories", []), policy)
+    ]
+    candidate = (
+        max(fixes or available, key=lambda r: version_key(r["version"])) if available else None
+    )
     electron = {"action": "unchanged", "next_routine_at": due.isoformat()}
     if candidate:
         reasons = urgent(
@@ -86,9 +102,11 @@ def plan(state: dict, policy: dict, sources: dict, now: str) -> dict:
         runtime = state.get("runtimes", {}).get(candidate["runtime_key"], {})
         action = (
             "already-attempted"
-            if runtime.get("status") in ("building", "compiled", "failed")
+            if runtime.get("status") in ("building", "compiled")
             else "prepare-source"
-            if date(now) >= due or reasons
+            if date(now) >= due
+            or reasons
+            or candidate["runtime_key"] in state.get("electron_work", {})
             else "deferred"
         )
         electron.update(

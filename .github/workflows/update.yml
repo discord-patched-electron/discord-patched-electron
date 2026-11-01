@@ -2,14 +2,26 @@ name: Discover upstream releases
 on:
   schedule:
     - cron: "22 * * * *"
+    - cron: "2,7,12,17,27,32,37,42,47,52,57 * * * *"
   workflow_dispatch:
+    inputs:
+      security_only:
+        description: Check Electron releases and security fixes without client packaging
+        type: boolean
+        default: false
+  workflow_run:
+    workflows: [Candidate Electron build]
+    types: [completed]
+    branches: [main]
+  repository_dispatch:
+    types: [electron-security-update]
 permissions:
   contents: read
-concurrency:
-  group: electron-state-writer
-  cancel-in-progress: false
 jobs:
   discover:
+    concurrency:
+      group: electron-state-writer
+      cancel-in-progress: false
     if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -24,20 +36,31 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GIT_TERMINAL_PROMPT: "0"
+      SECURITY_ONLY: ${{ inputs.security_only || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_run' || (github.event_name == 'schedule' && github.event.schedule != '22 * * * *') }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Install archive inspector
+        if: env.SECURITY_ONLY != 'true'
         run: command -v brotli || (sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli)
       - name: Read the durable queue
         run: python scripts/state_branch.py checkout out/state
       - name: Discover releases and independent Discord module updates
         id: discover
-        run: python scripts/discover.py --state out/state/state.json
+        run: |
+          args=()
+          if [ "$SECURITY_ONLY" = true ]; then args+=(--security-only); fi
+          python scripts/discover.py --state out/state/state.json "${args[@]}"
+      - uses: ./.github/actions/blacksmith-usage
+        with:
+          token: ${{ secrets.BLACKSMITH_API_TOKEN }}
       - name: Reserve independent content-keyed work
         id: reserve
-        run: python scripts/schedule_updates.py --state out/state/state.json
+        run: |
+          args=()
+          if [ "$SECURITY_ONLY" = true ]; then args+=(--security-only); fi
+          python scripts/schedule_updates.py --state out/state/state.json "${args[@]}"
       - name: Persist only real changes
         run: python scripts/state_branch.py save out/state
       - name: Pin the saved client snapshot
@@ -73,10 +96,10 @@ jobs:
       contents: write
       actions: read
   electron:
-    # Client preparation writes its proposal to main. Finish that write before
-    # checking out main for source advancement; the two pushes otherwise race.
-    # Failed client qualification must not suppress independent source work.
-    needs: [discover, clients]
+    concurrency:
+      group: electron-source-writer
+      cancel-in-progress: false
+    needs: discover
     if: ${{ !cancelled() && needs.discover.result == 'success' && needs.discover.outputs.electron != '' }}
     runs-on: ubuntu-24.04
     permissions:

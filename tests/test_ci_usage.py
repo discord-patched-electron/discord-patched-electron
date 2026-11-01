@@ -44,7 +44,8 @@ class UsageReport(unittest.TestCase):
             result = report(now, blacksmith=True)
         self.assertEqual(result["github_billing"]["data"], billing)
         allowance = result["project_blacksmith_reservations"]["data"]
-        self.assertEqual(allowance["reserved_minutes"], 960)
+        self.assertFalse(allowance["can_build"])
+        self.assertEqual(allowance["reason"], "provider-usage-unavailable")
         self.assertFalse(allowance["provider_balance_verified"])
         self.assertIn("year=2026&month=10", command.call_args_list[0].args[0][-1])
         self.assertEqual(command.call_args_list[-1].args[0][0:2], ["blacksmith", "usage"])

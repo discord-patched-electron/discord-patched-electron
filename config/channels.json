@@ -16,5 +16,6 @@
   ],
   "package_pattern": "discord-{discord}-{electron}-patched-electron-bin",
   "poll_cron": "22 * * * *",
-  "schema": 1
+  "schema": 1,
+  "security_poll_cron": "2,7,12,17,27,32,37,42,47,52,57 * * * *"
 }

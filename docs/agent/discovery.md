@@ -10,7 +10,8 @@ for publication and [the updater](client-updater.md) for updates on users' machi
 
 ## Discord updates
 
-`update.yml` polls hourly at minute 22. GitHub schedules can be delayed; manual
+`update.yml` polls Discord hourly at minute 22 and Electron/security every five
+minutes. GitHub schedules can be delayed; manual
 **Discover upstream releases** is also available. Only enabled channels are fetched.
 Currently that means Canary.
 
@@ -44,8 +45,9 @@ could remain Electron 46.0.0-alpha.1.
 
 The ledger retains discovered alpha/beta releases, but pending versions are
 coalesced into the newest eligible candidate. Routine source advancement waits
-**96 hours after the last compiler attempt**, initially measured from the pinned
-successful build. No new eligible input means no compilation.
+**96 hours after the last actual compiler reservation**, initially measured from the pinned
+successful build. Source preparation does not consume that cooldown. No new
+eligible input means no compilation. Manual compiler reservations also count.
 
 An official high/critical advisory bypasses the wait only when its version range
 includes the installed runtime and identifies a fixed candidate on that major.
@@ -55,13 +57,27 @@ advisory data.
 
 `advance_electron.py` applies the patch queue in a disposable checkout first.
 Failure leaves retained builds and the last-good runtime untouched. Success
-advances the source lock with a fast-forward push and dispatches `build.yml`
-with the expected native-input key. The compiler verifies that key and reserves
-[Blacksmith allowance](ci-setup.md#blacksmith-compilation) before runner allocation.
-A healthy compiler is never cancelled or duplicated. Failed source preparation
-(including a fast-forward push race) can retry after another 96 hours; successful
-or queued source work is not duplicated. Discovery summaries show the scheduling
-decision and next routine time even when no work starts.
+updates only the source-lock blob using GitHub's compare-and-swap Contents API
+and dispatches `build.yml` with the expected native-input key. Unrelated commits
+cannot cause a non-fast-forward failure. A changed source lock is never merged
+or overwritten; discovery regenerates the identity. The compiler checks the key
+before reserving [Blacksmith allowance](ci-setup.md#blacksmith-compilation).
+
+Failed source preparation or dispatch retries after 5 then 15 minutes, with three
+attempts per identity. A successful dispatch without a compiler reservation is
+reconciled against named workflow runs before retrying. Queued, active and
+successful compiler identities are deduplicated; failed native builds can retry
+within that same bounded policy. A new advisory grants a fresh retry budget.
+Each discovery summary includes the next routine/retry time and blocking reason.
+
+The lightweight Electron/security poll runs every five minutes; the full Discord
+poll remains hourly. Security checks do not wait for client packaging. Published
+high/critical fixes and explicit urgent versions bypass the four-day cooldown
+and can queue behind an active compiler immediately. Healthy compilers are never
+cancelled. Compiler completion triggers another poll. Authenticated external
+monitors can send `repository_dispatch` type `electron-security-update` to wake
+it without supplying trusted release data. GitHub cron is best effort and may
+be delayed or dropped; this is not a five-minute detection SLA.
 
 Upstream API changes still need reviewed ports. Source assembly passing does
 not establish compilation or runtime compatibility.
@@ -130,7 +146,7 @@ Hourly polling makes 24 scheduled checks per day. Routine unchanged checks do no
 upload diagnostics. Temporary release-package artifacts expire after seven days;
 public release assets and compiler recovery artifacts have separate retention.
 
-The four-day cooldown and rolling 2,400-minute Blacksmith budget are independent.
+The four-day cooldown and provider-verified monthly Blacksmith allowance are independent.
 An exhausted budget defers source preparation without consuming the candidate.
 The compiler still makes its own reservation before allocation.
 
@@ -160,9 +176,11 @@ for `discord-patched-electron`. For automation, create an organization token in
 your own terminal with `blacksmith org-token create --label ci-usage` and follow
 the CLI's stdin authentication flow. Never paste it into chat or commit it.
 
-[Usage reports](https://docs.blacksmith.sh/blacksmith-cli/usage) are observations,
-not guaranteed remaining balances. Do not use them to refund reservations.
-Usage reporting is on demand and adds no scheduled billing-token secret to CI.
+CI uses [provider usage](https://docs.blacksmith.sh/blacksmith-cli/usage) plus
+unsettled reservations, authenticated with `BLACKSMITH_API_TOKEN`. Reported
+completed jobs can settle reservations; unknown jobs cannot. This is an allocator
+for this repository, not an account-wide transactional spending cap. See
+[Blacksmith compilation](ci-setup.md#blacksmith-compilation).
 
 ## Earlier evidence
 

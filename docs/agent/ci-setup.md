@@ -54,28 +54,32 @@ uv run python scripts/ci_scope.py --base BEFORE_SHA --head AFTER_SHA
 
 ## Blacksmith compilation
 
-Before allocating a runner, a GitHub-hosted job reserves the full job allowance
-in `ci-state/state.json`. Settings live in `scripts/blacksmith_budget.py`:
+Before allocating a runner, a GitHub-hosted job reads organization-wide usage
+through Blacksmith CLI 0.5.3 (version and SHA-256 pinned in the composite action),
+then commits its reservation to `ci-state`. Discovery and allocation share a
+short state-writer concurrency lock; compilation has its own concurrency group.
 
-| Setting                 | Limit                                                 |
-| ----------------------- | ----------------------------------------------------- |
-| Runner                  | 16 vCPUs, 64 GB RAM, 750 GB disk                      |
-| Job                     | **120 minutes**; compilation stops at **105 minutes** |
-| Reservation per attempt | **960 allowance minutes**, using the 8× billing rate  |
-| Rolling budget          | **2,400 allowance minutes** over **31 days**          |
+| Setting           | Limit                                                       |
+| ----------------- | ----------------------------------------------------------- |
+| Runner            | 16 vCPUs, rate verified against the provider catalog        |
+| Job               | Up to 120 minutes, including 15 minutes for cleanup/uploads |
+| Monthly allowance | Full 3,000 x64 2-vCPU minutes per organization              |
+| Usage freshness   | At most 5 minutes; rechecked before each allocation         |
 
-These reservations are worst-case limits, not Blacksmith usage: a job that fails
-immediately can consume only a few provider minutes while retaining its full
-project reservation. The compiler preflight is exercised without compilation in
-`tests/test_runtime_preflight.py`.
+The CLI reports platform-weighted **vCPU** `billing_minutes`; divide by two
+for the free-tier unit. The allowance covers all repositories and platforms,
+not just this compiler. Completed jobs reported by Blacksmith settle their
+reservations. Unreported/running/deleted jobs retain their maximum reservation;
+GitHub wall times cannot refund it. Monthly rollover does not erase an in-flight
+reservation. Smaller remaining balances fund shorter jobs, provided more than
+15 wall minutes remain for compilation plus cleanup.
 
-Stopping compilation early leaves time for logs, artifacts and cache upload.
-The budget permits two attempts and leaves 600 of the reported 3,000 free minutes
-outside this workflow.
-
-Failed and cancelled jobs keep their reservation. Deleting runs or resetting the
-ledger must not recover allowance. A concurrent state write fails before runner
-allocation. After a budget rejection, wait for reservations to expire.
+`BLACKSMITH_API_TOKEN` is an organization token stored as an Actions secret.
+Missing credentials, unavailable/stale usage, inconsistent aggregates, or changed
+runner pricing block allocation. They do not become a zero-usage estimate.
+The provider exposes usage rather than a transactional spending-cap API:
+concurrent jobs from other repositories can still consume the account balance.
+Use this allocator for all organization compiler work to preserve its bound.
 
 Dispatch a new attempt rather than rerunning a compiler job:
 
@@ -86,22 +90,13 @@ gh workflow run build.yml --ref main -f target=prerelease \
 
 The workflow rejects an active or successful build of the same runtime. Reuse
 successful output for client packaging. The separate four-day Electron cooldown
-sets a minimum interval; it does not promise a build every four days.
+sets a minimum interval for routine new versions; retries and proven security
+fixes use the policy in [discovery](discovery.md#electron-updates).
 
-This is a project budget, not an account-wide billing cap. Other repositories
-and services can consume allowance. The last reported usage before this policy
-was 168 minutes. A complete cold build within the new limit remains unverified.
-Use [usage reporting](discovery.md#usage-and-limits) to inspect current consumption.
-
-The GitHub App needs repository access, without a runner API key. Only a bounded
-3 GiB sccache store is transferred through `actions/cache`; Chromium objects are
-ephemeral. Most current Chromium commands bypass sccache. See
-[cache limitations](build-caching.md#current-full-build-cache-limitation).
-No sticky disks or paid cache add-ons are enabled.
-
-References: [runner sizes and billing](https://docs.blacksmith.sh/blacksmith-runners/overview),
-[dependency caching](https://docs.blacksmith.sh/blacksmith-caching/dependencies-actions),
-[pricing](https://www.blacksmith.sh/pricing).
+The compiler preflight is tested without compilation. A complete cold build
+within the hosted limit remains unverified. See the
+[reliability audit](electron-update-reliability-20261101.md) for provider evidence
+and remaining scheduler/account-wide limits.
 
 ## Retained local runner
 

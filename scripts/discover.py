@@ -83,6 +83,19 @@ class GitHub:
                 return records
             page += 1
 
+    def advisories(self):
+        records = []
+        for page in range(1, 101):
+            batch = self.get(
+                f"repos/electron/electron/security-advisories?per_page=100&page={page}"
+            )
+            if not isinstance(batch, list):
+                raise ValueError("Expected an advisory page")
+            records.extend(batch)
+            if len(batch) < 100:
+                return records
+        raise ValueError("Advisory pagination limit reached; refusing a partial snapshot")
+
     def source_tags(self) -> dict[str, str]:
         # A single advertisement also rechecks already-tracked tags. Asking the
         # API separately for every historical tag would grow without bound.
@@ -305,6 +318,7 @@ def pending(state: dict) -> list[str]:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", type=Path, required=True)
+    parser.add_argument("--security-only", action="store_true")
     parser.add_argument("--output", type=Path, default=ROOT / "out/discovery")
     args = parser.parse_args()
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -322,18 +336,23 @@ def main():
         )
         return normalize(channel, read_json(path))
 
-    with ThreadPoolExecutor(max_workers=len(enabled_discord_channels())) as pool:
-        futures = {
-            channel: pool.submit(client_manifest, channel) for channel in enabled_discord_channels()
-        }
-        for channel, future in futures.items():
-            try:
-                clients[channel] = future.result()
-            except (ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
-                clients[channel] = fallback[channel]
-                client_errors[channel] = (
-                    str(error) if isinstance(error, ValueError) else type(error).__name__
-                )
+    if args.security_only:
+        clients = fallback
+        client_errors = previous.get("client_errors", {}) if previous else {}
+    else:
+        with ThreadPoolExecutor(max_workers=len(enabled_discord_channels())) as pool:
+            futures = {
+                channel: pool.submit(client_manifest, channel)
+                for channel in enabled_discord_channels()
+            }
+            for channel, future in futures.items():
+                try:
+                    clients[channel] = future.result()
+                except (ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
+                    clients[channel] = fallback[channel]
+                    client_errors[channel] = (
+                        str(error) if isinstance(error, ValueError) else type(error).__name__
+                    )
     sources = read_json(ROOT / "config/sources.lock.json")
     try:
         releases = [
@@ -356,15 +375,17 @@ def main():
         state["electron_discovery_error"] = str(error)
     state["client_errors"] = client_errors
     try:
-        advisories = github.get("repos/electron/electron/security-advisories?per_page=100")
+        advisories = github.advisories()
         state["security_advisories"] = [
             {k: a.get(k) for k in ("ghsa_id", "severity", "withdrawn_at", "vulnerabilities")}
             for a in advisories
         ]
         state.pop("security_discovery_error", None)
+        state["security_checked_at"] = now
     except (ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
         state["security_discovery_error"] = str(error)
-    inspect_clients(state, args.output / "core-cache")
+    if not args.security_only:
+        inspect_clients(state, args.output / "core-cache")
     policy = read_json(ROOT / "config/update-policy.json")
     good = policy["last_good_runtime"]["runtime_key"]
     if good in state["runtimes"] and state["runtimes"][good]["status"] == "pending":

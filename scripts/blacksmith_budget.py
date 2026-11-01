@@ -13,28 +13,58 @@ RUNNER = "blacksmith-16vcpu-ubuntu-2404"
 JOB_MINUTES = 120
 BUILD_MINUTES = 105
 RATE = 8  # Blacksmith bills in 2-vCPU-equivalent minutes.
-BUDGET = 2400  # Leave 600 of the 3,000 free minutes outside this workflow.
+BUDGET = 3000  # The full published monthly allowance; provider usage is authoritative.
 WINDOW = timedelta(days=31)
 
 
 def budget_status(state: dict, now: datetime) -> dict:
     if state.get("schema") != 1:
         raise ValueError("Missing or unsupported durable state")
-    recent = [
-        record
-        for record in state.get("blacksmith_reservations", {}).values()
-        if datetime.fromisoformat(record["at"]) + WINDOW > now
-    ]
-    if any(type(record["minutes"]) is not int or record["minutes"] <= 0 for record in recent):
-        raise ValueError("Invalid budget reservation")
-    used = sum(record["minutes"] for record in recent)
-    return {
-        "reserved_minutes": used,
-        "limit_minutes": BUDGET,
+    usage = state.get("blacksmith_usage")
+    base = {
+        "reserved_minutes": 0,
+        "limit_minutes": 3000,
         "next_build_minutes": JOB_MINUTES * RATE,
-        "can_build": used + JOB_MINUTES * RATE <= BUDGET,
-        "window_days": WINDOW.days,
+        "can_build": False,
         "provider_balance_verified": False,
+        "window_days": 31,
+    }
+    if not usage:
+        return {**base, "reason": "provider-usage-unavailable"}
+    sampled = datetime.fromisoformat(usage["at"])
+    month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if (
+        not timedelta(0) <= now - sampled <= timedelta(minutes=5)
+        or datetime.fromisoformat(usage["period_start"]) != month
+    ):
+        return {**base, "reason": "provider-usage-stale"}
+    if usage["limit_minutes"] != 3000 or usage["runner_rate"] != RATE:
+        raise ValueError("Unsupported provider quota or runner rate")
+    records = state.get("blacksmith_reservations", {})
+    if any(type(r["minutes"]) is not int or r["minutes"] <= 0 for r in records.values()):
+        raise ValueError("Invalid budget reservation")
+    pending = sum(
+        r["minutes"]
+        for run, r in records.items()
+        if run not in usage["settled_runs"] and not r.get("provider_settled_at")
+    )
+    used = usage["used_minutes"]
+    if type(used) is not int or used < 0:
+        raise ValueError("Invalid provider usage")
+    remaining = max(0, usage["limit_minutes"] - used - pending)
+    timeout = min(JOB_MINUTES, remaining // RATE)
+    # Keep the existing 15-minute artifact/cleanup window. Smaller balances can
+    # fund shorter attempts instead of stranding every balance below 960 minutes.
+    return {
+        **base,
+        "reserved_minutes": pending,
+        "used_minutes": used,
+        "remaining_minutes": remaining,
+        "next_build_minutes": timeout * RATE,
+        "job_minutes": timeout,
+        "build_minutes": max(0, timeout - 15),
+        "can_build": timeout > 15,
+        "provider_balance_verified": True,
     }
 
 
@@ -46,13 +76,14 @@ def reserve(state: dict, now: datetime, run_id: str, key: str):
     charge = status["next_build_minutes"]
     if not status["can_build"]:
         raise ValueError(
-            f"Blacksmith budget reserved: {status['reserved_minutes']}/{BUDGET} minutes in 31 days. "
+            f"Blacksmith allowance unavailable: {status.get('reason', 'insufficient balance')}. "
             f"This build needs {charge}. No runner was allocated. "
-            "Retry after older reservations expire. Client packaging can continue."
+            "Retry after a fresh provider usage check or monthly reset. Client packaging can continue."
         )
-    # Never refund from job history. Failed/cancelled/deleted runs still count,
-    # even when they used less than their reserved maximum.
+    # Only completed jobs reported by Blacksmith can settle a reservation.
+    # GitHub timings, missing runs and calendar changes cannot refund it.
     records[run_id] = {"at": now.isoformat(), "minutes": charge, "runtime_key": key}
+    return status
 
 
 def main():
@@ -87,19 +118,20 @@ def main():
             result = api("actions/runs/" + run_id)
             if result["status"] != "completed" or result["conclusion"] == "success":
                 raise ValueError(f"Runtime already has active or successful compiler run {run_id}")
-    reserve(state, datetime.now(UTC), os.environ["GITHUB_RUN_ID"], key)
+    status = reserve(state, datetime.now(UTC), os.environ["GITHUB_RUN_ID"], key)
     write_json(directory / "state.json", state)
     save(directory)  # A concurrent state write fails closed before allocation.
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
         output.write(
-            f"runner={RUNNER}\ntimeout={JOB_MINUTES}\nbuild_minutes={BUILD_MINUTES}\n"
+            f"runner={RUNNER}\ntimeout={status['job_minutes']}\nbuild_minutes={status['build_minutes']}\n"
             f"runtime_key={key}\n"
         )
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
         summary.write(
-            f"Reserved at most {JOB_MINUTES * RATE} Blacksmith allowance minutes. "
-            f"The job is capped at {JOB_MINUTES} wall minutes. "
-            f"Project reservations are capped at {BUDGET} minutes per rolling 31 days.\n"
+            f"Provider reports {status['used_minutes']}/{BUDGET} monthly allowance minutes used. "
+            f"Reserved at most {status['next_build_minutes']} for this job; "
+            f"timeout {status['job_minutes']} wall minutes. "
+            "Unreported/in-flight jobs retain their maximum reservations.\n"
         )
 
 

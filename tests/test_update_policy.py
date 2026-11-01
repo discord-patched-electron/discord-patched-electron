@@ -11,6 +11,10 @@ from update_policy import in_range, plan, urgent
 
 class UpdatePolicy(unittest.TestCase):
     def setUp(self):
+        self.allowance = patch(
+            "schedule_updates.budget_status", return_value={"can_build": True}
+        ).start()
+        self.addCleanup(patch.stopall)
         self.policy = {
             "electron_interval_hours": 96,
             "security_severities": ["critical", "high"],
@@ -48,7 +52,7 @@ class UpdatePolicy(unittest.TestCase):
             ],
             "prepare-source",
         )
-        self.state["last_compiler_attempt_at"] = "2026-10-27T00:00:00Z"
+        self.state["blacksmith_reservations"] = {"1": {"at": "2026-10-27T00:00:00Z"}}
         self.assertEqual(
             plan(self.state, self.policy, self.sources, "2026-10-28T03:00:00Z")["electron"][
                 "action"
@@ -78,7 +82,7 @@ class UpdatePolicy(unittest.TestCase):
         with self.assertRaises(ValueError):
             in_range("46.0.0-alpha.1", "*")
 
-    def test_same_inputs_and_failed_jobs_are_not_redispatched(self):
+    def test_failed_source_retries_but_queued_source_and_clients_are_not_duplicated(self):
         first = schedule(self.state, self.policy, self.sources, "2026-10-28T03:00:00Z", "1", {})
         self.assertEqual(len(first["clients"]), 1)
         self.assertEqual(first["electron"]["action"], "prepare-source")
@@ -90,25 +94,88 @@ class UpdatePolicy(unittest.TestCase):
         self.state["clients"]["canary"]["sources"]["discord_desktop_core"]["sha256"] = "c" * 64
         result = schedule(self.state, self.policy, self.sources, "2026-10-28T05:00:00Z", "3", {})
         self.assertEqual([i["channel"] for i in result["clients"]], ["canary"])
-        self.assertEqual(result["electron"]["action"], "deferred")
+        self.assertEqual(result["electron"]["action"], "source-active")
 
-    def test_failed_source_update_retries_after_cooldown_even_when_urgent(self):
-        self.policy["urgent_versions"] = ["46.0.0-alpha.2"]
+    def test_failed_source_has_short_bounded_retries_without_consuming_cooldown(self):
         schedule(self.state, self.policy, self.sources, "2026-10-28T03:00:00Z", "1", {})
         early = schedule(
-            self.state, self.policy, self.sources, "2026-10-28T04:00:00Z", "2", {"1": "failure"}
+            self.state, self.policy, self.sources, "2026-10-28T03:01:00Z", "2", {"1": "failure"}
         )
-        self.assertEqual(early["electron"]["action"], "no-new-work")
-        retry = schedule(self.state, self.policy, self.sources, "2026-11-01T03:00:00Z", "3", {})
+        self.assertEqual(early["electron"]["action"], "retry-deferred")
+        retry = schedule(self.state, self.policy, self.sources, "2026-10-28T03:05:00Z", "3", {})
         self.assertEqual(retry["electron"]["action"], "prepare-source")
-        self.assertEqual(self.state["electron_work"]["b" * 64]["run"], "3")
-        self.assertEqual(self.state["last_compiler_attempt_at"], "2026-11-01T03:00:00Z")
-        for status in ("queued", "success"):
-            self.state["electron_work"]["b" * 64]["status"] = status
-            result = schedule(
-                self.state, self.policy, self.sources, "2026-11-05T03:00:00Z", "4", {}
-            )
-            self.assertEqual(result["electron"]["action"], "no-new-work")
+        self.assertNotIn("last_compiler_attempt_at", self.state)
+        retry = schedule(
+            self.state, self.policy, self.sources, "2026-10-28T03:20:00Z", "4", {"3": "failure"}
+        )
+        self.assertEqual(retry["electron"]["action"], "prepare-source")
+        exhausted = schedule(
+            self.state, self.policy, self.sources, "2026-10-28T05:00:00Z", "5", {"4": "failure"}
+        )
+        self.assertEqual(exhausted["electron"]["action"], "retry-exhausted")
+        self.policy["urgent_versions"] = ["46.0.0-alpha.2"]
+        urgent = schedule(self.state, self.policy, self.sources, "2026-10-28T05:01:00Z", "6", {})
+        self.assertEqual(urgent["electron"]["action"], "prepare-source")
+
+    def test_lost_dispatch_retries_but_successful_compiler_does_not(self):
+        schedule(self.state, self.policy, self.sources, "2026-10-28T03:00:00Z", "1", {})
+        retry = schedule(
+            self.state, self.policy, self.sources, "2026-10-28T03:05:00Z", "2", {"1": "success"}
+        )
+        self.assertEqual(retry["electron"]["action"], "prepare-source")
+        self.state["blacksmith_reservations"] = {
+            "10": {
+                "at": "2026-10-28T03:06:00Z",
+                "runtime_key": "b" * 64,
+                "status": "completed",
+                "conclusion": "success",
+            }
+        }
+        done = schedule(
+            self.state, self.policy, self.sources, "2026-10-28T04:00:00Z", "3", {"2": "success"}
+        )
+        self.assertEqual(done["electron"]["action"], "compiled")
+
+    def test_urgent_build_can_queue_behind_compiler_without_duplicate_dispatch(self):
+        self.policy["urgent_versions"] = ["46.0.0-alpha.2"]
+        result = schedule(
+            self.state,
+            self.policy,
+            self.sources,
+            "2026-10-25T03:00:00Z",
+            "1",
+            {},
+            compiler_busy=True,
+        )
+        self.assertEqual(result["electron"]["action"], "prepare-source")
+        self.state["compiler_requests"] = {
+            "b" * 64: {"run": "10", "status": "pending", "conclusion": None}
+        }
+        again = schedule(
+            self.state,
+            self.policy,
+            self.sources,
+            "2026-10-25T04:00:00Z",
+            "2",
+            {"1": "success"},
+            compiler_busy=True,
+        )
+        self.assertEqual(again["electron"]["action"], "compiler-active")
+        self.assertEqual(self.state["electron_work"]["b" * 64]["run"], "1")
+
+    def test_security_only_does_not_reserve_client_work(self):
+        result = schedule(
+            self.state,
+            self.policy,
+            self.sources,
+            "2026-10-28T03:00:00Z",
+            "1",
+            {},
+            security_only=True,
+        )
+        self.assertEqual(result["clients"], [])
+        self.assertEqual(self.state["client_work"], {})
+        self.assertEqual(result["electron"]["action"], "prepare-source")
 
     def test_advisories_without_a_usable_fix_do_not_block_client_work_or_bypass_cooldown(self):
         for patched, affected in (
@@ -137,6 +204,7 @@ class UpdatePolicy(unittest.TestCase):
                 self.assertEqual(len(result["clients"]), 1)
 
     def test_exhausted_budget_defers_without_consuming_work_then_recovers(self):
+        self.allowance.return_value = {"can_build": False}
         self.state["blacksmith_reservations"] = {
             str(i): {"at": "2026-10-24T00:00:00+00:00", "minutes": 960, "runtime_key": str(i)}
             for i in range(2)
@@ -148,6 +216,7 @@ class UpdatePolicy(unittest.TestCase):
         self.assertEqual(len(result["clients"]), 1)
         self.assertEqual(self.state["electron_work"], {})
         self.assertNotIn("last_compiler_attempt_at", self.state)
+        self.allowance.return_value = {"can_build": True}
         result = schedule(self.state, self.policy, self.sources, "2026-11-24T03:00:00Z", "4", {})
         self.assertEqual(result["electron"]["action"], "prepare-source")
         self.assertEqual(len(self.state["electron_work"]), 1)
@@ -156,7 +225,7 @@ class UpdatePolicy(unittest.TestCase):
         result = schedule(
             self.state, self.policy, self.sources, "2026-10-28T03:00:00Z", "1", {}, True
         )
-        self.assertEqual(result["electron"]["action"], "deferred")
+        self.assertEqual(result["electron"]["action"], "compiler-busy")
         self.assertEqual(self.state["electron_work"], {})
         self.assertEqual(len(result["clients"]), 1)
 
@@ -166,7 +235,7 @@ class UpdatePolicy(unittest.TestCase):
             self.state,
             self.policy,
             self.sources,
-            "2026-10-28T04:00:00Z",
+            "2026-10-28T03:01:00Z",
             "2",
             {"1": "failure", "1:electron": "success", "1:canary": "failure"},
         )

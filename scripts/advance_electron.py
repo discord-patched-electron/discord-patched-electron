@@ -1,15 +1,50 @@
 """Apply the existing patch queue to an eligible release before scheduling C++."""
 
 import argparse
+import base64
 import json
 import os
 import re
 import subprocess
+import time
 
 from assemble import assemble
 from build_reference import build_config
 from common import ROOT, electron_channel, read_json, require_enabled_electron, run, write_json
+from releases import api
 from runtime_fingerprints import runtime_key
+
+
+def publish_source_lock(original, updated, version):
+    """CAS only the source file, preserving unrelated concurrent main commits."""
+    endpoint = "contents/config/sources.lock.json"
+    for attempt in range(3):
+        current = api(endpoint + "?ref=main")
+        contents = json.loads(base64.b64decode(current["content"]))
+        if contents == updated:
+            return  # Includes an accepted write whose response was lost.
+        if contents != original:
+            raise ValueError("Source lock changed concurrently; rediscover before retrying")
+        try:
+            api(
+                endpoint,
+                method="PUT",
+                data={
+                    "message": f"Advance Electron to {version}",
+                    "branch": "main",
+                    "sha": current["sha"],
+                    "content": base64.b64encode(
+                        (json.dumps(updated, indent=2) + "\n").encode()
+                    ).decode(),
+                },
+            )
+            return
+        except subprocess.CalledProcessError as error:
+            # 409 can race with an unrelated branch update. Re-read the blob
+            # before every retry; never merge or overwrite a changed source lock.
+            if attempt == 2 or not re.search(r"HTTP (409|429|5\d\d)", error.stderr or ""):
+                raise
+            time.sleep(2**attempt)
 
 
 def advance(state_commit, key):
@@ -35,6 +70,7 @@ def advance(state_commit, key):
     require_enabled_electron(channel)
     lock_path = ROOT / "config/sources.lock.json"
     lock = read_json(lock_path)
+    original = json.loads(json.dumps(lock))
     lock["targets"][channel] = spec
     if runtime_key(spec, lock, build_config(channel)) != key:
         raise ValueError("Source/native inputs changed since reservation; rediscover")
@@ -47,31 +83,7 @@ def advance(state_commit, key):
         ROOT / "out/source-update.json",
     ):
         raise ValueError("Source port required; last working runtime remains active")
-    # A concurrent main change fails the ordinary fast-forward push. Never merge
-    # generated locks or use force. Failed identities remain visible in ci-state.
-    run("git", "add", "--", lock_path)
-    changed = subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode
-    if changed:
-        run(
-            "git",
-            "-c",
-            "user.name=github-actions[bot]",
-            "-c",
-            "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-            "commit",
-            "-m",
-            f"Advance Electron {channel} to {spec['version']}",
-        )
-        run(
-            "git",
-            "-c",
-            "credential.helper=",
-            "-c",
-            "credential.helper=!gh auth git-credential",
-            "push",
-            "origin",
-            "HEAD:refs/heads/main",
-        )
+    publish_source_lock(original, lock, spec["version"])
     # workflow_dispatch is explicit: GITHUB_TOKEN pushes do not trigger push CI.
     run(
         "gh",

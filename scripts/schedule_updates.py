@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -58,7 +59,9 @@ def electron_result(jobs, completed):
     return "success" if job["conclusion"] == "success" else "failure"
 
 
-def schedule(state, policy, sources, now, run_id, results, compiler_busy=False):
+def schedule(
+    state, policy, sources, now, run_id, results, compiler_busy=False, security_only=False
+):
     work = state.setdefault("client_work", {})
     for item in [*work.values(), *state.setdefault("electron_work", {}).values()]:
         result_key = item["run"] + ":" + item.get("channel", "electron")
@@ -69,6 +72,8 @@ def schedule(state, policy, sources, now, run_id, results, compiler_busy=False):
             # well as queued work, so a successful retry clears the failure.
             item["status"] = results[result_key] or "queued"
     decision = plan(state, policy, sources, now)
+    if security_only:
+        decision["clients"] = []
     for item in decision["clients"]:
         work[item["key"]] = {**item, "status": "queued", "run": run_id, "requested_at": now}
     native = decision["electron"]
@@ -78,32 +83,62 @@ def schedule(state, policy, sources, now, run_id, results, compiler_busy=False):
         native["action"] = "budget-deferred"
         return decision
     previous = state["electron_work"].get(native.get("runtime_key"))
-    retry_source = (
-        previous is not None
-        and previous["status"] == "failure"
-        and date(now)
-        >= date(previous["requested_at"]) + timedelta(hours=policy["electron_interval_hours"])
-    )
-    if (
-        native["action"] == "prepare-source"
-        and not compiler_busy
-        and (previous is None or retry_source)
-    ):
+    records = [
+        r
+        for r in state.get("blacksmith_reservations", {}).values()
+        if r["runtime_key"] == native.get("runtime_key")
+    ]
+    request = state.get("compiler_requests", {}).get(native.get("runtime_key"))
+    if request:
+        records.append(request)
+    if any(r.get("conclusion") == "success" for r in records):
+        native["action"] = "compiled"
+        return decision
+    if any(r.get("status") != "completed" for r in records):
+        native["action"] = "compiler-active"
+        return decision
+    if previous:
+        attempts = previous.get("attempts", 1)
+        if previous["status"] == "queued":
+            native["action"] = "source-active"
+            return decision
+        new_urgency = set(native.get("urgent_reasons", [])) - set(
+            previous.get("urgent_reasons", [])
+        )
+        if new_urgency:
+            attempts = 0  # A newly published critical fix earns a fresh bounded attempt.
+        if attempts >= policy.get("max_update_attempts", 3):
+            native["action"] = "retry-exhausted"
+            return decision
+        # Success without a corresponding compiler reservation can be a lost
+        # dispatch. Retry safely: the compiler allowance deduplicates the key.
+        delay = policy.get("retry_minutes", [5, 15, 60])[min(attempts - 1, 2)]
+        retry_at = date(previous["requested_at"]) + timedelta(minutes=delay)
+        native["retry_at"] = retry_at.isoformat()
+        if not new_urgency and date(now) < retry_at:
+            native["action"] = "retry-deferred"
+            return decision
+    if native["action"] == "prepare-source" and (not compiler_busy or native.get("urgent_reasons")):
         state["electron_work"][native["runtime_key"]] = {
             "status": "queued",
             "run": run_id,
             "target": native["target"],
             "requested_at": now,
+            "attempts": attempts + 1 if previous else 1,
+            "urgent_reasons": native.get("urgent_reasons", []),
+            "previous_runs": [*previous.get("previous_runs", []), previous["run"]]
+            if previous
+            else [],
         }
-        state["last_compiler_attempt_at"] = now
     elif native["action"] == "prepare-source":
-        native["action"] = "deferred" if compiler_busy else "no-new-work"
+        native["action"] = "compiler-busy"
     return decision
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", type=Path, required=True)
+    parser.add_argument("--security-only", action="store_true")
     args = parser.parse_args()
     if os.environ.get("GITHUB_REPOSITORY") != PROJECT:
         raise ValueError("Scheduling is limited to the project workflow")
@@ -146,21 +181,48 @@ if __name__ == "__main__":
                 results[item["run"] + ":" + channel] = client_result(
                     channel, jobs, result["status"] == "completed"
                 )
-    runs = api("actions/workflows/build.yml/runs?per_page=20")["workflow_runs"]
+    for compiler_run, reservation in state.get("blacksmith_reservations", {}).items():
+        if reservation.get("status") != "completed":
+            result = api("actions/runs/" + compiler_run)
+            reservation.update(status=result["status"], conclusion=result["conclusion"])
+    runs = api("actions/workflows/build.yml/runs?per_page=100")["workflow_runs"]
+    for compiler in runs:
+        match = re.fullmatch(r"Electron ([a-f0-9]{64})", compiler.get("display_title", ""))
+        if match:
+            key = match[1]
+            request = state.setdefault("compiler_requests", {}).get(key)
+            if request is None or int(compiler["id"]) > int(request["run"]):
+                state["compiler_requests"][key] = {
+                    "run": str(compiler["id"]),
+                    "status": compiler["status"],
+                    "conclusion": compiler["conclusion"],
+                }
+            elif str(compiler["id"]) == request["run"]:
+                request.update(status=compiler["status"], conclusion=compiler["conclusion"])
     busy = (
         any(r["status"] != "completed" for r in runs)
         or not read_json(ROOT / "config/channels.json")["compiler"]["enabled"]
     )
     now = datetime.now(UTC).isoformat()
     result = schedule(
-        state, policy, read_json(ROOT / "config/sources.lock.json"), now, run_id, results, busy
+        state,
+        policy,
+        read_json(ROOT / "config/sources.lock.json"),
+        now,
+        run_id,
+        results,
+        busy,
+        args.security_only,
     )
     write_json(args.state, state)
     write_json(ROOT / "out/discovery/update-plan.json", result)
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
         summary.write(
             "### Electron scheduling\n\n```json\n"
-            + json.dumps(result["electron"], indent=2)
+            + json.dumps(
+                {"electron": result["electron"], "allowance": result["compiler_allowance"]},
+                indent=2,
+            )
             + "\n```\n"
         )
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
