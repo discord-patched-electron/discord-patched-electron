@@ -63,7 +63,8 @@ provides the source identity without requiring broader token permissions.
 Candidate tags identify the channel, release time and content hash. A repeat of the same
 runtime/client/integration inputs skips packaging if that release is already
 public. Failed work remains visible and can be retried with GitHub's **Re-run all
-jobs**. A partial draft can be resumed. Public assets are never overwritten.
+jobs**. A partial draft can be resumed. Publication searches the release list as
+well as the by-tag endpoint, which omits drafts. Public assets are never overwritten.
 
 To repair historical descriptions, run `uv run python scripts/releases.py
 refresh-notes` to preview all published app notes under `out/release-notes/`.

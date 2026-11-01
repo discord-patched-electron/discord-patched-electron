@@ -102,6 +102,21 @@ def existing_candidate(client_version, key, channel):
     return None
 
 
+def release_for_tag(tag: str, *, repository=PROJECT):
+    release = api("releases/tags/" + tag, missing=True, repository=repository)
+    if release:
+        return release
+    # The by-tag endpoint returns published releases only. A failed upload must
+    # resume its existing draft instead of trying to create a duplicate release.
+    page = 1
+    while releases := api(f"releases?per_page=100&page={page}", repository=repository):
+        for release in releases:
+            if release["tag_name"] == tag:
+                return release
+        page += 1
+    return None
+
+
 def candidate_time(timestamp, channel, electron):
     """Advance beyond the checked-out predecessor, never a moving remote head."""
     created = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
@@ -508,7 +523,7 @@ def refresh_notes(tag: str | None, *, apply: bool = False):
 def cache_runtime(manifest: dict):
     runtime = manifest["runtime"]
     tag = runtime["cache_release"]
-    cached = api("releases/tags/" + tag, missing=True, repository=CACHE_REPOSITORY)
+    cached = release_for_tag(tag, repository=CACHE_REPOSITORY)
     if cached and not cached["draft"]:
         assets = {asset["name"]: asset.get("digest") for asset in cached["assets"]}
         if assets.get("runtime-dist.zip") != "sha256:" + runtime["archive_sha256"]:
@@ -583,7 +598,7 @@ def publish(directory: Path):
         or tagged["object"]["sha"] != manifest["source_commit"]
     ):
         raise ValueError("Release tag must already pin the qualified source commit")
-    existing = api("releases/tags/" + tag, missing=True)
+    existing = release_for_tag(tag)
     if existing and not existing["draft"]:
         return
     cache_runtime(manifest)

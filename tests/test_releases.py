@@ -23,6 +23,7 @@ from releases import (
     notes,
     prepare,
     publish,
+    release_for_tag,
     release_tag,
     reserve_tag,
     validate_approval,
@@ -109,6 +110,23 @@ class ReleaseApproval(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "another commit"):
                 reserve_tag("candidate", "b" * 40)
 
+    def test_release_lookup_finds_drafts_on_later_pages_and_preserves_repository(self):
+        for repository in (PROJECT, "example/cache"):
+            draft = {"tag_name": "candidate", "draft": True}
+            with patch(
+                "releases.api", side_effect=[None, [{"tag_name": "another"}], [draft]]
+            ) as api:
+                self.assertEqual(release_for_tag("candidate", repository=repository), draft)
+                self.assertEqual(api.call_args.args[0], "releases?per_page=100&page=2")
+                for call in api.call_args_list:
+                    self.assertEqual(call.kwargs["repository"], repository)
+        published = {"tag_name": "candidate", "draft": False}
+        with patch("releases.api", return_value=published) as api:
+            self.assertEqual(release_for_tag("candidate"), published)
+            self.assertEqual(api.call_count, 1)
+        with patch("releases.api", side_effect=[None, []]):
+            self.assertIsNone(release_for_tag("missing"))
+
     def test_publication_requires_the_reserved_source_without_retargeting(self):
         for tag_state in ("missing", "wrong_commit", "annotated", "valid"):
             with self.subTest(tag_state=tag_state), tempfile.TemporaryDirectory() as temporary:
@@ -128,6 +146,8 @@ class ReleaseApproval(unittest.TestCase):
                         return None if tag_state == "missing" else tagged
                     if endpoint == "releases/tags/" + tag:
                         return None
+                    if endpoint == "releases?per_page=100&page=1":
+                        return []
                     self.fail("Unexpected API call: " + endpoint)
 
                 with (
