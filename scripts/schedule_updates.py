@@ -4,16 +4,23 @@ import argparse
 import json
 import os
 import re
-import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from blacksmith_budget import budget_status
 from common import ROOT, electron_channel, read_json, write_json
 from fingerprints import integration_key
+from releases import api as project_api
 from update_policy import date, plan
 
 PROJECT = "discord-patched-electron/discord-patched-electron"
+
+
+def read_run(run_id):
+    result = project_api("actions/runs/" + run_id, missing=True)
+    # Deleted workflow history is not an active lease. Keep its financial
+    # reservation until provider settlement, but do not block every future poll.
+    return result or {"status": "completed", "conclusion": "deleted"}
 
 
 def client_result(channel, jobs, completed):
@@ -144,11 +151,7 @@ if __name__ == "__main__":
         raise ValueError("Scheduling is limited to the project workflow")
 
     def api(endpoint):
-        return json.loads(
-            subprocess.check_output(
-                ["gh", "api", f"repos/{PROJECT}/{endpoint}"], text=True, timeout=60
-            )
-        )
+        return project_api(endpoint)
 
     state = read_json(args.state)
     policy = read_json(ROOT / "config/update-policy.json")
@@ -171,9 +174,13 @@ if __name__ == "__main__":
     watched = clients + [item for item in native if item["status"] == "queued"] + native[-1:]
     for item in watched:
         if item["status"] != "success" and item["run"] != run_id and item["run"] not in results:
-            result = api("actions/runs/" + item["run"])
+            result = read_run(item["run"])
             results[item["run"]] = result["conclusion"] if result["status"] == "completed" else None
-            jobs = api("actions/runs/" + item["run"] + "/jobs?filter=latest&per_page=100")["jobs"]
+            jobs = (
+                []
+                if result["conclusion"] == "deleted"
+                else api("actions/runs/" + item["run"] + "/jobs?filter=latest&per_page=100")["jobs"]
+            )
             results[item["run"] + ":electron"] = electron_result(
                 jobs, result["status"] == "completed"
             )
@@ -183,7 +190,7 @@ if __name__ == "__main__":
                 )
     for compiler_run, reservation in state.get("blacksmith_reservations", {}).items():
         if reservation.get("status") != "completed":
-            result = api("actions/runs/" + compiler_run)
+            result = read_run(compiler_run)
             reservation.update(status=result["status"], conclusion=result["conclusion"])
     runs = api("actions/workflows/build.yml/runs?per_page=100")["workflow_runs"]
     for compiler in runs:

@@ -57,3 +57,19 @@ can race this allocator. This repo reserves before allocation and retains those
 reservations until provider reconciliation; other repos need the same coordinator
 for an organization-wide guarantee. Missing, stale, inconsistent or malformed
 provider data blocks compilation. No paid usage was authorized.
+
+## Validation
+
+Repository lint and 772 tests pass (524 Python, 248 JavaScript), including
+provider unit conversion, wrong/stale windows, aggregate lag, month rollover,
+partial balances, failure settlement, source CAS conflicts/lost responses,
+advisory pagination, bounded retries and duplicate urgent dispatches. Deleted
+GitHub workflow history releases the scheduling lease but cannot itself refund
+quota; API-reported provider settlement is still required.
+
+[Security-only CI discovery](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/41283591296)
+passed with no discovery errors. Its saved state reports 8/3,000 provider minutes,
+settles failed run 41282196886, and retains 960 minutes for active run 41282631878.
+Client packaging and redundant compilation were correctly skipped. The existing
+compiler was left running. No synthetic vulnerability was dispatched to consume
+compiler minutes, and a new native build was not required for this CI change.

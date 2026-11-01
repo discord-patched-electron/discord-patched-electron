@@ -11,6 +11,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from advance_electron import publish_source_lock
 from discover import GitHub
+from schedule_updates import read_run
 
 
 def blob(value, sha="blob-sha"):
@@ -59,6 +60,10 @@ class SourceUpdateReliability(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "changed concurrently"):
                 publish_source_lock({"version": "old"}, {"version": "new"}, "new")
         self.assertEqual(api.call_count, 1)
+
+    def test_deleted_workflow_does_not_hold_the_source_lease_forever(self):
+        with patch("schedule_updates.project_api", return_value=None):
+            self.assertEqual(read_run("123"), {"status": "completed", "conclusion": "deleted"})
 
     def test_advisories_paginate_and_reject_partial_snapshot(self):
         github = GitHub()

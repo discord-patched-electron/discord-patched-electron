@@ -115,7 +115,11 @@ def main():
     state = read_json(directory / "state.json")
     for run_id, record in state.get("blacksmith_reservations", {}).items():
         if record["runtime_key"] == key:
-            result = api("actions/runs/" + run_id)
+            result = api("actions/runs/" + run_id, missing=True)
+            if result is None:
+                if not record.get("provider_settled_at"):
+                    raise ValueError("Deleted compiler run has not been settled by Blacksmith")
+                continue
             if result["status"] != "completed" or result["conclusion"] == "success":
                 raise ValueError(f"Runtime already has active or successful compiler run {run_id}")
     status = reserve(state, datetime.now(UTC), os.environ["GITHUB_RUN_ID"], key)
