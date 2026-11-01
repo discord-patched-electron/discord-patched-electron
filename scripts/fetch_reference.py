@@ -18,7 +18,30 @@ from fingerprints import runtime_key
 CACHE_REPOSITORY = "discord-patched-electron/cache"
 
 
-def validate_capacity(capacity: dict, candidate: bool):
+def reviewed_compatibility(
+    capacity: dict, expected: str, run_id: str | None, compiler_commit: str | None
+) -> bool:
+    """An exact reviewed report may cross a scheduling-only driver change."""
+    policy = read_json(ROOT / "config/runtime-compatibility.json")
+    if policy.get("schema") != 1:
+        raise ValueError("Unsupported runtime compatibility policy")
+    return any(
+        entry["expected_runtime_key"] == expected
+        and entry["run"] == run_id
+        and entry["compiler_commit"] == compiler_commit
+        and entry["capacity_sha256"] == digest(capacity)
+        and entry["runtime_key"] == capacity.get("runtime_key") == capacity.get("build_key")
+        for entry in policy["reviewed_reports"]
+    )
+
+
+def validate_capacity(
+    capacity: dict,
+    candidate: bool,
+    *,
+    run_id: str | None = None,
+    compiler_commit: str | None = None,
+):
     # A new candidate must not strand client-only updates on the previously
     # verified runtime. This exact report hash is an explicit reviewed pin.
     good = read_json(ROOT / "config/update-policy.json")["last_good_runtime"]
@@ -47,9 +70,11 @@ def validate_capacity(capacity: dict, candidate: bool):
             source.get("upstream_commit") != spec["commit"]
             or capacity.get("compiled_version") != spec["version"]
             or capacity.get("config") != config
-            or capacity.get("runtime_key") != expected
-            or capacity.get("build_key") != expected
         ):
+            raise ValueError("Candidate differs from current source, CPU or compiler configuration")
+        if (
+            capacity.get("runtime_key") != expected or capacity.get("build_key") != expected
+        ) and not reviewed_compatibility(capacity, expected, run_id, compiler_commit):
             raise ValueError("Candidate differs from current source, CPU or compiler configuration")
 
 
@@ -146,7 +171,7 @@ def fetch(run_id: str, output: Path, *, capacity_only=False):
     capacity = read_json(output / "capacity/capacity.json")
     if cached and digest(capacity) != good["capacity_sha256"]:
         raise ValueError("Retained compiler report differs from the verified pin")
-    validate_capacity(capacity, candidate)
+    validate_capacity(capacity, candidate, run_id=run_id, compiler_commit=metadata.get("head_sha"))
     if capacity_only:
         return capacity
     artifact = "candidate-runtime" if candidate else "reference-runtime"

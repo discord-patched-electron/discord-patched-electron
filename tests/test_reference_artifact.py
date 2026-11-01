@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build_reference import build_config
-from common import ROOT, read_json, sha256
+from common import ROOT, digest, read_json, sha256
 from fetch_reference import extract, fetch, validate_capacity
 from fingerprints import runtime_key
 
@@ -76,6 +76,61 @@ class ReferenceArtifact(unittest.TestCase):
         ]:
             with self.subTest(changed=changed), self.assertRaises(ValueError):
                 validate_capacity({**capacity, **changed}, candidate=True)
+
+    def test_reviewed_driver_migration_is_exact_and_never_skips_source_checks(self):
+        sources = read_json(ROOT / "config/sources.lock.json")
+        spec = sources["targets"]["prerelease"]
+        config = build_config("prerelease")
+        expected = runtime_key(spec, sources, config)
+        capacity = {
+            "source": {
+                "target": "prerelease",
+                "upstream_commit": spec["commit"],
+                "source_assembled": True,
+                "dependencies_patched": True,
+                "compiled": True,
+            },
+            "config": config,
+            "compiled_version": spec["version"],
+            "runtime_key": "old",
+            "build_key": "old",
+            "archive_sha256": "archive",
+        }
+        policy = {
+            "schema": 1,
+            "reviewed_reports": [
+                {
+                    "expected_runtime_key": expected,
+                    "run": "123",
+                    "compiler_commit": "commit",
+                    "capacity_sha256": digest(capacity),
+                    "runtime_key": "old",
+                }
+            ],
+        }
+
+        def read(path):
+            return policy if path.name == "runtime-compatibility.json" else read_json(path)
+
+        with patch("fetch_reference.read_json", side_effect=read):
+            validate_capacity(capacity, True, run_id="123", compiler_commit="commit")
+            for run_id, commit in (("other", "commit"), ("123", "other"), (None, None)):
+                with self.assertRaises(ValueError):
+                    validate_capacity(capacity, True, run_id=run_id, compiler_commit=commit)
+            for change in (
+                {"archive_sha256": "changed"},
+                {"config": {}},
+                {"source": {**capacity["source"], "compiled": False}},
+            ):
+                with self.assertRaises(ValueError):
+                    validate_capacity(
+                        {**capacity, **change}, True, run_id="123", compiler_commit="commit"
+                    )
+            with (
+                patch("fetch_reference.runtime_key", return_value="new-inputs"),
+                self.assertRaises(ValueError),
+            ):
+                validate_capacity(capacity, True, run_id="123", compiler_commit="commit")
 
     @patch.dict(os.environ, {"GH_REPO": "discord-patched-electron/discord-patched-electron"})
     @patch("fetch_reference.run")
