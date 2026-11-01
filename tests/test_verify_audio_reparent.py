@@ -95,6 +95,7 @@ class IndependentReparent(unittest.TestCase):
                     patch.object(audio, "command", return_value="[]"),
                     patch.object(audio, "niri_request", side_effect=replies.__getitem__),
                     patch.object(audio, "Route", side_effect=route),
+                    patch.object(audio.sp, "Popen", side_effect=AssertionError("No real picker")),
                     patch.dict(audio.os.environ, {"NIRI_SOCKET": "synthetic"}, clear=True),
                     contextlib.redirect_stdout(io.StringIO()),
                 ):
@@ -119,8 +120,7 @@ class IndependentReparent(unittest.TestCase):
                     else:
                         self.assertIsNone(controller.route)
                         routes[0].close.assert_called_once()
-                        expected = "waiting" if change == "uid" else "unavailable"
-                        self.assertEqual(controller.last["state"], expected)
+                        self.assertEqual(controller.last["state"], "unavailable")
                     if change == "parent":
                         # Recovery is bounded to a generation, not permanently lost.
                         controller.update({"generation": 2, "enabled": True, "hint": 0})

@@ -1055,7 +1055,9 @@ class Controller:
             or descendant(self.owner, identity)
             or (target.get("identity") is not None and identity[:2] != target["identity"])
         ):
-            if "identity" not in target:
+            if "identity" not in target and not (
+                self.target_key and self.target_key[0] == target["key"]
+            ):
                 # A stale/missing window PID is not a usable audio match.
                 self.choose(objects, pulse, source)
             else:
