@@ -22,6 +22,7 @@ from releases import (
     manifest_tag,
     notes,
     prepare,
+    publish,
     release_tag,
     reserve_tag,
     validate_approval,
@@ -107,6 +108,50 @@ class ReleaseApproval(unittest.TestCase):
             self.assertEqual(api.call_count, 1)
             with self.assertRaisesRegex(ValueError, "another commit"):
                 reserve_tag("candidate", "b" * 40)
+
+    def test_publication_requires_the_reserved_source_without_retargeting(self):
+        for tag_state in ("missing", "wrong_commit", "annotated", "valid"):
+            with self.subTest(tag_state=tag_state), tempfile.TemporaryDirectory() as temporary:
+                directory = Path(temporary) / "packages"
+                manifest = {**self.manifest, "assets": {"app.pkg.tar.zst": "c" * 64}}
+                write_json(directory / "release.json", manifest)
+                tag = manifest_tag(manifest)
+                tagged = {
+                    "object": {
+                        "type": "tag" if tag_state == "annotated" else "commit",
+                        "sha": "c" * 40 if tag_state == "wrong_commit" else "a" * 40,
+                    }
+                }
+
+                def api(endpoint, tag=tag, tag_state=tag_state, tagged=tagged, **kwargs):
+                    if endpoint == "git/ref/tags/" + tag:
+                        return None if tag_state == "missing" else tagged
+                    if endpoint == "releases/tags/" + tag:
+                        return None
+                    self.fail("Unexpected API call: " + endpoint)
+
+                with (
+                    patch("releases.api", side_effect=api),
+                    patch("releases.verify_assets"),
+                    patch("releases.verify_signatures"),
+                    patch("releases.cache_runtime") as cache,
+                    patch("releases.published_releases", return_value=[]),
+                    patch("releases.notes", return_value="Tested release"),
+                    patch("releases.run") as run,
+                    patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(directory / "summary")}),
+                ):
+                    if tag_state != "valid":
+                        with self.assertRaisesRegex(ValueError, "qualified source commit"):
+                            publish(directory)
+                        cache.assert_not_called()
+                        run.assert_not_called()
+                    else:
+                        publish(directory)
+                        create = run.call_args_list[0].args
+                        self.assertEqual(create[:4], ("gh", "release", "create", tag))
+                        self.assertIn("--verify-tag", create)
+                        self.assertNotIn("--target", create)
+                        self.assertEqual(run.call_args_list[-1].args[:3], ("gh", "release", "edit"))
 
     def setUp(self):
         self.manifest = {

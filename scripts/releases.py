@@ -576,6 +576,13 @@ def publish(directory: Path):
     verify_assets(directory, manifest)
     verify_signatures(directory)
     tag = manifest_tag(manifest)
+    tagged = api("git/ref/tags/" + tag, missing=True)
+    if (
+        not tagged
+        or tagged["object"]["type"] != "commit"
+        or tagged["object"]["sha"] != manifest["source_commit"]
+    ):
+        raise ValueError("Release tag must already pin the qualified source commit")
     existing = api("releases/tags/" + tag, missing=True)
     if existing and not existing["draft"]:
         return
@@ -592,8 +599,10 @@ def publish(directory: Path):
             tag,
             "--repo",
             PROJECT,
-            "--target",
-            manifest["source_commit"],
+            # The reserved tag supplies the immutable source. Sending an older
+            # workflow-changing SHA as target_commitish can require workflow
+            # write permission even when the tag already exists.
+            "--verify-tag",
             "--title",
             title,
             "--notes-file",

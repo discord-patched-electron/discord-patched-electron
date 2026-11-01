@@ -54,7 +54,11 @@ is included in the signed manifest. This records a proposal, not approval.
 Qualification continues on the original workflow source commit; the metadata
 write does not alter tested code. Retries reuse the proposal commit, and an older
 retry cannot replace a newer record. Tag reservation precedes the metadata commit
-so the workflow token can reserve tags for workflow-changing commits.
+so the workflow token can reserve tags for workflow-changing commits. Publication
+verifies that this tag still pins the qualified source, then uses `--verify-tag`
+without sending a separate target commit. GitHub can reject an explicit older
+workflow-changing target even when its tag already exists; the reserved tag
+provides the source identity without requiring broader token permissions.
 
 Candidate tags identify the channel, release time and content hash. A repeat of the same
 runtime/client/integration inputs skips packaging if that release is already
