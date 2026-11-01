@@ -1,0 +1,71 @@
+name: Build AppImage
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Upstream release tag (leave empty for latest)'
+        required: false
+        default: ''
+  push:
+    branches:
+      - feat/appimage-package
+
+permissions:
+  contents: write
+
+jobs:
+  build-appimage:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools curl jq wget
+
+      - name: Download appimagetool
+        run: |
+          sudo wget -q -O /usr/local/bin/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          sudo chmod +x /usr/local/bin/appimagetool
+
+      - name: Fetch upstream release archive
+        id: fetch
+        run: |
+          TAG="${{ github.event.inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(curl -s https://api.github.com/repos/discord-patched-electron/discord-patched-electron/releases/latest | jq -r .tag_name)
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Using release tag: $TAG"
+
+          RELEASE_JSON=$(curl -s "https://api.github.com/repos/discord-patched-electron/discord-patched-electron/releases/tags/$TAG")
+          TAR_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".tar.gz")) | .browser_download_url')
+          echo "Downloading $TAR_URL"
+          mkdir -p build && cd build
+          curl -sL "$TAR_URL" -o release.tar.gz
+          tar -xzf release.tar.gz
+          DIR_NAME=$(tar -tzf release.tar.gz | head -1 | cut -f1 -d"/")
+          echo "dir=$DIR_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Package AppImage
+        run: |
+          cd build/${{ steps.fetch.outputs.dir }}
+          ln -sf launch.sh AppRun
+          ln -sf discord.png .DirIcon
+          ln -sf discord.png discord-canary.png
+          sed -i 's|^Exec=.*|Exec=AppRun %U|' discord-canary.desktop
+          sed -i 's|^Icon=.*|Icon=discord|' discord-canary.desktop
+          cd ..
+          ARCH=x86_64 appimagetool -n "${{ steps.fetch.outputs.dir }}" "${{ steps.fetch.outputs.dir }}-x86_64.AppImage"
+          mkdir -p out
+          mv *.AppImage out/
+
+      - name: Upload AppImage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: discord-canary-patched-electron-appimage
+          path: build/out/*.AppImage
+          retention-days: 14

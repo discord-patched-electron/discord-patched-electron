@@ -218,6 +218,28 @@ def tarball(app: Path, destination: Path, name: str, epoch: int):
         archive.add(app, arcname=name, filter=normalize)
 
 
+def build_appimage(app: Path, destination: Path, epoch: int):
+    tool = shutil.which("appimagetool")
+    if not tool:
+        return
+    app_run = app / "AppRun"
+    if not app_run.exists():
+        app_run.symlink_to("launch.sh")
+    dir_icon = app / ".DirIcon"
+    if not dir_icon.exists():
+        dir_icon.symlink_to("discord.png")
+    canary_icon = app / "discord-canary.png"
+    if not canary_icon.exists():
+        canary_icon.symlink_to("discord.png")
+    desktop_file = app / "discord-canary.desktop"
+    if desktop_file.exists():
+        content = desktop_file.read_text()
+        content = re.sub(r"^Exec=.*", "Exec=AppRun %U", content, flags=re.MULTILINE)
+        desktop_file.write_text(content)
+    environment = {**os.environ, "ARCH": "x86_64", "SOURCE_DATE_EPOCH": str(epoch)}
+    subprocess.run([tool, "-n", str(app), str(destination)], check=True, env=environment)
+
+
 def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     app, output = app.resolve(), output.resolve()
     build = read_json(app / "local-build.json")
@@ -317,11 +339,14 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
             check=True,
             env=environment,
         )
+    appimage_file = output / f"{name}-x86_64.AppImage"
+    build_appimage(app, appimage_file, epoch)
     assets = [
         archive,
         *output.glob("*.deb"),
         *output.glob("*.rpm"),
         *output.glob("*.pkg.tar.zst"),
+        *output.glob("*.AppImage"),
         output / ASSET,
     ]
     write_json(
