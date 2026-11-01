@@ -1,4 +1,5 @@
 "use strict";
+const { systemTool } = require("./system-tools.cjs");
 // Small wrapper around Discord's existing native per-process PulseAudio path.
 // No remote UI patches, browser capture fallback, or microphone-device changes.
 const fs = require("node:fs");
@@ -25,7 +26,7 @@ function windowPid(source) {
   const match = /^window:([1-9][0-9]*):[0-9]+$/.exec(String(source.id));
   if (!match || !/^(?:unix)?:[0-9]+(?:\.[0-9]+)?$/.test(process.env.DISPLAY || "")) return null;
   try {
-    const text = execFileSync("/usr/bin/xprop", ["-id", match[1], "-notype", "_NET_WM_PID"], {
+    const text = execFileSync(systemTool("xprop"), ["-id", match[1], "-notype", "_NET_WM_PID"], {
       encoding: "utf8",
       timeout: 500,
       maxBuffer: 4096,
@@ -61,7 +62,7 @@ function resolve(source, hint) {
   source.owner ||= root;
   try {
     const streams = JSON.parse(
-      execFileSync("/usr/bin/pactl", ["-f", "json", "list", "sink-inputs"], {
+      execFileSync(systemTool("pactl"), ["-f", "json", "list", "sink-inputs"], {
         encoding: "utf8",
         timeout: 1000,
         maxBuffer: 4 * 1024 * 1024,

@@ -23,6 +23,8 @@ function fixture() {
       module,
       process: { env: { DISPLAY: ":99", DPE_APP_AUDIO: "1" }, pid: 900, getuid: () => 1000 },
       require(name) {
+        if (name === "./system-tools.cjs")
+          return require("../../integration/audio/system-tools.cjs");
         if (name === "node:fs")
           return {
             statSync: () => ({ uid: 1000 }),

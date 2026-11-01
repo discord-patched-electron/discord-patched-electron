@@ -81,3 +81,5 @@ current setup instructions or authorization to repeat earlier actions.
 - [Blacksmith build economics and dictionary feedback](blacksmith-build-economics-20261101.md)
 
 - [Free build capacity and incremental checkpoints](free-build-reuse-20261101.md)
+
+- [AppImage review and package repository UX](packaging-ux-20261101.md)

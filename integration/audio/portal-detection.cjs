@@ -1,4 +1,5 @@
 "use strict";
+const { systemTool } = require("./system-tools.cjs");
 // Observe only screencast portal replies, briefly around the native picker.
 // Keep selected app IDs in memory; never retain restore tokens or window titles.
 const { spawn } = require("node:child_process");
@@ -135,7 +136,7 @@ function createObserver({ spawnMonitor = spawn, changed = () => {} } = {}) {
     const mutter = createMutterTracker();
     try {
       const monitor = spawnMonitor(
-        "/usr/bin/python3",
+        systemTool("python3"),
         [
           path.join(__dirname, "portal-monitor.py"),
           String(process.pid),

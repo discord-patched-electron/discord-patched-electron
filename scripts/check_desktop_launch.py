@@ -54,6 +54,7 @@ def check(
     application_archive: Path | None = None,
     expect_setup: bool = False,
     setup_configure: bool = False,
+    launcher: Path | None = None,
 ):
     expect_setup = expect_setup or setup_configure
     app, output = app.resolve(), output.resolve()
@@ -65,11 +66,15 @@ def check(
         port = reservation.getsockname()[1]
     profile = (profile or output / "profile").resolve()
     launcher_app = app
+    launch_environment = dict(os.environ)
+    if launcher and (app / "bootstrap.json").exists():
+        launch_environment["APPIMAGE"] = str(launcher.resolve())
+        launch_environment["APPDIR"] = str(app.parents[2])
     if (app / "bootstrap.json").exists():
         command = ["python3", "-I", str(app / "loader.py"), "--profile", str(profile), "--resolve"]
         if application_archive:
             command += ["--archive", str(application_archive.resolve())]
-        app = Path(subprocess.check_output(command, text=True).strip())
+        app = Path(subprocess.check_output(command, text=True, env=launch_environment).strip())
         read_only_app = True
     if runtime_archive:
         subprocess.run(
@@ -86,7 +91,7 @@ def check(
             check=True,
         )
     environment = {
-        **os.environ,
+        **launch_environment,
         "DPE_PROFILE_DIR": str(profile),
         "EQUICORD_USER_DATA_DIR": str(profile / "equicord"),
         "VENCORD_USER_DATA_DIR": str(profile / "vencord"),
@@ -120,7 +125,7 @@ def check(
     with (output / "console.log").open("w") as log:
         process = subprocess.Popen(
             [
-                str(launcher_app / "launch.sh"),
+                str(launcher.resolve() if launcher else launcher_app / "launch.sh"),
                 "--remote-debugging-address=127.0.0.1",
                 f"--remote-debugging-port={port}",
             ],
@@ -545,6 +550,7 @@ if __name__ == "__main__":
         "--read-only-app", action="store_true", help="Do not update the installed build manifest"
     )
     parser.add_argument("--application-archive", type=Path)
+    parser.add_argument("--launcher", type=Path, help="Launch an AppImage instead of launch.sh")
     parser.add_argument(
         "--expect-setup",
         action="store_true",
@@ -565,6 +571,7 @@ if __name__ == "__main__":
         application_archive=args.application_archive,
         expect_setup=args.expect_setup,
         setup_configure=args.setup_configure,
+        launcher=args.launcher,
     )
     passed = first["passed"]
     if passed and args.relaunch:
@@ -574,6 +581,7 @@ if __name__ == "__main__":
             Path(first["profile"]),
             args.equicord,
             args.read_only_app,
+            launcher=args.launcher,
         )
         passed = second["passed"] and (
             not (args.expect_setup or args.setup_configure) or not second["setup_seen"]

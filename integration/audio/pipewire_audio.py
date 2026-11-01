@@ -25,6 +25,10 @@ from functools import partial
 from pathlib import Path
 
 
+def system_tool(name):
+    return str(Path(os.environ.get("DPE_TOOLS_DIR", "/usr/bin")) / name)
+
+
 def child_guard(parent):
     # Close capture workers even if the Python owner is killed without cleanup.
     if ctypes.CDLL(None).prctl(1, signal.SIGTERM) != 0 or os.getppid() != parent:
@@ -104,7 +108,7 @@ def props(obj):
 
 
 def graph():
-    return json.loads(command(["/usr/bin/pw-dump"]))
+    return json.loads(command([system_tool("pw-dump")]))
 
 
 def audio_pid(properties):
@@ -309,7 +313,7 @@ class Route:
         # Keep pw-cli connected: non-lingering objects are destroyed even if the
         # helper crashes and closes its stdin. Never create global permanent nodes.
         if self.owner is None:
-            self.owner = self.spawn(["/usr/bin/pw-cli"], stdin=sp.PIPE)
+            self.owner = self.spawn([system_tool("pw-cli")], stdin=sp.PIPE)
         args = (
             "{ factory.name = support.null-audio-sink node.name = "
             + name
@@ -353,14 +357,14 @@ class Route:
     def start(self):
         try:
             self.mix = self.create_sink(self.prefix + "-mix")
-            server = json.loads(command(["/usr/bin/pactl", "-f", "json", "info"]))
+            server = json.loads(command([system_tool("pactl"), "-f", "json", "info"]))
             if "PipeWire" in server.get("server_name", ""):
                 self.create_sink(self.prefix + "-native")
             else:
                 self.module = int(
                     command(
                         [
-                            "/usr/bin/pactl",
+                            system_tool("pactl"),
                             "load-module",
                             "module-null-sink",
                             "sink_name=" + self.prefix + "-native",
@@ -388,7 +392,7 @@ class Route:
                 )
             recording = self.spawn(
                 [
-                    "/usr/bin/pw-cat",
+                    system_tool("pw-cat"),
                     "--record",
                     "--target=" + self.mix,
                     "--properties={ stream.capture.sink = true node.passive = true node.dont-reconnect = true }",
@@ -443,7 +447,7 @@ class Route:
             native_pulse_serials.add(serial)
             desired[("pw", serial)] = [
                 [
-                    "/usr/bin/pw-loopback",
+                    system_tool("pw-loopback"),
                     "-C",
                     serial,
                     "-P",
@@ -474,7 +478,7 @@ class Route:
             if min(index, sink) < 0:
                 continue
             if sinks is None:
-                sinks = json.loads(command(["/usr/bin/pactl", "-f", "json", "list", "sinks"]))
+                sinks = json.loads(command([system_tool("pactl"), "-f", "json", "list", "sinks"]))
             monitor = next(
                 (
                     s.get("monitor_source_name", s.get("monitor_source"))
@@ -523,7 +527,7 @@ class Route:
         self.feeds.clear()
         if self.module is not None:
             try:
-                command(["/usr/bin/pactl", "unload-module", str(self.module)])
+                command([system_tool("pactl"), "unload-module", str(self.module)])
             except (OSError, sp.SubprocessError):
                 pass
             self.module = None
@@ -984,7 +988,7 @@ class Controller:
         if not self.enabled:
             return
         objects = graph()
-        pulse = json.loads(command(["/usr/bin/pactl", "-f", "json", "list", "sink-inputs"]))
+        pulse = json.loads(command([system_tool("pactl"), "-f", "json", "list", "sink-inputs"]))
         sources = video_sources(objects, self.owner)
         if len(sources) != 1:
             self.suspend()
@@ -1115,7 +1119,7 @@ def main():
         # pactl's JSON module format omits the numeric ID on some versions.
         # The stable tab-separated short format retains it. Validate both the
         # returned ID and our unique sink argument before unloading anything.
-        modules = command(["/usr/bin/pactl", "list", "short", "modules"])
+        modules = command([system_tool("pactl"), "list", "short", "modules"])
         for line in modules.splitlines():
             fields = line.split("\t")
             if (
@@ -1124,7 +1128,7 @@ def main():
                 and fields[1] == "module-null-sink"
                 and ("sink_name=" + str(args.sink_name)) in fields[2].split()
             ):
-                command(["/usr/bin/pactl", "unload-module", str(args.cleanup_module)])
+                command([system_tool("pactl"), "unload-module", str(args.cleanup_module)])
                 break
         return
     if args.owner is None:

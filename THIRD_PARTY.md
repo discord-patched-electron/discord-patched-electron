@@ -127,3 +127,16 @@ native addons are not bundled by this audio adapter.
 code, using Linux's public V4L2 userspace API. It does not include WebRTC source
 or modify Discord's proprietary camera binary. See [camera startup](https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/agent/camera-startup.md)
 for the upstream algorithm and kernel API references.
+
+## AppImage dependencies
+
+AppImage packaging uses [appimagetool](https://github.com/AppImage/appimagetool)
+and [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy); pins are in
+`config/appimage-tools.json`. The AppImage includes the
+[AppImage type-2 runtime](https://github.com/AppImage/type2-runtime), a
+[standalone Python distribution](https://github.com/astral-sh/python-build-standalone),
+and Ubuntu-packaged user-space dependencies. Python retains its distribution
+notices. Ubuntu component copyright, license and source notices are under
+`usr/share/dpe-dependencies/licenses` inside the AppImage, beside `packages.tsv`
+with the installed source-environment versions. Build tools are not shipped as
+application dependencies. Electron, Discord and OpenH264 remain separate downloads.

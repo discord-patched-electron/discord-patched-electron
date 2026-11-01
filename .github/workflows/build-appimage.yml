@@ -1,71 +1,39 @@
-name: Build AppImage
-
+name: Check AppImage packaging
 on:
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: 'Upstream release tag (leave empty for latest)'
-        required: false
-        default: ''
+  pull_request:
+    paths:
+      - ci/appimage/**
+      - packaging/linux/appimage-apprun.sh
+      - scripts/stage_appimage_dependencies.sh
+      - tests/fixtures/appimage-dependencies.py
+      - scripts/appimage.py
+      - scripts/check_appimage.py
+      - scripts/package_release.py
+      - config/appimage-tools.json
+      - .github/workflows/build-appimage.yml
   push:
-    branches:
-      - feat/appimage-package
-
+    branches: [main]
+    paths:
+      - ci/appimage/**
+      - packaging/linux/appimage-apprun.sh
+      - scripts/stage_appimage_dependencies.sh
+      - tests/fixtures/appimage-dependencies.py
+      - scripts/appimage.py
+      - scripts/check_appimage.py
+      - config/appimage-tools.json
+      - .github/workflows/build-appimage.yml
 permissions:
-  contents: write
-
+  contents: read
 jobs:
-  build-appimage:
-    runs-on: ubuntu-22.04
+  appimage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y squashfs-tools curl jq wget
-
-      - name: Download appimagetool
-        run: |
-          sudo wget -q -O /usr/local/bin/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-          sudo chmod +x /usr/local/bin/appimagetool
-
-      - name: Fetch upstream release archive
-        id: fetch
-        run: |
-          TAG="${{ github.event.inputs.release_tag }}"
-          if [ -z "$TAG" ]; then
-            TAG=$(curl -s https://api.github.com/repos/discord-patched-electron/discord-patched-electron/releases/latest | jq -r .tag_name)
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Using release tag: $TAG"
-
-          RELEASE_JSON=$(curl -s "https://api.github.com/repos/discord-patched-electron/discord-patched-electron/releases/tags/$TAG")
-          TAR_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".tar.gz")) | .browser_download_url')
-          echo "Downloading $TAR_URL"
-          mkdir -p build && cd build
-          curl -sL "$TAR_URL" -o release.tar.gz
-          tar -xzf release.tar.gz
-          DIR_NAME=$(tar -tzf release.tar.gz | head -1 | cut -f1 -d"/")
-          echo "dir=$DIR_NAME" >> "$GITHUB_OUTPUT"
-
-      - name: Package AppImage
-        run: |
-          cd build/${{ steps.fetch.outputs.dir }}
-          ln -sf launch.sh AppRun
-          ln -sf discord.png .DirIcon
-          ln -sf discord.png discord-canary.png
-          sed -i 's|^Exec=.*|Exec=AppRun %U|' discord-canary.desktop
-          sed -i 's|^Icon=.*|Icon=discord|' discord-canary.desktop
-          cd ..
-          ARCH=x86_64 appimagetool -n "${{ steps.fetch.outputs.dir }}" "${{ steps.fetch.outputs.dir }}-x86_64.AppImage"
-          mkdir -p out
-          mv *.AppImage out/
-
-      - name: Upload AppImage Artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          name: discord-canary-patched-electron-appimage
-          path: build/out/*.AppImage
-          retention-days: 14
+          persist-credentials: false
+      - name: Install checksum-pinned builder and runtime
+        run: python3 scripts/appimage.py --install out/appimage-tools --dependencies
+      - name: Build and launch an AppImage from this checkout without FUSE
+        run: python3 scripts/check_appimage.py --container

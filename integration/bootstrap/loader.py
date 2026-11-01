@@ -282,7 +282,11 @@ def download(url, target):
 
 
 def cache_root(package, profile):
-    identity = hashlib.sha256(str(package.resolve()).encode()).hexdigest()[:16]
+    launcher = installed_launcher(package.resolve())
+    identity_path = (
+        launcher if launcher != str(package.resolve() / "launch.sh") else str(package.resolve())
+    )
+    identity = hashlib.sha256(identity_path.encode()).hexdigest()[:16]
     return profile / "dpe-application" / identity
 
 
@@ -470,6 +474,17 @@ def select(root, package, policy, *, archive=None, launch=False):
     return app, token
 
 
+def installed_launcher(package):
+    # AppImage mounts/extraction directories disappear after exit. Persist the
+    # outer executable for relaunch and autostart, but only for our AppDir layout.
+    appdir, image = os.environ.get("APPDIR"), os.environ.get("APPIMAGE")
+    if appdir and image and package == Path(appdir).resolve() / "usr/lib/dpe":
+        executable = Path(image)
+        if executable.is_absolute() and executable.is_file() and os.access(executable, os.X_OK):
+            return str(executable)
+    return str(package / "launch.sh")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path)
@@ -519,7 +534,7 @@ def main():
     environment = {
         **os.environ,
         "DPE_INSTALL_ROOT": str(package),
-        "DPE_LAUNCHER": str(package / "launch.sh"),
+        "DPE_LAUNCHER": installed_launcher(package),
         "DPE_PROFILE_DIR": str(profile),
         "DPE_APPLICATION": str(app),
         "DPE_APPLICATION_VERSION": read(app.parent / "application.json")["version"],

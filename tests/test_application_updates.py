@@ -33,6 +33,26 @@ spec.loader.exec_module(loader)
 
 @unittest.skipUnless(shutil.which("gpg") and shutil.which("gpgv"), "GnuPG required")
 class ApplicationUpdates(unittest.TestCase):
+    def test_appimage_relaunch_uses_persistent_image_not_temporary_mount(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            image = root / "DPE Canary.AppImage"
+            image.touch(mode=0o755)
+            appdir = root / "mounted"
+            package = appdir / "usr/lib/dpe"
+            with patch.dict(os.environ, {"APPDIR": str(appdir), "APPIMAGE": str(image)}):
+                self.assertEqual(loader.installed_launcher(package), str(image))
+                first_cache = loader.cache_root(package, root / "profile")
+                with patch.dict(os.environ, {"APPDIR": str(root / "another-mount")}):
+                    second_cache = loader.cache_root(
+                        root / "another-mount/usr/lib/dpe", root / "profile"
+                    )
+                self.assertEqual(first_cache, second_cache)
+                native = root / "native"
+                self.assertEqual(loader.installed_launcher(native), str(native / "launch.sh"))
+                image.unlink()
+                self.assertEqual(loader.installed_launcher(package), str(package / "launch.sh"))
+
     @classmethod
     def setUpClass(cls):
         cls.keys = tempfile.TemporaryDirectory(prefix="application-signing-fixture-")

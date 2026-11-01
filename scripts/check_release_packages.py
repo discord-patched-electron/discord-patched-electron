@@ -59,6 +59,47 @@ def check_bootstrap_archive(bundle, root):
                 raise ValueError("Unexpected application code in installer: " + entry.name)
 
 
+def check_appimage(image: Path, expected: dict, channel: str):
+    from desktop_identity import desktop_id
+
+    with tempfile.TemporaryDirectory(prefix="release-appimage-") as temporary:
+        subprocess.run(
+            [str(image.resolve()), "--appimage-extract"],
+            cwd=temporary,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+        appdir = Path(temporary) / "squashfs-root"
+        bootstrap = appdir / "usr/lib/dpe"
+        dependencies = read_json(appdir / "usr/share/dpe-dependencies/build.json")
+        if (
+            dependencies.get("bundled_electron") is not False
+            or dependencies.get("bundled_discord_client") is not False
+        ):
+            raise ValueError("AppImage dependencies must not bundle managed downloads")
+        for path in appdir.rglob("*"):
+            if path.name in ("electron", "application.zip", "runtime-dist.zip") or path.suffix in (
+                ".asar",
+                ".node",
+            ):
+                raise ValueError("AppImage contains managed application/runtime code")
+            if path.is_symlink() and not path.resolve().is_relative_to(appdir):
+                raise ValueError("AppImage dependency link leaves its image")
+        validate_bootstrap(bootstrap)
+        actual = {
+            str(p.relative_to(bootstrap)): sha256(p)
+            for p in bootstrap.rglob("*")
+            if p.is_file() and p.name != "SHA256SUMS"
+        }
+        if actual != expected:
+            raise ValueError("AppImage bootstrap differs from native packages")
+        if not (appdir / "AppRun").stat().st_mode & 0o111:
+            raise ValueError("AppImage entry point is not executable")
+        desktop = (appdir / f"{desktop_id(channel)}.desktop").read_text().splitlines()
+        if "Exec=AppRun %U" not in desktop or f"Icon={desktop_id(channel)}" not in desktop:
+            raise ValueError("Invalid AppImage desktop integration")
+
+
 def check(directory: Path):
     directory = directory.resolve()
     manifest = read_json(directory / "release.json")
@@ -86,6 +127,8 @@ def check(directory: Path):
             raise ValueError("Portable files must be readable after root-owned installation")
         if any(member.mode & 0o6000 for member in bundle.getmembers()):
             raise ValueError("Portable tarball has privileged file modes")
+    for image in directory.glob("*.AppImage"):
+        check_appimage(image, expected, manifest["channel"])
     with tempfile.TemporaryDirectory(prefix="application-check-") as temporary:
         from importlib.util import module_from_spec, spec_from_file_location
 

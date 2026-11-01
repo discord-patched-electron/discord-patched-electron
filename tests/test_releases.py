@@ -285,6 +285,24 @@ class ReleaseApproval(unittest.TestCase):
                     self.assertIn(manifest_tag(baseline) + "..." + tag, data["body"])
                     self.assertNotIn("Short candidate notes", data["body"])
 
+    def test_optional_appimage_is_verified_and_linked_without_breaking_old_releases(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            assets = {}
+            for ext in (*FORMATS, ".AppImage"):
+                name = "fixture" + ext
+                (directory / name).write_bytes(b"tested bytes")
+                assets[name] = hashlib.sha256(b"tested bytes").hexdigest()
+            manifest = {**self.manifest, "assets": assets}
+            verify_assets(directory, manifest)
+            self.assertIn("fixture.AppImage", install_notes(manifest))
+            duplicate = {**assets, "duplicate.AppImage": assets["fixture.AppImage"]}
+            with self.assertRaisesRegex(ValueError, "at most one"):
+                verify_assets(directory, {**manifest, "assets": duplicate})
+            (directory / "fixture.AppImage").write_bytes(b"changed")
+            with self.assertRaisesRegex(ValueError, "checksum"):
+                verify_assets(directory, manifest)
+
     def test_pacman_artifact_is_required_and_every_asset_is_verified(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

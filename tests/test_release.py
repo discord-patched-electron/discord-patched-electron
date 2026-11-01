@@ -80,13 +80,21 @@ class PortableReleases(unittest.TestCase):
 
             with (
                 patch("package_release.validate_provenance"),
+                patch(
+                    "package_release.build_appimage",
+                    side_effect=lambda app, output, *args: output.write_bytes(b"AppImage fixture"),
+                ),
                 patch("package_release.subprocess.run", side_effect=nfpm) as packager,
                 patch(
                     "package_release.subprocess.check_output",
                     side_effect=["dirty", "fixture-commit"],
                 ),
             ):
-                package(app, output, "20261026.120000", 1234567890, "nfpm")
+                tools = root / "tools"
+                write_json(
+                    tools / "dependencies/usr/share/dpe-dependencies/build.json", {"schema": 1}
+                )
+                package(app, output, "20261026.120000", 1234567890, "nfpm", tools)
             self.assertEqual(packager.call_count, 3)
             with tarfile.open(next(output.glob("*.tar.gz"))) as archive:
                 names = archive.getnames()
