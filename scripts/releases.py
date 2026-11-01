@@ -8,7 +8,7 @@ import os
 import re
 import subprocess
 import tempfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from channels import require_enabled_discord
@@ -102,6 +102,21 @@ def existing_candidate(client_version, key, channel):
     return None
 
 
+def candidate_time(timestamp, channel, electron):
+    """Advance beyond the checked-out predecessor, never a moving remote head."""
+    created = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    path = ROOT / f"config/update-proposals/{channel}-{electron_channel(electron)}.json"
+    if path.exists():
+        previous = datetime.strptime(read_json(path)["version"], "%Y%m%d.%H%M%S").replace(
+            tzinfo=UTC
+        )
+        # A backwards provider clock must not make a descendant an older package.
+        # Pinning the floor to this checkout keeps retries deterministic and leaves
+        # record_proposal's protection against newer concurrent candidates intact.
+        created = max(created, previous + timedelta(seconds=1))
+    return created
+
+
 def prepare():
     channel = os.environ.get("CHANNEL", "canary")
     require_enabled_discord(channel)
@@ -121,7 +136,11 @@ def prepare():
     existing = existing_candidate(client["version"], key, channel)
     # Run creation time survives retries. A partial draft also retains its version.
     timestamp = (existing or api("actions/runs/" + os.environ["GITHUB_RUN_ID"]))["created_at"]
-    now = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    now = (
+        datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        if existing
+        else candidate_time(timestamp, channel, capacity["compiled_version"])
+    )
     if existing and existing["tag_name"].startswith("v"):
         date, time, _ = existing["tag_name"][1:].split(".", 2)
         stamp = date if len(date) == 14 else f"{int(date):08d}{int(time):06d}"

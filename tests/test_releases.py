@@ -16,6 +16,7 @@ from releases import (
     FORMATS,
     PROJECT,
     approve,
+    candidate_time,
     existing_candidate,
     install_notes,
     manifest_tag,
@@ -30,6 +31,25 @@ from schedule_updates import client_result
 
 
 class ReleaseApproval(unittest.TestCase):
+    def test_candidate_clock_is_monotonic_and_pinned_to_checkout(self):
+        with tempfile.TemporaryDirectory() as temporary, patch("releases.ROOT", Path(temporary)):
+            path = Path(temporary) / "config/update-proposals/canary-prerelease.json"
+            stamp = "2026-11-01T09:15:40Z"
+
+            def version(channel="canary", electron="46.0.0-alpha.1"):
+                return candidate_time(stamp, channel, electron).strftime("%Y%m%d.%H%M%S")
+
+            self.assertEqual(version(), "20261101.091540")
+            write_json(path, {"version": "20261101.094751"})
+            self.assertEqual(version(), "20261101.094752")
+            self.assertEqual(version(), "20261101.094752")  # Retry has the same identity.
+            self.assertEqual(version("stable"), "20261101.091540")
+            self.assertEqual(version(electron="45.0.0"), "20261101.091540")
+            write_json(path, {"version": "20261101.091539"})
+            self.assertEqual(version(), "20261101.091540")
+            write_json(path, {"version": "20261031.235959"})
+            self.assertEqual(version(), "20261101.091540")
+
     def test_date_tags_sort_by_version_and_keep_legacy_manifests_valid(self):
         self.assertEqual(manifest_tag(self.manifest), self.release["tag_name"])
         manifest = {**self.manifest, "tag_schema": 2, "version": "20261025.010203"}
