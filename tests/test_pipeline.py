@@ -110,6 +110,30 @@ class Manifests(unittest.TestCase):
 
 
 class VersionsAndKeys(unittest.TestCase):
+    def test_appimage_dependency_updates_get_a_new_release_identity(self):
+        contents = {}
+        client = {"channel": "canary"}
+        with patch(
+            "fingerprints.hash_files",
+            side_effect=lambda paths: {name: contents.get(name, "original") for name in paths},
+        ):
+            before = integration_key("same-runtime", client, "prerelease")
+            for name in (
+                "config/appimage-tools.json",
+                "ci/appimage/Dockerfile",
+                "scripts/appimage.py",
+                "scripts/stage_appimage_dependencies.sh",
+                "packaging/linux/appimage-apprun.sh",
+                "integration/audio/system-tools.cjs",
+            ):
+                with self.subTest(path=name):
+                    self.assertTrue((ROOT / name).is_file())
+                    contents.clear()
+                    contents[name] = "updated dependency or helper"
+                    self.assertNotEqual(
+                        before, integration_key("same-runtime", client, "prerelease")
+                    )
+
     def test_release_publication_changes_do_not_invalidate_app_payload(self):
         contents = {}
         client = {"channel": "canary"}
