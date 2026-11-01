@@ -27,6 +27,17 @@ function fixture(rules = []) {
   return { root, nodes, sheet, run, refresh };
 }
 
+test("the Flags icon never borrows Discord's unrelated System sidebar drawing", () => {
+  const f = fixture();
+  f.nodes.set('[data-settings-sidebar-item="system_panel"] svg', {
+    localName: "svg",
+    attributes: [{ name: "viewBox", value: "0 0 24 24" }],
+    children: [],
+  });
+  assert.equal(f.run().icons.flag, undefined);
+  assert.equal(f.run().icons.flags, undefined);
+});
+
 test("native geometry follows runtime font, component styles and live settings without screen zoom calculations", () => {
   const f = fixture([
     rule(".size-xl_changedBuild", { "max-width": "72rem" }),

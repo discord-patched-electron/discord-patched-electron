@@ -3,7 +3,7 @@ export function initializeFlags() {
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const editor = window.FlagEditor;
   const ui = window.DPEControls;
-  let data, config, saved, fileRevision;
+  let data, config, saved, baseline, fileRevision;
   let dirty = false,
     saving = false,
     loading = false,
@@ -17,11 +17,18 @@ export function initializeFlags() {
     $("error").hidden = !message;
   }
   function actionState() {
+    const busy = loading || saving || (dirty && !fileError);
     window.LaunchSettings.setDirty?.(dirty);
+    window.LaunchSettings.setSaving?.(busy);
+    const changed = baseline !== undefined && saved !== baseline;
+    document.body.dataset.flagsChanged = String(changed);
+    $("status").dataset.dirty = String(dirty);
+    window.dispatchEvent(
+      new CustomEvent("dpe-flags-state", { detail: { changed, busy, error: fileError } }),
+    );
     $("b_restart").disabled =
       dirty || fileError || pending || saving || document.body.dataset.modBusy === "true";
-    $("b_restart").title = dirty ? "Save flags before restarting" : "";
-    $("save").disabled = !dirty || loading || pending || saving;
+    $("b_restart").title = dirty ? "Flags must finish saving before restarting" : "";
   }
   function essentialState() {
     $("essential-flags").disabled = pending || !$("edit-essential").checked;
@@ -47,6 +54,7 @@ export function initializeFlags() {
   }
   function controls() {
     const text = $("flags").value;
+    const inputText = [$("essential-flags").value, text, ...(data.originalArgs || [])].join("\n");
     const selected = editor.state(text);
     const display = selected.get("--ozone-platform")?.split("=")[1];
     $("display").value = display || config.display;
@@ -58,7 +66,12 @@ export function initializeFlags() {
       ...data.catalog.video,
       ...data.catalog.experiments,
     }))
-      $(key).checked = editor.selected(text, item);
+      $(key).checked = editor.selected(
+        ["middleClickAutoscroll", "disableMiddleClickPaste"].includes(key) ? inputText : text,
+        item,
+      );
+    $("disableMiddleClickPaste").disabled =
+      pending || editor.middleClickAutoscrollEnabled(inputText);
     ui.sync($("settings"));
   }
   function enableControls(enabled) {
@@ -68,7 +81,8 @@ export function initializeFlags() {
     for (const input of $("settings").querySelectorAll("input, textarea, select"))
       input.disabled = !enabled;
     essentialState();
-    ui.sync($("settings"));
+    if (enabled) controls();
+    else ui.sync($("settings"));
     if (enabled && pendingFocus) {
       if (
         document.activeElement === document.body &&
@@ -82,11 +96,12 @@ export function initializeFlags() {
   }
   function markDirty(rewrite = false) {
     dirty = JSON.stringify(config) !== saved;
-    $("status").textContent = dirty ? "Unsaved changes." : "";
+    $("status").textContent = dirty ? "Saving changes…" : "";
+    fileError = false;
     clearTimeout(previewTimer);
     generation++;
     actionState();
-    previewTimer = setTimeout(() => preview(rewrite), 180);
+    previewTimer = setTimeout(() => (dirty ? save() : preview(rewrite)), 180);
   }
   function edit(text) {
     editor.edit(config, text, data.preservedExtra);
@@ -150,11 +165,15 @@ export function initializeFlags() {
     const copy = document.createElement("div");
     const label = document.createElement("label");
     label.htmlFor = key;
-    const icon = ui.experimental(Boolean(item.knownCrash));
-    icon.title = item.knownCrash
-      ? "Reproduced in local runtime tests. Other GPUs may differ."
-      : "May break Discord";
-    label.append(icon, item.label);
+    if (item.experimental !== false) {
+      const icon = ui.experimental(Boolean(item.knownCrash));
+      icon.title = item.knownCrash
+        ? "Reproduced in local runtime tests. Other GPUs may differ."
+        : "May break Discord";
+      label.append(icon);
+    }
+    label.append(item.label);
+    label.id = key + "-label";
     const hint = document.createElement("p");
     hint.className = "hint";
     hint.id = key + "-help";
@@ -181,16 +200,18 @@ export function initializeFlags() {
     input.name = key;
     input.type = "checkbox";
     input.className = "dpe-switch";
-    input.setAttribute("aria-describedby", hint.id);
+    input.setAttribute("aria-labelledby", label.id);
+    if (item.description) input.setAttribute("aria-describedby", hint.id);
     input.addEventListener("change", () =>
       configure(
         [...item.flags, ...(input.checked ? item.removes || [] : [])],
         input.checked ? item.flags : [],
       ),
     );
-    copy.append(label, hint);
+    copy.append(label);
+    if (item.description) copy.append(hint);
     row.append(copy, ui.switchControl(input));
-    $("advanced-options").append(row);
+    $(item.group === "input" ? "input-options" : "advanced-options").append(row);
   }
   async function load() {
     if (loading || saving) return;
@@ -207,11 +228,13 @@ export function initializeFlags() {
       editor.edit(config, data.editableFlags, data.preservedExtra);
       fileRevision = data.fileRevision;
       saved = JSON.stringify(config);
+      baseline ??= saved;
       dirty = false;
       $("backend").replaceChildren();
       for (const [key, item] of Object.entries(data.catalog.backends))
         $("backend").add(new Option(item.label, key));
       $("advanced-options").replaceChildren();
+      $("input-options").replaceChildren();
       for (const [key, item] of Object.entries({
         ...data.catalog.video,
         ...data.catalog.experiments,
@@ -250,9 +273,19 @@ export function initializeFlags() {
     configure(all, data.catalog.backends[$("backend").value].flags);
   });
   $("flags").addEventListener("input", () => edit($("flags").value));
-  $("edit-essential").addEventListener("change", essentialState);
+  $("edit-essential").addEventListener("change", () => {
+    essentialState();
+    if (!$("edit-essential").checked) {
+      config.profiles[config.active].essentialFlags =
+        data.defaults.profiles[config.active].essentialFlags;
+      $("essential-flags").value = config.profiles[config.active].essentialFlags;
+      controls();
+      markDirty();
+    }
+  });
   $("essential-flags").addEventListener("input", () => {
     config.profiles[config.active].essentialFlags = $("essential-flags").value;
+    controls();
     markDirty();
   });
   $("reset-flags").addEventListener("click", () => {
@@ -264,39 +297,58 @@ export function initializeFlags() {
     markDirty(true);
   });
   $("discard").addEventListener("click", () => void load());
-  $("settings").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!dirty || saving || loading || pending) return;
+  async function save(focus = false) {
+    if (!dirty || saving || loading) return;
     saving = true;
     clearTimeout(previewTimer);
     const ticket = ++generation;
     const submitted = clone(config);
-    $("save").textContent = "Saving…";
     $("discard").disabled = true;
     actionState();
     try {
       const result = await window.LaunchSettings.save(submitted, fileRevision);
       if (result.error) {
-        fileError = true;
-        validation(result, true);
+        if (ticket === generation) {
+          fileError = true;
+          validation(result, focus);
+          $("status").textContent = "Changes were not saved. Fix the error to continue.";
+          enableControls(true);
+        }
         return;
       }
       fileRevision = result.fileRevision;
       saved = JSON.stringify(submitted);
       dirty = JSON.stringify(config) !== saved;
       warnings(result.warnings);
-      if (ticket === generation) renderPreview(result);
-      else previewTimer = setTimeout(() => preview(true), 0);
-      $("status").textContent = dirty ? "Saved. More changes pending." : "Saved. Restart to apply.";
+      if (ticket === generation)
+        renderPreview(result, !["flags", "essential-flags"].includes(document.activeElement.id));
+      $("status").textContent = dirty ? "Saving more changes…" : "";
     } catch (failure) {
-      fileError = true;
-      error(failure.message);
+      if (ticket === generation) {
+        fileError = true;
+        error(failure.message);
+        $("status").textContent = "Changes were not saved. Edit again to retry, or reload.";
+        enableControls(true);
+      }
     } finally {
       saving = false;
-      $("save").textContent = "Save";
       $("discard").disabled = false;
       actionState();
+      if (ticket !== generation) {
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(() => (dirty ? save() : preview(true)), 0);
+      }
     }
+  }
+  $("settings").addEventListener("submit", (event) => {
+    event.preventDefault();
+    void save(true);
+  });
+  window.addEventListener("dpe-flags-undo", () => {
+    if (!baseline || saving || loading) return;
+    config = JSON.parse(baseline);
+    enableControls(false);
+    markDirty(true);
   });
   $("b_restart").onclick = async () => {
     if (dirty || fileError || pending || saving || document.body.dataset.modBusy === "true") return;
@@ -308,15 +360,10 @@ export function initializeFlags() {
     }
   };
   window.addEventListener("beforeunload", (event) => {
-    if (dirty) {
+    if (dirty || saving) {
       event.preventDefault();
       event.returnValue = "";
     }
-  });
-  $("advanced").addEventListener("toggle", () => {
-    $("advanced-label").textContent = $("advanced").open
-      ? "Hide Advanced Settings"
-      : "Show Advanced Settings";
   });
   window.addEventListener("dpe-mod-busy", actionState);
   ui.switchControl($("edit-essential"));

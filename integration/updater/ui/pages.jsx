@@ -9,6 +9,14 @@ import {
   errorMessage,
 } from "./primitives.jsx";
 
+import { TrayIcons } from "./desktop.jsx";
+import {
+  DesktopError,
+  DesktopSwitch,
+  NotificationPreferences,
+  WindowPreferences,
+} from "./desktop-preferences.jsx";
+
 const groups = [
   [
     "Screen sharing",
@@ -59,9 +67,10 @@ const groups = [
   ],
 ];
 
-export function General({ config }) {
+export function General({ config, desktop }) {
   return (
     <div>
+      <DesktopError model={desktop} />
       {groups.map(([title, settings]) => (
         <section class="settings-group" key={title}>
           <h3 class="section-label">{title}</h3>
@@ -79,8 +88,25 @@ export function General({ config }) {
               }}
             />
           ))}
+          {title === "Startup" && (
+            <>
+              <DesktopSwitch
+                model={desktop}
+                name="startMinimized"
+                label="Start minimized"
+                description="Start Discord in the tray, or minimized on the taskbar when the tray is off. Also applies when Discord starts automatically."
+              />
+              <DesktopSwitch
+                model={desktop}
+                name="tray"
+                label="System tray"
+                description="Show Discord in the system tray. Turn off to close its window instead of hiding it in the tray."
+              />
+            </>
+          )}
         </section>
       ))}
+      <NotificationPreferences model={desktop} />
     </div>
   );
 }
@@ -106,7 +132,7 @@ async function loadEditor() {
   return editorLoader;
 }
 
-export function Appearance({ config }) {
+export function Appearance({ config, desktop }) {
   const { theme } = useContext(Presentation);
   const textarea = useRef();
   const host = useRef();
@@ -146,6 +172,9 @@ export function Appearance({ config }) {
   }, [theme]);
   return (
     <div class="appearance-page">
+      <DesktopError model={desktop} />
+      <WindowPreferences model={desktop} />
+      <TrayIcons />
       <div class="appearance-heading">
         <label for="theme-css" class="section-label">
           Custom CSS

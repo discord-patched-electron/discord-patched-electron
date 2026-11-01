@@ -8,7 +8,8 @@ module.exports = function presentation(request, ui) {
     settings: ["SettingsIcon"],
     appearance: ["PaintPaletteIcon", "PaintbrushIcon"],
     mods: ["PuzzlePieceIcon"],
-    flags: ["FlagIcon"],
+    // A distinct semantic key also retires cached System/keyboard drawings.
+    flag: ["FlagIcon"],
     troubleshooting: ["CircleQuestionIcon", "HelpIcon"],
     github: ["GithubIcon", "GitHubIcon"],
     external: ["ExternalLinkIcon", "OpenExternalIcon", "ArrowSquareUpRightIcon"],
@@ -109,7 +110,6 @@ module.exports = function presentation(request, ui) {
     settings:
       '[data-settings-sidebar-item="dpe_openasar"] svg, [data-list-item-id="settings-sidebar___dpe_openasar"] svg',
     appearance: '[data-settings-sidebar-item="appearance_panel"] svg',
-    flags: '[data-settings-sidebar-item="system_panel"] svg',
     close:
       '[class*="contentHeader_"] > [role="button"]:last-child svg, [class*="contentHeader_"] > button:last-child svg',
     chevron:

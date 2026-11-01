@@ -241,7 +241,8 @@
       if (!wrapper.contains(event.target)) close();
     }
     function sync() {
-      value.textContent = select.selectedOptions[0]?.textContent || "Choose an option";
+      value.textContent =
+        select.selectedOptions[0]?.textContent || select.dataset.placeholder || "Choose an option";
       trigger.disabled = select.disabled || !options().length;
       if (select.disabled) close();
       popup.replaceChildren(
@@ -334,12 +335,24 @@
       }
     };
     select.addEventListener("change", sync);
-    new MutationObserver(sync).observe(select, {
+    const observer = new MutationObserver(sync);
+    observer.observe(select, {
       attributes: true,
       childList: true,
       subtree: true,
     });
-    const api = { sync, close, trigger };
+    const api = {
+      sync,
+      close,
+      trigger,
+      destroy() {
+        close();
+        clearTimeout(searchTimer);
+        observer.disconnect();
+        select.removeEventListener("change", sync);
+        selects.delete(select);
+      },
+    };
     selects.set(select, api);
     sync();
     return api;

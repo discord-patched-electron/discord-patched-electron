@@ -30,24 +30,84 @@ above **Log Out** in the left sidebar. This opens
 | Match the splash screen theme | Uses your Discord or custom theme colors during startup. Enabled by default.    |
 | Quickstart                    | Opens an existing installation sooner and checks for updates in the background. |
 
+In **Appearance → Window**, choose the native titlebar or hide window controls
+together or individually. DPE removes its titlebar area when all controls are off.
+Hidden buttons leave no empty slots; Help and Inbox retain the top bar's normal
+edge inset.
+Native titlebar takes effect next launch and
+disables Discord's controls; switching it off restores your individual choices.
+**Enforce minimum window size** can be turned off to resize below Discord's limit.
+Controls also apply to DPE and auxiliary windows, including client-mod windows.
+Native auxiliary windows use a GTK titlebar while individual controls are hidden.
+The Custom CSS editor has a 480px minimum height and grows with the window.
+
+**General** includes **Start minimized**, **System tray**, notification flashing,
+app badges and mention-only badges. These save automatically. With the tray off,
+closing the main window no longer hides it in the tray, and a minimized start
+stays accessible from the taskbar. Start minimized also applies to OS autostart.
+
+## Spelling and tray icons
+
+In **Spelling**, enable **Check spelling as you type**. System languages
+are used by default. Turn off **Use system languages** to select two or more
+languages together. Changes save automatically. Search by language name or code,
+or filter the list to enabled languages. Words accepted in
+either language do not need a manual language switch.
+Turning off the last selected language turns off spell checking. Choosing a
+language again turns it back on.
+
+Electron downloads and caches Chromium dictionaries on first use; an internet
+connection is needed until they are ready. Check dictionary status in this
+section if suggestions are missing; a checkmark means a dictionary is downloaded.
+Downloaded dictionaries work offline after restarting. The list keeps its last
+results while refreshing in the background; the refresh button checks local
+dictionary status without downloading the whole catalog again.
+System mode disables manual language controls. Discord's existing spelling menu handles
+suggestions and adding personal words.
+
+In **Appearance → Tray icons**, select **Discord**, **Vencord** or
+**Equicord**. Presets are bundled locally and apply immediately. You can also
+choose a PNG for any of the six tray states: default, unread messages, connected,
+speaking, muted or deafened. Images must be
+under 4 MB and no larger than 1024 × 1024 pixels. DPE copies the image into your
+profile and applies it immediately. Use the **Discord**, **Vencord** and
+**Equicord** links beneath each state to mix individual presets; choosing a link
+replaces that state's custom image. Choosing the main preset replaces every icon, clearing custom images and individual
+preset choices; **Reset** returns the row to that dropdown's preset. Each row
+previews its current icon and underlines its selected preset link. Updates and
+errors briefly appear below that icon's name.
+The main selector shows **Custom** while any icon differs from its preset.
+Vencord has default and unread artwork; its other states use the default logo.
+Find asset credits and licenses under **Project links → Attributions**.
+Your desktop needs a system tray to display these icons.
+
 ## Launch flags and GPU acceleration
 
 In **DPE Settings**, select **Flags**. The Flags box shows your overrides,
-one per line. App defaults are applied separately. Choose **Save**, then
-**Restart Discord** to apply changes. Save stays disabled until something changes.
+one per line. App defaults are applied separately. Valid edits save automatically;
+restart Discord to apply them. The sidebar shows when flags have changed, with
+**Undo** to restore the values from when you opened Settings. Invalid edits show
+an error and leave the last saved flags intact.
+
+**Scrolling & mouse** includes middle-click autoscroll, disabling middle-click
+paste and disabling smooth scrolling. These apply next launch. Disabling paste
+overrides primary-selection paste inside DPE without changing desktop settings,
+Ctrl+V, middle-click links, activity input or autoscroll.
+Autoscroll forces middle-click paste off while enabled. Turning it off restores
+your separate paste preference.
 
 Expand **Advanced** for video processing, GPU/CPU rendering and driver options. **Known to crash!** marks
 options that crashed in local testing; other hardware may behave differently.
 Software decoding/rasterization can help isolate GPU problems but may use more CPU.
-**Reset** restores launch defaults; **Reload** discards your draft.
+**Reset** restores launch defaults; **Reload** reads the current flags file.
 
 Check **Edit essential flags** beside the buttons to unlock the essential-flags
 box. Variables such as `{OPENH264_LIBRARY_PATH}` resolve for the current profile
-on each launch. Unchecking locks the box; its flags still apply.
+on each launch. Unchecking restores the essential defaults and locks the box.
 
 Flags are stored in `~/.config/discord-canary-patched-electron.conf` (or
-`XDG_CONFIG_HOME`). Existing custom edits are preserved. Save refuses to overwrite
-external changes until you reload.
+`XDG_CONFIG_HOME`). Existing custom edits are preserved. Autosave refuses to
+overwrite external changes until you reload.
 
 ## Global shortcuts
 

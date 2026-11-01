@@ -74,6 +74,10 @@
   --dpe-positive: var(--text-positive, #187540);
   color-scheme: light;
 }
+.dpe-ui .dpe-inline-bullet {
+  margin-inline: var(--space-8, 0.5rem);
+  color: var(--dpe-muted);
+}
 .dpe-ui .dpe-button {
   box-sizing: border-box;
   display: inline-flex;

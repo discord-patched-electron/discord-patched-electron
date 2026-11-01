@@ -39,7 +39,7 @@ def catalog():
 
 
 def feature_key(value):
-    return re.split(r"[:<]", value.lstrip("*"), maxsplit=1)[0]
+    return re.split(r"[:<]", value.strip().lstrip("*"), maxsplit=1)[0]
 
 
 def lines(value, label="Flags", *, editable=True):
@@ -405,8 +405,26 @@ def save_file(result, expected_revision):
     return result
 
 
-def merge(layers):
-    ordinary, features = [], {}
+def middle_click_autoscroll_enabled(args):
+    switches = {flag.partition("=")[0]: flag.partition("=")[2] for flag in args}
+    enabled = "--enable-blink-test-features" in switches
+    for name in ("--enable-features", "--disable-features"):
+        if any(
+            feature_key(feature) == "MiddleClickAutoscroll" and not feature.strip().startswith("*")
+            for feature in switches.get(name, "").split(",")
+        ):
+            enabled = name == "--enable-features"
+    # Chromium applies explicit Blink enables, then disables, after base features.
+    for name in ("--enable-blink-features", "--disable-blink-features"):
+        if "MiddleClickAutoscroll" in (
+            feature.strip() for feature in switches.get(name, "").split(",")
+        ):
+            enabled = name == "--enable-blink-features"
+    return enabled
+
+
+def merge(layers, *, dependencies=True):
+    ordinary, features, blink_settings = [], {}, {}
     for layer in layers:
         for flag in layer["flags"]:
             name, _, value = flag.partition("=")
@@ -414,12 +432,24 @@ def merge(layers):
                 for feature in value.split(","):
                     if feature:
                         features[feature_key(feature)] = (name, feature)
+            elif name == "--blink-settings":
+                # A paste override must not discard unrelated explicit Blink
+                # settings. Match Chromium's per-setting, last-value precedence.
+                for setting in value.split(","):
+                    if setting:
+                        blink_settings[setting.partition("=")[0]] = setting
             else:
                 ordinary.append(flag)
     for name in ("--enable-features", "--disable-features"):
         values = [value for state, value in features.values() if state == name]
         if values:
             ordinary.append(name + "=" + ",".join(values))
+    if dependencies and middle_click_autoscroll_enabled(ordinary):
+        # Derive this only for launch. Keep the saved independent paste choice so
+        # turning autoscroll off restores it, including an explicit manual value.
+        blink_settings["middleClickPasteAllowed"] = "middleClickPasteAllowed=false"
+    if blink_settings:
+        ordinary.append("--blink-settings=" + ",".join(blink_settings.values()))
     return ordinary
 
 
@@ -591,7 +621,8 @@ def resolve(profile, package, desktop, args, env=None, request=None):
             for layer in layers
             if layer["name"]
             not in ("Application identity", "Application defaults", "Essential flags")
-        ]
+        ],
+        dependencies=False,
     )
     # Retain malformed raw lines for repair in the single flags editor.
     editor_text = "\n".join(editable)

@@ -16,6 +16,16 @@ function start() {
   const info = JSON.parse(fs.readFileSync(path.join(resources, "build_info.json"), "utf8"));
   const state = JSON.parse(fs.readFileSync(path.join(host, "client.json"), "utf8"));
   const installed = path.join(process.env.DPE_PROFILE_DIR, "app-" + info.version);
+  require("../desktop/preferences.cjs").install(require("electron"));
+  require("./tray.cjs").setDefaultDirectory(
+    path.join(
+      installed,
+      "modules",
+      "discord_desktop_core-" + state.modules.discord_desktop_core.version,
+      "discord_desktop_core/app/images/systemtray",
+      process.platform,
+    ),
+  );
   app.setAppPath(bootstrap);
   const relaunch = app.relaunch.bind(app);
   app.relaunch = (options = {}) =>
@@ -92,6 +102,7 @@ function start() {
     return compile.call(this, source, filename);
   };
 
+  require("../desktop/spellcheck.cjs").install(require("electron"));
   require("./application-ready.cjs")(app, process.env.DPE_APPLICATION_READY, info.releaseChannel);
   require(bootstrap);
   if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)

@@ -204,7 +204,17 @@ def build(
             "runtime_kind": "compiled" if capacity else "bundled-baseline",
             "capacity": capacity,
             "runtime_provenance": {
-                key: provenance[key] for key in ("compiler_run", "compiler_commit")
+                # Retained local builds have source/patch provenance rather
+                # than a CI run. Keep that distinction in the test package.
+                key: provenance[key]
+                for key in (
+                    "compiler_run",
+                    "compiler_commit",
+                    "kind",
+                    "native_patch",
+                    "native_patch_sha256",
+                )
+                if key in provenance
             }
             if capacity
             else None,

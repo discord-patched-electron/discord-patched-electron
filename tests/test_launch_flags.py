@@ -249,6 +249,129 @@ class LaunchFlags(unittest.TestCase):
         self.assertIn("Final", disabled)
         self.assertEqual(sum(v.startswith("--enable-features=") for v in result), 1)
 
+    def test_mouse_controls_preserve_other_blink_settings_and_cli_precedence(self):
+        self.config["profiles"]["balanced"].update(
+            experiments=[
+                "middleClickAutoscroll",
+                "disableMiddleClickPaste",
+                "disableSmoothScrolling",
+            ],
+            flags="--blink-settings=imagesEnabled=false",
+        )
+        result = self.resolve()["effective"]
+        self.assertIn("--enable-features=MiddleClickAutoscroll", result)
+        self.assertIn("--disable-smooth-scrolling", result)
+        self.assertIn("--blink-settings=middleClickPasteAllowed=false,imagesEnabled=false", result)
+        overridden = flags.merge(
+            [
+                {"flags": result},
+                {"flags": ["--blink-settings=middleClickPasteAllowed=true,preferredColorScheme=2"]},
+            ]
+        )
+        self.assertIn(
+            "--blink-settings=middleClickPasteAllowed=false,imagesEnabled=false,preferredColorScheme=2",
+            overridden,
+        )
+        self.assertEqual(sum(value.startswith("--blink-settings=") for value in overridden), 1)
+
+    def test_autoscroll_forces_paste_off_without_rewriting_the_independent_choice(self):
+        selected = self.config["profiles"]["balanced"]
+        for preference in ("", "true", "false"):
+            with self.subTest(preference=preference):
+                selected["flags"] = (
+                    "--blink-settings=middleClickPasteAllowed=" + preference if preference else ""
+                )
+                selected["experiments"] = ["middleClickAutoscroll"]
+                result = self.save()
+                self.assertIn("--blink-settings=middleClickPasteAllowed=false", result["effective"])
+                self.assertEqual(
+                    result["config"]["profiles"]["balanced"]["flags"], selected["flags"]
+                )
+                self.assertEqual(self.read()["editableFlags"], result["editableFlags"])
+                self.assertEqual(
+                    "middleClickPasteAllowed=false" in result["editableFlags"],
+                    preference == "false",
+                )
+                selected["experiments"] = []
+                restored = self.save()["effective"]
+                if preference:
+                    self.assertIn(selected["flags"], restored)
+                else:
+                    self.assertFalse(any("middleClickPasteAllowed" in arg for arg in restored))
+
+    def test_autoscroll_dependency_applies_after_manual_and_cli_overrides(self):
+        selected = self.config["profiles"]["balanced"]
+        selected["flags"] = "--enable-features=MiddleClickAutoscroll"
+        self.config["extra"] = "--blink-settings=middleClickPasteAllowed=true,imagesEnabled=false"
+        result = self.resolve(["--blink-settings=middleClickPasteAllowed=true"])
+        self.assertIn(
+            "--blink-settings=middleClickPasteAllowed=false,imagesEnabled=false",
+            result["effective"],
+        )
+        self.assertIn("middleClickPasteAllowed=true", result["editableFlags"])
+        disabled = self.resolve(["--disable-features=MiddleClickAutoscroll"])
+        self.assertIn(
+            "--blink-settings=middleClickPasteAllowed=true,imagesEnabled=false",
+            disabled["effective"],
+        )
+        selected["flags"] = ""
+        self.assertIn(
+            "--blink-settings=middleClickPasteAllowed=false,imagesEnabled=false",
+            self.resolve(["--enable-features=MiddleClickAutoscroll"])["effective"],
+        )
+        recovery = self.resolve(["--enable-features=MiddleClickAutoscroll", "--ignore-flags"])
+        self.assertEqual(recovery["effective"], [])
+        self.assertIn("middleClickPasteAllowed=false", "\n".join(recovery["normalEffective"]))
+
+    def test_autoscroll_dependency_follows_native_explicit_blink_feature_precedence(self):
+        cases = (
+            (["--enable-features= Other, MiddleClickAutoscroll"], True),
+            (["--enable-blink-features=Other, MiddleClickAutoscroll"], True),
+            (["--enable-features=*MiddleClickAutoscroll"], False),
+            (["--enable-blink-test-features", "--disable-features=*MiddleClickAutoscroll"], True),
+            (["--enable-features=MiddleClickAutoscroll:Mode/test"], True),
+            (
+                [
+                    "--enable-features=MiddleClickAutoscroll",
+                    "--disable-features=MiddleClickAutoscroll",
+                ],
+                False,
+            ),
+            (
+                [
+                    "--disable-features=MiddleClickAutoscroll",
+                    "--enable-blink-features=MiddleClickAutoscroll",
+                ],
+                True,
+            ),
+            (
+                [
+                    "--enable-features=MiddleClickAutoscroll",
+                    "--disable-blink-features=MiddleClickAutoscroll",
+                ],
+                False,
+            ),
+            (
+                [
+                    "--disable-blink-features=MiddleClickAutoscroll",
+                    "--enable-blink-features=MiddleClickAutoscroll",
+                ],
+                False,
+            ),
+            (
+                ["--enable-blink-features=MiddleClickAutoscroll", "--enable-blink-features=Other"],
+                False,
+            ),
+            (["--enable-blink-test-features"], True),
+            (["--enable-blink-test-features", "--disable-features=MiddleClickAutoscroll"], False),
+        )
+        for args, enabled in cases:
+            with self.subTest(args=args):
+                result = self.resolve(args)["effective"]
+                self.assertEqual(
+                    "--blink-settings=middleClickPasteAllowed=false" in result, enabled
+                )
+
     def test_manual_values_are_literal_and_preserve_equals_spaces_and_comments(self):
         self.config["profiles"]["balanced"]["flags"] = (
             " # comment\n--example=$(touch /tmp/not-executed)\n--header=a=b c\n"

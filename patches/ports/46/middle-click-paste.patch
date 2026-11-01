@@ -1,0 +1,81 @@
+diff --git a/patches/chromium/.patches b/patches/chromium/.patches
+--- a/patches/chromium/.patches
++++ b/patches/chromium/.patches
+@@ -173,3 +173,4 @@
+ fix_wait_for_va-api_frame_completion_before_output.patch
+ fix_pointer_lock_in_views_that_only_receive_forwarded_input.patch
+ fix_media_gracefully_handle_discard_overflow_in_audiodiscardhelper.patch
++keep_primary_paste_command_line_override.patch
+diff --git a/patches/chromium/keep_primary_paste_command_line_override.patch b/patches/chromium/keep_primary_paste_command_line_override.patch
+new file mode 100644
+--- /dev/null
++++ b/patches/chromium/keep_primary_paste_command_line_override.patch
+@@ -0,0 +1,68 @@
++Subject: fix: preserve explicit Linux primary-paste overrides
++
++An explicit --blink-settings override must survive renderer preference updates.
++Only reapply the primary-paste setting; leave all mouse input paths untouched.
++
++diff --git a/third_party/blink/renderer/core/exported/web_view_impl.cc b/third_party/blink/renderer/core/exported/web_view_impl.cc
++--- a/third_party/blink/renderer/core/exported/web_view_impl.cc
+++++ b/third_party/blink/renderer/core/exported/web_view_impl.cc
++@@ -345,6 +345,27 @@
++   }
++ }
++ 
+++void ApplyCommandLineBlinkSettings(WebSettings* settings,
+++                                   const char* only_setting = nullptr) {
+++  const base::CommandLine& command_line =
+++      *base::CommandLine::ForCurrentProcess();
+++  if (command_line.HasSwitch(switches::kBlinkSettings)) {
+++    String command_line_settings(
+++        command_line.GetSwitchValueASCII(switches::kBlinkSettings));
+++    Vector<StringView> blink_settings =
+++        StringView(command_line_settings).SplitSkippingEmpty(',');
+++    for (const StringView& setting : blink_settings) {
+++      wtf_size_t pos = setting.find('=');
+++      if (only_setting && setting.substr(0, pos) != only_setting)
+++        continue;
+++      settings->SetFromStrings(
+++          WebString(setting.substr(0, pos).ToString()),
+++          WebString(pos == kNotFound ? g_empty_string
+++                                     : setting.substr(pos + 1).ToString()));
+++    }
+++  }
+++}
+++
++ void ApplyCommandLineToSettings(WebSettings* settings) {
++   const base::CommandLine& command_line =
++       *base::CommandLine::ForCurrentProcess();
++@@ -370,19 +391,7 @@
++     }
++   }
++ 
++-  if (command_line.HasSwitch(switches::kBlinkSettings)) {
++-    String command_line_settings(
++-        command_line.GetSwitchValueASCII(switches::kBlinkSettings));
++-    Vector<StringView> blink_settings =
++-        StringView(command_line_settings).SplitSkippingEmpty(',');
++-    for (const StringView& setting : blink_settings) {
++-      wtf_size_t pos = setting.find('=');
++-      settings->SetFromStrings(
++-          WebString(setting.substr(0, pos).ToString()),
++-          WebString(pos == kNotFound ? g_empty_string
++-                                     : setting.substr(pos + 1).ToString()));
++-    }
++-  }
+++  ApplyCommandLineBlinkSettings(settings);
++ }
++ 
++ // Records the queuing duration for activation IPC.
++@@ -3865,6 +3874,10 @@
++ #if BUILDFLAG(IS_LINUX)
++   GetSettings()->SetMiddleClickPasteAllowed(
++       renderer_preferences_.middle_click_paste_allowed);
+++  // Keep an explicit per-process override above the system preference after
+++  // renderer updates (for example, a WebRTC policy change). Only primary paste
+++  // is overridden here; mouse dispatch, auxclick and autoscroll are unchanged.
+++  ApplyCommandLineBlinkSettings(SettingsImpl(), "middleClickPasteAllowed");
++ #endif  // BUILDFLAG(IS_LINUX)
++ 
++   SetExplicitlyAllowedPorts(

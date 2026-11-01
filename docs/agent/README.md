@@ -26,6 +26,13 @@ that test run.
 
 ## Linux integration
 
+- [Desktop controls, scrolling and primary-selection paste](desktop-preferences-20261101.md)
+- [Settings descriptions, titlebar behavior and autoscroll dependency](settings-refinements-20261101.md)
+- [Native middle-click patch, regression checks and runtime artifact](middle-click-native-20261101.md)
+- [Tray icons and bilingual spell checking](tray-spellcheck-20261101.md)
+- [Vencord/Equicord tray presets and asset credits](tray-presets-20261101.md)
+- [Individual tray preset links and essential-flags copy](tray-row-presets-20261101.md)
+- [Collapsed window controls and Custom tray preset state](controls-custom-20261101.md)
 - [In-window audio picker and detection research](audio-picker.md)
 - [Cross-desktop audio detection](audio-auto-detection.md)
 - [Wayland application audio](wayland-audio.md)

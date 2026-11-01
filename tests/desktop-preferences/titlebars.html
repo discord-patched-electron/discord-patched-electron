@@ -1,0 +1,108 @@
+<!doctype html>
+<html class="platform-linux">
+  <head>
+    <meta charset="utf-8" />
+    <title>Isolated window-controls fixture</title>
+    <style>
+      :root {
+        --space-4: 4px;
+        --space-8: 8px;
+        --space-12: 12px;
+        --custom-app-top-bar-height: 32px;
+      }
+      body {
+        margin: 0;
+        background: #313338;
+        color: white;
+        font: 16px sans-serif;
+      }
+      /* Retained public Canary top-bar geometry; source recorded in the handoff. */
+      .bar_c38106 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-8);
+        min-height: var(--custom-app-top-bar-height);
+        padding-inline: var(--space-12);
+        background: #202024;
+      }
+      .platform-linux .bar_c38106 {
+        padding-inline-end: 0;
+      }
+      .trailing_c38106,
+      .winButtons_c38106 {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .trailing_c38106 {
+        gap: var(--space-12);
+      }
+      .winButtons_c38106 {
+        gap: var(--space-4);
+      }
+      .winButtonsWithDivider_c38106::before {
+        content: "";
+        display: block;
+        height: calc(var(--custom-app-top-bar-height) - var(--space-12));
+        margin-inline: var(--space-4);
+        border-inline-start: 1px solid #555;
+      }
+      .winButton_c38106 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--custom-app-top-bar-height);
+        height: var(--custom-app-top-bar-height);
+      }
+      .typeWindows__421ed {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: flex-start;
+        margin-top: 36px;
+      }
+      .winButton__421ed {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 22px;
+      }
+      #wordmark {
+        position: absolute;
+        inset-inline-start: 9px;
+      }
+      button {
+        color: inherit;
+        background: transparent;
+        border: 0;
+        font: inherit;
+      }
+      #activity {
+        width: auto;
+        margin: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="bar_c38106" id="bar">
+      <div class="leading_c38106" id="toolbar">Discord</div>
+      <div class="trailing_c38106">
+        <button id="inbox">Inbox</button>
+        <button id="help">Help</button>
+        <div class="winButtons_c38106 winButtonsWithDivider_c38106" id="controls">
+          <div class="winButton_c38106 winButtonMinMax_c38106" id="minimize">−</div>
+          <div class="winButton_c38106 winButtonMinMax_c38106" id="maximize">□</div>
+          <div class="winButton_c38106 winButtonClose_c38106" id="close">×</div>
+        </div>
+      </div>
+    </header>
+    <button class="winButton_c38106" id="activity">Activity button outside window controls</button>
+    <div class="titleBar__421ed typeWindows__421ed">
+      <div id="wordmark">Legacy wordmark</div>
+      <div class="winButtonClose__421ed winButton__421ed" id="legacy-close">×</div>
+      <div class="winButtonMinMax__421ed winButton__421ed" id="legacy-maximize">□</div>
+      <div class="winButtonMinMax__421ed winButton__421ed" id="legacy-minimize">−</div>
+    </div>
+  </body>
+</html>

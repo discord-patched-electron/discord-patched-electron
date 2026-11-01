@@ -1,7 +1,35 @@
 /** @jsxImportSource preact */
-import { useLayoutEffect } from "preact/hooks";
-import { RecoveryCommand } from "./primitives.jsx";
+import { useEffect, useLayoutEffect, useState } from "preact/hooks";
+import { Disclosure, RecoveryCommand } from "./primitives.jsx";
 import { initializeFlags } from "../launch-settings.js";
+
+export function FlagsChangeNotice() {
+  const [state, setState] = useState({
+    changed: document.body.dataset.flagsChanged === "true",
+    busy: false,
+  });
+  useEffect(() => {
+    const update = (event) => setState(event.detail);
+    window.addEventListener("dpe-flags-state", update);
+    return () => window.removeEventListener("dpe-flags-state", update);
+  }, []);
+  return (
+    <div id="flags-change-note" hidden={!state.changed}>
+      <p class="sidebar-note" role="status">
+        Flags have changed and will apply next launch.{" "}
+        <button
+          type="button"
+          class="inline-link"
+          id="flags-undo"
+          disabled={state.busy}
+          onClick={() => window.dispatchEvent(new Event("dpe-flags-undo"))}
+        >
+          Undo
+        </button>
+      </p>
+    </div>
+  );
+}
 
 // The adapter owns the validated form controls. Preact owns its stable layout.
 export function Flags({ active }) {
@@ -40,45 +68,35 @@ export function FlagsView({ active }) {
             <option value="x11">X11</option>
           </select>
         </div>
-        <details id="advanced">
-          <summary aria-describedby="advanced-description">
-            <span class="advanced-copy">
-              <span class="advanced-title">
-                <span
-                  class="dpe-icon risk-icon"
-                  data-dpe-icon="experimental"
-                  role="img"
-                  aria-label="Experimental"
-                  title="Experimental"
-                ></span>
-                <span id="advanced-label">Show Advanced Settings</span>
-              </span>
-              <span id="advanced-description" class="hint">
-                Video, rendering and driver overrides. These may break Discord.
-              </span>
-            </span>
-            <span class="disclosure-action" aria-hidden="true">
-              <span class="dpe-icon details-chevron" data-dpe-icon="chevron"></span>
-            </span>
-          </summary>
-          <div class="advanced-content">
-            <div class="flag-row">
-              <div>
-                <label for="backend">
-                  <span class="risk-icon" role="img" aria-label="May break Discord"></span>Renderer
-                </label>
-                <p class="hint">Choose how the GPU draws the app.</p>
-              </div>
-              <select id="backend" name="backend"></select>
+        <section class="settings-group" aria-labelledby="input-options-heading">
+          <h3 id="input-options-heading" class="section-label">
+            Scrolling & mouse
+          </h3>
+          <div id="input-options"></div>
+        </section>
+        <Disclosure
+          id="advanced"
+          label="Show Advanced Settings"
+          expandedLabel="Hide Advanced Settings"
+          description="Video, rendering and driver overrides. These may break Discord."
+          experimental
+        >
+          <div class="flag-row">
+            <div>
+              <label for="backend">
+                <span class="risk-icon" role="img" aria-label="May break Discord"></span>Renderer
+              </label>
+              <p class="hint">Choose how the GPU draws the app.</p>
             </div>
-            <div id="advanced-options"></div>
+            <select id="backend" name="backend"></select>
           </div>
-        </details>
+          <div id="advanced-options"></div>
+        </Disclosure>
         <label for="flags" class="flags-label">
           Flags
         </label>
         <p id="flags-help" class="hint">
-          Your overrides, one per line. App defaults are applied separately.
+          Your overrides, one per line. Valid changes save automatically and apply next launch.
         </p>
         <textarea
           id="flags"
@@ -99,23 +117,8 @@ export function FlagsView({ active }) {
             Essential flags
           </label>
           <p id="essential-help" class="hint">
-            Changing these can break startup. Variables:
-            <code>{"{DESKTOP_ID}"}</code>, <code>{"{PROFILE_DIR}"}</code>,{" "}
-            <code>{"{OPENH264_LIBRARY_PATH}"}</code>.
-          </p>
-          <p class="hint">
-            OpenH264 Video Codec provided by Cisco Systems, Inc.{" "}
-            <a
-              href="#openh264-license"
-              onClick={(event) => {
-                event.preventDefault();
-                void window.openConfigLink("openh264-license");
-              }}
-            >
-              License
-            </a>
-            . To disable or re-enable it, remove or restore <code>--enable-libopenh264</code> below,
-            save and restart.
+            Changing these can break startup. Variables: <code>{"{DESKTOP_ID}"}</code>,{" "}
+            <code>{"{PROFILE_DIR}"}</code>, <code>{"{OPENH264_LIBRARY_PATH}"}</code>.
           </p>
           <textarea
             id="essential-flags"
@@ -138,11 +141,8 @@ export function FlagsView({ active }) {
           <button class="dpe-button dpe-button--secondary" id="discard" type="button">
             Reload
           </button>
-          <button class="dpe-button dpe-button--primary" id="save" type="submit" disabled>
-            Save
-          </button>
         </div>
-        <p id="status" role="status"></p>
+        <p id="status" class="sr-only" role="status"></p>
       </form>
     </section>
   );

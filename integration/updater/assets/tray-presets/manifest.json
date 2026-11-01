@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "presets": {
+    "vencord": {
+      "label": "Vencord",
+      "states": {
+        "default": "vencord/tray.png",
+        "unread": "vencord/trayUnread.png",
+        "connected": "vencord/tray.png",
+        "speaking": "vencord/tray.png",
+        "muted": "vencord/tray.png",
+        "deafened": "vencord/tray.png"
+      }
+    },
+    "equicord": {
+      "label": "Equicord",
+      "states": {
+        "default": "equicord/tray.png",
+        "unread": "equicord/trayUnread.png",
+        "connected": "equicord/idle.png",
+        "speaking": "equicord/speaking.png",
+        "muted": "equicord/muted.png",
+        "deafened": "equicord/deafened.png"
+      }
+    }
+  },
+  "sources": [
+    {
+      "project": "Vesktop",
+      "repository": "https://github.com/Vencord/Vesktop",
+      "commit": "68b3d5b36d2efc88ffd05909f2e9f24823021c90",
+      "directory": "https://github.com/Vencord/Vesktop/tree/68b3d5b36d2efc88ffd05909f2e9f24823021c90/static/tray",
+      "license": "GPL-3.0-or-later",
+      "licenseFile": "GPL-3.0.txt",
+      "licenseSha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "copyright": "Copyright (c) 2025 Vendicated and Vesktop contributors",
+      "credit": "Vendicated and Vesktop contributors",
+      "archive": "https://codeload.github.com/Vencord/Vesktop/tar.gz/68b3d5b36d2efc88ffd05909f2e9f24823021c90",
+      "archiveSha256": "7c08645c2066ae610a819ab7b9464e7b77d73b54793f7e8d7ed70555a39c25c6",
+      "files": [
+        {
+          "path": "vencord/tray.png",
+          "sourcePath": "static/tray/tray.png",
+          "sha256": "8d8db70b0634ec5cf8400b968225fea7ca986321d1f4261a63e3617337e20480",
+          "width": 64,
+          "height": 64
+        },
+        {
+          "path": "vencord/trayUnread.png",
+          "sourcePath": "static/tray/trayUnread.png",
+          "sha256": "d9c3e73bd868b1ea255fc6384f112fb1e43c8e599928a06840abc59bf56899f8",
+          "width": 64,
+          "height": 64
+        }
+      ]
+    },
+    {
+      "project": "Equibop",
+      "repository": "https://github.com/Equicord/Equibop",
+      "commit": "57406f627221bc6054deb9834c18fa9cd914d96a",
+      "directory": "https://github.com/Equicord/Equibop/tree/57406f627221bc6054deb9834c18fa9cd914d96a/static/tray",
+      "license": "GPL-3.0-or-later",
+      "licenseFile": "GPL-3.0.txt",
+      "licenseSha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "copyright": "Copyright (c) 2025 Vendicated and Vesktop contributors",
+      "credit": "Equicord/Equibop contributors; Vendicated and Vesktop contributors",
+      "archive": "https://codeload.github.com/Equicord/Equibop/tar.gz/57406f627221bc6054deb9834c18fa9cd914d96a",
+      "archiveSha256": "40e2bba9d3f3982c3b4737e76d2640025d2c51804f83ddbcef5c5b8f04d26d98",
+      "files": [
+        {
+          "path": "equicord/deafened.png",
+          "sourcePath": "static/tray/deafened.png",
+          "sha256": "9f7672b4780a3afda9845b46c3688e21dcf1885bbcfd5344d2354411c510deb3",
+          "width": 75,
+          "height": 75
+        },
+        {
+          "path": "equicord/idle.png",
+          "sourcePath": "static/tray/idle.png",
+          "sha256": "5ede11d4c69c4165ab044ef0824455c4a9c4201ad27cf26906c5101e681b687e",
+          "width": 3125,
+          "height": 3125
+        },
+        {
+          "path": "equicord/muted.png",
+          "sourcePath": "static/tray/muted.png",
+          "sha256": "d3abec1cdc513f58ee62fe64360bc4f041e049febcb3221aec4fcb504fadbd7d",
+          "width": 75,
+          "height": 75
+        },
+        {
+          "path": "equicord/speaking.png",
+          "sourcePath": "static/tray/speaking.png",
+          "sha256": "8582da18b0b994be8fe95ea09c08ffea9b97b2207b31ded622f4ef664c7882d9",
+          "width": 3125,
+          "height": 3125
+        },
+        {
+          "path": "equicord/tray.png",
+          "sourcePath": "static/tray/tray.png",
+          "sha256": "280156676d268d80f65ea3e592bacdd0df5bd78e69872211c624fa07ea062cb8",
+          "width": 256,
+          "height": 256
+        },
+        {
+          "path": "equicord/trayUnread.png",
+          "sourcePath": "static/tray/trayUnread.png",
+          "sha256": "6c254efd967f630673bd83be9e136e62116d8c850baf99ecda5891fd95ef5524",
+          "width": 3863,
+          "height": 3838
+        }
+      ]
+    }
+  ]
+}

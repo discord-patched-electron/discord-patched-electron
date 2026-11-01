@@ -13,7 +13,7 @@ const iconNames = new Set([
   "settings",
   "appearance",
   "mods",
-  "flags",
+  "flag",
   "troubleshooting",
   "github",
   "external",
@@ -282,6 +282,7 @@ function versionText(versions, mod) {
 }
 function attach(window, preferredSource, options = {}) {
   const { BrowserWindow, clipboard, net } = require("electron");
+  const desktop = require("../desktop/preferences.cjs");
   let stopped = false,
     running = false,
     styleKey,
@@ -303,6 +304,7 @@ function attach(window, preferredSource, options = {}) {
     mode: options.mode || "settings",
     versions: metadata(),
     maximized: window.isMaximized(),
+    windowControls: desktop.effectiveControls(window),
     focused: window.isFocused?.() !== false,
     recoveryCommand: recoveryCommand(),
   });
@@ -354,6 +356,7 @@ function attach(window, preferredSource, options = {}) {
   const publish = () => {
     if (ready && !stopped) window.webContents.send("dpe-presentation", decorate(latest));
   };
+  const unsubscribeControls = desktop.subscribeControls(window, publish);
   window.on("focus", publish);
   window.on("blur", publish);
   window.on("maximize", publish);
@@ -499,6 +502,7 @@ function attach(window, preferredSource, options = {}) {
   timer.unref();
   window.once("closed", () => {
     stopped = true;
+    unsubscribeControls();
     initialLoaded();
     clearInterval(timer);
     fontCache.clear();

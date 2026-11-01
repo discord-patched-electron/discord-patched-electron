@@ -2,14 +2,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon, Versions, errorMessage } from "./primitives.jsx";
 import { General, Appearance, Diagnostics } from "./pages.jsx";
-import { Flags } from "./flags.jsx";
+import { Flags, FlagsChangeNotice } from "./flags.jsx";
 import { Mods } from "./mods.jsx";
+import { Spellcheck } from "./desktop.jsx";
+import { useDesktopPreferences } from "./desktop-preferences.jsx";
 
 const tabs = [
   ["settings", "General", "settings"],
   ["theming", "Appearance", "appearance"],
+  ["spelling", "Spelling", "check"],
   ["mods", "Mods", "mods"],
-  ["flags", "Flags", "flags"],
+  ["flags", "Flags", "flag"],
   ["troubleshooting", "Troubleshooting", "troubleshooting"],
 ];
 const projectLinks = [
@@ -23,6 +26,11 @@ const projectLinks = [
     "issues",
     "Report an issue",
     "https://github.com/discord-patched-electron/discord-patched-electron/issues",
+  ],
+  [
+    "attributions",
+    "Attributions",
+    "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/THIRD_PARTY.md",
   ],
 ];
 
@@ -89,6 +97,12 @@ export function ProjectMenu({ onError }) {
   };
   return (
     <div class="project-header">
+      <div class="project-artwork" aria-hidden="true">
+        <img src="welcome-background.png" alt="" />
+        <span class="welcome-blur welcome-blur-soft" />
+        <span class="welcome-blur welcome-blur-medium" />
+        <span class="welcome-blur welcome-blur-strong" />
+      </div>
       <button
         ref={trigger}
         class="project-identity"
@@ -103,7 +117,7 @@ export function ProjectMenu({ onError }) {
           <img src="dpe-logo.png" alt="" aria-hidden="true" />
         </span>
         <span class="project-name">
-          DPE<span class="project-caption">Project links</span>
+          Settings<span class="project-caption">Discord Patched Electron</span>
         </span>
         <Icon name="chevron" />
       </button>
@@ -180,6 +194,7 @@ export function SettingsNavigation({ tab, compact = false, onSelect }) {
 }
 
 export function SettingsShell({ model, error, onError }) {
+  const desktop = useDesktopPreferences();
   const [tab, setTab] = useState("settings");
   const [compact, setCompact] = useState(matchMedia("(max-width: 440px)").matches);
   const [config] = useState(() => window.Native.get());
@@ -220,8 +235,16 @@ export function SettingsShell({ model, error, onError }) {
         <ProjectMenu onError={onError} />
         <SettingsNavigation tab={tab} compact={compact} onSelect={select} />
         <div class="sidebar-bottom">
+          <p
+            id="desktop-restart-note"
+            class="sidebar-note"
+            hidden={!desktop.state?.restartRequired}
+          >
+            Titlebar changes apply next launch.
+          </p>
+          <FlagsChangeNotice />
           {onboarding && (
-            <p id="onboarding-close-note" class="hint">
+            <p id="onboarding-close-note" class="sidebar-note">
               Closing settings will launch Discord.
             </p>
           )}
@@ -246,19 +269,26 @@ export function SettingsShell({ model, error, onError }) {
             aria-labelledby={`t_${tab}`}
             hidden={!["settings", "theming"].includes(tab)}
           >
-            {tab === "settings" && <General config={config} />}
-            {tab === "theming" && <Appearance config={config} />}
+            {tab === "settings" && <General config={config} desktop={desktop} />}
+            {tab === "theming" && <Appearance config={config} desktop={desktop} />}
           </div>
+          {tab === "spelling" && (
+            <div id="spelling-panel" role="tabpanel" aria-labelledby="t_spelling">
+              <Spellcheck />
+            </div>
+          )}
           <Flags active={tab === "flags"} />
           <Mods model={model} active={tab === "mods"} />
           <Diagnostics select={select} active={tab === "troubleshooting"} />
         </main>
         <p id="settings-save-note" class="sr-only" role="status">
-          {tab === "flags"
-            ? "Save flag changes before restarting Discord."
-            : tab === "mods"
-              ? "Restart Discord after changing your client mod."
-              : "Changes save automatically. Restart Discord to apply."}
+          {tab === "spelling"
+            ? "Spelling changes save and apply automatically."
+            : tab === "flags"
+              ? "Flag changes save automatically and apply next launch."
+              : tab === "mods"
+                ? "Restart Discord after changing your client mod."
+                : "Changes save automatically. Restart Discord to apply startup options and custom CSS."}
         </p>
       </div>
     </div>

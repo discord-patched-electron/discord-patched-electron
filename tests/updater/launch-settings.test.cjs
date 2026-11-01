@@ -14,6 +14,8 @@ function fixture() {
     handle: (name, callback) => handlers.set(name, callback),
   });
   const window = new EventEmitter();
+  window.isDestroyed = () => false;
+  window.close = () => calls.push("close");
   window.webContents = Object.assign(new EventEmitter(), {
     mainFrame: {},
     ipc,
@@ -105,4 +107,25 @@ test("Restart Discord delegates only onboarding Settings to guarded completion",
   f.mods.isOnboardingSettings = () => true;
   assert.equal((await restart(f.event)).completed, true);
   assert.deepEqual(f.calls, ["restart", "finish"]);
+});
+
+test("close waits for debounced or in-flight autosave and retries only after a successful save", async () => {
+  const f = fixture();
+  f.ipc.emit("dpe-launch-saving", { sender: {}, senderFrame: {} }, true);
+  assert.equal(f.api.confirmClose(f.window), true);
+  f.ipc.emit("dpe-launch-dirty", f.event, true);
+  f.ipc.emit("dpe-launch-saving", f.event, true);
+  assert.equal(f.api.confirmClose(f.window), false);
+  assert.equal(f.prompts.length, 0);
+  assert.match((await f.handlers.get("dpe-launch-restart")(f.event)).error, /Wait for flags/);
+  f.ipc.emit("dpe-launch-dirty", f.event, false);
+  f.ipc.emit("dpe-launch-saving", f.event, false);
+  assert.deepEqual(f.calls, ["close"]);
+  f.ipc.emit("dpe-launch-dirty", f.event, true);
+  f.ipc.emit("dpe-launch-saving", f.event, true);
+  assert.equal(f.api.confirmClose(f.window), false);
+  f.ipc.emit("dpe-launch-saving", f.event, false);
+  assert.deepEqual(f.calls, ["close"], "failed validation keeps the draft visible");
+  assert.equal(f.api.confirmClose(f.window), false);
+  assert.equal(f.prompts.length, 1, "invalid draft may be explicitly discarded");
 });

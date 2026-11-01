@@ -61,7 +61,7 @@ function open(tab = "settings", sourceContents, options = {}) {
     process.platform === "linux" &&
     Boolean(process.env.WAYLAND_DISPLAY) &&
     app.commandLine.getSwitchValue("ozone-platform") !== "x11";
-  const window = new BrowserWindow({
+  const window = require("../desktop/preferences.cjs").createAuxiliaryWindow(BrowserWindow, {
     title: mode === "welcome" ? "Welcome to DPE" : "DPE Settings",
     width,
     height,
@@ -175,11 +175,110 @@ function open(tab = "settings", sourceContents, options = {}) {
       nvidia: "https://github.com/elFarto/nvidia-vaapi-driver",
       releases: "https://github.com/discord-patched-electron/discord-patched-electron/releases",
       issues: "https://github.com/discord-patched-electron/discord-patched-electron/issues",
+      attributions:
+        "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/THIRD_PARTY.md",
     };
     if (!Object.hasOwn(links, name)) throw new Error("Unknown project link");
     await shell.openExternal(links[name]);
   });
   handle("dpe-config-diagnostic", (name) => require("./diagnostics.cjs").open(name));
+  const desktopState = () => {
+    const desktop = require("../desktop/preferences.cjs");
+    return { ...desktop.status(), values: desktop.normalize(settings.get("openasar", {}).desktop) };
+  };
+  handle("dpe-desktop-load", desktopState);
+  handle("dpe-desktop-save", async (patch) => {
+    const desktop = require("../desktop/preferences.cjs");
+    if (
+      !patch ||
+      typeof patch !== "object" ||
+      Array.isArray(patch) ||
+      Object.entries(patch).some(
+        ([key, value]) => !Object.hasOwn(desktop.DEFAULTS, key) || typeof value !== "boolean",
+      )
+    )
+      throw new Error("Choose supported desktop settings.");
+    const previous = settings.get("openasar", {});
+    const next = { ...previous, desktop: desktop.normalize({ ...previous.desktop, ...patch }) };
+    settings.set("openasar", next);
+    try {
+      settings.save();
+    } catch (error) {
+      settings.set("openasar", previous);
+      throw error;
+    }
+    global.oaConfig = { ...next, autoupdate: false };
+    try {
+      await desktop.apply(next.desktop);
+    } catch (error) {
+      // The preference is already durable. Keep the UI on the saved values
+      // when a window closes mid-update or a live native operation fails.
+      console.error("Could not apply desktop preferences", error);
+      return {
+        ...desktopState(),
+        error: "Settings saved. Restart Discord to finish applying these changes.",
+      };
+    }
+    return desktopState();
+  });
+  const spellingState = () => {
+    const state = require("../desktop/spellcheck.cjs").status();
+    const configured = settings.get("openasar", {}).spellcheckLanguages;
+    return {
+      ...state,
+      useSystemLanguages: require("../desktop/spellcheck.cjs").usesSystemLanguages(
+        settings.get("openasar", {}),
+      ),
+      configuredLanguages: Array.isArray(configured)
+        ? configured.filter((language) => state.availableLanguages.includes(language))
+        : [],
+    };
+  };
+  handle("dpe-spellcheck-load", async (force) => {
+    await require("../desktop/spellcheck.cjs").refresh(force === true);
+    return spellingState();
+  });
+  handle("dpe-spellcheck-save", (value) => {
+    const spelling = require("../desktop/spellcheck.cjs");
+    const available = spelling.status().availableLanguages;
+    if (
+      !value ||
+      typeof value.enabled !== "boolean" ||
+      (value.useSystemLanguages !== undefined && typeof value.useSystemLanguages !== "boolean") ||
+      !Array.isArray(value.languages) ||
+      value.languages.length > available.length ||
+      value.languages.some(
+        (language) => typeof language !== "string" || !available.includes(language),
+      )
+    )
+      throw new Error("Choose supported spelling languages.");
+    const previous = settings.get("openasar", {});
+    const useSystemLanguages = value.useSystemLanguages ?? !value.languages.length;
+    const next = {
+      ...previous,
+      spellcheckEnabled: value.enabled && (useSystemLanguages || value.languages.length > 0),
+      spellcheckLanguages: [...new Set(value.languages)],
+      spellcheckUseSystemLanguages: useSystemLanguages,
+    };
+    settings.set("openasar", next);
+    try {
+      settings.save();
+    } catch (error) {
+      settings.set("openasar", previous);
+      throw error;
+    }
+    global.oaConfig = { ...next, autoupdate: false };
+    spelling.apply(next);
+    return spellingState();
+  });
+  handle("dpe-tray-load", () => require("./tray.cjs").status());
+  handle("dpe-tray-preset", (preset) => require("./tray.cjs").setPreset(preset));
+  handle("dpe-tray-state-preset", (state, preset) =>
+    require("./tray.cjs").setStatePreset(state, preset),
+  );
+  handle("dpe-tray-choose", (state) => require("./tray.cjs").choose(window, state));
+  handle("dpe-tray-reset", (state) => require("./tray.cjs").reset(state));
+
   handle("dpe-setup-action", async (action) => {
     if (mode !== "welcome") throw new Error("Finish setup in the Welcome window.");
     try {

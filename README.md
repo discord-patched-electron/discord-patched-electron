@@ -16,6 +16,7 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 - [Application audio](docs/wayland-audio.md) for screen sharing.
 - Faster camera startup and hardware video decoding where supported.
 - Integrated OpenAsar for custom themes and startup settings.
+- Configurable tray icons and multilingual spell checking with Chromium dictionaries.
 - Easily configurable Electron flags, with graphics presets and custom overrides.
 - [Vencord and Equicord](docs/client-mods.md) support that persists across updates.
 - Automatic Discord and patched Electron updates.
@@ -55,8 +56,9 @@ your choice later; see [client mods](docs/client-mods.md).
 
 Use **General** and **Appearance** to configure OpenAsar. The **Flags** tab provides
 display options, graphics presets under **Advanced**, and a box for custom
-Electron flags. After changing flags, choose **Save**, then **Restart Discord** to apply
-them. See [launcher settings](docs/linux-launcher.md) for more details.
+Electron flags. Valid flag changes save automatically and apply on the next
+launch. **Undo** restores the flags from when you opened Settings. See
+[launcher settings](docs/linux-launcher.md) for more details.
 
 The **Troubleshooting** tab opens GPU, media, WebRTC and other diagnostic pages
 inside Discord’s Electron runtime.

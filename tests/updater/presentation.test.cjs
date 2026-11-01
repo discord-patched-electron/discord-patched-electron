@@ -8,6 +8,11 @@ const vm = require("node:vm");
 const presentation = require("../../integration/updater/presentation.cjs");
 const valid = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M1 2L3 4Z"></path></svg>';
 
+test("Flags retires cached System icons and accepts only the semantic flag key", () => {
+  assert.deepEqual(presentation.sanitize({ icons: { flags: valid } }).icons, {});
+  assert.equal(presentation.sanitize({ icons: { flag: valid } }).icons.flag, valid);
+});
+
 test("version metadata identifies the client branch and running Linux distribution", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dpe-version-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -243,6 +248,18 @@ function fixture(options = {}) {
       if (name === "node:fs") return fs;
       if (name === "node:os") return os;
       if (name === "./profile.cjs") return { readObject: () => ({}) };
+      if (name === "../desktop/preferences.cjs")
+        return {
+          effectiveControls: () =>
+            options.controls || { minimizeButton: true, maximizeButton: true, closeButton: true },
+          subscribeControls: (_window, callback) => {
+            options.updateControls = callback;
+            callback();
+            return () => {
+              delete options.updateControls;
+            };
+          },
+        };
       if (name === "../discord-ui/source.cjs") return { call: () => "capture" };
       if (name === "../discord-ui/presentation.cjs") return () => {};
       if (name === "./native-presentation.cjs")
@@ -359,6 +376,19 @@ test("settings follows live theme, constrains IPC and releases its polling lifec
   assert.equal(f.css.length, count);
   f.window.emit("closed");
   assert.equal(f.stopped, true);
+});
+
+test("desktop control preferences are available on first load and update the local titlebar live", async () => {
+  const options = { controls: { minimizeButton: false, maximizeButton: true, closeButton: true } };
+  const f = fixture(options);
+  assert.equal((await f.invoke("dpe-presentation")).windowControls.minimizeButton, false);
+  f.window.webContents.emit("did-finish-load");
+  await new Promise(setImmediate);
+  options.controls = { minimizeButton: false, maximizeButton: false, closeButton: false };
+  options.updateControls();
+  assert.deepEqual(f.sent.at(-1)[1].windowControls, options.controls);
+  f.window.close();
+  assert.equal(options.updateControls, undefined);
 });
 
 test("Welcome captures native presentation before showing, then freezes only its icons", async () => {

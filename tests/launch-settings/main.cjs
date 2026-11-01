@@ -1,5 +1,5 @@
 // Exercise the real OpenAsar tabs, sandboxed preload and flags file without an account.
-const { app, BrowserWindow, clipboard } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, nativeImage } = require("electron");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -120,13 +120,13 @@ async function open() {
   await until(() => window.isVisible());
 }
 async function save() {
-  await until(() => get('!$("save").disabled && !$("flags").disabled'));
-  await evaluate('document.getElementById("settings").requestSubmit()');
-  await until(() => get('$("status").textContent.startsWith("Saved.")')).catch(async (failure) => {
-    throw new Error(failure.message + ": " + (await get('$("error").textContent')));
-  });
-  assert.equal(await get('$("save").disabled'), true);
+  await until(() => get('$("status").dataset.dirty === "false" && !$("b_restart").disabled')).catch(
+    async (failure) => {
+      throw new Error(failure.message + ": " + (await get('$("error").textContent')));
+    },
+  );
 }
+
 function finish(error) {
   process.env.PATH = originalPath;
   fs.writeFileSync(
@@ -142,6 +142,25 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
+    const tray = require(path.join(root, "integration/updater/tray.cjs"));
+    const custom = path.join(output, "custom-tray.png");
+    const fixtureImage = nativeImage
+      .createFromPath(path.join(root, "integration/updater/logos/equicord.png"))
+      .resize({ width: 32, height: 32 });
+    fs.writeFileSync(custom, fixtureImage.toPNG());
+    const trayAssets = process.env.DPE_SETTINGS_TRAY_ASSETS || path.join(output, "tray-assets");
+    if (!process.env.DPE_SETTINGS_TRAY_ASSETS) {
+      fs.mkdirSync(trayAssets);
+      for (const state of ["default", "unread", "connected", "speaking", "muted", "deafened"])
+        fs.writeFileSync(
+          path.join(trayAssets, state === "default" ? "tray.png" : `tray-${state}.png`),
+          fixtureImage.toPNG(),
+        );
+    }
+    // Prelaunch Settings must show stock icons even without a registered tray.
+    tray.setDefaultDirectory(trayAssets);
+    let trayChoice = { canceled: true, filePaths: [] };
+    dialog.showOpenDialog = async () => trayChoice;
     // A saved Settings zoom must not resize the fixed startup surface, nor
     // should opening startup reset Settings' own zoom on its separate origin.
     const zoomWindow = new BrowserWindow({ show: false });
@@ -486,8 +505,386 @@ app
     );
     await open();
     const pagePadding = await evaluate('getComputedStyle(document.querySelector("main")).padding');
+    assert.equal(
+      await evaluate(`document.querySelectorAll('.project-artwork .welcome-blur').length`),
+      3,
+    );
+    assert.equal(
+      await evaluate(`getComputedStyle(document.querySelector('.project-artwork')).pointerEvents`),
+      "none",
+    );
+    assert.ok(
+      await evaluate(
+        `getComputedStyle(document.querySelector('.project-artwork')).maskImage.includes('linear-gradient')`,
+      ),
+    );
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.project-artwork img').complete && document.querySelector('.project-artwork img').naturalWidth > 0`,
+      ),
+      true,
+    );
     await click("t_theming");
     await until(() => get('Boolean($("theme-css"))'));
+    await until(() => get('$("desktop-nativeTitlebar") && !$("desktop-nativeTitlebar").disabled'));
+    assert.equal(
+      await get('$("desktop-nativeTitlebar-help")'),
+      null,
+      "plain switch rows have no empty description",
+    );
+    const desktopToggle = async (name, value) => {
+      const id = `desktop-${name}`;
+      await until(() => get(`!$(${JSON.stringify(id)}).disabled`));
+      if ((await get(`$(${JSON.stringify(id)}).checked`)) !== value) {
+        await click(id);
+        await until(() => values.openasar.desktop?.[name] === value);
+        await until(() => get('!$("desktop-nativeTitlebar").disabled'));
+      }
+    };
+    await desktopToggle("minimizeButton", false);
+    await until(() => get('$("b_minimize").disabled'));
+    assert.equal(await get('$("b_minimize").getBoundingClientRect().width'), 0);
+    assert.equal(
+      await evaluate('document.querySelector(".window-actions").getBoundingClientRect().width'),
+      await get(
+        '$("b_maximize").getBoundingClientRect().width + $("b_close").getBoundingClientRect().width',
+      ),
+    );
+    const controlIndent = await get('$("desktop-closeButton-label").getBoundingClientRect().left');
+    await desktopToggle("nativeTitlebar", true);
+    await until(() => evaluate('document.querySelector(".window-title").hidden'));
+    for (const name of ["windowControls", "minimizeButton", "maximizeButton", "closeButton"]) {
+      assert.equal(await get(`$("desktop-${name}").disabled`), true);
+      assert.equal(await get(`$("desktop-${name}").checked`), false);
+    }
+    assert.equal(
+      await evaluate(
+        `getComputedStyle(document.getElementById('desktop-windowControls-label').parentElement).opacity`,
+      ),
+      "0.5",
+    );
+    await desktopToggle("nativeTitlebar", false);
+    assert.equal(
+      await get('$("desktop-minimizeButton").checked'),
+      false,
+      "native titlebar preserves individual choices",
+    );
+    await desktopToggle("windowControls", false);
+    assert.equal(await get('$("desktop-closeButton").disabled'), true);
+    assert.equal(
+      await get('$("desktop-closeButton-label").getBoundingClientRect().left'),
+      controlIndent,
+    );
+    await until(() =>
+      evaluate('document.querySelector(".window-title").getBoundingClientRect().height === 0'),
+    );
+    await delay(350);
+    await capture("window-controls-off");
+    await desktopToggle("windowControls", true);
+    await desktopToggle("maximizeButton", false);
+    await desktopToggle("closeButton", false);
+    await until(() => evaluate('document.querySelector(".window-title").hidden'));
+    await desktopToggle("maximizeButton", true);
+    await desktopToggle("closeButton", true);
+    await desktopToggle("minimizeButton", true);
+    await until(() => evaluate('!document.querySelector(".window-title").hidden'));
+    await capture("window-preferences");
+    checks.push(
+      "Desktop controls autosave without changing indentation; DPE hides individual buttons and removes its titlebar when all are off",
+    );
+    await until(() => evaluate('document.querySelectorAll(".tray-icon-row").length === 6'));
+    assert.equal(await evaluate('document.querySelector(".tray-settings").open'), false);
+    const cssEditorHeight = await evaluate(
+      'document.querySelector(".theme-editor-frame").getBoundingClientRect().height',
+    );
+    assert.ok(cssEditorHeight >= 480);
+    assert.equal(await get('$("tray-icons-label").textContent'), "Tray Icons");
+    assert.equal(await get('$("tray-icons-description")'), null);
+    assert.equal(
+      await evaluate('getComputedStyle(document.querySelector(".tray-settings summary")).display'),
+      "grid",
+    );
+    assert.equal(
+      await evaluate('Boolean(document.querySelector(".tray-settings .disclosure-action svg"))'),
+      true,
+    );
+
+    await evaluate('document.querySelector(".tray-settings summary").click()');
+    assert.equal(await evaluate('document.querySelector(".tray-settings").open'), true);
+    await until(() => get('$("tray-icons-label").textContent === "Hide Tray Icons"'));
+    assert.ok(
+      await evaluate(
+        'document.querySelector(".theme-editor-frame").getBoundingClientRect().height >= 480',
+      ),
+    );
+    assert.equal(
+      await evaluate(
+        'getComputedStyle(document.querySelector(".tray-settings .details-chevron")).rotate',
+      ),
+      "180deg",
+    );
+    assert.equal(
+      await evaluate(
+        '(() => { const main = document.querySelector("main"); main.scrollTop = main.scrollHeight; return main.scrollTop > 0 && getComputedStyle(main).overflowY === "auto"; })()',
+      ),
+      true,
+    );
+    assert.equal(
+      await evaluate(
+        '(() => { const editor = document.querySelector(".theme-editor-frame").getBoundingClientRect(); const main = document.querySelector("main").getBoundingClientRect(); return editor.bottom <= main.bottom; })()',
+      ),
+      true,
+    );
+    await evaluate('document.querySelector("main").scrollTop = 0');
+
+    assert.equal(
+      await evaluate('document.querySelectorAll(".tray-icon-actions button").length'),
+      12,
+    );
+    await until(() =>
+      evaluate(
+        `Array.from(document.querySelectorAll('.tray-icon-label img')).filter(image => image.complete && image.naturalWidth > 0).length === 6`,
+      ),
+    );
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.tray-settings').textContent.includes('Choose a PNG')`,
+      ),
+      false,
+    );
+    assert.equal(
+      await evaluate(`document.querySelectorAll('.tray-settings > [role=status]').length`),
+      0,
+    );
+    const trayStatus = () =>
+      evaluate(
+        `document.querySelector('[data-tray-state="default"] .tray-icon-status').textContent || document.querySelector('[data-tray-state="default"] img').title`,
+      );
+    const chooseTray = () =>
+      evaluate(
+        `document.querySelector('[data-tray-state="default"] .tray-icon-actions button').click()`,
+      );
+    const stockPreview = await evaluate(
+      `document.querySelector('[data-tray-state="default"] img').src`,
+    );
+    await capture("tray-defaults");
+    assert.equal(
+      await evaluate('document.querySelectorAll(".tray-icon-presets button").length'),
+      18,
+    );
+    assert.equal(
+      await evaluate(
+        'document.querySelectorAll(".tray-icon-presets .dpe-inline-bullet[aria-hidden=true]").length',
+      ),
+      12,
+    );
+    assert.equal(
+      await evaluate(
+        'document.querySelector(".tray-settings").textContent.includes("Discord default")',
+      ),
+      false,
+    );
+    await chooseTray();
+    await until(async () => (await trayStatus()) === "Discord");
+    assert.equal(values.openasar.trayIcons, undefined, "canceling the picker does not save");
+    trayChoice = { canceled: false, filePaths: [custom] };
+    await chooseTray();
+    await until(async () => (await trayStatus()) === "Image updated.");
+    assert.match(values.openasar.trayIcons.default, /^[a-f0-9]{64}\.png$/);
+    await until(async () => (await trayStatus()) === "Custom image");
+    assert.equal(await get('$("tray-icon-preset-trigger").textContent.trim()'), "Custom");
+    const invalid = path.join(output, "invalid-tray.png");
+    fs.writeFileSync(invalid, "not a PNG");
+    trayChoice = { canceled: false, filePaths: [invalid] };
+    await chooseTray();
+    await until(async () => (await trayStatus()).includes("valid PNG"));
+    assert.equal(
+      await evaluate(
+        `document.querySelector('[data-tray-state="default"] .tray-icon-status').dataset.error`,
+      ),
+      "true",
+    );
+    await capture("tray-error");
+    await until(async () => (await trayStatus()) === "Custom image");
+    await evaluate(
+      `document.querySelectorAll('[data-tray-state="default"] .tray-icon-actions button')[1].click()`,
+    );
+    await until(async () => (await trayStatus()) === "Discord restored.");
+    await until(async () => (await trayStatus()) === "Discord");
+    assert.equal(await get('$("tray-icon-preset-trigger").textContent.trim()'), "Discord");
+    assert.equal(
+      await evaluate(`document.querySelector('[data-tray-state="default"] img').src`),
+      stockPreview,
+    );
+    checks.push(
+      "Tray defaults render; cancel, import, error and reset use temporary row feedback and preserve previews",
+    );
+    assert.equal(await get('$("tray-icon-preset-trigger").getAttribute("role")'), "combobox");
+    assert.equal(await get('$("tray-icon-preset-help")'), null);
+    const choosePreset = async (preset, index) => {
+      await until(() => get('!$("tray-icon-preset-trigger").disabled'));
+      await click("tray-icon-preset-trigger");
+      await until(() => get('$("tray-icon-preset-listbox").matches(":popover-open")'));
+      await click(`tray-icon-preset-listbox-${index}`);
+      await until(() => values.openasar.trayIconPreset === preset);
+      await until(() => get('!$("tray-icon-preset-trigger").disabled'));
+    };
+    await choosePreset("vencord", 1);
+    await until(async () => (await trayStatus()) === "Vencord");
+    assert.equal(await get('$("tray-icon-preset-trigger").textContent.trim()'), "Vencord");
+    assert.notEqual(
+      await evaluate(`document.querySelector('[data-tray-state="default"] img').src`),
+      stockPreview,
+    );
+    await evaluate('document.querySelector(".tray-settings").scrollIntoView({block:"start"})');
+    await delay(200);
+    await capture("tray-vencord");
+    await choosePreset("equicord", 2);
+    await until(async () => (await trayStatus()) === "Equicord");
+    const equicordPreview = await evaluate(
+      `document.querySelector('[data-tray-state="default"] img').src`,
+    );
+    for (const icon of tray.describe()) {
+      const image = nativeImage.createFromDataURL(icon.preview);
+      assert.deepEqual(image.getSize(), { width: 32, height: 32 });
+      assert.equal(icon.source, "Equicord");
+    }
+    await delay(200);
+    await capture("tray-equicord");
+    trayChoice = { canceled: false, filePaths: [custom] };
+    await chooseTray();
+    await until(async () => (await trayStatus()) === "Image updated.");
+    await choosePreset("vencord", 1);
+    assert.equal(values.openasar.trayIcons.default, undefined);
+    await until(async () => (await trayStatus()) === "Vencord");
+    await choosePreset("equicord", 2);
+    await chooseTray();
+    await until(async () => (await trayStatus()) === "Image updated.");
+    await evaluate(
+      `document.querySelectorAll('[data-tray-state="default"] .tray-icon-actions button')[1].click()`,
+    );
+    await until(async () => (await trayStatus()) === "Equicord restored.");
+    assert.equal(
+      await evaluate(`document.querySelector('[data-tray-state="default"] img').src`),
+      equicordPreview,
+    );
+    await click("t_settings");
+    await click("t_theming");
+    await until(() => get('$("tray-icon-preset-trigger")?.textContent.trim() === "Equicord"'));
+    await evaluate('document.querySelector(".tray-settings summary").click()');
+    await choosePreset("discord", 0);
+    await until(async () => (await trayStatus()) === "Discord");
+    assert.equal(
+      await evaluate(`document.querySelector('[data-tray-state="default"] img').src`),
+      stockPreview,
+    );
+    checks.push(
+      "Bundled Vencord and Equicord presets autosave through the shared dropdown, cache native previews, clear custom overrides and restore the selected preset",
+    );
+    const selectIconPreset = async (state, preset) => {
+      await until(() => evaluate('!document.querySelector(".tray-icon-actions button").disabled'));
+      await evaluate(`(() => {
+        const link = document.querySelector('[data-tray-state="${state}"] [data-tray-preset="${preset}"]');
+        link.focus();
+      })()`);
+      assert.equal(await evaluate("document.activeElement.dataset.trayPreset"), preset);
+      window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+      window.webContents.sendInputEvent({ type: "char", keyCode: "Return" });
+      window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+      await until(() => values.openasar.trayIconPresets?.[state] === preset);
+      await until(() => evaluate('!document.querySelector(".tray-icon-actions button").disabled'));
+      assert.equal(
+        await evaluate(
+          `document.querySelector('[data-tray-state="${state}"] [data-tray-preset="${preset}"]').getAttribute("aria-pressed")`,
+        ),
+        "true",
+      );
+      assert.equal(await evaluate("document.activeElement.dataset.trayPreset"), preset);
+    };
+    await selectIconPreset("unread", "equicord");
+    assert.equal(await get('$("tray-icon-preset-trigger").textContent.trim()'), "Custom");
+    assert.equal(await get('$("tray-icon-preset").selectedIndex'), -1);
+    await selectIconPreset("speaking", "vencord");
+    await selectIconPreset("muted", "discord");
+    assert.equal(tray.describe().find((icon) => icon.id === "default").source, "Discord");
+    assert.equal(tray.describe().find((icon) => icon.id === "unread").source, "Equicord");
+    assert.equal(tray.describe().find((icon) => icon.id === "speaking").source, "Vencord");
+    await chooseTray();
+    await until(async () => (await trayStatus()) === "Custom image");
+    await selectIconPreset("default", "equicord");
+    assert.equal(values.openasar.trayIcons.default, undefined);
+    assert.equal(await trayStatus(), "Equicord");
+    assert.equal(
+      await evaluate(
+        'document.querySelector("[data-tray-state=default] .tray-icon-status").hidden',
+      ),
+      true,
+    );
+    await choosePreset("vencord", 1);
+    assert.equal(await trayStatus(), "Vencord");
+    assert.ok(tray.describe().every((icon) => icon.source === "Vencord" && !icon.overridden));
+    assert.equal(await get('$("tray-icon-preset-trigger").textContent.trim()'), "Vencord");
+    await selectIconPreset("default", "equicord");
+    await selectIconPreset("unread", "equicord");
+    await selectIconPreset("muted", "discord");
+    assert.equal(tray.describe().find((icon) => icon.id === "connected").source, "Vencord");
+    await click("t_settings");
+    await click("t_theming");
+    await until(() =>
+      evaluate(
+        'document.querySelector("[data-tray-state=default] [data-tray-preset=equicord]")?.getAttribute("aria-pressed") === "true"',
+      ),
+    );
+    await evaluate('document.querySelector(".tray-settings summary").click()');
+    await evaluate('document.querySelector(".tray-settings").scrollIntoView({block:"start"})');
+    await delay(200);
+    await capture("tray-mixed-presets");
+    assert.equal(await get('$("tray-icon-preset-trigger").textContent.trim()'), "Custom");
+    const trayBounds = window.getBounds();
+    for (const width of [720, 320]) {
+      window.setSize(width, 840);
+      await until(() => evaluate(`innerWidth === ${width}`));
+      await evaluate('document.querySelector(".tray-settings").scrollIntoView({block:"start"})');
+      assert.equal(
+        await evaluate(`(() => {
+          const main = document.querySelector("main");
+          const layout = document.querySelector(".settings-layout");
+        const rows = [...document.querySelectorAll(".tray-icon-row")];
+          return layout.scrollWidth <= layout.clientWidth && main.scrollWidth <= main.clientWidth && rows.every(row =>
+          [...row.querySelectorAll("button")].every(button => button.getBoundingClientRect().right <= main.getBoundingClientRect().right));
+      })()`),
+        true,
+      );
+      await delay(200);
+      await capture(`tray-mixed-${width}`);
+    }
+    window.setSize(trayBounds.width, trayBounds.height);
+    await until(() => evaluate(`innerWidth === ${trayBounds.width}`));
+    await evaluate(
+      'document.querySelector("[data-tray-state=default] .tray-icon-actions button:last-child").click()',
+    );
+    await until(async () => (await trayStatus()) === "Vencord restored.");
+    await until(async () => (await trayStatus()) === "Vencord");
+    assert.equal(values.openasar.trayIconPresets.default, undefined);
+    assert.equal(values.openasar.trayIconPresets.unread, "equicord");
+    for (const state of ["unread", "muted"]) {
+      await evaluate(
+        `document.querySelector('[data-tray-state="${state}"] .tray-icon-actions button:last-child').click()`,
+      );
+      await until(() => values.openasar.trayIconPresets[state] === undefined);
+      await until(() => get('!$("tray-icon-preset-trigger").disabled'));
+    }
+    await until(() => get('$("tray-icon-preset-trigger").textContent.trim() === "Vencord"'));
+    checks.push(
+      "The main tray preset shows Custom for mixed presets or custom images and returns to its name when restored",
+    );
+    checks.push(
+      "Per-state preset links use inline bullets, work by keyboard, preserve focus and other states, fit narrow windows, replace custom images, persist across pages and reset to the main preset",
+    );
+    await evaluate('document.querySelector(".tray-settings summary").click()');
+    checks.push(
+      "Tray disclosure changes its label; the CSS editor retains a 480px minimum and the page scrolls",
+    );
     assert.equal(
       await evaluate('getComputedStyle(document.querySelector("main")).padding'),
       pagePadding,
@@ -495,13 +892,20 @@ app
     assert.equal(await get('$("theme-css").value'), "/* preserve me */");
     assert.equal(
       await evaluate(
-        `(() => {const field=document.getElementById("theme-css").getBoundingClientRect(),help=document.getElementById("theme-help").getBoundingClientRect(),main=document.querySelector("main").getBoundingClientRect();const style=getComputedStyle(document.querySelector("main")),available=main.bottom-parseFloat(style.paddingBottom)-field.top;return help.bottom<field.top && field.height>=available-2 && field.width>document.getElementById("container").getBoundingClientRect().width*.85;})()`,
+        `(() => {const field=document.getElementById("theme-css").getBoundingClientRect(),help=document.getElementById("theme-help").getBoundingClientRect();return help.bottom<field.top && field.height>=318 && field.width>document.getElementById("container").getBoundingClientRect().width*.85;})()`,
       ),
       true,
     );
     assert.deepEqual(window.getSize(), [1100, 800]);
-    window.setSize(1400, 900);
+    // Window controls add content above the editor. Give it actual spare space
+    // before checking growth rather than expecting it to grow inside overflow.
+    window.setSize(1400, 1400);
     await until(() => evaluate("innerWidth > 1080"));
+    await until(() =>
+      evaluate(
+        `document.querySelector('.theme-editor-frame').getBoundingClientRect().height > ${cssEditorHeight}`,
+      ),
+    );
     assert.equal(
       await evaluate('getComputedStyle(document.querySelector("main")).paddingTop'),
       "64px",
@@ -533,7 +937,238 @@ app
     checks.push(
       "First-run mod choice, skip, setup persistence, invalid-choice rejection and local theme editing pass",
     );
+    await click("t_spelling");
+    await until(() => get('Boolean($("spellcheck-enabled"))'));
+    assert.equal(await get('$("spelling-help")'), null);
+    assert.equal(await get('$("spelling-languages-help")'), null);
+    assert.equal(
+      await evaluate(
+        `(() => {const title=document.querySelector('.spelling-heading').getBoundingClientRect();const tools=document.querySelector('.spelling-tools').getBoundingClientRect();return Math.round(tools.top-title.bottom);})()`,
+      ),
+      24,
+    );
+    assert.equal(await evaluate(`document.querySelectorAll('.spelling-language code').length`), 0);
+    assert.equal(await get('$("spellcheck-language-af-label").textContent'), "Afrikaans (af)");
+    assert.equal(
+      await evaluate(
+        `document.querySelector('[data-language="af"] .spelling-language-code').textContent`,
+      ),
+      " (af)",
+    );
+    assert.ok(
+      await evaluate(
+        `parseFloat(getComputedStyle(document.querySelector('.spelling-heading')).fontSize) > parseFloat(getComputedStyle(document.querySelector('.setting-row label')).fontSize)`,
+      ),
+    );
+    assert.equal(
+      await evaluate(
+        `getComputedStyle(document.querySelector('.spelling-language .setting-row > div')).opacity`,
+      ),
+      "0.5",
+    );
+    assert.equal(await get('$("spellcheck-enabled").checked'), true);
+    assert.equal(await get('$("spellcheck-enabled").getAttribute("role")'), "switch");
+    assert.equal(await get('$("spellcheck-automatic").checked'), true);
+    assert.equal(await get('$("spellcheck-search").matches(":disabled")'), true);
+    assert.equal(await get('$("spellcheck-filter").matches(":disabled")'), true);
+    assert.equal(await get('Boolean($("spellcheck-save"))'), false);
+    await click("spellcheck-automatic");
+    await until(() => get('!$("spellcheck-automatic").disabled'));
+    await until(() => values.openasar.spellcheckLanguages?.length > 0);
+    const spellingLanguages = await evaluate(
+      'Array.from(document.querySelectorAll(".spelling-language-list input"), input => input.value)',
+    );
+    assert.ok(spellingLanguages.includes("en-US"));
+    assert.ok(spellingLanguages.includes("fr"));
+    const selectLanguage = async (language, selected) => {
+      const id = `spellcheck-language-${language}`;
+      if ((await get(`$(${JSON.stringify(id)}).checked`)) !== selected) {
+        await until(() => get(`!$(${JSON.stringify(id)}).disabled`));
+        await click(id);
+        await until(() => values.openasar.spellcheckLanguages.includes(language) === selected);
+        await until(() => get('!$("spellcheck-enabled").disabled'));
+      }
+    };
+    await selectLanguage("en-US", true);
+    await selectLanguage("fr", true);
+    for (const language of values.openasar.spellcheckLanguages)
+      if (!["en-US", "fr"].includes(language)) await selectLanguage(language, false);
+    assert.deepEqual([...values.openasar.spellcheckLanguages].sort(), ["en-US", "fr"]);
+    await change("spellcheck-search", "en-US");
+    await until(() => evaluate('document.querySelectorAll(".spelling-language").length === 1'));
+    assert.equal(
+      await evaluate('document.querySelector(".spelling-language").dataset.language'),
+      "en-US",
+    );
+    await change("spellcheck-search", "");
+    await click("spellcheck-filter");
+    await until(() => evaluate('document.querySelectorAll(".spelling-language").length === 2'));
+    assert.equal(await get('$("spellcheck-filter").getAttribute("aria-pressed")'), "true");
+    assert.equal(
+      await get('$("spellcheck-filter").classList.contains("dpe-button--primary")'),
+      true,
+    );
+    assert.ok(await get('$("spellcheck-filter").querySelector("[data-dpe-icon=check]")'));
+    await click("spellcheck-refresh");
+    await until(() => get('$("spellcheck-status").textContent.includes("refreshed")'));
+    // Replica switches animate for 300ms; inspect their final painted state,
+    // not a screenshot captured halfway through a rapid scripted toggle.
+    await delay(350);
+    const spellingSwitches = await evaluate(`(() => {
+      const automatic = document.getElementById("spellcheck-automatic");
+      const english = document.getElementById("spellcheck-language-en-US");
+      const track = automatic.nextElementSibling.getBoundingClientRect();
+      const thumb = automatic.nextElementSibling.querySelector(".dpe-switch-thumb").getBoundingClientRect();
+      return {automatic:automatic.checked, thumbOnLeft:thumb.left < track.left + track.width / 2,
+        englishDisabled:english.disabled, englishOpacity:getComputedStyle(english.nextElementSibling).opacity,
+        englishLabel:document.getElementById("spellcheck-language-en-US-label").textContent,
+        frenchLabel:document.getElementById("spellcheck-language-fr-label").textContent};
+    })()`);
+    assert.equal(spellingSwitches.automatic, false);
+    assert.equal(spellingSwitches.thumbOnLeft, true);
+    assert.equal(spellingSwitches.englishDisabled, false);
+    assert.equal(spellingSwitches.englishOpacity, "1");
+    assert.notEqual(spellingSwitches.englishLabel, "en-US");
+    assert.notEqual(spellingSwitches.frenchLabel, "fr");
+    fs.writeFileSync(
+      path.join(output, "spelling-switches.json"),
+      JSON.stringify(spellingSwitches, null, 2),
+    );
+    await capture("spelling-manual");
+    await click("t_flags");
+    await click("t_spelling");
+    await until(() => get('Boolean($("spellcheck-automatic"))'));
+    assert.equal(await get('$("spellcheck-automatic").checked'), false);
+    assert.deepEqual(
+      (
+        await evaluate(
+          'Array.from(document.querySelectorAll(".spelling-language-list input:checked"), input => input.value)',
+        )
+      ).sort(),
+      ["en-US", "fr"],
+    );
+    await selectLanguage("fr", false);
+    assert.equal(await get('$("spellcheck-language-en-US").disabled'), false);
+    await selectLanguage("en-US", false);
+    await until(() => get('!$("spellcheck-enabled").checked && !$("spellcheck-enabled").disabled'));
+    assert.equal(values.openasar.spellcheckEnabled, false);
+    assert.equal(values.openasar.spellcheckUseSystemLanguages, false);
+    assert.equal(await get('$("spellcheck-automatic").checked'), false);
+    await click("t_flags");
+    await click("t_spelling");
+    await until(() => get('Boolean($("spellcheck-enabled"))'));
+    assert.equal(await get('$("spellcheck-enabled").checked'), false);
+    assert.equal(
+      await evaluate(`document.querySelectorAll('.spelling-language-list input:checked').length`),
+      0,
+    );
+    await selectLanguage("en-US", true);
+    assert.equal(values.openasar.spellcheckEnabled, true);
+    await selectLanguage("fr", true);
+    await click("spellcheck-enabled");
+    await until(() => values.openasar.spellcheckEnabled === false);
+    assert.equal(await get('$("spellcheck-search").matches(":disabled")'), true);
+    await until(() => get('!$("spellcheck-enabled").disabled'));
+    await click("spellcheck-enabled");
+    await until(() => values.openasar.spellcheckEnabled === true);
+    await until(() => get('!$("spellcheck-automatic").disabled'));
+    await click("spellcheck-automatic");
+    await until(() => values.openasar.spellcheckLanguages.length === 0);
+    assert.equal(await get('$("spellcheck-search").matches(":disabled")'), true);
+    assert.equal(
+      await evaluate(
+        'Array.from(document.querySelectorAll(".spelling-language-list input")).every(input => input.disabled)',
+      ),
+      true,
+    );
+    await delay(350);
+    await capture("spelling-system");
+    checks.push(
+      "Spelling autosaves bilingual choices, preserves empty manual mode, and displays muted parenthesized language codes",
+    );
+    await click("t_flags");
+    assert.ok(await get('$("t_flags").querySelector("[data-dpe-icon=flag] svg")'));
+    assert.equal(await get('$("input-options").querySelectorAll(".risk-icon").length'), 0);
+    for (const id of [
+      "middleClickAutoscroll",
+      "disableMiddleClickPaste",
+      "disableSmoothScrolling",
+    ]) {
+      await until(() => get(`$("${id}") && !$("${id}").disabled`));
+      assert.equal(await get(`$("${id}").getAttribute("role")`), "switch");
+      assert.ok(await get(`$("${id}-help").textContent.trim()`));
+    }
+    await click("middleClickAutoscroll");
+    await save();
+    await until(() =>
+      get('$("disableMiddleClickPaste").disabled && $("disableMiddleClickPaste").checked'),
+    );
+    assert.ok(
+      (await editor.resolve()).effective.includes("--blink-settings=middleClickPasteAllowed=false"),
+    );
+    await click("disableSmoothScrolling");
+    await save();
+    const inputFlags = await get('$("flags").value');
+    assert.match(inputFlags, /MiddleClickAutoscroll/);
+    assert.doesNotMatch(inputFlags, /middleClickPasteAllowed=/);
+    assert.match(inputFlags, /--disable-smooth-scrolling/);
+    await delay(350);
+    await capture("input-flags");
+    await click("middleClickAutoscroll");
+    await save();
+    await until(() =>
+      get('!$("disableMiddleClickPaste").disabled && !$("disableMiddleClickPaste").checked'),
+    );
+    for (const id of [
+      "disableMiddleClickPaste",
+      "middleClickAutoscroll",
+      "middleClickAutoscroll",
+    ]) {
+      await click(id);
+      await save();
+    }
+    assert.equal(await get('$("disableMiddleClickPaste").checked'), true);
+    await click("disableMiddleClickPaste");
+    await save();
+    await click("disableSmoothScrolling");
+    await save();
+    checks.push(
+      "Input controls have descriptions; autoscroll forces paste off and restores the independent paste preference when disabled",
+    );
     await click("t_settings");
+    await until(() => get('$("desktop-startMinimized") && !$("desktop-startMinimized").disabled'));
+    assert.equal(await get('$("desktop-webRtcIPHandlingPolicy")'), null);
+    for (const name of [
+      "startMinimized",
+      "tray",
+      "appBadge",
+      "badgeOnlyMentions",
+      "notificationFlash",
+    ])
+      assert.ok(await get(`$("desktop-${name}-help").textContent.trim()`));
+    await until(() => get('!$("desktop-appBadge").disabled'));
+    await click("desktop-appBadge");
+    await until(() => values.openasar.desktop.appBadge === false);
+    assert.equal(await get('$("desktop-badgeOnlyMentions").disabled'), true);
+    await until(() => get('!$("desktop-appBadge").disabled'));
+    await click("desktop-appBadge");
+    await until(() => values.openasar.desktop.appBadge === true);
+    await until(() => get('!$("desktop-startMinimized").disabled'));
+    await click("desktop-startMinimized");
+    await until(() => values.openasar.desktop.startMinimized === true);
+    await until(() => get('!$("desktop-tray").disabled'));
+    await click("desktop-tray");
+    await until(() => values.openasar.desktop.tray === false);
+    await until(() => get('!$("desktop-tray").disabled'));
+    await click("desktop-tray");
+    await until(() => values.openasar.desktop.tray === true);
+    await evaluate(
+      'document.getElementById("desktop-startMinimized").scrollIntoView({block:"center"})',
+    );
+    await capture("desktop-general");
+    checks.push(
+      "Desktop startup, tray and notification options have descriptions; native-voice-irrelevant WebRTC policy is absent",
+    );
     const detectionToggle = '[aria-label="Automatically detect screen-share audio"]';
     const screenToggle = '[aria-label="Skip audio picker for entire screens"]';
     assert.equal(await evaluate(`document.querySelector('${screenToggle}').checked`), true);
@@ -631,7 +1266,7 @@ app
       "44px",
     );
     assert.equal(
-      await evaluate('getComputedStyle(document.getElementById("save")).minHeight'),
+      await evaluate('getComputedStyle(document.getElementById("reset-flags")).minHeight'),
       "46px",
     );
     await evaluate(`(() => {
@@ -771,13 +1406,63 @@ app
       await evaluate(
         '[...document.querySelectorAll("[role=tab]")].map(x=>x.lastElementChild.textContent)',
       ),
-      ["General", "Appearance", "Mods", "Flags", "Troubleshooting"],
+      ["General", "Appearance", "Spelling", "Mods", "Flags", "Troubleshooting"],
     );
     assert.equal(await evaluate('document.querySelectorAll("textarea").length'), 2);
     assert.equal(await get('$("preset")'), null);
     assert.equal(window.isResizable(), true);
     assert.ok(window.getSize()[0] >= 320);
-    assert.equal(await get('$("save").disabled'), true);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), true);
+    assert.equal(await get('$("save")'), null, "Flags has no explicit Save button");
+    const baselineFlags = await get('$("flags").value');
+    await change("flags", baselineFlags + "\n--autosave-first=1");
+    await save();
+    assert.equal(await get('$("flags-change-note").hidden'), false);
+    assert.equal(await get('$("flags-undo").querySelector("strong")'), null);
+    assert.equal(await get('$("status").classList.contains("sr-only")'), true);
+    assert.equal(await get('$("status").textContent'), "");
+    for (const property of ["fontSize", "lineHeight", "paddingInlineStart", "paddingInlineEnd"])
+      assert.equal(
+        await get(`getComputedStyle($("flags-change-note").firstElementChild).${property}`),
+        await get(`getComputedStyle($("versions")).${property}`),
+      );
+    assert.equal(
+      await get('getComputedStyle($("flags-undo")).fontWeight'),
+      await get('getComputedStyle($("versions")).fontWeight'),
+    );
+    await change("flags", baselineFlags + "\n--autosave-second=2");
+    await save();
+    assert.ok((await editor.resolve()).effective.includes("--autosave-second=2"));
+    await click("flags-undo");
+    await save();
+    assert.equal(await get('$("flags-change-note").hidden'), true);
+    assert.equal(await get('$("flags").value'), baselineFlags);
+    assert.ok(!(await editor.resolve()).effective.some((flag) => flag.startsWith("--autosave-")));
+    checks.push(
+      "Flags autosave without submission; Undo restores the window-opening baseline after multiple saves",
+    );
+    let delayedSaves = 0;
+    window.webContents.ipc.removeHandler("dpe-launch-save");
+    window.webContents.ipc.handle("dpe-launch-save", async (_event, config, fileRevision) => {
+      delayedSaves++;
+      await delay(300);
+      return editor.resolve(config, { save: true, fileRevision });
+    });
+    await change("flags", baselineFlags + "\n--autosave-slow=old");
+    await until(() => delayedSaves === 1);
+    await change("flags", baselineFlags + "\n--autosave-slow=new");
+    await save();
+    assert.ok((await editor.resolve()).effective.includes("--autosave-slow=new"));
+    assert.ok(!(await editor.resolve()).effective.includes("--autosave-slow=old"));
+    await change("flags", baselineFlags);
+    window.close();
+    await until(() => window.isDestroyed());
+    assert.ok(!(await editor.resolve()).effective.some((flag) => flag.startsWith("--autosave-")));
+    await open();
+    checks.push(
+      "Slow autosaves serialize newer edits; closing during debounce saves the final draft before closing",
+    );
+
     assert.equal(await get('$("advanced-label").textContent'), "Show Advanced Settings");
     assert.equal(await get('$("advanced").open'), false);
     assert.equal(
@@ -860,7 +1545,7 @@ app
     assert.equal(await evaluate("typeof window.require"), "undefined");
     assert.equal(await get('$("flags").value'), "--legacy-ui=kept");
     assert.ok((await editor.resolve()).effective.includes("--enable-libopenh264"));
-    checks.push("One DPE Settings window, five tabs, flags editor and collapsed optional sections");
+    checks.push("One DPE Settings window, six tabs, flags editor and collapsed optional sections");
     assert.equal(await get('$("essential-section").hidden'), false);
     assert.equal(await get('$("essential-flags").disabled'), true);
     assert.equal(
@@ -873,7 +1558,7 @@ app
     const originalConfig = JSON.stringify(await savedConfig());
     await click("edit-essential");
     assert.equal(await get('$("essential-flags").disabled'), false);
-    assert.equal(await get('$("save").disabled'), true);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), true);
     assert.equal(
       await evaluate(
         'JSON.stringify(document.getElementById("essential-flags").getBoundingClientRect())',
@@ -884,7 +1569,20 @@ app
     const essentials = await get('$("essential-flags").value');
     assert.match(essentials, /--openh264-library-path=\{OPENH264_LIBRARY_PATH\}/);
     assert.doesNotMatch(essentials, /\/tmp\/|--autoplay-policy/);
-    assert.match(await get('$("essential-help").textContent'), /break startup\. Variables:/);
+    assert.match(
+      await get('$("essential-help").textContent'),
+      /break startup\. Variables: \{DESKTOP_ID\}/,
+    );
+    assert.equal(
+      await evaluate(
+        'document.querySelector("#essential-section a[href=\\"#openh264-license\\"]")',
+      ),
+      null,
+    );
+    assert.doesNotMatch(
+      await get('$("essential-section").textContent'),
+      /provided by Cisco|To disable or re-enable/,
+    );
     assert.equal(
       await evaluate(
         'document.querySelector("#essential-section .risk-icon").getAttribute("aria-label")',
@@ -892,14 +1590,14 @@ app
       "May break startup",
     );
     await change("essential-flags", essentials + "\n--temporary");
-    assert.equal(await get('$("save").disabled'), false);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), false);
     await change("essential-flags", essentials);
-    assert.equal(await get('$("save").disabled'), true);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), true);
     const originalFlags = await get('$("flags").value');
     await change("flags", originalFlags + "\n--temporary");
-    assert.equal(await get('$("save").disabled'), false);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), false);
     await change("flags", originalFlags);
-    assert.equal(await get('$("save").disabled'), true);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), true);
     await evaluate('document.getElementById("essential-section").scrollIntoView()');
     await delay(100);
     fs.writeFileSync(
@@ -923,10 +1621,11 @@ app
     await open();
     await click("edit-essential");
     assert.equal(await get('$("essential-flags").value'), "--class={DESKTOP_ID}");
-    await change("essential-flags", essentials);
-    await save();
     await click("edit-essential");
     assert.equal(await get('$("essential-flags").disabled'), true);
+    await save();
+    assert.equal(await get('$("essential-flags").value'), essentials);
+    assert.equal((await savedConfig()).profiles.balanced.essentialFlags, essentials);
     const unchanged = fs.readFileSync(flagsFile, "utf8");
     const unchangedTime = fs.statSync(flagsFile, { bigint: true }).mtimeNs;
     await evaluate('document.getElementById("settings").requestSubmit()');
@@ -934,9 +1633,7 @@ app
     assert.equal(fs.readFileSync(flagsFile, "utf8"), unchanged);
     assert.equal(fs.statSync(flagsFile, { bigint: true }).mtimeNs, unchangedTime);
     checks.push("Essential flags stay visible; editing, variables, validation and reload pass");
-    checks.push(
-      "Save is disabled on load, after saving and after reverting edits; unchanged submit does not write",
-    );
+    checks.push("Autosave skips unchanged/reverted drafts; unchanged submit does not write");
 
     await evaluate('document.getElementById("advanced").open=true');
     assert.doesNotMatch(await get('$("advanced").querySelector(".hint").textContent'), /Breaking:/);
@@ -980,6 +1677,18 @@ app
       /Unknown project link/,
     );
     assert.equal(externalURLs().length, 3);
+    await click("project-menu-trigger");
+    await evaluate('document.querySelector("[data-project-link=attributions]").focus()');
+    window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+    window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+    await until(() => externalURLs().length === 4);
+    assert.equal(
+      externalURLs()[3],
+      "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/THIRD_PARTY.md",
+    );
+    checks.push(
+      "Project links includes keyboard-accessible Attributions with the allowlisted third-party credits URL",
+    );
     checks.push(
       "Native shell handoff receives exact URLs; IPC errors are visible and arbitrary URLs are rejected",
     );
@@ -1003,15 +1712,16 @@ app
     );
     await change("display", "x11", "change");
     await until(() => get('!$("flags").disabled'));
-    assert.equal(await get('$("save").disabled'), false);
+    await save();
+    assert.equal((await savedConfig()).display, "x11");
     await change("display", "auto", "change");
     await until(() => get('!$("flags").disabled'));
-    assert.equal(await get('$("save").disabled'), true);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), true);
     await click("decode");
     await until(() => get('!$("flags").disabled'));
     await click("decode");
     await until(() => get('!$("flags").disabled'));
-    assert.equal(await get('$("save").disabled'), true);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), true);
     await click("decode");
     await until(() => get('!$("flags").disabled'));
     assert.equal(await get('$("essential-flags").disabled'), true);
@@ -1068,7 +1778,7 @@ app
     await click("t_settings");
     assert.equal(
       await evaluate(
-        '[...document.querySelectorAll("#container input")].every(input => input.getAttribute("aria-label"))',
+        '[...document.querySelectorAll("#container input")].every(input => input.getAttribute("aria-label") || document.getElementById(input.getAttribute("aria-labelledby"))?.textContent)',
       ),
       true,
     );
@@ -1109,7 +1819,7 @@ app
     assert.equal(fs.readFileSync(flagsFile, "utf8"), external);
     await click("discard");
     await until(() => get('$("flags").value.includes("--external=value")'));
-    assert.equal(await get('$("save").disabled'), true);
+    assert.equal(await get('$("status").dataset.dirty === "false"'), true);
     await change(
       "flags",
       (await get('$("flags").value')).replace("--external=value", "--external=replaced"),
@@ -1141,7 +1851,8 @@ app
     await until(() => get('!$("flags").disabled'));
     assert.equal(await get('$("forceAcceleration").checked || $("graphiteForce").checked'), false);
     await click("discard");
-    await until(() => get('$("forceAcceleration").checked && $("graphiteForce").checked'));
+    await until(() => get('!$("settings").inert'));
+    assert.equal(await get('$("forceAcceleration").checked || $("graphiteForce").checked'), false);
     checks.push("Risky controls update one box; manual overrides, reset and reload stay in sync");
 
     await click("edit-essential");
@@ -1192,14 +1903,14 @@ app
       document.querySelector('.essential-toggle').lastChild.textContent = 'Wesentliche Startoptionen bearbeiten';
       document.getElementById('reset-flags').textContent = 'Zurücksetzen';
       document.getElementById('discard').textContent = 'Neu laden';
-      document.getElementById('save').textContent = 'Änderungen speichern';
+
     })()`);
     assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
     await evaluate(`(() => {
       document.querySelector('.essential-toggle').lastChild.textContent = 'Edit essential flags';
       document.getElementById('reset-flags').textContent = 'Reset';
       document.getElementById('discard').textContent = 'Reload';
-      document.getElementById('save').textContent = 'Save';
+
     })()`);
     await contents.debugger.sendCommand("Emulation.clearDeviceMetricsOverride");
     contents.setZoomFactor(2);
@@ -1223,7 +1934,12 @@ app
     await delay(100);
     fs.writeFileSync(path.join(output, "recovery.png"), (await contents.capturePage()).toPNG());
     await click("discard");
-    await until(() => get('$("graphiteForce").checked'));
+    await until(() => get('!$("settings").inert'));
+    assert.equal(
+      await get('$("graphiteForce").checked'),
+      false,
+      "Reload keeps autosaved reset defaults",
+    );
     checks.push(
       "Named native controls, keyboard tabs, 320px, longer labels, RTL and 200% zoom pass",
     );

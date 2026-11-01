@@ -12,7 +12,19 @@ const storage =
   'electron.ipcMain.on(SAFE_STORAGE_DECRYPT_STRING,(event,encrypted)=>{if(null!=encrypted)try{event.returnValue=electron.safeStorage.decryptString(Buffer.from(encrypted,"base64"))}catch{event.returnValue=null}else event.returnValue=null})';
 const popout =
   "webPreferences:{nodeIntegration:!1,nativeWindowOpen:!0,enableRemoteModule:!1,contextIsolation:!0}";
-const fixture = [migration, modulePath, storage, `const popout = {${popout}}`].join(";\n");
+const tray =
+  'function getTrayIcon(){return "icon"}function create(){(tray).setToolTip(currentStrings.appName),setContextMenu()}';
+const spellcheck =
+  "electron.session.defaultSession.setSpellCheckerLanguages([locale]);electron.session.defaultSession.setSpellCheckerLanguages([...languages])";
+const fixture = [
+  require("./desktop-preferences-fixture.cjs"),
+  spellcheck,
+  tray,
+  migration,
+  modulePath,
+  storage,
+  `const popout = {${popout}}`,
+].join(";\n");
 const autostartSource =
   "const exec = app.getPath('exe');\n`Exec=${exec}\nIcon=${join(global.systemElectron ? '/usr/share/pixmaps' : dirname(exec), 'discord.png')}`";
 
@@ -25,7 +37,14 @@ test("desktop transforms disable native migration, resolve modules and install s
 });
 
 test("unknown or duplicated desktop patch sites fail before activation", () => {
-  for (const site of [migration, modulePath, storage, popout]) {
+  for (const site of [
+    migration,
+    modulePath,
+    storage,
+    popout,
+    "electron.session.defaultSession.setSpellCheckerLanguages([locale])",
+    "electron.session.defaultSession.setSpellCheckerLanguages([...languages])",
+  ]) {
     assert.throws(
       () => desktop(fixture.replace(site, "unknown"), "/adapter"),
       /Unsupported Discord client layout/,
@@ -60,10 +79,11 @@ test("bootstrap transforms restore settings through the renderer adapter and kee
   const entry =
     "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});";
   const source =
-    "before\n  app.on('browser-window-created', customize);\ncustomization();\n  desktopCore = require('discord_desktop_core');\nafter";
+    "const startMin = process.argv?.includes?.('--start-minimized');\nbefore\n  app.on('browser-window-created', customize);\ncustomization();\n  desktopCore = require('discord_desktop_core');\nafter";
   const transformed = bootstrap(source, "bootstrap.js", "/desktop-exec.cjs");
   assert.ok(!transformed.includes("customization()"));
   assert.ok(transformed.includes("renderer.cjs"));
+  assert.ok(transformed.includes("preferences.cjs').startMinimized()"));
   assert.ok(bootstrap(entry, "index.js").includes("...settings.get('openasar', {})"));
   assert.ok(transformed.endsWith("  desktopCore = require('discord_desktop_core');\nafter"));
   assert.ok(bootstrap(entry, "index.js").includes("autoupdate: false"));

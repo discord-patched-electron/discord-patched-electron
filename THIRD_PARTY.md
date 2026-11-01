@@ -77,6 +77,30 @@ under the MIT license in `integration/discord-ui/BOOTSTRAP-ICONS-LICENSE.txt`.
 The generic download arrow is an original project drawing on the same icon grid.
 Discord's own icons are resolved from the running client and are not redistributed.
 
+## Tray icon presets
+
+The **Vencord** preset contains unmodified PNG artwork from
+[Vesktop](https://github.com/Vencord/Vesktop/tree/68b3d5b36d2efc88ffd05909f2e9f24823021c90/static/tray),
+revision `68b3d5b36d2efc88ffd05909f2e9f24823021c90`, by Vendicated and Vesktop
+contributors. Vesktop supplies default and unread icons; its default icon is
+also used for voice states without a separate upstream variant.
+
+The **Equicord** preset contains unmodified PNG artwork from
+[Equibop](https://github.com/Equicord/Equibop/tree/57406f627221bc6054deb9834c18fa9cd914d96a/static/tray),
+revision `57406f627221bc6054deb9834c18fa9cd914d96a`, by Equicord/Equibop
+contributors. Equibop is derived from Vesktop, with the original Vendicated and
+Vesktop contributor notices retained. Its default, unread, connected/idle,
+speaking, muted and deafened icons are included.
+
+Both upstream projects use **GPL-3.0-or-later**; these assets retain that license,
+not this project's MIT license. The complete
+[GNU GPL version 3](integration/updater/assets/tray-presets/GPL-3.0.txt) ships with
+the presets. The [asset manifest](integration/updater/assets/tray-presets/manifest.json)
+records the upstream revisions, source paths, original image hashes and source
+archive links/checksums. Images are bundled unchanged and scaled only for display.
+Vencord, Equicord, Vesktop and Equibop names and logos belong to their respective
+projects; their inclusion does not imply endorsement.
+
 ## Python dependencies
 
 The updater bundles Capstone and pyelftools from the wheels pinned in `uv.lock`.

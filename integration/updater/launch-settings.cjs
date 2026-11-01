@@ -7,6 +7,10 @@ const closing = new WeakMap();
 
 function confirmClose(window) {
   const state = closing.get(window);
+  if (state?.saving) {
+    state.closeRequested = true;
+    return false;
+  }
   if (!state?.dirty || state.discardApproved) return true;
   const discard =
     dialog.showMessageBoxSync(window, {
@@ -70,7 +74,7 @@ function resolve(config, { recoverInvalid = false, save = false, fileRevision } 
 
 // Share the existing OpenAsar window and its sandboxed main-frame IPC.
 function attach(current) {
-  const state = { dirty: false, discardApproved: false };
+  const state = { dirty: false, saving: false, closeRequested: false, discardApproved: false };
   closing.set(current, state);
   current.webContents.ipc.on("dpe-launch-dirty", (event, dirty) => {
     if (
@@ -81,6 +85,19 @@ function attach(current) {
       return;
     if (state.dirty !== dirty) state.discardApproved = false;
     state.dirty = dirty;
+  });
+  current.webContents.ipc.on("dpe-launch-saving", (event, saving) => {
+    if (
+      event.sender !== current.webContents ||
+      event.senderFrame !== current.webContents.mainFrame ||
+      typeof saving !== "boolean"
+    )
+      return;
+    state.saving = saving;
+    if (!saving && state.closeRequested) {
+      state.closeRequested = false;
+      if (!state.dirty && !current.isDestroyed()) current.close();
+    }
   });
   const handle = (name, callback) =>
     current.webContents.ipc.handle(name, async (event, ...args) => {
@@ -116,6 +133,8 @@ function attach(current) {
     return result;
   });
   handle("dpe-launch-restart", () => {
+    if (state.saving || state.dirty)
+      return { error: "Wait for flags to save, or fix the flag error before restarting." };
     const mods = require("./mod-settings.cjs");
     if (mods.isOnboardingSettings(current)) return mods.finishSettings(current);
     if (mods.isOnboarding()) {

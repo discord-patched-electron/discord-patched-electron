@@ -37,6 +37,11 @@ function fixture({
       };
     if (name === "./desktop.cjs" || name === "./application-ready.cjs") return () => {};
     if (name === "./patches.cjs") return {};
+    if (name === "../desktop/preferences.cjs")
+      return { install: () => calls.push(["desktop-preferences"]) };
+    if (name === "./tray.cjs")
+      return { setDefaultDirectory: (directory) => calls.push(["tray-assets", directory]) };
+    if (name === "../desktop/spellcheck.cjs") return { install: () => calls.push(["spellcheck"]) };
     if (name === "./profile.cjs")
       return { paths: () => ({ init: () => calls.push(["paths"]) }), config: () => ({}) };
     if (name === "./mod-settings.cjs")
@@ -66,6 +71,7 @@ function fixture({
     console,
     setTimeout,
     process: {
+      platform: "linux",
       env: {
         DPE_APP_ROOT: "/app",
         DPE_CLIENT_HOST: "/host",
@@ -84,6 +90,13 @@ test("pending first launch never evaluates Discord before Welcome completion", a
     const calls = fixture({ existingProfile });
     await new Promise((resolve) => setImmediate(resolve));
     assert.ok(calls.some(([name]) => name === "welcome"));
+    assert.deepEqual(
+      calls.find(([name]) => name === "tray-assets"),
+      [
+        "tray-assets",
+        "/profile/app-1.0.1/modules/discord_desktop_core-1/discord_desktop_core/app/images/systemtray/linux",
+      ],
+    );
     assert.equal(
       calls.some(([name]) => name === "discord-bootstrap"),
       false,
@@ -98,6 +111,10 @@ test("pending first launch never evaluates Discord before Welcome completion", a
 test("completed or existing profiles bootstrap synchronously without a Welcome detour", () => {
   const calls = fixture({ pending: false, existingProfile: true });
   assert.ok(calls.some(([name]) => name === "discord-bootstrap"));
+  assert.ok(
+    calls.findIndex(([name]) => name === "spellcheck") <
+      calls.findIndex(([name]) => name === "discord-bootstrap"),
+  );
   assert.equal(
     calls.some(([name]) => name === "welcome"),
     false,

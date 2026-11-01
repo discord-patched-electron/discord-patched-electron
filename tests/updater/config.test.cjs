@@ -10,6 +10,21 @@ function fixture({ wayland = false, ozonePlatform = "", platform = "linux" } = {
   const ipcMain = new EventEmitter();
   const links = [];
   const flagEditors = [];
+  const spellingCalls = [];
+  const desktopCalls = [];
+  const trayCalls = [];
+  let saveError;
+  const spelling = {
+    refresh: async () => {},
+    usesSystemLanguages: require("../../integration/desktop/spellcheck.cjs").usesSystemLanguages,
+    status: () => ({
+      enabled: state.spellcheckEnabled !== false,
+      languages: state.spellcheckLanguages?.length ? state.spellcheckLanguages : ["en-GB"],
+      availableLanguages: ["en-GB", "fr"],
+      downloads: [],
+    }),
+    apply: (config) => spellingCalls.push(config),
+  };
   let state = {
     setup: true,
     setupComplete: true,
@@ -25,7 +40,9 @@ function fixture({ wayland = false, ozonePlatform = "", platform = "linux" } = {
       set: (_key, value) => {
         state = value;
       },
-      save: () => {},
+      save: () => {
+        if (saveError) throw saveError;
+      },
     },
   };
   class BrowserWindow extends EventEmitter {
@@ -84,6 +101,30 @@ function fixture({ wayland = false, ozonePlatform = "", platform = "linux" } = {
         };
       if (name === "node:fs") return {};
       if (name === "node:path") return path;
+      if (name === "../desktop/spellcheck.cjs") return spelling;
+      if (name === "../desktop/preferences.cjs") {
+        const desktop = require("../../integration/desktop/preferences.cjs");
+        return {
+          ...desktop,
+          createAuxiliaryWindow: (Window, options) => new Window(options),
+          status: () => ({ restartRequired: false }),
+          apply: (value) => desktopCalls.push(value),
+        };
+      }
+      if (name === "./tray.cjs")
+        return {
+          status: () => ({ preset: "discord", icons: [{ id: "default", custom: false }] }),
+          setPreset: (preset) => trayCalls.push(["preset", preset]),
+          setStatePreset: (state, preset) => trayCalls.push(["state-preset", state, preset]),
+          choose: (window, state) => {
+            trayCalls.push([window, state]);
+            return [];
+          },
+          reset: (state) => {
+            trayCalls.push([state]);
+            return [];
+          },
+        };
       if (name === "./profile.cjs") return { config: () => state };
       if (name === "./window.cjs") return { register() {} };
       if (name === "./presentation.cjs") return { attach() {}, trusted: () => false };
@@ -113,6 +154,12 @@ function fixture({ wayland = false, ozonePlatform = "", platform = "linux" } = {
     ipcMain,
     links,
     flagEditors,
+    spellingCalls,
+    desktopCalls,
+    trayCalls,
+    failSave: () => {
+      saveError = new Error("disk full");
+    },
     event,
     get state() {
       return state;
@@ -243,10 +290,134 @@ test("cached editable config cannot overwrite backend state or escape window IPC
   await assert.rejects(link({ sender: {}, senderFrame: {} }, "github"), /Invalid settings window/);
   await link(f.event(window), "github");
   assert.equal(f.links.length, 1);
+  await link(f.event(window), "attributions");
+  assert.equal(
+    f.links.at(-1),
+    "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/THIRD_PARTY.md",
+  );
   await link(f.event(window), "openh264-license");
   assert.equal(f.links.at(-1), "/app/integration/updater/OPENH264-BINARY-LICENSE.txt");
   f.ipcMain.emit("cr", f.event(window));
   assert.equal(window.messages.at(-1)[0], "dpe-setup-reminder");
   window.emit("closed");
   assert.equal(f.ipcMain.listenerCount("cs"), 0);
+});
+
+test("spelling IPC validates languages and preserves unrelated settings and automatic selection", async () => {
+  const f = fixture();
+  const window = f.api.open("settings");
+  const load = window.handlers.get("dpe-spellcheck-load");
+  const save = window.handlers.get("dpe-spellcheck-save");
+  assert.equal((await load(f.event(window))).configuredLanguages.length, 0);
+  await assert.rejects(
+    save({ sender: window.webContents, senderFrame: {} }, { enabled: true, languages: ["fr"] }),
+    /Invalid settings/,
+  );
+  for (const value of [
+    null,
+    { enabled: 1, languages: [] },
+    { enabled: true, languages: "fr" },
+    { enabled: true, languages: ["unknown"] },
+    { enabled: true, languages: [], useSystemLanguages: "yes" },
+  ])
+    await assert.rejects(save(f.event(window), value), /supported spelling/);
+  const result = await save(f.event(window), {
+    enabled: true,
+    languages: ["en-GB", "fr"],
+    clientMod: "none",
+  });
+  assert.deepEqual(Array.from(result.configuredLanguages), ["en-GB", "fr"]);
+  assert.equal(f.state.clientMod, "vencord");
+  assert.equal(f.spellingCalls.length, 1);
+  f.ipcMain.emit("cs", f.event(window), { quickstart: true, spellcheckLanguages: [] });
+  assert.deepEqual(
+    Array.from(f.state.spellcheckLanguages),
+    ["en-GB", "fr"],
+    "stale General snapshot cannot overwrite spelling",
+  );
+  await save(f.event(window), { enabled: false, languages: [] });
+  assert.equal(f.state.spellcheckEnabled, false);
+  assert.equal(f.state.spellcheckLanguages.length, 0);
+  f.failSave();
+  await assert.rejects(save(f.event(window), { enabled: true, languages: ["fr"] }), /disk full/);
+  assert.equal(f.state.spellcheckEnabled, false);
+  assert.equal(f.spellingCalls.length, 2, "failed persistence must not apply runtime changes");
+});
+
+test("empty manual spelling selection disables checking without switching to system languages", async () => {
+  const f = fixture();
+  const window = f.api.open("settings");
+  const save = window.handlers.get("dpe-spellcheck-save");
+  const result = await save(f.event(window), {
+    enabled: true,
+    languages: [],
+    useSystemLanguages: false,
+  });
+  assert.equal(result.enabled, false);
+  assert.equal(result.useSystemLanguages, false);
+  assert.equal(result.configuredLanguages.length, 0);
+  assert.equal(f.state.spellcheckEnabled, false);
+});
+
+test("tray operations stay in the owning settings window", async () => {
+  const f = fixture();
+  const window = f.api.open("theming");
+  const choose = window.handlers.get("dpe-tray-choose");
+  await assert.rejects(choose({ sender: {}, senderFrame: {} }, "default"), /Invalid settings/);
+  await choose(f.event(window), "speaking");
+  assert.deepEqual(f.trayCalls, [[window, "speaking"]]);
+  await window.handlers.get("dpe-tray-reset")(f.event(window), "default");
+  assert.deepEqual(f.trayCalls[1], ["default"]);
+  assert.equal(
+    (await window.handlers.get("dpe-tray-load")(f.event(window))).icons[0].id,
+    "default",
+  );
+  const preset = window.handlers.get("dpe-tray-preset");
+  await assert.rejects(preset({ sender: {}, senderFrame: {} }, "vencord"), /Invalid settings/);
+  await preset(f.event(window), "vencord");
+  assert.deepEqual(f.trayCalls[2], ["preset", "vencord"]);
+  const statePreset = window.handlers.get("dpe-tray-state-preset");
+  await assert.rejects(
+    statePreset({ sender: {}, senderFrame: {} }, "unread", "equicord"),
+    /Invalid settings/,
+  );
+  await statePreset(f.event(window), "unread", "equicord");
+  assert.deepEqual(f.trayCalls[3], ["state-preset", "unread", "equicord"]);
+});
+
+test("desktop IPC validates patches, preserves unrelated preferences and rolls back failed writes", async () => {
+  const f = fixture();
+  const window = f.api.open();
+  const event = f.event(window);
+  const load = window.handlers.get("dpe-desktop-load");
+  const save = window.handlers.get("dpe-desktop-save");
+  assert.equal((await load(event)).values.nativeTitlebar, false);
+  for (const invalid of [
+    null,
+    [],
+    { unknown: true },
+    { tray: "no" },
+    { webRtcIPHandlingPolicy: "anything" },
+    { webRtcIPHandlingPolicy: "default" },
+  ])
+    await assert.rejects(save(event, invalid), /supported desktop/);
+  await assert.rejects(save({ sender: {}, senderFrame: {} }, { tray: false }), /Invalid settings/);
+  await save(event, { minimizeButton: false });
+  await save(event, { nativeTitlebar: true });
+  assert.equal(f.state.desktop.minimizeButton, false);
+  assert.equal(f.state.desktop.nativeTitlebar, true);
+  assert.equal(f.state.clientMod, "vencord");
+  f.ipcMain.emit("cs", event, { quickstart: true, desktop: { tray: false } });
+  assert.equal(
+    f.state.desktop.tray,
+    true,
+    "stale General snapshots cannot overwrite desktop preferences",
+  );
+  await save(event, { startMinimized: true });
+  assert.equal(f.state.desktop.startMinimized, true);
+  const previous = f.state.desktop;
+  f.failSave();
+  await assert.rejects(save(event, { tray: false }), /disk full/);
+  assert.equal(f.state.desktop, previous);
+  assert.equal(f.desktopCalls.length, 3, "failed persistence never changes the live desktop");
 });

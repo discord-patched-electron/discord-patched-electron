@@ -4,6 +4,42 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Implementation context, build
 handoffs and test results are indexed in [docs/agent/README.md](docs/agent/README.md).
 Keep user docs short; put investigation notes in that directory.
 
+## Discord replica UI
+
+- DPE surfaces must look like Discord's current settings and dialogs. Reuse the
+  local replica components; do not introduce generic browser controls or a new
+  visual design for a feature. Keep new settings in the separate DPE window.
+- Compose settings with Preact in `integration/updater/ui/`. Start with
+  `primitives.jsx` and `settings-controls.js`: use the shared Switch, Button,
+  Icon, disclosure and upgraded select controls. Language controls use the same
+  switch as other settings. Reuse the existing search-field treatment.
+- Share styling through `integration/discord-ui/components.css` and semantic
+  tokens. Preserve live Discord colors, typography, spacing, radii, control
+  heights, root font size and zoom from the presentation bridge. Use measured,
+  bounded fallbacks when upstream tokens are unavailable, not hardcoded copies
+  of a screenshot's scaled pixel sizes.
+- Route icons through the shared icon component/resolver. Preserve the native
+  drawing, viewBox and opacity; use the existing fallback set when needed.
+  Do not substitute emoji, text glyphs or unrelated icon libraries.
+- Extend a shared component when a new state is needed instead of copying its
+  markup and styling into a page. Controlled inputs must reflect new values,
+  disabled states and callbacks after rerenders. Keep focus, selection and scroll
+  stable during saves, filtering and status refreshes.
+- Implement requested changes without adding unnecessary confirmation text,
+  status banners or subtitles merely to show that work was done. Add copy when
+  it explains a setting, a real error, or an action the user needs to take.
+- Check enabled, disabled, selected, loading, empty and error states; keyboard
+  use; narrow windows, zoom and long labels; reduced motion; and theme tokens.
+  Run the real settings harness for changes to settings components and layout.
+  Do not claim exact visual parity from unit tests alone.
+
+See [shared UI architecture](docs/agent/discord-ui.md) and the
+[measured Discord UI work](docs/agent/discord-native-ui-20261031.md) for rationale,
+component provenance and validation. These conventions apply to all future UI
+changes, including new tabs and settings.
+
+## Working rules
+
 - Use `uv run` for Python. Run `bun run lint` before finishing, and `bun run test`
   for code, configuration or workflow changes. Documentation-only edits need lint
   and a review of changed links/instructions. Scope integration checks to affected

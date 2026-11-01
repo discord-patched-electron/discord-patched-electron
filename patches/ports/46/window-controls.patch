@@ -1,0 +1,332 @@
+diff --git a/patches/chromium/.patches b/patches/chromium/.patches
+index 92c22a7d86..ac41257ff0 100644
+--- a/patches/chromium/.patches
++++ b/patches/chromium/.patches
+@@ -174,3 +174,4 @@ fix_wait_for_va-api_frame_completion_before_output.patch
+ fix_pointer_lock_in_views_that_only_receive_forwarded_input.patch
+ fix_media_gracefully_handle_discard_overflow_in_audiodiscardhelper.patch
+ keep_primary_paste_command_line_override.patch
++allow_per_window_frame_button_visibility.patch
+diff --git a/patches/chromium/allow_per_window_frame_button_visibility.patch b/patches/chromium/allow_per_window_frame_button_visibility.patch
+new file mode 100644
+index 0000000000..f924c4b3df
+--- /dev/null
++++ b/patches/chromium/allow_per_window_frame_button_visibility.patch
+@@ -0,0 +1,48 @@
++Subject: feat: separate Linux frame-button visibility from WM capabilities
++
++Keep titlebar layout and hit testing native while allowing per-window controls.
++
++diff --git a/ui/views/window/frame_view_layout_linux.cc b/ui/views/window/frame_view_layout_linux.cc
++index b42ad7e402..fd537b2a41 100644
++--- a/ui/views/window/frame_view_layout_linux.cc
+++++ b/ui/views/window/frame_view_layout_linux.cc
++@@ -235,6 +235,10 @@ bool FrameViewLayoutLinux::ConfigureButton(FrameButton button_id,
++                                            bool is_first,
++                                            int& next_button_x) {
++   Widget* widget = view_->GetWidget();
+++  if (!view_->IsFrameButtonVisible(button_id)) {
+++    HideButton(button_id);
+++    return false;
+++  }
++ 
++   switch (button_id) {
++     case FrameButton::kMinimize: {
++diff --git a/ui/views/window/frame_view_linux.cc b/ui/views/window/frame_view_linux.cc
++index 4ba8af33a1..cb55f0bde5 100644
++--- a/ui/views/window/frame_view_linux.cc
+++++ b/ui/views/window/frame_view_linux.cc
++@@ -201,6 +201,10 @@ void FrameViewLinux::ResetWindowControls() {
++   }
++ }
++ 
+++bool FrameViewLinux::IsFrameButtonVisible(FrameButton frame_button) const {
+++  return true;
+++}
+++
++ bool FrameViewLinux::HasWindowTitle() const {
++   return widget_->widget_delegate()->ShouldShowWindowTitle();
++ }
++diff --git a/ui/views/window/frame_view_linux.h b/ui/views/window/frame_view_linux.h
++index 5cf4ba004c..686c27d36b 100644
++--- a/ui/views/window/frame_view_linux.h
+++++ b/ui/views/window/frame_view_linux.h
++@@ -98,6 +98,9 @@ class VIEWS_EXPORT FrameViewLinux : public FrameView,
++   // state.
++   Button* GetFrameButton(FrameButton frame_button);
++ 
+++  // Visibility is independent of the window manager's action capabilities.
+++  virtual bool IsFrameButtonVisible(FrameButton frame_button) const;
+++
++   // Returns the button corresponding to `type`.
++   Button* GetButtonFromType(ui::NavButtonProvider::FrameButtonDisplayType type);
++ 
+diff --git a/shell/browser/api/electron_api_base_window.cc b/shell/browser/api/electron_api_base_window.cc
+index 65db7c11bc..e3cdbb7394 100644
+--- a/shell/browser/api/electron_api_base_window.cc
++++ b/shell/browser/api/electron_api_base_window.cc
+@@ -950,6 +950,29 @@ v8::Local<v8::Value> BaseWindow::GetAccentColor() const {
+ }
+ #endif
+ 
++#if BUILDFLAG(IS_LINUX)
++void BaseWindow::SetWindowControls(const gin_helper::Dictionary& options,
++                                  gin::Arguments* args) {
++  NativeWindow::WindowControls controls;
++  if (!options.Get("minimize", &controls.minimize) ||
++      !options.Get("maximize", &controls.maximize) ||
++      !options.Get("close", &controls.close)) {
++    args->ThrowTypeError("minimize, maximize and close must be booleans");
++    return;
++  }
++  window_->SetWindowControls(controls);
++}
++
++gin_helper::Dictionary BaseWindow::GetWindowControls(v8::Isolate* isolate) const {
++  auto result = gin_helper::Dictionary::CreateEmpty(isolate);
++  const auto controls = window_->GetWindowControls();
++  result.Set("minimize", controls.minimize);
++  result.Set("maximize", controls.maximize);
++  result.Set("close", controls.close);
++  return result;
++}
++#endif
++
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+ void BaseWindow::SetTitleBarOverlay(const gin_helper::Dictionary& options,
+                                     gin::Arguments* args) {
+@@ -1281,6 +1304,10 @@ void BaseWindow::BuildPrototype(v8::Isolate* isolate,
+       .SetMethod<&BaseWindow::SetThumbnailToolTip>("setThumbnailToolTip")
+       .SetMethod<&BaseWindow::SetAppDetails>("setAppDetails")
+ #endif
++#if BUILDFLAG(IS_LINUX)
++      .SetMethod<&BaseWindow::SetWindowControls>("setWindowControls")
++      .SetMethod<&BaseWindow::GetWindowControls>("getWindowControls")
++#endif
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+       .SetMethod<&BaseWindow::SetTitleBarOverlay>("setTitleBarOverlay")
+ #endif
+diff --git a/shell/browser/api/electron_api_base_window.h b/shell/browser/api/electron_api_base_window.h
+index 0690c8051f..b25a557229 100644
+--- a/shell/browser/api/electron_api_base_window.h
++++ b/shell/browser/api/electron_api_base_window.h
+@@ -211,6 +211,11 @@ class BaseWindow : public gin_helper::TrackableObject<BaseWindow>,
+   v8::Local<v8::Value> GetAccentColor() const;
+ #endif
+ 
++#if BUILDFLAG(IS_LINUX)
++  void SetWindowControls(const gin_helper::Dictionary& options,
++                         gin::Arguments* args);
++  gin_helper::Dictionary GetWindowControls(v8::Isolate* isolate) const;
++#endif
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+   void SetTitleBarOverlay(const gin_helper::Dictionary& options,
+                           gin::Arguments* args);
+diff --git a/shell/browser/native_window.h b/shell/browser/native_window.h
+index 385b028732..4f020e4426 100644
+--- a/shell/browser/native_window.h
++++ b/shell/browser/native_window.h
+@@ -153,6 +153,17 @@ class NativeWindow : public views::WidgetDelegate {
+   virtual bool IsFullScreenable() const = 0;
+   virtual void SetClosable(bool closable) = 0;
+   virtual bool IsClosable() const = 0;
++#if BUILDFLAG(IS_LINUX)
++  struct WindowControls {
++    bool minimize = true;
++    bool maximize = true;
++    bool close = true;
++    bool AllVisible() const { return minimize && maximize && close; }
++    bool operator==(const WindowControls&) const = default;
++  };
++  virtual void SetWindowControls(const WindowControls& controls) = 0;
++  WindowControls GetWindowControls() const { return window_controls_; }
++#endif
+   virtual void SetAlwaysOnTop(ui::ZOrderLevel z_order,
+                               const std::string& level,
+                               int relativeLevel) = 0;
+@@ -484,7 +495,20 @@ class NativeWindow : public views::WidgetDelegate {
+     titlebar_overlay_height_ = height;
+   }
+ 
+-  [[nodiscard]] bool has_client_frame() const { return has_client_frame_; }
++  [[nodiscard]] bool has_client_frame() const {
++#if BUILDFLAG(IS_LINUX)
++    // Server decorations have no portable per-button visibility protocol.
++    // Use the existing native toolkit frame only for restricted framed windows.
++    return has_client_frame_ || use_client_frame_for_controls_;
++#else
++    return has_client_frame_;
++#endif
++  }
++
++#if BUILDFLAG(IS_LINUX)
++  WindowControls window_controls_;
++  bool use_client_frame_for_controls_ = false;
++#endif
+ 
+   [[nodiscard]] bool transparent() const { return transparent_; }
+ 
+diff --git a/shell/browser/native_window_views.cc b/shell/browser/native_window_views.cc
+index 4b17dc8dd4..3916ff6cbc 100644
+--- a/shell/browser/native_window_views.cc
++++ b/shell/browser/native_window_views.cc
+@@ -1193,6 +1193,70 @@ bool NativeWindowViews::IsClosable() const {
+ #endif
+ }
+ 
++#if BUILDFLAG(IS_LINUX)
++void NativeWindowViews::SetWindowControls(const WindowControls& controls) {
++  if (window_controls_ == controls)
++    return;
++
++  window_controls_ = controls;
++  UpdateWindowControls();
++}
++
++void NativeWindowViews::OnWidgetShowStateChanged(views::Widget* widget) {
++  if (pending_window_controls_ && !IsMinimized())
++    UpdateWindowControls();
++}
++
++void NativeWindowViews::UpdateWindowControls() {
++  // Restored bounds still belong to the old frame while the WM has the window
++  // minimized. Apply after its native restore acknowledgement, when the client
++  // geometry is current; never resize/redecorate an unmapped restore target.
++  if (IsMinimized()) {
++    pending_window_controls_ = true;
++    return;
++  }
++  pending_window_controls_ = false;
++  widget()->LayoutRootViewIfNecessary();
++  const bool had_client_frame = has_client_frame();
++  const gfx::Rect content_bounds = GetContentBounds();
++  use_client_frame_for_controls_ = has_frame() && !window_controls_.AllVisible();
++  if (has_frame() && had_client_frame != has_client_frame()) {
++    // Reuse Chromium's native GTK frame, not a renderer titlebar. Changing only
++    // decorations keeps minimize/maximize/close shortcuts and capabilities.
++    widget()->set_frame_type(has_client_frame()
++                                 ? views::Widget::FrameType::kForceCustom
++                                 : views::Widget::FrameType::kForceNative);
++    widget()->FrameTypeChanged();
++  }
++  auto* tree_host = static_cast<ElectronDesktopWindowTreeHostLinux*>(
++      views::DesktopWindowTreeHostLinux::GetHostForWidget(GetAcceleratedWidget()));
++  if (auto* frame = GetFrameViewLinux()) {
++    if (tree_host)
++      frame->SetSupportsClientFrameShadow(tree_host->SupportsClientFrameShadow() &&
++                                         !IsTranslucent());
++    frame->InvalidateLayout();
++    frame->SchedulePaint();
++  }
++  if (has_frame() && had_client_frame != has_client_frame() &&
++      !IsMaximized() && !IsMinimized() && !IsFullscreen())
++    SetBounds(ContentBoundsToWindowBounds(content_bounds), false);
++  widget()->LayoutRootViewIfNecessary();
++  if (tree_host)
++    tree_host->UpdateFrameHints();
++}
++
++bool NativeWindowViews::IsFrameButtonVisible(views::FrameButton button) const {
++  switch (button) {
++    case views::FrameButton::kMinimize:
++      return window_controls_.minimize;
++    case views::FrameButton::kMaximize:
++      return window_controls_.maximize;
++    case views::FrameButton::kClose:
++      return window_controls_.close;
++  }
++}
++#endif
++
+ void NativeWindowViews::SetAlwaysOnTop(const ui::ZOrderLevel z_order,
+                                        const std::string& level,
+                                        const int relativeLevel) {
+diff --git a/shell/browser/native_window_views.h b/shell/browser/native_window_views.h
+index 3e5e21538f..77e5c67489 100644
+--- a/shell/browser/native_window_views.h
++++ b/shell/browser/native_window_views.h
+@@ -36,6 +36,7 @@ class Arguments;
+ #if BUILDFLAG(IS_LINUX)
+ namespace views {
+ class FrameViewLinux;
++enum class FrameButton;
+ }  // namespace views
+ #endif
+ 
+@@ -106,6 +107,10 @@ class NativeWindowViews : public NativeWindow,
+   bool IsFullScreenable() const override;
+   void SetClosable(bool closable) override;
+   bool IsClosable() const override;
++#if BUILDFLAG(IS_LINUX)
++  void SetWindowControls(const WindowControls& controls) override;
++  bool IsFrameButtonVisible(views::FrameButton button) const;
++#endif
+   void SetAlwaysOnTop(ui::ZOrderLevel z_order,
+                       const std::string& level,
+                       int relativeLevel) override;
+@@ -234,6 +239,11 @@ class NativeWindowViews : public NativeWindow,
+                              const gfx::Rect& bounds) override;
+   void OnWidgetDestroying(views::Widget* widget) override;
+   void OnWidgetDestroyed(views::Widget* widget) override;
++#if BUILDFLAG(IS_LINUX)
++  void OnWidgetShowStateChanged(views::Widget* widget) override;
++  void UpdateWindowControls();
++  bool pending_window_controls_ = false;
++#endif
+ 
+   // views::WidgetDelegate:
+   views::View* GetInitiallyFocusedView() override;
+diff --git a/shell/browser/ui/views/electron_frame_view_linux.cc b/shell/browser/ui/views/electron_frame_view_linux.cc
+index 269c31ffc1..61edecfb2c 100644
+--- a/shell/browser/ui/views/electron_frame_view_linux.cc
++++ b/shell/browser/ui/views/electron_frame_view_linux.cc
+@@ -325,6 +325,10 @@ void ElectronFrameViewLinux::LayoutWindowControlsOverlay() {
+   window_->NotifyLayoutWindowControlsOverlay();
+ }
+ 
++bool ElectronFrameViewLinux::IsFrameButtonVisible(views::FrameButton button) const {
++  return window_->IsFrameButtonVisible(button);
++}
++
+ BEGIN_METADATA(ElectronFrameViewLinux)
+ END_METADATA
+ 
+diff --git a/shell/browser/ui/views/electron_frame_view_linux.h b/shell/browser/ui/views/electron_frame_view_linux.h
+index 79f34a3690..5db87e93be 100644
+--- a/shell/browser/ui/views/electron_frame_view_linux.h
++++ b/shell/browser/ui/views/electron_frame_view_linux.h
+@@ -54,6 +54,7 @@ class ElectronFrameViewLinux : public views::NativeFrameViewLinux {
+   void Layout(PassKey) override;
+   gfx::Size GetMinimumSize() const override;
+   gfx::Size GetMaximumSize() const override;
++  bool IsFrameButtonVisible(views::FrameButton button) const override;
+ 
+  protected:
+   // views::FrameViewLinux:
+diff --git a/shell/browser/ui/views/native_frame_view_linux.cc b/shell/browser/ui/views/native_frame_view_linux.cc
+index 1582452c6a..ff5df4396d 100644
+--- a/shell/browser/ui/views/native_frame_view_linux.cc
++++ b/shell/browser/ui/views/native_frame_view_linux.cc
+@@ -46,6 +46,10 @@ gfx::Size NativeFrameViewLinux::GetMaximumSize() const {
+   return window_->GetMaximumSize();
+ }
+ 
++bool NativeFrameViewLinux::IsFrameButtonVisible(views::FrameButton button) const {
++  return window_->IsFrameButtonVisible(button);
++}
++
+ BEGIN_METADATA(NativeFrameViewLinux)
+ END_METADATA
+ 
+diff --git a/shell/browser/ui/views/native_frame_view_linux.h b/shell/browser/ui/views/native_frame_view_linux.h
+index aec15ef48c..0ce7f8cc45 100644
+--- a/shell/browser/ui/views/native_frame_view_linux.h
++++ b/shell/browser/ui/views/native_frame_view_linux.h
+@@ -34,6 +34,7 @@ class NativeFrameViewLinux : public views::NativeFrameViewLinux {
+   int NonClientHitTest(const gfx::Point& point) override;
+   gfx::Size GetMinimumSize() const override;
+   gfx::Size GetMaximumSize() const override;
++  bool IsFrameButtonVisible(views::FrameButton button) const override;
+ 
+  private:
+   raw_ptr<NativeWindowViews> window_ = nullptr;

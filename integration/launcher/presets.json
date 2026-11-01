@@ -55,6 +55,28 @@
     }
   },
   "experiments": {
+    "middleClickAutoscroll": {
+      "label": "Middle-click autoscroll",
+      "description": "Click the middle mouse button, then move the pointer to scroll. Disables middle-click paste while enabled.",
+      "group": "input",
+      "experimental": false,
+      "flags": ["--enable-features=MiddleClickAutoscroll"]
+    },
+    "disableMiddleClickPaste": {
+      "label": "Disable middle-click paste",
+      "description": "Stop middle-click from pasting selected text. Links and other middle-click actions still work.",
+      "group": "input",
+      "experimental": false,
+      "flags": ["--blink-settings=middleClickPasteAllowed=false"]
+    },
+    "disableSmoothScrolling": {
+      "label": "Disable smooth scrolling",
+      "description": "Scroll immediately without animated transitions.",
+      "group": "input",
+      "experimental": false,
+      "blockedBy": ["--enable-smooth-scrolling"],
+      "flags": ["--disable-smooth-scrolling"]
+    },
     "nvidiaVaapi": {
       "label": "Allow VA-API on NVIDIA GPUs",
       "description": "Use NVIDIA's VA-API driver to decode supported video formats.",

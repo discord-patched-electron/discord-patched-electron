@@ -24,6 +24,10 @@ function bootstrap(source, filename, desktopExec) {
       source.slice(0, start) +
       "  require(process.env.DPE_APP_ROOT + '/integration/updater/renderer.cjs')(app, splash, oaConfig);\n" +
       source.slice(finish);
+    patch(
+      "const startMin = process.argv?.includes?.('--start-minimized');",
+      "const startMin = require(process.env.DPE_APP_ROOT + '/integration/desktop/preferences.cjs').startMinimized();",
+    );
   } else if (filename === "index.js") {
     patch(
       "process.resourcesPath = join(__dirname, '..');",
@@ -50,6 +54,20 @@ function bootstrap(source, filename, desktopExec) {
 }
 
 function desktop(source, adapter) {
+  source = require("../desktop/preferences-patch.cjs").patch(
+    source,
+    require("node:path").join(require("node:path").dirname(adapter), "preferences.cjs"),
+    replace,
+  );
+  source = require("../desktop/spellcheck.cjs").patchDesktop(
+    source,
+    require("node:path").join(require("node:path").dirname(adapter), "spellcheck.cjs"),
+    replace,
+  );
+  source = require("./tray-patch.cjs").patch(
+    source,
+    require("node:path").join(require("node:path").dirname(adapter), "../updater/tray.cjs"),
+  );
   // This installation already has a module updater. Do not offer Discord's
   // legacy-to-native migration, which would download and launch stock Electron.
   source = replace(

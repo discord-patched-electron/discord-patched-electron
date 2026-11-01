@@ -32,19 +32,91 @@ export function Button({ icon, children, variant = "secondary", className = "", 
   );
 }
 
-export function Switch({ id, label, description, checked, experimental, onChange }) {
+// Match the screen-share audio dialog's inline separator and spacing tokens.
+export function InlineBullet() {
+  return (
+    <span class="dpe-inline-bullet" aria-hidden="true">
+      •
+    </span>
+  );
+}
+
+// Share the measured Discord advanced-settings disclosure across settings pages.
+export function Disclosure({
+  id,
+  label,
+  expandedLabel,
+  description,
+  experimental,
+  className = "",
+  children,
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      id={id}
+      class={`dpe-disclosure ${className}`}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary aria-describedby={description ? `${id}-description` : undefined}>
+        <span class="disclosure-copy">
+          <span class="disclosure-title">
+            {experimental && (
+              <Icon name="experimental" label="Experimental" className="risk-icon" />
+            )}
+            <span id={`${id}-label`}>{open && expandedLabel ? expandedLabel : label}</span>
+          </span>
+          {description && (
+            <span id={`${id}-description`} class="hint disclosure-description">
+              {description}
+            </span>
+          )}
+        </span>
+        <span class="disclosure-action" aria-hidden="true">
+          <Icon name="chevron" className="details-chevron" />
+        </span>
+      </summary>
+      <div class="disclosure-content">{children}</div>
+    </details>
+  );
+}
+
+export function Switch({
+  id,
+  label,
+  description,
+  checked,
+  disabled = false,
+  value,
+  experimental,
+  onChange,
+}) {
   const host = useRef();
+  const inputRef = useRef();
+  const change = useRef(onChange);
+  change.current = onChange;
   useLayoutEffect(() => {
     const input = document.createElement("input");
     input.id = id;
     input.type = "checkbox";
     input.checked = checked;
-    input.setAttribute("aria-label", label);
+    input.disabled = disabled;
+    inputRef.current = input;
     input.setAttribute("aria-labelledby", `${id}-label`);
-    input.setAttribute("aria-describedby", `${id}-help`);
-    input.onchange = () => onChange(input.checked);
+    input.onchange = () => change.current(input.checked);
     host.current.append(window.DPEControls.switchControl(input));
+    return () => host.current?.replaceChildren();
   }, []);
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    input.checked = checked;
+    input.disabled = disabled;
+    input.value = value ?? "on";
+    if (description) input.setAttribute("aria-describedby", `${id}-help`);
+    else input.removeAttribute("aria-describedby");
+    if (typeof label === "string") input.setAttribute("aria-label", label);
+    else input.removeAttribute("aria-label");
+  });
   return (
     <div class="setting-row">
       <div>
@@ -52,11 +124,67 @@ export function Switch({ id, label, description, checked, experimental, onChange
           {experimental && <Icon name="experimental" label="Experimental" className="risk-icon" />}
           {label}
         </label>
+        {description && (
+          <p id={`${id}-help`} class="hint">
+            {description}
+          </p>
+        )}
+      </div>
+      <span ref={host} />
+    </div>
+  );
+}
+
+export function Select({
+  id,
+  label,
+  value,
+  options,
+  disabled = false,
+  description,
+  placeholder,
+  onChange,
+}) {
+  const host = useRef();
+  const input = useRef();
+  const control = useRef();
+  const change = useRef(onChange);
+  change.current = onChange;
+  useLayoutEffect(() => {
+    const select = document.createElement("select");
+    select.id = id;
+    select.name = id;
+    select.onchange = () => change.current(select.value);
+    host.current.append(select);
+    input.current = select;
+    control.current = window.DPEControls.upgradeSelect(select);
+    return () => {
+      control.current.destroy();
+      host.current?.replaceChildren();
+    };
+  }, []);
+  useLayoutEffect(() => {
+    input.current.replaceChildren(...options.map(([key, text]) => new Option(text, key)));
+  }, [options]);
+  useLayoutEffect(() => {
+    input.current.value = value;
+    input.current.dataset.placeholder = placeholder || "";
+    input.current.disabled = disabled;
+    if (description) control.current.trigger.setAttribute("aria-describedby", `${id}-help`);
+    else control.current.trigger.removeAttribute("aria-describedby");
+    control.current.sync();
+  });
+  return (
+    <div class="desktop-select-setting">
+      <label id={`${id}-label`} for={id}>
+        {label}
+      </label>
+      <div ref={host} />
+      {description && (
         <p id={`${id}-help`} class="hint">
           {description}
         </p>
-      </div>
-      <span ref={host} />
+      )}
     </div>
   );
 }
@@ -113,7 +241,12 @@ function WindowGlyph({ name }) {
 }
 
 export function WindowTitle({ welcome, busy, onError }) {
-  const { maximized } = useContext(Presentation);
+  const {
+    maximized,
+    windowControls: controls = { minimizeButton: true, maximizeButton: true, closeButton: true },
+  } = useContext(Presentation);
+  const visible =
+    controls.minimizeButton || (!welcome && controls.maximizeButton) || controls.closeButton;
   const action = async (name) => {
     try {
       await window.Native.windowAction(name);
@@ -122,7 +255,7 @@ export function WindowTitle({ welcome, busy, onError }) {
     }
   };
   return (
-    <header class="window-title">
+    <header class="window-title" hidden={!visible}>
       <h1 class="sr-only">{welcome ? "Welcome to DPE" : "DPE Settings"}</h1>
       <div class="window-actions">
         <button
@@ -130,6 +263,8 @@ export function WindowTitle({ welcome, busy, onError }) {
           class="window-action"
           type="button"
           aria-label="Minimise"
+          hidden={!controls.minimizeButton}
+          disabled={!controls.minimizeButton}
           onClick={() => action("minimize")}
         >
           <WindowGlyph name="minimize" />
@@ -140,6 +275,8 @@ export function WindowTitle({ welcome, busy, onError }) {
             class="window-action"
             type="button"
             aria-label={maximized ? "Restore" : "Maximise"}
+            hidden={!controls.maximizeButton}
+            disabled={!controls.maximizeButton}
             onClick={() => action("maximize")}
           >
             <WindowGlyph name={maximized ? "restore" : "maximize"} />
@@ -150,7 +287,8 @@ export function WindowTitle({ welcome, busy, onError }) {
           class="window-action window-close"
           type="button"
           aria-label={welcome ? "Close setup" : "Close settings"}
-          disabled={busy}
+          hidden={!controls.closeButton}
+          disabled={busy || !controls.closeButton}
           onClick={() => action("close")}
         >
           <WindowGlyph name="close" />
