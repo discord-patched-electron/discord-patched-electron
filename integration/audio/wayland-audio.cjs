@@ -70,6 +70,7 @@ function wrap(
     warn = (message) => console.warn("[dpe-app-audio]", message),
     pickerUI = audioPicker,
     autoDetect = detection.enabled,
+    skipScreenPicker = detection.skipScreenPicker,
     disableAudio = disableStreamAudio,
   } = {},
 ) {
@@ -82,6 +83,7 @@ function wrap(
     disposed = false,
     readyPid = 0,
     automatic = true,
+    skipScreen = true,
     endedCallback;
   let lastState = null;
   let observationTimer;
@@ -122,7 +124,7 @@ function wrap(
     helper = child;
     let lastObservations = "";
     observationTimer = setInterval(() => {
-      if (helper !== child || disposed || !automatic || forcePicker) return;
+      if (helper !== child || disposed || (!automatic && !skipScreen) || forcePicker) return;
       const message = JSON.stringify({ generation, observations: observations.snapshot() });
       if (message !== lastObservations) child.stdin.write(message + "\n");
       lastObservations = message;
@@ -246,6 +248,7 @@ function wrap(
     }
     audioInitialized = true;
     automatic = autoDetect();
+    skipScreen = skipScreenPicker();
     const child = ensureHelper();
     child.stdin.write(
       JSON.stringify({
@@ -253,6 +256,7 @@ function wrap(
         enabled: true,
         hint,
         autoDetect: automatic,
+        skipScreenPicker: skipScreen,
         forcePicker,
         observations: observations.snapshot(),
         picker: pickerUI.available() ? "inline" : "native",

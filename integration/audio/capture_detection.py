@@ -17,8 +17,10 @@ def application_pid(identifier, windows, entries, identity, descendant, audio_pi
         return None
     # Compositor metadata identifies the window owner even before it plays sound.
     pids = {w["pid"] for w in windows if app_id(w.get("app_id")) == identifier}
-    if not pids:
-        pids = {
+    # Audio metadata can reveal another running instance absent from the window
+    # inventory. A matching ID is not sufficient when process families disagree.
+    pids.update(
+        {
             audio_pid(p)
             for p in entries
             if identifier
@@ -28,6 +30,7 @@ def application_pid(identifier, windows, entries, identity, descendant, audio_pi
                 app_id(p.get("application.process.binary")),
             }
         }
+    )
     identities = [identity(pid) for pid in pids]
     if not identities or any(item is None for item in identities):
         return None

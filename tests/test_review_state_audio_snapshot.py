@@ -140,6 +140,7 @@ class SnapshotProcessReview(unittest.TestCase):
         with (
             patch.dict(os.environ, {}, clear=True),
             patch.object(audio, "process_identity", side_effect=identities.get),
+            patch.object(audio.os, "readlink", return_value="/fixture/application"),
             patch.object(audio, "discord_root", return_value=identities[100]),
             patch.object(audio, "graph", return_value=[]),
             patch.object(audio, "command", return_value="[]"),

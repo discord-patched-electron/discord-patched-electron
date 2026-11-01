@@ -51,6 +51,7 @@ function devices(get, label) {
 }
 const events = [];
 const completedPhases = [];
+const voiceStartup = [];
 const privateDevice = (d) =>
   [d.guid, d.name].some(
     (value) =>
@@ -152,6 +153,51 @@ async function capture(name, change, settle = 2000) {
   completedPhases.push(name);
 }
 (async () => {
+  if (process.env.DPE_FIXTURE_VOICE_STARTUP === "1") {
+    // This fixture runs in a private network/audio namespace. Only native
+    // control completions are inspected, and no remote server is contacted.
+    for (let cycle = 0; cycle < 20; cycle++) {
+      stage(`voice-startup:${cycle}`);
+      const started = Date.now();
+      const connections = Array.from({ length: (cycle % 2) + 1 }, (_, index) =>
+        voice.createVoiceConnectionWithOptions(
+          String(2000 + cycle * 2 + index),
+          { ssrc: 50 + index, address: "127.0.0.1", port: 50000 + index, streamParameters: [] },
+          () => {},
+        ),
+      );
+      const logfile = path.join(output, "discord-webrtc_0");
+      const readLog = () => fs.readFileSync(logfile, "utf8");
+      const waitForLog = async (offset, pattern, label) => {
+        const deadline = Date.now() + 8000;
+        while (!pattern.test(readLog().slice(offset))) {
+          if (Date.now() > deadline) throw Error(`Native audio ${cycle} ${label} timed out`);
+          await wait(20);
+        }
+      };
+      // RawSamples reports screen-share samples, not a microphone-start signal.
+      // Require actual native control completion instead; no samples are saved.
+      const begin = readLog().length;
+      for (const current of connections) {
+        current.setSelfMute(true);
+        current.setSelfMute(false);
+      }
+      await waitForLog(begin, /Completed: EnsureRecordingStarted/, "start");
+      const stop = readLog().length;
+      for (const current of connections.reverse()) current.destroy();
+      await waitForLog(stop, /Completed: EnsureRecordingStopped\(0\)/, "stop");
+      // Drain the native engine too, exposing a blocked controls/engine thread.
+      await devices(voice.getInputDevices.bind(voice), `startup ${cycle} input enumeration`);
+      await devices(voice.getOutputDevices.bind(voice), `startup ${cycle} output enumeration`);
+      voiceStartup.push({
+        cycle,
+        recording_started: true,
+        recording_stopped: true,
+        elapsed_ms: Date.now() - started,
+      });
+      await wait(cycle % 3 === 0 ? 150 : 10);
+    }
+  }
   connection = voice.createVoiceConnectionWithOptions(
     "1234",
     { ssrc: 42, address: "127.0.0.1", port: 50000, streamParameters: [] },
@@ -194,6 +240,7 @@ async function capture(name, change, settle = 2000) {
     completed_phases: completedPhases,
     events,
     offload_adm_controls: offloadAdmControls,
+    voice_startup: voiceStartup,
     wayland_video_verified: true,
     internal_device_control: internalDeviceControl,
     hidden_device_leaks: hiddenDeviceLeaks,
@@ -211,5 +258,6 @@ async function capture(name, change, settle = 2000) {
     pcmFormats,
     events,
     offload_adm_controls: offloadAdmControls,
+    voice_startup: voiceStartup,
   }),
 );

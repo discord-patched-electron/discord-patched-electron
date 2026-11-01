@@ -15,8 +15,14 @@ const groups = [
     [
       [
         "Automatically detect screen-share audio",
-        "On Wayland, select audio from the app or screen you share when it can be identified. Turn off to choose manually. Applies to your next share.",
+        "On Wayland, select a shared application's audio when its playback can be confidently matched. Otherwise, ask you to choose. Applies to your next share.",
         "audioAutoDetect",
+        true,
+      ],
+      [
+        "Skip audio picker for entire screens",
+        "On Wayland, share system audio automatically when an entire screen is confirmed, excluding Discord. Turn off to choose audio for screens too. Applies to your next share.",
+        "audioSkipScreenPicker",
         true,
       ],
     ],

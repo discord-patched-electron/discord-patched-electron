@@ -113,6 +113,7 @@ def integration_key(
                     "integration/desktop/safe-storage.cjs",
                     "integration/audio/voice-devices.cjs",
                     "integration/audio/window_inventory.py",
+                    "integration/audio/x11_owners.py",
                     "integration/audio/capture_detection.py",
                     "integration/audio/portal-detection.cjs",
                     "integration/audio/portal-monitor.py",

@@ -6,6 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const {
   enabled,
+  skipScreenPicker,
   observation,
   createObserver,
   createMutterTracker,
@@ -159,11 +160,23 @@ test("settings default on, take effect on next read, and environment can force m
   process.env.DPE_PROFILE_DIR = profile;
   delete process.env.DPE_AUDIO_AUTO_DETECT;
   assert.equal(enabled(), true);
+  assert.equal(skipScreenPicker(), true);
   fs.writeFileSync(
     path.join(profile, "settings.json"),
     JSON.stringify({ openasar: { audioAutoDetect: false } }),
   );
   assert.equal(enabled(), false);
+  assert.equal(skipScreenPicker(), true);
+  fs.writeFileSync(
+    path.join(profile, "settings.json"),
+    JSON.stringify({
+      openasar: {
+        audioAutoDetect: false,
+        audioSkipScreenPicker: false,
+      },
+    }),
+  );
+  assert.equal(skipScreenPicker(), false);
   const observer = createObserver({
     spawnMonitor() {
       throw new Error("must not start");
@@ -178,4 +191,5 @@ test("settings default on, take effect on next read, and environment can force m
   assert.equal(enabled(), true);
   process.env.DPE_AUDIO_AUTO_DETECT = "0";
   assert.equal(enabled(), false);
+  assert.equal(skipScreenPicker(), false);
 });

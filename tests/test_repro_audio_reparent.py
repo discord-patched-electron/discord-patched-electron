@@ -84,6 +84,7 @@ class AudioReparentRegression(unittest.TestCase):
             patch.dict(audio.os.environ, {"NIRI_SOCKET": "synthetic-never-opened"}, clear=True),
             patch.object(audio.os, "getpid", return_value=900),
             patch.object(audio, "process_identity", side_effect=identities.get),
+            patch.object(audio.os, "readlink", return_value="/fixture/application"),
             patch.object(audio, "discord_root", return_value=identities[100]),
             patch.object(audio, "graph", return_value=objects),
             patch.object(audio, "niri_request", side_effect=request),

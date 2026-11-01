@@ -7,13 +7,19 @@ const path = require("node:path");
 const { StringDecoder } = require("node:string_decoder");
 
 function enabled() {
+  return preference("audioAutoDetect");
+}
+function skipScreenPicker() {
+  return preference("audioSkipScreenPicker");
+}
+function preference(key) {
   if (process.env.DPE_AUDIO_AUTO_DETECT === "0") return false;
   try {
     const profile = process.env.DPE_PROFILE_DIR;
     if (!profile) return true;
     return (
-      JSON.parse(fs.readFileSync(path.join(profile, "settings.json"), "utf8"))?.openasar
-        ?.audioAutoDetect !== false
+      JSON.parse(fs.readFileSync(path.join(profile, "settings.json"), "utf8"))?.openasar?.[key] !==
+      false
     );
   } catch {
     return true;
@@ -113,7 +119,7 @@ function createObserver({ spawnMonitor = spawn, changed = () => {} } = {}) {
   }
   function start() {
     clear();
-    if (!enabled()) return;
+    if (!enabled() && !skipScreenPicker()) return;
     const backends = ["gnome", "kde", "hyprland", "wlr", "cosmic", "gtk", "lxqt"];
     const matches = backends.map(
       (name) => `--match=type='method_return',sender='org.freedesktop.impl.portal.desktop.${name}'`,
@@ -189,4 +195,4 @@ function createObserver({ spawnMonitor = spawn, changed = () => {} } = {}) {
     snapshot: () => records.filter((record) => Date.now() - record.observedAt < 15000),
   };
 }
-module.exports = { enabled, observation, createObserver, createMutterTracker };
+module.exports = { enabled, skipScreenPicker, observation, createObserver, createMutterTracker };

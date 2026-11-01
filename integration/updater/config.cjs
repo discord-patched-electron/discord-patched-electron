@@ -116,6 +116,7 @@ function open(tab = "settings", sourceContents, options = {}) {
       const next = { ...current };
       for (const key of [
         "audioAutoDetect",
+        "audioSkipScreenPicker",
         "noTrack",
         "noTyping",
         "themeSync",
@@ -202,7 +203,11 @@ function open(tab = "settings", sourceContents, options = {}) {
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   void window
-    .loadURL("dpe-splash://app/config.html" + (mode === "welcome" ? "?mode=welcome" : ""))
+    .loadURL(
+      mode === "welcome"
+        ? "dpe-splash://welcome/config.html?mode=welcome"
+        : "dpe-splash://app/config.html",
+    )
     .catch(console.error);
   return window;
 }

@@ -88,6 +88,7 @@ class IndependentReparent(unittest.TestCase):
                 with (
                     patch.object(audio.Path, "read_text", read_stat),
                     patch.object(audio.Path, "stat", stat),
+                    patch.object(audio.os, "readlink", return_value="/fixture/application"),
                     patch.object(audio.os, "getuid", return_value=1000),
                     patch.object(audio, "discord_root", return_value=(100, "1000", 1)),
                     patch.object(audio, "graph", return_value=objects),

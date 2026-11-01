@@ -106,6 +106,7 @@ def metadata(
                     "libcups",
                     "libxss",
                     "libxtst",
+                    "libxcb",
                     "nss",
                     "libdrm",
                     "mesa",
@@ -152,7 +153,7 @@ def metadata(
                     "pulseaudio-utils",
                     "zenity",
                 ],
-                "recommends": ["wireplumber", "xdg-desktop-portal"],
+                "recommends": ["wireplumber", "xdg-desktop-portal", "libxcb-res0"],
             },
             "rpm": {
                 "depends": [
@@ -165,6 +166,7 @@ def metadata(
                     "cups-libs",
                     "libXScrnSaver",
                     "libXtst",
+                    "libxcb",
                     "mesa-libgbm",
                     "libdrm",
                     "pulseaudio-libs",

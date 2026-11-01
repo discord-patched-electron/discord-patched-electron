@@ -9,8 +9,9 @@ cannot be separated by tab or window.
 ## Automatic detection
 
 DPE matches the selected portal stream to Discord's active video connection.
-When it identifies a window, it selects that application's audio. A confirmed
-whole-monitor share selects system audio, excluding Discord.
+When it identifies a window and matches its playback process, it selects that
+application's audio. A confirmed whole-monitor share selects system audio,
+excluding Discord.
 
 | Desktop / backend                                   | Window detection | Detection paths                                                                                                                                                         |
 | --------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -32,17 +33,31 @@ may require the portal to return restore metadata. Older portal versions, denied
 D-Bus observation, regions, virtual outputs and ambiguous app instances can still
 need manual selection. Window titles and keyboard focus are not used to guess.
 
-To always choose audio manually on Wayland, open **DPE Settings → General** and
-turn off **Automatically detect screen-share audio**. It applies to your next
-share without restarting Discord, including on niri and when Discord supplies a
-process hint. For a temporary override, launch with `DPE_AUDIO_AUTO_DETECT=0`.
-This keeps DPE's audio routing and picker enabled.
+In **DPE Settings → General**, **Automatically detect screen-share audio** controls
+application matching. **Skip audio picker for entire screens** independently
+shares system audio, excluding Discord, for confirmed whole-screen shares. Both
+are enabled by default. Turn both off to always choose audio manually on Wayland.
+Changes apply to your next share without restarting Discord. Re-enabling audio
+on an existing share still opens the picker. For a temporary manual override,
+launch with `DPE_AUDIO_AUTO_DETECT=0`. Routing and the picker remain enabled.
 
-When detection cannot identify the source, **Choose audio source** offers
-application audio, system audio, or **Continue without audio**. Select **Refresh**
+An identified application can stay paused or silent when you begin sharing.
+DPE waits for its playback and starts sharing it when you press play, without
+opening the audio picker just because no audio stream exists yet.
+
+On niri, DPE can also identify apps behind `xwayland-satellite` using X11's
+window ownership data. This works before playback starts. It requires
+`libxcb-res0` on Debian/Ubuntu, or `libxcb` on Arch/Fedora. Separate app instances
+with the same window class still require a manual choice.
+
+When detection cannot identify the application's owner, **Choose audio source**
+offers application audio, system audio, or
+**Continue without audio**, even with automatic detection enabled. This can
+happen when a proxy's application cannot be resolved. Embedded players may
+appear under their audio engine's name, such as **mpv** for Nuvio. Select **Refresh**
 if an app starts playing after the picker opens. A native dialog opens if the
-in-window picker is unavailable. Once the picker opens, late portal metadata does
-not replace your choice.
+in-window picker is unavailable. Once the picker opens, automatic detection does
+not replace your choice or turn audio back on after you dismiss it.
 
 ## Requirements
 

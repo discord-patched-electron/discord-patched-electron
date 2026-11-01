@@ -94,7 +94,7 @@ def analyze(output):
     }
 
 
-def session(output, pulse, selection):
+def session(output, pulse, selection, voice_startup=False):
     if {name for _, name in socket.if_nameindex()} != {"lo"}:
         raise ValueError("Wayland fixture must have a private network namespace")
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -335,6 +335,8 @@ def session(output, pulse, selection):
             if selection == "manual":
                 threading.Thread(target=select_audio, daemon=True).start()
             client_env = {**env, "DPE_FIXTURE_SELECTION": selection}
+            if voice_startup:
+                client_env["DPE_FIXTURE_VOICE_STARTUP"] = "1"
             if selection in {"manual", "interactive"}:
                 client_env.pop("NIRI_SOCKET")
                 # This run explicitly exercises the chooser, including system
@@ -465,6 +467,7 @@ def check(
     runtime=None,
     provenance=None,
     selection="auto",
+    voice_startup=False,
 ):
     if bool(runtime) != bool(provenance):
         raise ValueError("Custom runtime requires verified compiler provenance")
@@ -575,6 +578,7 @@ def check(
             selection,
             "--output",
             str(output),
+            *(["--voice-startup"] if voice_startup else []),
         ],
         check=True,
         timeout=650 if selection == "interactive" else 130,
@@ -582,6 +586,14 @@ def check(
     fixture = read_json(output / "fixture.json")
     if not fixture["passed"]:
         raise ValueError("Native Wayland fixture did not complete")
+    if voice_startup and (
+        len(fixture.get("voice_startup", [])) != 20
+        or any(
+            row.get("recording_started") is not True or row.get("recording_stopped") is not True
+            for row in fixture["voice_startup"]
+        )
+    ):
+        raise ValueError("Native voice startup stress did not complete")
     if provenance:
         expected = read_json(provenance)["capacity"].get("compiled_version", "44.0.0-reference.1")
         if fixture["versions"]["electron"] != expected:
@@ -619,12 +631,17 @@ if __name__ == "__main__":
     parser.add_argument("--pulse", choices=["pipewire", "pulseaudio"], default="pipewire")
     parser.add_argument("--download-only", action="store_true")
     parser.add_argument("--selection", choices=["auto", "manual", "interactive"], default="auto")
+    parser.add_argument(
+        "--voice-startup",
+        action="store_true",
+        help="Stress native audio startup before screen sharing",
+    )
     parser.add_argument("--runtime", type=Path)
     parser.add_argument("--provenance", type=Path)
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.session:
-        session(args.output.resolve(), args.pulse, args.selection)
+        session(args.output.resolve(), args.pulse, args.selection, args.voice_startup)
     else:
         check(
             args.output,
@@ -635,4 +652,5 @@ if __name__ == "__main__":
             args.runtime,
             args.provenance,
             args.selection,
+            args.voice_startup,
         )

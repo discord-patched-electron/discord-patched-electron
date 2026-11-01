@@ -35,6 +35,7 @@ SIDECARS = {
     "pipewire_audio.py": "dpe-pipewire-audio.py",
     "voice-devices.cjs": "dpe-voice-devices.cjs",
     "window_inventory.py": "window_inventory.py",
+    "x11_owners.py": "x11_owners.py",
 }
 CAMERA_BEFORE = "const asyncVideoInputDeviceInit = process.platform === 'win32';"
 CAMERA_AFTER = "const asyncVideoInputDeviceInit = process.platform === 'win32' || (process.platform === 'linux' && process.env.DPE_CAMERA_ASYNC_INIT !== '0');"

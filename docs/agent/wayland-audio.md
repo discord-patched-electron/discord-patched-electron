@@ -71,6 +71,116 @@ and [Window Calls](https://github.com/ickyicky/window-calls).
 
 ## Audio route and cleanup
 
+### Unmatched application playback (31 October 2026)
+
+Read-only inspection of the reported Nuvio session found a libmpv playback node
+without a stream PID. Its PipeWire client supplied the live Nuvio PID, which the
+existing metadata join already preserved. niri reported an `xwayland-satellite`
+PID for the Nuvio window. That proxy was not an ancestor of the playback owner,
+so the automatic route had no feeds but incorrectly reported itself ready.
+
+The initial fix used a 1.2-second playback timeout. That was too aggressive for
+the normal share-first/play-later flow and has been removed. A known live app
+now waits for playback without a timeout, still bound to its PID/start time and
+descendants. Known XWayland/portal broker executables are rejected directly using
+`/proc/PID/exe`, not window titles or audio labels. An unresolved owner opens the
+picker. The source-metadata discovery grace period remains 1.2 seconds.
+Normal pauses and stream recreation do not reopen the picker. Confirmed monitor sharing still
+permits a silent system mix. A source that entered manual selection stays manual
+through refresh, dismissal and later niri/native-hint/portal results. A new video
+source or generation resets that decision. Manual choices retain PID/start-time
+identity, and refresh sends only the updated options to avoid dismissing the UI.
+
+The paused-playback correction passed 472 Python and 197 JavaScript tests and
+lint. Regression cases advance the clock several minutes before creating the
+first playback stream, verify unrelated playback stays excluded, and resume
+after another pause. Both native PipeWire-Pulse and PulseAudio nine-phase
+matrices passed with no leftover capture streams. Evidence uses the
+`out/validation-storage/paused-share-` prefix; the runnable build is
+`paused-share-app/launch.sh` beneath that storage directory.
+
+`tests/test_audio_confidence.py` exercises the real route synchronizer with a
+synthetic Nuvio/libmpv/proxy topology, unrelated playback and Discord exclusion,
+late child playback, cancellation, refresh, source changes and PID reuse. All
+466 Python and 194 JavaScript tests passed, as did lint. The retained custom
+runtime passed all nine phases of three isolated native fixtures: automatic and
+manual PipeWire-Pulse, and automatic real PulseAudio. Reports are in
+`out/validation-storage/nuvio-{auto-pipewire,manual-pipewire,auto-pulseaudio}/audio-report.json`.
+No account calls or user audio recordings were made. Nuvio playback in a live
+Discord call remains a manual check.
+
+The follow-up separates `audioAutoDetect` (application matching) from
+`audioSkipScreenPicker` (confirmed entire-screen sharing), both default-on.
+`DPE_AUDIO_AUTO_DETECT=0` and generation-local `forcePicker` disable both shortcuts.
+An available but ambiguous compositor/portal result cannot fall back to a process
+hint. Exact app IDs must agree across compositor windows and playback process
+families. Missing metadata, proxy PIDs without matching playback, multiple
+unrelated instances, regions and unconfirmed screen tokens remain manual.
+
+Follow-up validation passed 470 Python and 197 JavaScript tests, lint, 29 real
+Electron settings/onboarding checks, and all nine phases in each of automatic
+PipeWire-Pulse, manual PipeWire-Pulse and automatic PulseAudio. Evidence uses the
+`out/validation-storage/rtc-screen-` prefix. The settings fixture also verifies
+independent preference persistence and that startup stays at 100% while Settings
+retains 150% zoom. Startup and Welcome have separate local origins from Settings,
+preventing Chromium's per-origin zoom from leaking between them.
+
+### First-update voice investigation
+
+The user reported the installed testing release stuck at RTC Connecting, with
+normal voice restored after fully quitting and restarting. Read-only local logs
+from 31 October show the first connection reaching `RTC_CONNECTED` at 23:31:33,
+then later joins remaining at `RTC_CONNECTING`. Native recording-start work was
+queued without a logged completion, while the control connection still ran.
+After restart at 23:32, native voice connected again. This suggests a native
+audio-initialization stall but does not establish its cause or an update-specific
+race. Early decryption warnings and a later unavailable codec survey are not
+sufficient evidence to change encryption or codec behavior.
+
+No host audio configuration, audio-control defaults or user accounts were changed.
+In particular, disabling offloaded audio controls caused known native hangs in
+older isolated checks (see below), so it is not used as a speculative fix. Normal
+voice transport pass-through remains covered by adapter regression tests. A live
+call reproduction is still needed to resolve this report. Private logs and
+connection identifiers are not copied into repository evidence.
+
+Further inspection narrowed the missing completion to native
+`AudioDeviceModuleImpl::StartRecording`: input initialization completed, but the
+control thread's last entries were `StartRecording` and its `Recording` check.
+The successful restart logs a return and `EnsureRecordingStarted` completion
+about 16 ms after entering the same step. The native engine also stopped logging
+work in the failed run while the UDP worker continued. This is consistent with
+a blocked native audio path, not proof of a particular lock or an updater race.
+The wrapper invokes both `AudioDeviceBuffer::StartRecording` and the PulseAudio
+backend, so logs alone cannot establish which call blocked.
+
+The four relevant native functions (module recording start, audio-buffer start,
+Pulse recording start and Pulse recording thread) were byte-for-byte unchanged
+between the pinned upstream archive and the patched voice module. This rules out
+direct edits to those functions, not interactions with initialization order or
+process environment. The upstream [PulseAudio implementation](https://webrtc.googlesource.com/src/+/refs/heads/main/modules/audio_device/linux/audio_device_pulse_linux.cc)
+uses recording-thread handoff and a completion wait; the pinned binary also has
+a ten-second wait and mutex acquisition. No speculative native patch was made.
+
+`scripts/check_wayland_audio.py --voice-startup` now adds 20 native startup/teardown
+cycles before the regular nine screen-share phases. It alternates one and two
+connections, rapidly toggles mute, requires native recording-start and final
+recording-stop completion, and drains input/output device queries after teardown.
+Both PipeWire-Pulse and real PulseAudio passed all 20 cycles and the subsequent
+isolation/cleanup checks with the shipped offloaded-controls default. Evidence:
+`out/validation-storage/voice-startup-stress-v3-{pipewire,pulseaudio}/audio-report.json`.
+The initial probe incorrectly treated RawSamples callbacks as microphone startup
+completion; its timeout was a test error, not a reproduction. The corrected
+probe checks native control logs. No physical devices or account calls are used.
+All 470 Python and 197 JavaScript tests and lint passed after the fixture change.
+
+The unresolved evidence is a native thread backtrace while the real client is
+still stuck. Restarting discards that state. The isolated checks do not cover
+physical microphone drivers, Discord's authenticated RTC handshake, or the
+original first-update timing.
+
+### Routing
+
 1. Selected PipeWire playback nodes are tapped into a private, non-lingering
    null sink. Stream serials prevent following a reused node ID. PipeWire-Pulse
    streams are deduplicated, and Discord plus the helper's descendants are excluded.

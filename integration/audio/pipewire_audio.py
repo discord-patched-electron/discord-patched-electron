@@ -81,6 +81,17 @@ def discord_root(pid):
         root = parent
 
 
+def capture_proxy(pid):
+    """A display/portal broker's PID does not identify its hosted application."""
+    try:
+        executable = Path(os.readlink(f"/proc/{pid}/exe")).name.removesuffix(" (deleted)")
+    except OSError:
+        return None  # Unreadable identity is not evidence of an application.
+    return executable.casefold() in {"xwayland-satellite", "xwayland", "xorg"} or (
+        executable == "xdg-desktop-portal" or executable.startswith("xdg-desktop-portal-")
+    )
+
+
 def integer(value):
     try:
         return int(value)
@@ -187,28 +198,47 @@ def video_sources(objects, owner):
 
 def niri_request(request):
     with socket.socket(socket.AF_UNIX) as client:
+        deadline = time.monotonic() + 1
         client.settimeout(1)
         client.connect(os.environ["NIRI_SOCKET"])
         client.sendall((json.dumps(request) + "\n").encode())
         data = b""
         while b"\n" not in data:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Compositor reply timed out")
+            client.settimeout(remaining)
             chunk = client.recv(65536)
             if not chunk or len(data) + len(chunk) > 4 * 1024 * 1024:
                 raise ValueError("Invalid compositor reply")
             data += chunk
         response = json.loads(data.split(b"\n", 1)[0])
-        return next(iter(response["Ok"].values()))
+        ok = response.get("Ok") if isinstance(response, dict) else None
+        if not isinstance(ok, dict) or set(ok) != {request} or not isinstance(ok[request], list):
+            raise ValueError("Unexpected compositor reply")
+        return ok[request]
 
 
 def niri_target(sources, casts, windows):
-    if len(sources) != 1:
+    if (
+        len(sources) != 1
+        or not isinstance(casts, list)
+        or not isinstance(windows, list)
+        or any(not isinstance(row, dict) for row in (*casts, *windows))
+    ):
         return None
     node, serial = next(iter(sources))
-    matches = [c for c in casts if c.get("pw_node_id") == node and c.get("is_active")]
+    matches = [c for c in casts if c.get("pw_node_id") == node and c.get("is_active") is True]
     if len(matches) != 1:
         return None
     cast = matches[0]
     target = cast.get("target", {})
+    if (
+        not isinstance(target, dict)
+        or len(target) != 1
+        or any(type(cast.get(field)) is not int for field in ("session_id", "stream_id"))
+    ):
+        return None
     key = (
         serial,
         cast["session_id"],
@@ -216,13 +246,24 @@ def niri_target(sources, casts, windows):
         json.dumps(target, sort_keys=True),
     )
     if "Output" in target:
+        output = target["Output"]
+        if (
+            not isinstance(output, dict)
+            or not isinstance(output.get("name"), str)
+            or not output["name"]
+        ):
+            return None
         return {"kind": "system", "key": key, "backend": "niri"}
-    window_id = target.get("Window", {}).get("id")
-    matches = [w for w in windows if w.get("id") == window_id and type(w.get("pid")) is int]
-    if window_id is not None and len(matches) == 1:
+    window = target.get("Window")
+    if not isinstance(window, dict) or type(window.get("id")) is not int:
+        return None
+    window_id = window["id"]
+    matches = [w for w in windows if w.get("id") == window_id]
+    if len(matches) == 1 and type(matches[0].get("pid")) is int and matches[0]["pid"] > 1:
         return {
             "kind": "application",
             "pid": matches[0]["pid"],
+            "app_id": matches[0].get("app_id"),
             "key": key,
             "backend": "niri",
         }
@@ -508,14 +549,19 @@ class Controller:
         self.last = None
         self.hint = 0
         self.auto_detect = True
+        self.skip_screen_picker = True
         self.observations = []
         self.observation_serials = {}
         self.detection_deadline = 0
         self.detected = None
         self.detected_source = None
+        self.proxy_key = None
+        self.proxy_target = None
+        self.source = None
         self.choice = None
         self.chooser = None
         self.choose_key = None
+        self.manual_source = None
         self.inline_picker = False
         self.request = 0
         self.pending_choice = False
@@ -547,14 +593,37 @@ class Controller:
             self.chooser = None
             self.choice = None
             self.choose_key = None
+            self.manual_source = None
         self.pending_choice = False
         self.choices = {}
         self.detected = None
         self.detected_source = None
+        self.proxy_key = None
+        self.proxy_target = None
+        self.source = None
+
+    def suspend(self, state="waiting"):
+        """Silence a temporary failure without forgetting consent or identity."""
+        self.emit(state=state)
+        if self.route:
+            self.route.close()
+            self.route = None
+        self.target = None
+        if self.pending_choice or self.chooser:
+            # The UI closes on waiting/unavailable. Issue a new request after
+            # recovery, but never reopen an already dismissed selection.
+            self.choose_key = None
+        if self.chooser:
+            Route.stop(self.chooser)
+            self.chooser = None
+        self.pending_choice = False
+        self.choices = {}
 
     def update(self, message):
         if "observations" in message and "enabled" not in message:
-            if message.get("generation") == self.generation and self.auto_detect:
+            if message.get("generation") == self.generation and (
+                self.auto_detect or self.skip_screen_picker
+            ):
                 self.set_observations(message["observations"])
             return
         if "selection" in message:
@@ -585,10 +654,16 @@ class Controller:
         self.auto_detect = (
             message.get("autoDetect") is not False and message.get("forcePicker") is not True
         )
+        self.skip_screen_picker = (
+            message.get("skipScreenPicker", self.auto_detect) is not False
+            and message.get("forcePicker") is not True
+        )
         self.observations = []
-        if self.auto_detect:
+        if self.auto_detect or self.skip_screen_picker:
             self.set_observations(message.get("observations", []))
-        self.detection_deadline = time.monotonic() + 1.2 if self.auto_detect else 0
+        self.detection_deadline = (
+            time.monotonic() + 1.2 if self.auto_detect or self.skip_screen_picker else 0
+        )
         self.emit()
 
     def set_observations(self, values):
@@ -623,7 +698,9 @@ class Controller:
         ):
             return None
         entries = [p for _node, p in playback_entries(objects, pulse)]
-        entries += [s.get("properties", {}) for s in pulse]
+        entries += [
+            s.get("properties", {}) for s in pulse if "object.serial" not in s.get("properties", {})
+        ]
         result = target(
             objects,
             source,
@@ -644,8 +721,55 @@ class Controller:
             self.detected, self.detected_source = result, source
         return result
 
+    def resolve_proxy(self, target, proxy):
+        from x11_owners import resolve
+
+        # Satellite copies WM_CLASS to niri's app_id. Other compositor/portal
+        # IDs have different contracts, so they must not use this correlation.
+        if target["backend"] != "niri" or not target.get("app_id"):
+            return None
+        key = (target["key"], proxy[:2], target["app_id"])
+        if key != self.proxy_key:
+            if self.route:
+                self.suspend()
+            self.proxy_key, self.proxy_target = key, None
+            owner = resolve(target["app_id"], proxy, process_identity, descendant)
+            if owner and capture_proxy(owner[0]) is False:
+                # A user can switch or close the shared window during the X11
+                # probe. Recheck the linked source and compositor selection
+                # before attaching any audio from the returned owner.
+                try:
+                    current = niri_target(
+                        {self.source}, niri_request("Casts"), niri_request("Windows")
+                    )
+                    if current != target or video_sources(graph(), self.owner) != {self.source}:
+                        return None
+                except (OSError, ValueError, KeyError, sp.SubprocessError):
+                    return None
+                live_proxy = process_identity(proxy[0])
+                if live_proxy is None or live_proxy[:2] != proxy[:2]:
+                    return None
+                self.proxy_target = {
+                    **target,
+                    "pid": owner[0],
+                    "identity": owner[:2],
+                    "backend": "niri-xres",
+                }
+        # Pin the resolved PID/start time for this source. Never re-resolve an
+        # exited app to a newly launched process with the same class.
+        return self.proxy_target
+
     def choose(self, objects, pulse, key):
         if key != self.choose_key:
+            # Once offered, this source stays manual through refresh, dismissal
+            # and late compositor metadata. Never replace the user's selection.
+            self.manual_source = key
+            if self.route:
+                self.emit()
+                self.route.close()
+            self.route = None
+            self.target = None
+            self.target_key = None
             if self.chooser:
                 Route.stop(self.chooser)
             self.choice = None
@@ -849,6 +973,7 @@ class Controller:
                 self.choice = {
                     "kind": "application",
                     "pid": identity[0],
+                    "identity": identity[:2],
                     "key": ("manual", *self.choose_key),
                     "backend": "selection",
                 }
@@ -862,32 +987,51 @@ class Controller:
         pulse = json.loads(command(["/usr/bin/pactl", "-f", "json", "list", "sink-inputs"]))
         sources = video_sources(objects, self.owner)
         if len(sources) != 1:
-            if self.route or self.chooser or self.choice or self.choose_key:
-                self.reset()
-            self.emit()
+            self.suspend()
             return
         target = None
-        niri_available = False
-        if self.auto_detect and os.environ.get("NIRI_SOCKET"):
+        niri_available = bool(os.environ.get("NIRI_SOCKET"))
+        source = next(iter(sources))
+        if self.source is not None and self.source != source:
+            self.reset()
+        self.source = source
+        automatic = (
+            (self.auto_detect or self.skip_screen_picker)
+            and self.manual_source != source
+            and self.choose_key != source
+        )
+        if automatic and niri_available:
             try:
                 target = niri_target(sources, niri_request("Casts"), niri_request("Windows"))
-                niri_available = True
             except (OSError, ValueError, KeyError, StopIteration):
                 pass  # Older niri versions use the explicit audio selector.
-        # A real process hint is usable only for a single confirmed native video
-        # stream. Numeric video node IDs are never used as process hints.
-        if self.auto_detect and target is None and len(sources) == 1 and self.hint > 1:
+        if target is None and automatic and not niri_available:
+            target = self.detect_portal(objects, pulse, source)
+        # A hint cannot override an ambiguous compositor/portal result. Numeric
+        # video node IDs are never used as process hints.
+        if (
+            automatic
+            and self.auto_detect
+            and target is None
+            and not niri_available
+            and not any(o["node"] == source[0] for o in self.observations)
+            and self.hint > 1
+        ):
             target = {
                 "kind": "application",
                 "pid": self.hint,
-                "key": ("hint", *next(iter(sources))),
+                "key": ("hint", *source),
                 "backend": "native-hint",
             }
-        source = next(iter(sources))
-        if target is None and self.auto_detect and not niri_available and self.choose_key != source:
-            target = self.detect_portal(objects, pulse, source)
+        ask = target is not None and not (
+            self.skip_screen_picker if target["kind"] == "system" else self.auto_detect
+        )
+        if ask:
+            target = None
         if target is None:
-            if self.auto_detect and time.monotonic() < self.detection_deadline:
+            if automatic and self.route:
+                self.suspend()
+            if automatic and not ask and time.monotonic() < self.detection_deadline:
                 return
             target = self.choose(objects, pulse, source)
         if target is None:
@@ -898,13 +1042,22 @@ class Controller:
             self.emit()
             return
         identity = None if target["kind"] == "system" else process_identity(target["pid"])
+        proxy = capture_proxy(identity[0]) if automatic and identity is not None else False
+        if proxy is not False:
+            resolved = self.resolve_proxy(target, identity) if proxy is True else None
+            if resolved is None:
+                self.choose(objects, pulse, source)
+                return
+            target = resolved
+            identity = process_identity(target["pid"])
         if target["kind"] != "system" and (
             identity is None
             or descendant(self.owner, identity)
             or (target.get("identity") is not None and identity[:2] != target["identity"])
         ):
             if "identity" not in target:
-                self.reset()
+                # A stale/missing window PID is not a usable audio match.
+                self.choose(objects, pulse, source)
             else:
                 if self.route:
                     self.route.close()
@@ -927,7 +1080,7 @@ class Controller:
                 self.route = None
             self.emit(state="unavailable")
             return
-        if self.target_key != key:
+        if self.target_key != key or self.route is None:
             self.emit()
             if self.route:
                 self.route.close()
@@ -938,6 +1091,11 @@ class Controller:
             self.route = route
         self.target = identity
         self.route.sync(objects, pulse, self.target, self.excluded)
+        if automatic and identity is not None and not self.route.feeds:
+            # Identity and playback availability are separate. A known app may
+            # be paused or open its first stream much later. Keep watching its
+            # bound process family without prompting or capturing another app.
+            return
         self.emit(self.route.capture_pid, "ready", target["backend"])
 
     def close(self):
@@ -1014,8 +1172,7 @@ def main():
                         file=sys.stderr,
                         flush=True,
                     )
-                controller.reset(notify=False)
-                controller.emit(state="unavailable")
+                controller.suspend(state="unavailable")
     except (EOFError, BrokenPipeError):
         pass
     finally:

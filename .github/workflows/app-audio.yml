@@ -99,6 +99,12 @@ jobs:
         run: |
           docker build -t discord-electron-arch-packaging ci/arch
           docker build -t discord-electron-audio-fixture ci/audio
+      - name: Verify XWayland owner resolution on a private X server
+        run: |
+          docker run --rm --network none --cpus 2 --memory 1g \
+            -e DPE_X11_FIXTURE=1 -v "$GITHUB_WORKSPACE:/repo:ro" \
+            discord-electron-audio-fixture \
+            xvfb-run -a python /repo/tests/audio/x11-owners-smoke.py
       - name: Restore the compiled test compositor
         id: compositor-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4

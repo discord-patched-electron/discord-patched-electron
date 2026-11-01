@@ -89,6 +89,10 @@ class CaptureDetection(unittest.TestCase):
     def test_audio_metadata_matches_exact_ids_but_not_names_or_titles(self):
         entry = {"application.id": "org.mozilla.firefox", "application.process.id": "200"}
         self.assertEqual(self.target(windows=[], entries=[entry])["pid"], 200)
+        self.assertIsNone(self.target(entries=[{**entry, "application.process.id": "300"}]))
+        self.assertEqual(
+            self.target(entries=[{**entry, "application.process.id": "201"}])["pid"], 200
+        )
         self.assertIsNone(
             self.target(
                 windows=[],
@@ -138,7 +142,7 @@ class CaptureDetection(unittest.TestCase):
                 }
             )
             controller.choose = Mock(return_value=None)
-            controller.detect_portal = Mock()
+            controller.detect_portal = Mock(return_value=None)
             controller.tick()
             controller.choose.assert_called_once()
             controller.detect_portal.assert_not_called()
@@ -148,6 +152,7 @@ class CaptureDetection(unittest.TestCase):
     def test_forced_reenable_bypasses_every_detection_backend_until_next_source(self):
         with (
             patch.object(audio, "process_identity", side_effect=identity),
+            patch.object(audio.os, "readlink", return_value="/fixture/application"),
             patch.object(audio, "discord_root", return_value=identity(100)),
             patch.object(audio, "descendant", side_effect=descendant),
             patch.object(audio, "graph", return_value=self.objects),
@@ -161,7 +166,7 @@ class CaptureDetection(unittest.TestCase):
         ):
             controller = self.controller()
             controller.choose = Mock(return_value=None)
-            controller.detect_portal = Mock()
+            controller.detect_portal = Mock(return_value=None)
             controller.update(
                 {
                     "generation": 1,
@@ -265,7 +270,7 @@ class CaptureDetection(unittest.TestCase):
             controller.update({"generation": 1, "enabled": True})
             controller.choose_key = (42, "100")
             controller.pending_choice = True
-            controller.detect_portal = Mock()
+            controller.detect_portal = Mock(return_value=None)
             with (
                 patch.object(audio, "graph", return_value=self.objects),
                 patch.object(audio, "command", return_value="[]"),
@@ -279,6 +284,7 @@ class CaptureDetection(unittest.TestCase):
         processes = {100: (100, "owner", 1), 200: (200, "app", 1)}
         with (
             patch.object(audio, "process_identity", side_effect=processes.get),
+            patch.object(audio.os, "readlink", return_value="/fixture/application"),
             patch.object(audio, "discord_root", return_value=processes[100]),
             patch.object(audio, "descendant", side_effect=descendant),
             patch.object(audio, "graph", return_value=self.objects),
@@ -326,7 +332,7 @@ class CaptureDetection(unittest.TestCase):
             controller.update({"generation": 0, "observations": [self.observation]})
             self.assertEqual(controller.observations, [])
             controller.update({"generation": 1, "observations": [self.observation]})
-            controller.detect_portal = Mock()
+            controller.detect_portal = Mock(return_value=None)
             controller.tick()
             controller.detect_portal.assert_not_called()
 

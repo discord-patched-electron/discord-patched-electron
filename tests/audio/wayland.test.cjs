@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { wrap, installVoice } = require("../../integration/audio/wayland-audio.cjs");
-function fixture(t, pickerUI, autoDetect, disableAudio) {
+function fixture(t, pickerUI, autoDetect, disableAudio, skipScreenPicker) {
   const calls = [],
     children = [];
   let ended;
@@ -46,6 +46,7 @@ function fixture(t, pickerUI, autoDetect, disableAudio) {
     warn: (message) => warnings.push(message),
     pickerUI,
     autoDetect,
+    skipScreenPicker,
     disableAudio: () => {
       disabled.push(true);
       return disableAudio ? disableAudio() : true;
@@ -312,6 +313,24 @@ test("inline rendering failure requests the native picker without enabling audio
   );
   assert.deepEqual(child.messages.at(-1), { generation, request: 1, selection: "fallback" });
   assert.equal(f.calls.at(-1).soundsharePid, 0);
+});
+
+test("whole-screen preference reaches the helper independently of window detection", (t) => {
+  let skip = true;
+  const f = fixture(
+    t,
+    undefined,
+    () => false,
+    undefined,
+    () => skip,
+  );
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  assert.equal(f.children[0].messages.at(-1).autoDetect, false);
+  assert.equal(f.children[0].messages.at(-1).skipScreenPicker, true);
+  skip = false;
+  f.adapter.setDesktopSource("screen:1:0");
+  assert.equal(f.children[0].messages.at(-1).skipScreenPicker, false);
 });
 
 test("auto-detection preference is re-read for each new share", (t) => {
