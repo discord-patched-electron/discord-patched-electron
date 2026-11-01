@@ -166,7 +166,7 @@ def check(
                             continue
                         page = inspect_discord(target["webSocketDebuggerUrl"])
                         if page["discordNative"]:
-                            discord_pages.append(page)
+                            discord_pages.append((page, target["webSocketDebuggerUrl"]))
                         else:
                             report["presentation_helper_seen"] = True
                     verify_setup = expect_setup or report["setup_seen"]
@@ -208,7 +208,7 @@ def check(
                             and welcome_target is None
                             and (not setup_configure or configure_target is None)
                         )
-                    for page in discord_pages:
+                    for page, websocket in discord_pages:
                         report["page"] = page
                         if (
                             page.get("ready") == "complete"
@@ -247,8 +247,11 @@ def check(
                                 )
                                 if codec := verify_codec(app, profile, browser_pid):
                                     report["openh264"] = codec
-                                report["passed"] = True
+                                report["popout"] = check_popout(websocket)
+                                report["passed"] = report["popout"].get("passed") is True
                                 break
+                    if "popout" in report and not report["passed"]:
+                        break
                     if report["passed"] and (not verify_setup or report.get("setup_complete")):
                         break
                 except (OSError, ValueError, subprocess.SubprocessError, urllib.error.URLError):
@@ -386,6 +389,69 @@ def inspect_discord(websocket: str) -> dict:
     return page
 
 
+def check_popout(websocket: str) -> dict:
+    """Exercise Discord's real popout handler and loaded handshake at the login page.
+
+    The parent writes only a synthetic marker, never account or voice data.
+    Use the same name twice to verify that closing releases the popout registry.
+    """
+    expression = r"""(async () => {
+      if (!document.querySelector('input[name=email]')
+          || !document.querySelector('input[type=password]')) {
+        return {passed:false, error:'Popout check requires the fresh login page'};
+      }
+      const attempts = [];
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const result = await new Promise(resolve => {
+          let child, timer;
+          const finish = value => {
+            clearTimeout(timer);
+            window.removeEventListener('message', loaded);
+            if (child && !child.closed) child.close();
+            resolve(value);
+          };
+          const loaded = event => {
+            if (event.origin !== location.origin || event.source !== child
+                || event.data?.discordPopoutEvent?.type !== 'loaded') return;
+            try {
+              const root = child.document.querySelector('#app-mount');
+              const marker = child.document.createElement('div');
+              marker.textContent = 'DPE synthetic popout check';
+              root?.replaceChildren(marker);
+              const state = {
+                opener:child.opener === window,
+                sameOrigin:child.location.origin === location.origin,
+                rendered:root?.firstElementChild === marker,
+                nodeDisabled:typeof child.require === 'undefined'
+                  && typeof child.process === 'undefined',
+                loadedHandshake:true,
+              };
+              finish({...state, passed:Object.values(state).every(Boolean)});
+            } catch (error) { finish({passed:false, error:String(error)}); }
+          };
+          window.addEventListener('message', loaded);
+          timer = setTimeout(() => finish({passed:false, error:'Popout loaded handshake timed out'}), 12000);
+          try {
+            child = window.open('/popout', 'DISCORD_dpe_popout_check', 'width=640,height=480');
+            if (!child) finish({passed:false, error:'window.open returned null (opener severed)'});
+          } catch (error) { finish({passed:false, error:String(error)}); }
+        });
+        attempts.push(result);
+        if (!result.passed) break;
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      return {passed:attempts.length === 2 && attempts.every(item => item.passed), attempts};
+    })()"""
+    result = cdp(
+        websocket,
+        "Runtime.evaluate",
+        {"expression": expression, "returnByValue": True, "awaitPromise": True},
+        timeout=30,
+    )
+    value = result.get("result", {}).get("value")
+    return value if isinstance(value, dict) else {"passed": False, "error": "Popout check failed"}
+
+
 def close_setup_settings(websocket: str) -> dict:
     """Close the ready onboarding Settings only after Welcome has disappeared."""
     expression = r"""(() => {
@@ -430,21 +496,30 @@ def complete_setup(websocket: str, *, configure: bool = False) -> dict:
     return json.loads(result.get("result", {}).get("value", "{}"))
 
 
-def cdp(websocket: str, method: str, params: dict | None = None) -> dict:
+def cdp(websocket: str, method: str, params: dict | None = None, *, timeout: int = 5) -> dict:
     """Perform one bounded DevTools request against this fixture's loopback browser."""
     script = r"""
 const ws = new WebSocket(process.argv[1]);
-const timer = setTimeout(() => {ws.close(); process.exit(2)}, 5000);
+const timer = setTimeout(() => {ws.close(); process.exit(2)}, Number(process.argv[4]) * 1000);
 ws.addEventListener("open", () => ws.send(JSON.stringify({id:1, method:process.argv[2], params:JSON.parse(process.argv[3])})));
 ws.addEventListener("message", event => { const value=JSON.parse(event.data); if(value.id!==1)return;
  clearTimeout(timer); console.log(JSON.stringify(value.result || {})); ws.close(); });
 ws.addEventListener("error", () => process.exit(3));
 """
     result = subprocess.run(
-        ["node", "--input-type=module", "-e", script, websocket, method, json.dumps(params or {})],
+        [
+            "node",
+            "--input-type=module",
+            "-e",
+            script,
+            websocket,
+            method,
+            json.dumps(params or {}),
+            str(timeout),
+        ],
         capture_output=True,
         text=True,
-        timeout=8,
+        timeout=timeout + 3,
     )
     return json.loads(result.stdout) if result.returncode == 0 else {}
 

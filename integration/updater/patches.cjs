@@ -62,6 +62,16 @@ function desktop(source, adapter) {
     "return null!=newUpdater?newUpdater.committedModulePaths.get(name)??null:null",
     "return null!=newUpdater?newUpdater.committedModulePaths.get(name)??null:injectedModuleUpdater?.getModulePath(name)??null",
   );
+  // Discord's main renderer explicitly uses sandbox:false. Electron now severs
+  // window.opener when its child defaults to sandbox:true, leaving /popout's
+  // loaded handshake (and the voice debug UI) stranded. Match the main renderer
+  // only in Discord's origin-checked popout defaults; keep Node off and context
+  // isolation on. Do not change global sandbox flags or external-window policy.
+  source = replace(
+    source,
+    "webPreferences:{nodeIntegration:!1,nativeWindowOpen:!0,enableRemoteModule:!1,contextIsolation:!0}",
+    "webPreferences:{nodeIntegration:!1,nativeWindowOpen:!0,enableRemoteModule:!1,contextIsolation:!0,sandbox:!1}",
+  );
   // Same validated IPC replacement as scripts/patch_desktop_core.py.
   const before =
     "electron.ipcMain.on(SAFE_STORAGE_IS_ENCRYPTION_AVAILABLE,event=>{event.returnValue=null!=electron.safeStorage&&electron.safeStorage.isEncryptionAvailable()})," +

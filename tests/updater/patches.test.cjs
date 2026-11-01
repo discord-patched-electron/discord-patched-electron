@@ -10,7 +10,9 @@ const storage =
   "electron.ipcMain.on(SAFE_STORAGE_IS_ENCRYPTION_AVAILABLE,event=>{event.returnValue=null!=electron.safeStorage&&electron.safeStorage.isEncryptionAvailable()})," +
   'electron.ipcMain.on(SAFE_STORAGE_ENCRYPT_STRING,(event,plainText)=>{null!=plainText?event.returnValue=electron.safeStorage.encryptString(plainText).toString("base64"):event.returnValue=null}),' +
   'electron.ipcMain.on(SAFE_STORAGE_DECRYPT_STRING,(event,encrypted)=>{if(null!=encrypted)try{event.returnValue=electron.safeStorage.decryptString(Buffer.from(encrypted,"base64"))}catch{event.returnValue=null}else event.returnValue=null})';
-const fixture = [migration, modulePath, storage].join(";\n");
+const popout =
+  "webPreferences:{nodeIntegration:!1,nativeWindowOpen:!0,enableRemoteModule:!1,contextIsolation:!0}";
+const fixture = [migration, modulePath, storage, `const popout = {${popout}}`].join(";\n");
 const autostartSource =
   "const exec = app.getPath('exe');\n`Exec=${exec}\nIcon=${join(global.systemElectron ? '/usr/share/pixmaps' : dirname(exec), 'discord.png')}`";
 
@@ -23,7 +25,7 @@ test("desktop transforms disable native migration, resolve modules and install s
 });
 
 test("unknown or duplicated desktop patch sites fail before activation", () => {
-  for (const site of [migration, modulePath, storage]) {
+  for (const site of [migration, modulePath, storage, popout]) {
     assert.throws(
       () => desktop(fixture.replace(site, "unknown"), "/adapter"),
       /Unsupported Discord client layout/,
@@ -33,6 +35,19 @@ test("unknown or duplicated desktop patch sites fail before activation", () => {
       /Unsupported Discord client layout/,
     );
   }
+});
+
+test("Discord popouts match the main renderer sandbox without enabling Node or changing other windows", () => {
+  const other =
+    "const settings = {webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}}";
+  const source = desktop(`${fixture};\n${other}`, "/adapter");
+  const patchedPopout = source.slice(source.indexOf("const popout"));
+  const result = vm.runInNewContext(`${patchedPopout}; ({popout,settings})`);
+  assert.equal(result.popout.webPreferences.sandbox, false);
+  assert.equal(result.popout.webPreferences.nodeIntegration, false);
+  assert.equal(result.popout.webPreferences.contextIsolation, true);
+  assert.equal(result.settings.webPreferences.sandbox, true);
+  assert.ok(source.endsWith(other));
 });
 
 test("autostart quotes portable paths and escapes desktop field codes", () => {

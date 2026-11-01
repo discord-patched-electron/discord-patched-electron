@@ -37,6 +37,7 @@ that test run.
 - [Deeper Linux GPU flag audit, dependencies and codec tests](linux-gpu-flags.md)
 - [Shared Discord UI runtime and adapters](discord-ui.md)
 - [OpenAsar settings entry and diagnostic pages](openasar-settings.md)
+- [Blank voice debug popouts and opener compatibility](debug-popout.md)
 - [Compact Flags tab, file storage and automated codec checks](flags-file.md)
 - [Software codec initialization and sandbox fix](software-codecs.md)
 - [Codec playback verification and NVIDIA HEVC flags](codec-support.md)
