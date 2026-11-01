@@ -5,28 +5,30 @@
       "at": "2026-11-01T06:47:06.343948+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-01T07:40:53+00:00",
+      "provider_settled_at": "2026-11-01T08:22:57+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
     "41282631878": {
       "at": "2026-11-01T06:54:02.281292+00:00",
-      "conclusion": null,
+      "conclusion": "success",
       "minutes": 960,
+      "provider_settled_at": "2026-11-01T08:22:57+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
-      "status": "in_progress"
+      "status": "completed"
     }
   },
   "blacksmith_usage": {
-    "at": "2026-11-01T07:40:53+00:00",
+    "at": "2026-11-01T08:22:57+00:00",
     "limit_minutes": 3000,
     "period_start": "2026-11-01T00:00:00+00:00",
     "runner_rate": 8,
     "settled_runs": {
       "40001600965": 0,
-      "41282196886": 8
+      "41282196886": 8,
+      "41282631878": 704
     },
-    "used_minutes": 8
+    "used_minutes": 712
   },
   "bundled_runtime_errors": {},
   "bundled_runtimes": {
@@ -298,7 +300,7 @@
       "reference_run": "40053107555",
       "requested_at": "2026-11-01T07:40:57.242520+00:00",
       "run": "41285665387",
-      "status": "queued"
+      "status": "success"
     },
     "14346f5190bf64cff916d71d9a99af131615a33af89f67b05523f12d4ead7eee": {
       "channel": "canary",
@@ -713,7 +715,7 @@
       "published_at": "2026-10-23T15:09:36Z",
       "release_id": 421880039,
       "repository": "electron/electron",
-      "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
+      "runtime_key": "7bfce53f1da11bbba3dd12eaa8e8e689e03b57bfa692a305e458c76556824883",
       "status": "available",
       "tag": "v46.0.0-alpha.1",
       "version": "46.0.0-alpha.1"
@@ -724,7 +726,7 @@
       "published_at": "2026-10-26T21:36:13Z",
       "release_id": 424701910,
       "repository": "electron/electron",
-      "runtime_key": "6068485092f4f50514ebc31a48de463864a14553fc2fdfe5b2143e72ac7ed546",
+      "runtime_key": "82aa0e733f2a0765bcdba12c9b1d19c540307fb1caa4d6149819f08f37109581",
       "status": "available",
       "tag": "v46.0.0-alpha.2",
       "version": "46.0.0-alpha.2"
@@ -735,7 +737,7 @@
       "published_at": "2026-10-29T23:27:12Z",
       "release_id": 428336529,
       "repository": "electron/electron",
-      "runtime_key": "9d6c97b11c5ef08c34a9e01ba48e1bf235d769ee4bf022ecc91b14d50692e358",
+      "runtime_key": "61b81ec3ea0cc55daf08dc317e7fd7d1c6e86fbec8d399fe8d05d9f69ff30698",
       "status": "available",
       "tag": "v46.0.0-alpha.3",
       "version": "46.0.0-alpha.3"
@@ -746,7 +748,7 @@
       "published_at": "2026-10-30T23:12:38Z",
       "release_id": 428720423,
       "repository": "electron/electron",
-      "runtime_key": "07e512df1949465635986d88ccc4aabc7905fe2de2eb1dff567dbc50a55b4c48",
+      "runtime_key": "7220ea145c3beb15b0b72cc2515b39ab414f673a8d775486cb596d495bcd92d5",
       "status": "available",
       "tag": "v46.0.0-alpha.4",
       "version": "46.0.0-alpha.4"
@@ -767,7 +769,9 @@
     "07e512df1949465635986d88ccc4aabc7905fe2de2eb1dff567dbc50a55b4c48": {
       "attempts": [],
       "channel": "prerelease",
-      "status": "pending",
+      "reason": "native-inputs-changed",
+      "status": "superseded",
+      "superseded_by": "7220ea145c3beb15b0b72cc2515b39ab414f673a8d775486cb596d495bcd92d5",
       "target": {
         "commit": "e75d4291eac58390dcd0f550eef080fb9834f272",
         "version": "46.0.0-alpha.4"
@@ -828,6 +832,26 @@
         "version": "46.0.0-alpha.2"
       }
     },
+    "61b81ec3ea0cc55daf08dc317e7fd7d1c6e86fbec8d399fe8d05d9f69ff30698": {
+      "attempts": [],
+      "channel": "prerelease",
+      "reason": "newer-prerelease",
+      "status": "superseded",
+      "superseded_by": "7220ea145c3beb15b0b72cc2515b39ab414f673a8d775486cb596d495bcd92d5",
+      "target": {
+        "commit": "db544c51d8ce5cfb918667a4840438e62e79e81d",
+        "version": "46.0.0-alpha.3"
+      }
+    },
+    "7220ea145c3beb15b0b72cc2515b39ab414f673a8d775486cb596d495bcd92d5": {
+      "attempts": [],
+      "channel": "prerelease",
+      "status": "pending",
+      "target": {
+        "commit": "e75d4291eac58390dcd0f550eef080fb9834f272",
+        "version": "46.0.0-alpha.4"
+      }
+    },
     "736b11c967017e72fed5d75853d379be3dc1eae474c650a3a3502cc4e0970b32": {
       "attempts": [],
       "channel": "stable",
@@ -836,6 +860,28 @@
       "target": {
         "commit": "54f961b44b83e4ece81065ab60a182fd0c38c01e",
         "version": "45.0.0"
+      }
+    },
+    "7bfce53f1da11bbba3dd12eaa8e8e689e03b57bfa692a305e458c76556824883": {
+      "attempts": [],
+      "channel": "prerelease",
+      "reason": "newer-prerelease",
+      "status": "superseded",
+      "superseded_by": "7220ea145c3beb15b0b72cc2515b39ab414f673a8d775486cb596d495bcd92d5",
+      "target": {
+        "commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
+        "version": "46.0.0-alpha.1"
+      }
+    },
+    "82aa0e733f2a0765bcdba12c9b1d19c540307fb1caa4d6149819f08f37109581": {
+      "attempts": [],
+      "channel": "prerelease",
+      "reason": "newer-prerelease",
+      "status": "superseded",
+      "superseded_by": "7220ea145c3beb15b0b72cc2515b39ab414f673a8d775486cb596d495bcd92d5",
+      "target": {
+        "commit": "00eec6bdbb7167b8300a1b44490e15254ed1510b",
+        "version": "46.0.0-alpha.2"
       }
     },
     "8bf6e57e99a6fa9d0fdacdb9a6b10cff110e2e03aac0cdc29aceee7b790a5341": {
@@ -3307,5 +3353,5 @@
       "withdrawn_at": null
     }
   ],
-  "security_checked_at": "2026-11-01T07:39:37Z"
+  "security_checked_at": "2026-11-01T08:21:51Z"
 }
