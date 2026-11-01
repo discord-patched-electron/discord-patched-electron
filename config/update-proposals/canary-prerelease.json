@@ -89,7 +89,7 @@
     "version": "1.0.2422"
   },
   "client_version": "1.0.2422",
-  "clients_state": "273c254df5fbf88baefbb10f02b8f3ab7c45143f",
+  "clients_state": "f88116b009b609c6b206f888f03f08eb28d8c6da",
   "electron_version": "46.0.0-alpha.1",
   "runtime": {
     "archive_sha256": "f70c12b4c543773964107c4c77c1ee121d81b3d723e60ea84fac114110ee498a",
@@ -97,7 +97,7 @@
     "runtime_key": "b158c6747e2c152b7ba9626ed14182e8d4e82cb1c11d14e59c0a700cf585102f"
   },
   "schema": 1,
-  "source_commit": "b318588a88abe3fdb9f45fe917af87118fa77c59",
-  "tag": "v20261101022752.0.0-canary.fc964fa56c016ca1",
-  "version": "20261101.022752"
+  "source_commit": "033ce770d54fad52bbd6dc7895ca7c7eace7fc9b",
+  "tag": "v20261101073931.0.0-canary.a655cd66cc1535e5",
+  "version": "20261101.073931"
 }
