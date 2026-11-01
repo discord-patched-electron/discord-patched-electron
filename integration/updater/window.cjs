@@ -49,6 +49,7 @@ module.exports = function createWindow(onAction) {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      zoomFactor: 1,
     },
   });
   const translate = splashState();
@@ -78,6 +79,7 @@ module.exports = function createWindow(onAction) {
   window.once("closed", () => ipcMain.removeListener("dpe-splash-action", action));
   let themeReady;
   window.webContents.once("dom-ready", () => {
+    window.webContents.setZoomFactor(1);
     themeReady = preferences.theme(window);
   });
   window.webContents.once("did-finish-load", async () => {
@@ -89,7 +91,9 @@ module.exports = function createWindow(onAction) {
   window.once("ready-to-show", () => {
     if (!process.argv.includes("--start-minimized")) window.show();
   });
-  void window.loadURL("dpe-splash://app/index.html").catch((error) => {
+  // Chromium persists zoom per origin. Settings follows Discord's zoom, while
+  // this fixed-size startup window must have an independent origin and scale.
+  void window.loadURL("dpe-splash://startup/index.html").catch((error) => {
     console.error(error);
     window.close();
   });

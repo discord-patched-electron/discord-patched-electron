@@ -142,6 +142,20 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
+    // A saved Settings zoom must not resize the fixed startup surface, nor
+    // should opening startup reset Settings' own zoom on its separate origin.
+    const zoomWindow = new BrowserWindow({ show: false });
+    require(path.join(root, "integration/updater/window.cjs")).register();
+    await zoomWindow.loadURL("dpe-splash://app/index.html");
+    zoomWindow.webContents.setZoomFactor(1.5);
+    const startup = require(path.join(root, "integration/updater/window.cjs"))(() => {});
+    await new Promise((resolve) => startup.window.webContents.once("did-finish-load", resolve));
+    assert.equal(startup.window.webContents.getZoomFactor(), 1);
+    assert.equal(zoomWindow.webContents.getZoomFactor(), 1.5);
+    startup.window.destroy();
+    zoomWindow.webContents.setZoomFactor(1);
+    zoomWindow.destroy();
+    checks.push("Startup uses an independent 100% zoom without changing Settings zoom");
     const footerWindow = new BrowserWindow({ width: 600, height: 500 });
     try {
       await require(path.join(root, "tests/discord-ui/footer-check.cjs"))(footerWindow);
@@ -521,6 +535,16 @@ app
     );
     await click("t_settings");
     const detectionToggle = '[aria-label="Automatically detect screen-share audio"]';
+    const screenToggle = '[aria-label="Skip audio picker for entire screens"]';
+    assert.equal(await evaluate(`document.querySelector('${screenToggle}').checked`), true);
+    await evaluate(`document.querySelector('${screenToggle}').click()`);
+    await until(() => values.openasar.audioSkipScreenPicker === false);
+    assert.equal(
+      require(path.join(root, "integration/audio/portal-detection.cjs")).skipScreenPicker(),
+      false,
+    );
+    await evaluate(`document.querySelector('${screenToggle}').click()`);
+    await until(() => values.openasar.audioSkipScreenPicker === true);
     assert.equal(await evaluate(`document.querySelector('${detectionToggle}').checked`), true);
     await evaluate(`document.querySelector('${detectionToggle}').click()`);
     await until(() => values.openasar.audioAutoDetect === false);

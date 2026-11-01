@@ -12,11 +12,17 @@ function fixture(writeText) {
     ipc: { handle: (name, handler) => handlers.set(name, handler) },
     setWindowOpenHandler() {},
     send() {},
+    setZoomFactor(value) {
+      this.zoom = value;
+    },
   });
   const window = Object.assign(new EventEmitter(), {
     webContents: contents,
     isDestroyed: () => false,
-    loadURL: () => Promise.resolve(),
+    loadURL(url) {
+      this.url = url;
+      return Promise.resolve();
+    },
     show() {},
   });
   const module = { exports: {} };
@@ -38,7 +44,7 @@ function fixture(writeText) {
             net: {},
             protocol: { registerSchemesAsPrivileged() {}, handle() {} },
           };
-        if (name === "./profile.cjs") return { background: () => "#282b30" };
+        if (name === "./profile.cjs") return { background: () => "#282b30", theme() {} };
         if (name.startsWith("./")) return require(`../../integration/updater/${name.slice(2)}`);
         return require(name);
       },
@@ -51,6 +57,14 @@ function fixture(writeText) {
       handlers.get("dpe-splash-copy-details")({ senderFrame: frame }, ...args),
   };
 }
+
+test("startup has its own origin and resets persisted browser zoom", () => {
+  const { view } = fixture(() => {});
+  assert.equal(view.window.url, "dpe-splash://startup/index.html");
+  view.window.webContents.zoom = 1.5;
+  view.window.webContents.emit("dom-ready");
+  assert.equal(view.window.webContents.zoom, 1);
+});
 
 test("copy details accepts only the updater main frame and the current error", async () => {
   const copied = [];

@@ -437,7 +437,7 @@ function attach(window, preferredSource, options = {}) {
         if (stopped || !trusted(active)) return;
       }
       if (Number.isFinite(zoom) && zoom >= 0.5 && zoom <= 3)
-        window.webContents.setZoomFactor?.(zoom);
+        window.webContents.setZoomFactor?.(options.mode === "welcome" ? 1 : zoom);
       const next = sanitize(value),
         identity = JSON.stringify(next) + ":" + zoom;
       if (identity === previous) return;

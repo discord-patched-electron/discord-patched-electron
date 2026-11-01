@@ -317,6 +317,15 @@ function fixture(options = {}) {
   };
 }
 
+test("Welcome retains the Discord theme without inheriting its zoom", async () => {
+  const f = fixture({ mode: "welcome" });
+  f.window.webContents.emit("did-finish-load");
+  await new Promise(setImmediate);
+  assert.equal(f.window.webContents.zoomFactor, 1);
+  assert.match(f.css.at(-1), /--background-base-lowest:#000/);
+  f.window.close();
+});
+
 test("settings follows live theme, constrains IPC and releases its polling lifecycle", async () => {
   const f = fixture();
   f.window.webContents.emit("did-finish-load");
@@ -429,7 +438,7 @@ test("first Welcome waits for isolated native assets before showing without a ru
   });
   await rendered;
   assert.equal(f.shown, true);
-  assert.equal(f.window.webContents.zoomFactor, 1.2);
+  assert.equal(f.window.webContents.zoomFactor, 1);
   assert.equal((await f.invoke("dpe-presentation")).icons.settings, nativeIcon);
   assert.ok(f.css.some((value) => value.includes("--background-base-lowest:#123456")));
   f.window.emit("closed");

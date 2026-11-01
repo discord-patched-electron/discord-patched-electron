@@ -52,7 +52,8 @@ module.exports = function assetHandler(
   }
   return async ({ url }) => {
     const parsed = new URL(url);
-    if (parsed.host !== "app") return new Response(null, { status: 404 });
+    if (!["app", "startup", "welcome"].includes(parsed.host))
+      return new Response(null, { status: 404 });
     const name = parsed.pathname.slice(1);
     try {
       if (name === "config-app.js") {
