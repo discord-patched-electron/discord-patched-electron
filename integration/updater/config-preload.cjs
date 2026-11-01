@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("Native", {
   desktopSave: (patch) => ipcRenderer.invoke("dpe-desktop-save", patch),
   open: () => ipcRenderer.send("of"),
   spellcheckLoad: (refresh = false) => ipcRenderer.invoke("dpe-spellcheck-load", refresh),
+  spellcheckUninstall: (language) => ipcRenderer.invoke("dpe-spellcheck-uninstall", language),
   spellcheckSave: (value) => ipcRenderer.invoke("dpe-spellcheck-save", value),
   trayLoad: () => ipcRenderer.invoke("dpe-tray-load"),
   trayPreset: (preset) => ipcRenderer.invoke("dpe-tray-preset", preset),

@@ -3,6 +3,8 @@ const { app, BrowserWindow, clipboard, dialog, nativeImage } = require("electron
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+if (process.env.DPE_SETTINGS_OZONE_PLATFORM)
+  app.commandLine.appendSwitch("ozone-platform", process.env.DPE_SETTINGS_OZONE_PLATFORM);
 const output = process.env.DPE_SETTINGS_OUTPUT;
 if (!output) throw new Error("A private output directory is required");
 const root = process.env.DPE_APP_ROOT;
@@ -611,6 +613,7 @@ app
 
     await evaluate('document.querySelector(".tray-settings summary").click()');
     assert.equal(await evaluate('document.querySelector(".tray-settings").open'), true);
+    await until(() => evaluate('document.querySelectorAll(".tray-icon-row").length === 6'));
     await until(() => get('$("tray-icons-label").textContent === "Hide Tray Icons"'));
     assert.ok(
       await evaluate(
@@ -791,7 +794,12 @@ app
       window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
       window.webContents.sendInputEvent({ type: "char", keyCode: "Return" });
       window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
-      await until(() => values.openasar.trayIconPresets?.[state] === preset);
+      await until(
+        () =>
+          (values.openasar.trayIconPresets?.[state] ||
+            values.openasar.trayIconPreset ||
+            "discord") === preset,
+      );
       await until(() => evaluate('!document.querySelector(".tray-icon-actions button").disabled'));
       assert.equal(
         await evaluate(
@@ -875,6 +883,16 @@ app
       await until(() => get('!$("tray-icon-preset-trigger").disabled'));
     }
     await until(() => get('$("tray-icon-preset-trigger").textContent.trim() === "Vencord"'));
+    await evaluate(
+      'document.querySelector("[data-tray-state=default] [data-tray-preset=vencord]").click()',
+    );
+    await until(() => get('!$("tray-icon-preset-trigger").disabled'));
+    assert.equal(
+      await evaluate(
+        'document.querySelector("[data-tray-state=default] .tray-icon-actions button:last-child").disabled',
+      ),
+      true,
+    );
     checks.push(
       "The main tray preset shows Custom for mixed presets or custom images and returns to its name when restored",
     );
@@ -1001,16 +1019,95 @@ app
       "en-US",
     );
     await change("spellcheck-search", "");
+    await evaluate('document.getElementById("spellcheck-filter").scrollIntoView({block:"center"})');
     await click("spellcheck-filter");
+    await until(() => get('$("spellcheck-filter-menu").matches(":popover-open")'));
+    // Native pointer activation must close rather than light-dismiss/reopen.
+    const filterPoint = await get(
+      '(() => { const r=$("spellcheck-filter").getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}; })()',
+    );
+    window.webContents.sendInputEvent({ type: "mouseMove", ...filterPoint });
+    window.webContents.sendInputEvent({
+      type: "mouseDown",
+      button: "left",
+      clickCount: 1,
+      ...filterPoint,
+    });
+    window.webContents.sendInputEvent({
+      type: "mouseUp",
+      button: "left",
+      clickCount: 1,
+      ...filterPoint,
+    });
+    await until(() => get('!$("spellcheck-filter-menu").matches(":popover-open")'));
+    await click("spellcheck-filter");
+    await until(() => get('$("spellcheck-filter-menu").matches(":popover-open")'));
+    await capture("spelling-filter-menu");
+    await click("spellcheck-filter-enabled");
     await until(() => evaluate('document.querySelectorAll(".spelling-language").length === 2'));
-    assert.equal(await get('$("spellcheck-filter").getAttribute("aria-pressed")'), "true");
+    assert.equal(await get('$("spellcheck-filter-enabled").getAttribute("aria-checked")'), "true");
     assert.equal(
       await get('$("spellcheck-filter").classList.contains("dpe-button--primary")'),
       true,
     );
-    assert.ok(await get('$("spellcheck-filter").querySelector("[data-dpe-icon=check]")'));
+    assert.ok(await get('$("spellcheck-filter-enabled").querySelector("[data-dpe-icon=check]")'));
+    await capture("spelling-filter-selected");
+    await evaluate('document.getElementById("spellcheck-filter-menu").hidePopover()');
     await click("spellcheck-refresh");
     await until(() => get('$("spellcheck-status").textContent.includes("refreshed")'));
+    // Real dictionary file removal, filtered list refresh and event-driven progress.
+    const dictionaries = path.join(profile, "Dictionaries");
+    fs.mkdirSync(dictionaries, { recursive: true });
+    const dictionary = path.join(dictionaries, "af-ZA-3-0.bdic");
+    const dictionaryBytes = Buffer.alloc(64);
+    dictionaryBytes.write("BDic");
+    fs.writeFileSync(dictionary, dictionaryBytes);
+    await click("spellcheck-refresh");
+    await until(() => get('!$("spellcheck-refresh").disabled'));
+    await click("spellcheck-filter");
+    await click("spellcheck-filter-enabled");
+    await click("spellcheck-filter-downloaded");
+    await evaluate('document.getElementById("spellcheck-filter-menu").hidePopover()');
+    await until(() =>
+      evaluate(`Boolean(document.querySelector('[data-language="af"] .inline-link'))`),
+    );
+    await capture("spelling-downloaded");
+    await evaluate(`document.querySelector('[data-language="af"] .inline-link').click()`);
+    await until(() => !fs.existsSync(dictionary));
+    await until(() => evaluate(`!document.querySelector('[data-language="af"]')`));
+    await click("spellcheck-filter");
+    await click("spellcheck-filter-downloaded");
+    await evaluate('document.getElementById("spellcheck-filter-menu").hidePopover()');
+    require("electron").session.defaultSession.emit(
+      "spellcheck-dictionary-download-begin",
+      {},
+      "de",
+    );
+    await click("spellcheck-refresh");
+    await until(() =>
+      evaluate(`Boolean(document.querySelector('[data-language="de"] [role="progressbar"]'))`),
+    );
+    await evaluate(
+      `document.querySelector('[data-language="de"]').scrollIntoView({block:"center"})`,
+    );
+    await capture("spelling-downloading");
+    require("electron").session.defaultSession.emit(
+      "spellcheck-dictionary-download-success",
+      {},
+      "de",
+    );
+    await click("spellcheck-refresh");
+    await until(() =>
+      evaluate(
+        `document.querySelector('[data-language="de"] .spelling-dictionary-status').textContent.includes("Downloaded")`,
+      ),
+    );
+    await click("spellcheck-filter");
+    await click("spellcheck-filter-enabled");
+    await evaluate('document.getElementById("spellcheck-filter-menu").hidePopover()');
+    checks.push(
+      "Dictionary menu checkboxes filter enabled/downloaded languages; uninstall removes the cached file; progress changes to Downloaded",
+    );
     // Replica switches animate for 300ms; inspect their final painted state,
     // not a screenshot captured halfway through a rapid scripted toggle.
     await delay(350);

@@ -340,3 +340,84 @@ export function Versions({ modState }) {
     </button>
   );
 }
+
+// Discord's menu checkbox: text on the left, square check on the right.
+export function CheckboxMenu({ id, label, options, disabled = false, onChange }) {
+  const menu = useRef();
+  const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    if (disabled && menu.current?.matches(":popover-open")) menu.current.hidePopover();
+  }, [disabled]);
+  const active = options.some((option) => option.checked);
+  return (
+    <>
+      <Button
+        id={id}
+        disabled={disabled}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={`${id}-menu`}
+        popovertarget={`${id}-menu`}
+        popovertargetaction="toggle"
+        variant={active ? "primary" : "secondary"}
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          menu.current.style.left = `${Math.max(8, Math.min(rect.right - 220, innerWidth - 228))}px`;
+          menu.current.style.top = `${Math.min(rect.bottom + 4, innerHeight - 112)}px`;
+        }}
+      >
+        {label}
+        <Icon name="chevron" />
+      </Button>
+      <div
+        id={`${id}-menu`}
+        ref={menu}
+        popover="auto"
+        role="menu"
+        aria-label={label}
+        class="dpe-select-menu dpe-checkbox-menu"
+        onToggle={(event) => {
+          setOpen(event.newState === "open");
+          if (event.newState === "open") menu.current.querySelector("button").focus();
+        }}
+        onKeyDown={(event) => {
+          const buttons = [...menu.current.querySelectorAll("button")];
+          const index = buttons.indexOf(document.activeElement);
+          if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+            event.preventDefault();
+            const next =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? buttons.length - 1
+                  : (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) %
+                    buttons.length;
+            buttons[next].focus();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            menu.current.hidePopover();
+            document.getElementById(id).focus();
+          } else if (event.key === "Tab") menu.current.hidePopover();
+        }}
+      >
+        {options.map((option) => (
+          <button
+            key={option.id}
+            id={`${id}-${option.id}`}
+            type="button"
+            class="dpe-checkbox-menu-item"
+            role="menuitemcheckbox"
+            aria-checked={option.checked}
+            disabled={disabled}
+            onClick={() => onChange(option.id, !option.checked)}
+          >
+            <span>{option.label}</span>
+            <span class="dpe-menu-checkbox" aria-hidden="true">
+              {option.checked && <Icon name="check" />}
+            </span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}

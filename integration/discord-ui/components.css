@@ -440,3 +440,51 @@
 .dpe-ui .dpe-switch:not(:disabled):active + .dpe-switch-track {
   background: var(--switch-background-active, var(--dpe-selected));
 }
+
+.dpe-ui .dpe-checkbox-menu {
+  width: 220px;
+}
+.dpe-ui .dpe-checkbox-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12, 12px);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-8, 8px);
+  border: 0;
+  border-radius: var(--radius-xs, 4px);
+  background: transparent;
+  color: var(--dpe-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.dpe-ui .dpe-menu-checkbox {
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--interactive-muted, #6d6f78);
+  border-radius: 4px;
+}
+.dpe-ui [aria-checked="true"] > .dpe-menu-checkbox {
+  border-color: var(--dpe-brand);
+  background: var(--dpe-brand);
+  color: white;
+}
+.dpe-ui .dpe-menu-checkbox .dpe-icon {
+  width: 20px;
+  height: 20px;
+}
+.dpe-ui .dpe-checkbox-menu-item:focus-visible {
+  outline: 2px solid var(--dpe-brand);
+  outline-offset: -2px;
+}
+@media (hover: hover) {
+  .dpe-ui .dpe-checkbox-menu-item:hover:not(:disabled) {
+    background: var(--background-modifier-hover, rgb(255 255 255 / 0.06));
+  }
+}

@@ -9,6 +9,28 @@ function usesSystemLanguages(value) {
     : !value.spellcheckLanguages?.length;
 }
 
+function dictionaryLocale(language) {
+  if (!language.includes("-")) {
+    try {
+      return new Intl.Locale(language)
+        .maximize()
+        .baseName.replace(/-[A-Z][a-z]{3}(?=-)/, "")
+        .toLowerCase();
+    } catch {
+      /* Unknown aliases stay unchanged. */
+    }
+  }
+  return language.toLowerCase();
+}
+function dictionaryMatch(name, language) {
+  const match = /^([a-z]{2,3}(?:-[a-z0-9]+)*)-\d+-\d+\.bdic$/i.exec(name);
+  return Boolean(
+    match &&
+    (match[1].toLowerCase() === language.toLowerCase() ||
+      match[1].toLowerCase() === dictionaryLocale(language)),
+  );
+}
+
 async function cachedLanguages(directory, available) {
   const cached = new Set();
   if (!directory) return cached;
@@ -66,6 +88,7 @@ function createController(electron, getConfig, { scan = cachedLanguages, now = D
   const listeners = new Map();
   let cache;
   let error;
+  const removed = new Set();
   function selected(session, value) {
     const available = session.availableSpellCheckerLanguages;
     const requested = Array.isArray(value.spellcheckLanguages) ? value.spellcheckLanguages : [];
@@ -89,6 +112,7 @@ function createController(electron, getConfig, { scan = cachedLanguages, now = D
       for (const [event, listener] of listeners) current?.removeListener(event, listener);
       listeners.clear();
       downloads.clear();
+      removed.clear();
       current = next;
       cache = { languages: new Set(), expires: 0, revision: 0, pending: undefined };
       for (const [event, state] of [
@@ -98,6 +122,7 @@ function createController(electron, getConfig, { scan = cachedLanguages, now = D
         ["spellcheck-dictionary-download-failure", "failed"],
       ]) {
         const listener = (_event, language) => {
+          if (removed.has(language)) return;
           downloads.set(language, state);
           cache.expires = 0;
           cache.revision++;
@@ -153,7 +178,8 @@ function createController(electron, getConfig, { scan = cachedLanguages, now = D
     // it. Chromium alone downloads and validates the versioned dictionaries.
     void refresh();
     const states = new Map([...cache.languages].map((language) => [language, "cached"]));
-    for (const [language, state] of downloads) states.set(language, state);
+    for (const [language, state] of downloads)
+      if (state !== "pending" || !cache.languages.has(language)) states.set(language, state);
     return {
       enabled: active.spellCheckerEnabled,
       languages: active.getSpellCheckerLanguages(),
@@ -169,23 +195,76 @@ function createController(electron, getConfig, { scan = cachedLanguages, now = D
     const active = session();
     try {
       const languages = selected(active, value);
+      for (const language of removed)
+        if (languages.some((code) => dictionaryLocale(code) === dictionaryLocale(language)))
+          removed.delete(language);
       // Preserve Chromium's default when no installed locale maps to its catalog.
       const previous = active.getSpellCheckerLanguages();
       if (
         (languages.length || !usesSystemLanguages(value)) &&
         (languages.length !== previous.length ||
           languages.some((language) => !previous.includes(language)))
-      )
+      ) {
+        for (const language of previous) {
+          if (!languages.includes(language) && downloads.get(language) === "pending")
+            downloads.delete(language);
+        }
+        for (const language of languages) {
+          if (
+            !previous.includes(language) &&
+            !cache.languages.has(language) &&
+            downloads.get(language) !== "ready"
+          )
+            downloads.set(language, "pending");
+        }
         active.setSpellCheckerLanguages(languages);
+      }
       active.spellCheckerEnabled =
         value.spellcheckEnabled !== false && (usesSystemLanguages(value) || languages.length > 0);
       error = undefined;
     } catch (cause) {
+      for (const [language, state] of downloads)
+        if (state === "pending") downloads.delete(language);
       error = "Could not apply spell checking languages: " + cause.message;
     }
     return status();
   }
-  return { apply, status, selected, refresh };
+  function aliases(language) {
+    const active = session();
+    if (typeof language !== "string" || !active.availableSpellCheckerLanguages.includes(language))
+      throw new Error("Choose a supported spelling language.");
+    return active.availableSpellCheckerLanguages.filter(
+      (code) => dictionaryLocale(code) === dictionaryLocale(language),
+    );
+  }
+  async function uninstall(language) {
+    const affected = aliases(language);
+    if (affected.some((code) => session().getSpellCheckerLanguages().includes(code)))
+      throw new Error("Disable the dictionary before uninstalling it.");
+    if (affected.some((code) => downloads.get(code) === "downloading"))
+      throw new Error("Wait for the dictionary download to finish.");
+    await cache.pending;
+    const directory = path.join(electron.app.getPath("userData"), "Dictionaries");
+    let names;
+    try {
+      names = await fs.readdir(directory);
+    } catch (cause) {
+      if (cause.code !== "ENOENT") throw cause;
+      names = [];
+    }
+    for (const name of names)
+      if (dictionaryMatch(name, language)) await fs.unlink(path.join(directory, name));
+    for (const code of affected) {
+      removed.add(code);
+      downloads.delete(code);
+      cache.languages.delete(code);
+    }
+    cache.expires = 0;
+    cache.revision++;
+    await refresh(true);
+    return status();
+  }
+  return { apply, status, selected, refresh, aliases, uninstall };
 }
 
 function storedConfig() {
@@ -228,10 +307,13 @@ module.exports = {
   createController,
   usesSystemLanguages,
   cachedLanguages,
+  dictionaryMatch,
   install,
   setLanguages,
   patchDesktop,
   apply: (value) => getController().apply(value),
   status: () => getController().status(),
   refresh: (force) => getController().refresh(force),
+  aliases: (language) => getController().aliases(language),
+  uninstall: (language) => getController().uninstall(language),
 };

@@ -2,6 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import {
   Button,
+  CheckboxMenu,
   Disclosure,
   Icon,
   InlineBullet,
@@ -12,6 +13,7 @@ import {
 import { createSpellingState } from "./spelling-state.cjs";
 
 const spelling = createSpellingState({
+  spellcheckUninstall: (language) => window.Native.spellcheckUninstall(language),
   spellcheckLoad: (refresh) => window.Native.spellcheckLoad(refresh),
   spellcheckSave: (value) => window.Native.spellcheckSave(value),
 });
@@ -39,6 +41,7 @@ export function Spellcheck() {
   );
   const [query, setQuery] = useState("");
   const [onlyEnabled, setOnlyEnabled] = useState(false);
+  const [onlyDownloaded, setOnlyDownloaded] = useState(false);
   const load = spelling.load;
   // Cached controls are interactive on the first paint after returning to the
   // tab, so subscribe before paint rather than waiting for a passive effect.
@@ -64,6 +67,7 @@ export function Spellcheck() {
     if (useSystemLanguages || !languages.length) {
       setQuery("");
       setOnlyEnabled(false);
+      setOnlyDownloaded(false);
     }
     return spelling.save({ enabled, languages, useSystemLanguages });
   };
@@ -75,6 +79,7 @@ export function Spellcheck() {
       const search = query.trim().toLocaleLowerCase();
       return (
         (!onlyEnabled || selected.includes(language)) &&
+        (!onlyDownloaded || ["ready", "cached"].includes(downloads.get(language))) &&
         (!search || `${languageName(language)} ${language}`.toLocaleLowerCase().includes(search))
       );
     }) || [];
@@ -145,15 +150,18 @@ export function Spellcheck() {
                   <Icon name="clear" />
                 </button>
               </div>
-              <Button
+              <CheckboxMenu
                 id="spellcheck-filter"
-                icon={onlyEnabled ? "check" : undefined}
-                variant={onlyEnabled ? "primary" : "secondary"}
-                aria-pressed={String(onlyEnabled)}
-                onClick={() => setOnlyEnabled((value) => !value)}
-              >
-                Only enabled
-              </Button>
+                label="Filter"
+                disabled={busy || automatic || inactive}
+                options={[
+                  { id: "enabled", label: "Only enabled", checked: onlyEnabled },
+                  { id: "downloaded", label: "Downloaded", checked: onlyDownloaded },
+                ]}
+                onChange={(id, value) =>
+                  id === "enabled" ? setOnlyEnabled(value) : setOnlyDownloaded(value)
+                }
+              />
               <Button
                 id="spellcheck-refresh"
                 icon="refresh"
@@ -171,11 +179,13 @@ export function Spellcheck() {
                 const description =
                   status === "failed"
                     ? "Download failed"
-                    : status === "downloading"
-                      ? "Downloading…"
-                      : ready
-                        ? "Downloaded"
-                        : "Downloads when needed";
+                    : status === "pending"
+                      ? "Starting download…"
+                      : status === "downloading"
+                        ? "Downloading"
+                        : ready
+                          ? "Downloaded"
+                          : "Downloads when needed";
                 return (
                   <div class="spelling-language" data-language={language} key={language}>
                     <Switch
@@ -190,7 +200,28 @@ export function Spellcheck() {
                       description={
                         <span class="spelling-dictionary-status" data-state={status || "unknown"}>
                           {ready && <Icon name="check" />}
+                          {["pending", "downloading"].includes(status) && (
+                            <span
+                              class="dictionary-progress"
+                              role="progressbar"
+                              aria-label={`Downloading ${languageName(language)} dictionary`}
+                            />
+                          )}
                           {description}
+                          {ready && (
+                            <>
+                              <InlineBullet />
+                              <button
+                                type="button"
+                                class="inline-link"
+                                aria-label={`Uninstall ${languageName(language)} dictionary`}
+                                disabled={busy || automatic || inactive}
+                                onClick={() => spelling.uninstall(language)}
+                              >
+                                Uninstall
+                              </button>
+                            </>
+                          )}
                         </span>
                       }
                       checked={selected.includes(language)}

@@ -45,9 +45,15 @@ test("dictionary failure is reported without logging typed text and listeners do
   controller.apply();
   assert.equal(session.listenerCount("spellcheck-dictionary-download-failure"), 1);
   session.emit("spellcheck-dictionary-download-failure", {}, "fr");
-  assert.deepEqual(controller.status().downloads, [{ language: "fr", state: "failed" }]);
+  assert.deepEqual(controller.status().downloads, [
+    { language: "en-GB", state: "pending" },
+    { language: "fr", state: "failed" },
+  ]);
   session.emit("spellcheck-dictionary-initialized", {}, "fr");
-  assert.deepEqual(controller.status().downloads, [{ language: "fr", state: "ready" }]);
+  assert.deepEqual(controller.status().downloads, [
+    { language: "en-GB", state: "pending" },
+    { language: "fr", state: "ready" },
+  ]);
 });
 test("dictionary API errors leave a readable settings error", () => {
   const { controller, session } = fixture();
@@ -164,14 +170,18 @@ test("dictionary metadata uses stale-while-revalidate, deduplicates scans and pr
     "metadata failures do not break spell checking",
   );
   assert.equal(
-    controller.status().downloads.length,
+    controller.status().downloads.filter(({ state }) => state === "cached" || state === "ready")
+      .length,
     2,
     "failed refresh retains cached dictionaries",
   );
   result = Promise.resolve(new Set());
   await controller.refresh(true);
   assert.equal(controller.status().dictionaryError, undefined);
-  assert.deepEqual(controller.status().downloads, [{ language: "fr", state: "ready" }]);
+  assert.deepEqual(controller.status().downloads, [
+    { language: "fr", state: "ready" },
+    { language: "en-GB", state: "pending" },
+  ]);
 });
 
 test("repeated Discord locale updates do not reinitialize unchanged dictionaries", () => {
@@ -185,4 +195,49 @@ test("repeated Discord locale updates do not reinitialize unchanged dictionaries
   controller.apply();
   controller.apply({ spellcheckLanguages: ["en-US", "fr"] });
   assert.equal(calls, 1);
+});
+
+test("uninstall removes every dictionary version and alias status but preserves other locales", async (t) => {
+  const fs = require("node:fs/promises");
+  const path = require("node:path");
+  const os = require("node:os");
+  const profile = await fs.mkdtemp(path.join(os.tmpdir(), "dpe-uninstall-"));
+  t.after(() => fs.rm(profile, { recursive: true, force: true }));
+  const directory = path.join(profile, "Dictionaries");
+  await fs.mkdir(directory);
+  const data = Buffer.alloc(64);
+  data.write("BDic");
+  for (const name of ["fr-FR-3-0.bdic", "fr-FR-4-0.bdic", "en-US-10-2.bdic", "fr-FR-4-0.bdic.tmp"])
+    await fs.writeFile(path.join(directory, name), data);
+  const { electron, controller, session } = fixture({
+    spellcheckUseSystemLanguages: false,
+    spellcheckLanguages: ["en-US"],
+  });
+  electron.app.getPath = () => profile;
+  session.availableSpellCheckerLanguages.push("fr-FR");
+  controller.apply();
+  await controller.refresh(true);
+  assert.deepEqual(controller.aliases("fr"), ["fr", "fr-FR"]);
+  session.emit("spellcheck-dictionary-initialized", {}, "fr");
+  await controller.uninstall("fr");
+  assert.deepEqual((await fs.readdir(directory)).sort(), ["en-US-10-2.bdic", "fr-FR-4-0.bdic.tmp"]);
+  session.emit("spellcheck-dictionary-initialized", {}, "fr");
+  assert.ok(!controller.status().downloads.some(({ language }) => language === "fr"));
+  await assert.rejects(controller.uninstall("../en-US"), /supported/);
+  await assert.rejects(controller.uninstall("en-US"), /Disable/);
+});
+
+test("new language selection reports pending before native events and clears it when deselected", () => {
+  const { controller, session } = fixture({ spellcheckLanguages: ["fr"] });
+  assert.deepEqual(controller.apply().downloads, [{ language: "fr", state: "pending" }]);
+  session.emit("spellcheck-dictionary-download-begin", {}, "fr");
+  assert.deepEqual(controller.status().downloads, [{ language: "fr", state: "downloading" }]);
+  controller.apply({ spellcheckLanguages: ["de"] });
+  assert.ok(
+    controller
+      .status()
+      .downloads.some((item) => item.language === "de" && item.state === "pending"),
+  );
+  controller.apply({ spellcheckLanguages: [], spellcheckUseSystemLanguages: false });
+  assert.ok(!controller.status().downloads.some((item) => item.state === "pending"));
 });

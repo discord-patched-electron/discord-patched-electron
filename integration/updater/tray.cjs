@@ -127,7 +127,7 @@ function describe() {
       id,
       label,
       custom: Boolean(custom),
-      overridden: Boolean(name) || validPreset(config().trayIconPresets?.[id]),
+      overridden: Boolean(custom) || preset(id) !== preset(),
       preset: custom ? null : bundled ? preset(id) : "discord",
       source: custom ? "Custom image" : bundled ? presets[preset(id)].label : "Discord",
       preview: preview || null,
@@ -221,10 +221,10 @@ function setStatePreset(state, selected) {
   if (!validPreset(selected)) throw new Error("Unknown tray icon preset.");
   const icons = { ...config().trayIcons };
   delete icons[state];
-  save({
-    trayIcons: icons,
-    trayIconPresets: { ...config().trayIconPresets, [state]: selected },
-  });
+  const overrides = { ...config().trayIconPresets };
+  if (selected === preset()) delete overrides[state];
+  else overrides[state] = selected;
+  save({ trayIcons: icons, trayIconPresets: overrides });
   return status();
 }
 module.exports = {

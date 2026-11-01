@@ -31,6 +31,7 @@ that test run.
 - [Settings descriptions, titlebar behavior and autoscroll dependency](settings-refinements-20261101.md)
 - [Native middle-click patch, regression checks and runtime artifact](middle-click-native-20261101.md)
 - [Tray icons and bilingual spell checking](tray-spellcheck-20261101.md)
+- [Dictionary filters, removal, progress and tray reset state](dictionary-controls-20261101.md)
 - [Vencord/Equicord tray presets and asset credits](tray-presets-20261101.md)
 - [Individual tray preset links and essential-flags copy](tray-row-presets-20261101.md)
 - [Collapsed window controls and Custom tray preset state](controls-custom-20261101.md)
@@ -76,5 +77,7 @@ current setup instructions or authorization to repeat earlier actions.
 - [Previous Equicord loader](equicord.md)
 - [Proprietary payload cleanup](proprietary-payload-cleanup.md)
 - [Saved test reports](../evidence/)
+
+- [Blacksmith build economics and dictionary feedback](blacksmith-build-economics-20261101.md)
 
 - [Free build capacity and incremental checkpoints](free-build-reuse-20261101.md)

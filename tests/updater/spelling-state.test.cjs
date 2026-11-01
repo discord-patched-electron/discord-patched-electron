@@ -107,3 +107,64 @@ test("manual refresh during a background read forces one follow-up refresh", asy
   assert.equal(store.getSnapshot().refreshing, false);
   assert.equal(store.getSnapshot().message, "Dictionary status refreshed.");
 });
+
+test("enabling an uncached language immediately shows pending download through stale native snapshots", async () => {
+  const saved = deferred();
+  let response = initial;
+  const store = createSpellingState({
+    spellcheckLoad: async () => response,
+    spellcheckSave: () => saved.promise,
+  });
+  await store.load();
+  const writing = store.save({
+    enabled: true,
+    languages: ["en-US", "fr"],
+    useSystemLanguages: false,
+  });
+  assert.equal(
+    store.getSnapshot().value.downloads.find((x) => x.language === "fr").state,
+    "pending",
+  );
+  response = { ...initial, languages: ["en-US", "fr"], configuredLanguages: ["en-US", "fr"] };
+  saved.resolve(response);
+  await writing;
+  await store.load();
+  assert.equal(
+    store.getSnapshot().value.downloads.find((x) => x.language === "fr").state,
+    "pending",
+  );
+  response = { ...response, downloads: [{ language: "fr", state: "downloading" }] };
+  await store.load();
+  assert.equal(
+    store.getSnapshot().value.downloads.find((x) => x.language === "fr").state,
+    "downloading",
+  );
+  response = { ...response, downloads: [{ language: "fr", state: "ready" }] };
+  await store.load();
+  assert.equal(store.getSnapshot().value.downloads.find((x) => x.language === "fr").state, "ready");
+});
+
+test("cached language toggles do not pretend to download and failed saves roll back pending feedback", async () => {
+  const cached = { ...initial, downloads: [{ language: "fr", state: "cached" }] };
+  let response = cached;
+  const store = createSpellingState({
+    spellcheckLoad: async () => response,
+    spellcheckSave: async () => {
+      throw Error("Disk full");
+    },
+  });
+  await store.load();
+  let writing = store.save({
+    enabled: true,
+    languages: ["en-US", "fr"],
+    useSystemLanguages: false,
+  });
+  assert.equal(store.getSnapshot().value.downloads[0].state, "cached");
+  await writing;
+  response = initial;
+  await store.load();
+  writing = store.save({ enabled: true, languages: ["en-US", "fr"], useSystemLanguages: false });
+  assert.equal(store.getSnapshot().value.downloads[0].state, "pending");
+  await writing;
+  assert.deepEqual(store.getSnapshot().value.downloads, []);
+});

@@ -342,3 +342,12 @@ test("default previews are available before Discord creates a tray", (t) => {
     6,
   );
 });
+
+test("selecting the baseline preset removes the redundant override and disables Reset", (t) => {
+  const f = fixture(t);
+  f.api.setPreset("vencord");
+  assert.equal(f.api.setStatePreset("default", "discord").icons[0].overridden, true);
+  const restored = f.api.setStatePreset("default", "vencord");
+  assert.equal(restored.icons.find((icon) => icon.id === "default").overridden, false);
+  assert.equal(f.config().trayIconPresets.default, undefined);
+});

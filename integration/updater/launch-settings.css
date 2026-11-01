@@ -1473,3 +1473,27 @@ body[data-flags-changed="true"] #onboarding-close-note {
 #flags-change-note {
   margin-block-end: var(--space-16, 16px);
 }
+
+.dictionary-progress {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-muted, #949ba4);
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dictionary-progress {
+    animation: dictionary-progress-spin 1s linear infinite;
+  }
+}
+@keyframes dictionary-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spelling-dictionary-status .inline-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

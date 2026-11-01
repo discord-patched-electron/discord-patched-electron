@@ -271,6 +271,33 @@ function open(tab = "settings", sourceContents, options = {}) {
     spelling.apply(next);
     return spellingState();
   });
+  handle("dpe-spellcheck-uninstall", async (language) => {
+    const spelling = require("../desktop/spellcheck.cjs");
+    const previous = settings.get("openasar", {});
+    if (spelling.usesSystemLanguages(previous))
+      throw new Error("Turn off Use system languages before uninstalling a dictionary.");
+    const aliases = spelling.aliases(language);
+    const languages = (previous.spellcheckLanguages || []).filter(
+      (code) => !aliases.includes(code),
+    );
+    const next = {
+      ...previous,
+      spellcheckLanguages: languages,
+      spellcheckEnabled: previous.spellcheckEnabled !== false && languages.length > 0,
+    };
+    settings.set("openasar", next);
+    try {
+      settings.save();
+    } catch (error) {
+      settings.set("openasar", previous);
+      throw error;
+    }
+    global.oaConfig = { ...next, autoupdate: false };
+    const applied = spelling.apply(next);
+    if (applied.error) throw new Error(applied.error);
+    await spelling.uninstall(language);
+    return spellingState();
+  });
   handle("dpe-tray-load", () => require("./tray.cjs").status());
   handle("dpe-tray-preset", (preset) => require("./tray.cjs").setPreset(preset));
   handle("dpe-tray-state-preset", (state, preset) =>
