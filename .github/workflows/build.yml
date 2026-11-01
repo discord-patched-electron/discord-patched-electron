@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           if [ -n "$EXPECTED_RUNTIME_KEY" ]; then
-            PYTHONPATH=scripts python -c 'import os; from common import read_json; from build_reference import build_config; from runtime_fingerprints import runtime_key; s=read_json("config/sources.lock.json"); target=os.environ["ELECTRON_BUILD_TARGET"]; assert runtime_key(s["targets"][target], s, build_config(target)) == os.environ["EXPECTED_RUNTIME_KEY"], "Source changed since scheduling"'
+            python3 scripts/check_runtime_key.py
           fi
           mkdir -p out/capacity
           set -o pipefail

@@ -64,6 +64,11 @@ in `ci-state/state.json`. Settings live in `scripts/blacksmith_budget.py`:
 | Reservation per attempt | **960 allowance minutes**, using the 8× billing rate  |
 | Rolling budget          | **2,400 allowance minutes** over **31 days**          |
 
+These reservations are worst-case limits, not Blacksmith usage: a job that fails
+immediately can consume only a few provider minutes while retaining its full
+project reservation. The compiler preflight is exercised without compilation in
+`tests/test_runtime_preflight.py`.
+
 Stopping compilation early leaves time for logs, artifacts and cache upload.
 The budget permits two attempts and leaves 600 of the reported 3,000 free minutes
 outside this workflow.

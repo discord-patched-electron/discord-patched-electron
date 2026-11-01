@@ -4,13 +4,13 @@ import argparse
 import json
 import os
 import subprocess
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from blacksmith_budget import budget_status
 from common import ROOT, electron_channel, read_json, write_json
 from fingerprints import integration_key
-from update_policy import plan
+from update_policy import date, plan
 
 PROJECT = "discord-patched-electron/discord-patched-electron"
 
@@ -77,10 +77,17 @@ def schedule(state, policy, sources, now, run_id, results, compiler_busy=False):
     if native["action"] == "prepare-source" and not allowance["can_build"]:
         native["action"] = "budget-deferred"
         return decision
+    previous = state["electron_work"].get(native.get("runtime_key"))
+    retry_source = (
+        previous is not None
+        and previous["status"] == "failure"
+        and date(now)
+        >= date(previous["requested_at"]) + timedelta(hours=policy["electron_interval_hours"])
+    )
     if (
         native["action"] == "prepare-source"
         and not compiler_busy
-        and native["runtime_key"] not in state["electron_work"]
+        and (previous is None or retry_source)
     ):
         state["electron_work"][native["runtime_key"]] = {
             "status": "queued",
@@ -89,7 +96,7 @@ def schedule(state, policy, sources, now, run_id, results, compiler_busy=False):
             "requested_at": now,
         }
         state["last_compiler_attempt_at"] = now
-    else:
+    elif native["action"] == "prepare-source":
         native["action"] = "deferred" if compiler_busy else "no-new-work"
     return decision
 
@@ -150,6 +157,12 @@ if __name__ == "__main__":
     )
     write_json(args.state, state)
     write_json(ROOT / "out/discovery/update-plan.json", result)
+    with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+        summary.write(
+            "### Electron scheduling\n\n```json\n"
+            + json.dumps(result["electron"], indent=2)
+            + "\n```\n"
+        )
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
         output.write("clients=" + json.dumps([x["channel"] for x in result["clients"]]) + "\n")
         output.write(

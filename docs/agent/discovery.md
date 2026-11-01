@@ -58,7 +58,10 @@ Failure leaves retained builds and the last-good runtime untouched. Success
 advances the source lock with a fast-forward push and dispatches `build.yml`
 with the expected native-input key. The compiler verifies that key and reserves
 [Blacksmith allowance](ci-setup.md#blacksmith-compilation) before runner allocation.
-A healthy compiler is never cancelled or duplicated.
+A healthy compiler is never cancelled or duplicated. Failed source preparation
+(including a fast-forward push race) can retry after another 96 hours; successful
+or queued source work is not duplicated. Discovery summaries show the scheduling
+decision and next routine time even when no work starts.
 
 Upstream API changes still need reviewed ports. Source assembly passing does
 not establish compilation or runtime compatibility.

@@ -90,7 +90,25 @@ class UpdatePolicy(unittest.TestCase):
         self.state["clients"]["canary"]["sources"]["discord_desktop_core"]["sha256"] = "c" * 64
         result = schedule(self.state, self.policy, self.sources, "2026-10-28T05:00:00Z", "3", {})
         self.assertEqual([i["channel"] for i in result["clients"]], ["canary"])
-        self.assertEqual(result["electron"]["action"], "no-new-work")
+        self.assertEqual(result["electron"]["action"], "deferred")
+
+    def test_failed_source_update_retries_after_cooldown_even_when_urgent(self):
+        self.policy["urgent_versions"] = ["46.0.0-alpha.2"]
+        schedule(self.state, self.policy, self.sources, "2026-10-28T03:00:00Z", "1", {})
+        early = schedule(
+            self.state, self.policy, self.sources, "2026-10-28T04:00:00Z", "2", {"1": "failure"}
+        )
+        self.assertEqual(early["electron"]["action"], "no-new-work")
+        retry = schedule(self.state, self.policy, self.sources, "2026-11-01T03:00:00Z", "3", {})
+        self.assertEqual(retry["electron"]["action"], "prepare-source")
+        self.assertEqual(self.state["electron_work"]["b" * 64]["run"], "3")
+        self.assertEqual(self.state["last_compiler_attempt_at"], "2026-11-01T03:00:00Z")
+        for status in ("queued", "success"):
+            self.state["electron_work"]["b" * 64]["status"] = status
+            result = schedule(
+                self.state, self.policy, self.sources, "2026-11-05T03:00:00Z", "4", {}
+            )
+            self.assertEqual(result["electron"]["action"], "no-new-work")
 
     def test_advisories_without_a_usable_fix_do_not_block_client_work_or_bypass_cooldown(self):
         for patched, affected in (
