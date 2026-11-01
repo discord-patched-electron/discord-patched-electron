@@ -54,7 +54,9 @@ uv run python scripts/ci_scope.py --base BEFORE_SHA --head AFTER_SHA
 
 ## Blacksmith compilation
 
-Before allocating a runner, a GitHub-hosted job reads organization-wide usage
+A free GitHub-hosted job assembles and validates the source first, retaining a
+one-day source checkpoint for transfer. Before allocating a runner, a separate
+GitHub-hosted job reads organization-wide usage
 through Blacksmith CLI 0.5.3 (version and SHA-256 pinned in the composite action),
 then commits its reservation to `ci-state`. Discovery and allocation share a
 short state-writer concurrency lock; compilation has its own concurrency group.
@@ -92,6 +94,10 @@ The workflow rejects an active or successful build of the same runtime. Reuse
 successful output for client packaging. The separate four-day Electron cooldown
 sets a minimum interval for routine new versions; retries and proven security
 fixes use the policy in [discovery](discovery.md#electron-updates).
+
+Hosted compilation restores a bounded incremental workspace from the free cache.
+Setup/restore time reduces the compiler timeout so the 15-minute checkpoint and
+artifact window remains available. See [free build reuse](free-build-reuse-20261101.md).
 
 The compiler preflight is tested without compilation. A complete cold build
 within the hosted limit remains unverified. See the

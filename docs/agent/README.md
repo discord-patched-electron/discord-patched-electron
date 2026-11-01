@@ -76,3 +76,5 @@ current setup instructions or authorization to repeat earlier actions.
 - [Previous Equicord loader](equicord.md)
 - [Proprietary payload cleanup](proprietary-payload-cleanup.md)
 - [Saved test reports](../evidence/)
+
+- [Free build capacity and incremental checkpoints](free-build-reuse-20261101.md)

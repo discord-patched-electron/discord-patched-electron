@@ -6,6 +6,7 @@ Artifacts remain diagnostic until independent runtime and release gates pass.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
@@ -18,6 +19,7 @@ from contextlib import nullcontext
 from pathlib import Path
 
 from assemble import assemble, validate_port
+from build_metrics import cpu_ticks, timed_run, utilization
 from build_resources import build_resources
 from common import (
     ROOT,
@@ -33,6 +35,7 @@ from common import (
 )
 from compiler_cache import compiler_cache
 from fingerprints import runtime_key
+from incremental_workspace import transition, workspace_id
 
 IMPLEMENTATION = [
     "scripts/build_reference.py",
@@ -153,6 +156,7 @@ def build_inputs(target: str, sources: dict, config: dict) -> tuple[dict, dict, 
             "target": {key: spec[key] for key in ("version", "commit")},
             "port": port,
             "candidate_toolchain": hash_files(["ci/gn/BUILD.gn.in", "config/candidate-build.json"]),
+            "assembly_implementation": hash_files(["scripts/assemble.py", "scripts/common.py"]),
         }
         key = runtime_key(spec, sources, config)
     return spec, inputs, key
@@ -232,7 +236,13 @@ def verify_source(electron: Path, report: dict):
         raise ValueError("Cached Electron source contains unrecorded edits")
 
 
-def build(output: Path, target: str = "reference", *, prepare_only: bool = False):
+def build(
+    output: Path,
+    target: str = "reference",
+    *,
+    prepare_only: bool = False,
+    source_only: bool = False,
+):
     started = time.monotonic()
     config = build_config(target)
     cache = cache_root()
@@ -240,7 +250,7 @@ def build(output: Path, target: str = "reference", *, prepare_only: bool = False
     sources = read_json(ROOT / "config/sources.lock.json")
     spec, inputs, key = build_inputs(target, sources, config)
     identity = digest(inputs)
-    work = cache / target / identity
+    work = cache / target / workspace_id(target, inputs)
     work.mkdir(parents=True, exist_ok=True)
     if reuse_completed(work, output, key):
         return
@@ -250,11 +260,34 @@ def build(output: Path, target: str = "reference", *, prepare_only: bool = False
     print("Build scheduling: " + json.dumps(resources, sort_keys=True), flush=True)
     free = shutil.disk_usage(cache).free / 1_000_000_000
     memory = resources["memory_limit_bytes"]
-    if free < config["minimum_disk_gb"] or memory / 1_000_000_000 < config["minimum_memory_gb"]:
+    if not source_only and (
+        free < config["minimum_disk_gb"] or memory / 1_000_000_000 < config["minimum_memory_gb"]
+    ):
         raise ValueError(
             f"Insufficient build capacity: {free:.1f} GB free, {memory / 1_000_000_000:.1f} GB RAM"
         )
+    transition(work, target, inputs, assemble, verify_source, reset_patch_repositories)
     write_json(work / "native-inputs.json", inputs)
+    source = work / "checkout"
+    electron = source / "src/electron"
+    report = work / "source.json"
+    if not electron.exists():
+        if not assemble(target, cache / "source.git", electron, report):
+            shutil.copy2(report, output / "source.json")
+            raise ValueError("Source port failed; compiler was not started")
+    if (
+        not report.exists()
+        or read_json(report).get("upstream_commit") != spec["commit"]
+        or read_json(report).get("source_assembled") is not True
+    ):
+        raise ValueError("Incomplete or mismatched cached source assembly; inspect the cache")
+    verify_source(electron, read_json(report))
+    shutil.copy2(report, output / "source.json")
+    if source_only:
+        print(
+            "Source assembled on the free runner; dependencies and compilation remain", flush=True
+        )
+        return
     tools = cache / ("depot_tools-" + config["depot_tools_commit"])
     if not tools.exists():
         run("git", "init", tools)
@@ -280,21 +313,6 @@ def build(output: Path, target: str = "reference", *, prepare_only: bool = False
     # launcher still requires python-bin/python3 and python3_bin_reldir.txt.
     # This upstream entry point installs tools without changing the pinned Git ref.
     run(tools / "ensure_bootstrap")
-    source = work / "checkout"
-    electron = source / "src/electron"
-    report = work / "source.json"
-    if not electron.exists():
-        if not assemble(target, cache / "source.git", electron, report):
-            shutil.copy2(report, output / "source.json")
-            raise ValueError("Source port failed; compiler was not started")
-    if (
-        not report.exists()
-        or read_json(report).get("upstream_commit") != spec["commit"]
-        or read_json(report).get("source_assembled") is not True
-    ):
-        raise ValueError("Incomplete or mismatched cached source assembly; inspect the cache")
-    verify_source(electron, read_json(report))
-    shutil.copy2(report, output / "source.json")
     (source / ".gclient").write_text(
         "solutions = "
         + repr(
@@ -313,7 +331,9 @@ def build(output: Path, target: str = "reference", *, prepare_only: bool = False
     prepared = work / "prepared.json"
     synced = work / "synchronized.json"
     if not synced.exists():
-        run(
+        timed_run(
+            output,
+            "dependency_sync",
             "gclient",
             "sync",
             "--nohooks",
@@ -325,13 +345,21 @@ def build(output: Path, target: str = "reference", *, prepare_only: bool = False
         write_json(synced, {"identity": identity})
     # unmanaged means gclient must preserve the exact source assembled above.
     verify_source(electron, read_json(report))
+    installed = work / "dependencies-installed.json"
+    if not installed.exists():
+        timed_run(
+            output,
+            "os_dependencies",
+            "sudo",
+            "bash",
+            "build/install-build-deps.sh",
+            "--no-prompt",
+            cwd=source / "src",
+        )
+        write_json(installed, {"identity": identity})
     if not prepared.exists():
-        installed = work / "dependencies-installed.json"
-        if not installed.exists():
-            run("sudo", "bash", "build/install-build-deps.sh", "--no-prompt", cwd=source / "src")
-            write_json(installed, {"identity": identity})
         reset_patch_repositories(source, read_json(work / "patch-bases.json"))
-        run("gclient", "runhooks", cwd=source)
+        timed_run(output, "hooks", "gclient", "runhooks", cwd=source)
         write_json(prepared, {"identity": identity})
     if prepare_only:
         write_json(
@@ -368,8 +396,18 @@ def build(output: Path, target: str = "reference", *, prepare_only: bool = False
                     "reason": "Preserve existing unwrapped reference Ninja commands and objects",
                 },
             )
-        run("gn", "gen", "out/Release", "--args=" + " ".join(args), cwd=source / "src")
-        run(
+        timed_run(
+            output,
+            "generation",
+            "gn",
+            "gen",
+            "out/Release",
+            "--args=" + " ".join(args),
+            cwd=source / "src",
+        )
+        timed_run(
+            output,
+            "compilation",
             "autoninja",
             "-C",
             "out/Release",
@@ -421,6 +459,11 @@ def main():
         action="store_true",
         help="Fetch and patch a separate target workspace without starting its compiler",
     )
+    parser.add_argument(
+        "--source-only",
+        action="store_true",
+        help="Assemble Electron on a free runner without Chromium dependencies or compilation",
+    )
     args = parser.parse_args()
     cache = cache_root()
     cache.mkdir(parents=True, exist_ok=True)
@@ -434,6 +477,7 @@ def main():
         "sample_interval_seconds": 5,
     }
     started = time.monotonic()
+    initial_cpu = cpu_ticks()
 
     def sample():
         metrics["minimum_free_disk_bytes"] = min(
@@ -451,6 +495,7 @@ def main():
             available if previous is None else min(previous, available)
         )
         metrics["elapsed_seconds"] = round(time.monotonic() - started)
+        metrics["host_cpu_busy_percent"] = utilization(initial_cpu, cpu_ticks())
         for name in ("memory.peak", "memory.swap.peak"):
             path = Path("/sys/fs/cgroup") / name
             if path.exists():
@@ -465,7 +510,9 @@ def main():
     thread = threading.Thread(target=monitor, daemon=True)
     thread.start()
     try:
-        build(output, args.target, prepare_only=args.prepare_only)
+        with (cache / ".build.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            build(output, args.target, prepare_only=args.prepare_only, source_only=args.source_only)
     except BaseException:
         metrics["status"] = "failed"
         raise

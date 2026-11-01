@@ -30,8 +30,8 @@ reference build keeps its diagnostic configuration.
 1. **Completed runtime:** matching native inputs, successful stage markers and
    archive SHA-256 allow export without fetching, hooks, GN generation or compilation.
 2. **Ninja objects:** the same inputs resume the existing output directory.
-   Different native inputs use separate workspaces. Driver fixes do not require
-   discarding the reference checkout.
+   Hosted compatible updates use stable slots and Git/gclient transitions; local
+   builds retain their existing per-input layout by default.
 3. **sccache:** pinned compiler results can cross workspace boundaries when the
    command is supported. Compiler, header and flag changes invalidate results.
    Direct/preprocessor mode is disabled to detect newly appearing optional headers.
@@ -65,18 +65,22 @@ fixture passing does not establish full-build cache effectiveness.
 
 ## Storage and concurrency
 
-Historical PC builds allowed 32 GiB of sccache plus persistent source/object trees.
-Blacksmith jobs use 3 GiB and pinned `actions/cache` restore/save actions. Unique
-snapshot keys and restore prefixes accommodate immutable cache entries. Failed
-builds can save snapshots; cancellation or timeout may prevent it.
+Hosted builds now retain bounded source/tools/Ninja checkpoints in Blacksmith's
+free dependency cache. Fixed paths and nanosecond file/directory timestamps allow
+Ninja reuse without relaxed compiler-cache checks. Compatible updates use a stable
+workspace slot; major/toolchain boundaries remain separate. Failed builds save
+progress before the reserved deadline when possible. Checkpoint eviction or an
+upload failure can still cause a cold build.
 
-Only the sccache store is uploaded. Blacksmith's documented dependency-cache
-limits do not retain Chromium's full workspace. No paid cache expansion or
-sticky disk is enabled. Cache loss affects build time, not correctness.
+The compressed cap is 20 GB, below Blacksmith's default 25 GB cache capacity.
+No paid sticky disk or cache expansion is enabled. The sccache wrapper remains
+pinned and bounded to 3 GiB, but its store is no longer uploaded as the main reuse
+mechanism. Existing local workspaces keep their original identity paths unless
+`ELECTRON_INCREMENTAL_WORKSPACE=1` is explicitly selected. No existing local
+objects are moved or deleted.
 
-Each builder locks its compiler store, uses a private socket, records statistics
-and stops sccache before upload. Workflows share `electron-compilation` concurrency.
-See [CI runners](ci-setup.md) for the separate allowance budget.
+See [free build reuse](free-build-reuse-20261101.md) for measurements, recovery,
+archive validation, the router assessment and provider limitations.
 
 ## Parallelism
 

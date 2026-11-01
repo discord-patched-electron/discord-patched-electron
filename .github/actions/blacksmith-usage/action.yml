@@ -7,24 +7,9 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install verified CLI
-      shell: bash
-      run: |
-        mkdir -p "$RUNNER_TEMP/blacksmith-cli"
-        curl --fail --silent --show-error --location --retry 3 \
-          https://clireleases.blacksmith.sh/cli/v0.5.3/linux/amd64/blacksmith \
-          -o "$RUNNER_TEMP/blacksmith-cli/blacksmith"
-        echo "089a301ea5cc93a7560c7f1106911547fdfd46fc5c0cef7079e2a62a22e971ce  $RUNNER_TEMP/blacksmith-cli/blacksmith" | sha256sum --check
-        chmod +x "$RUNNER_TEMP/blacksmith-cli/blacksmith"
-        echo "$RUNNER_TEMP/blacksmith-cli" >> "$GITHUB_PATH"
+    - uses: ./.github/actions/blacksmith-cli
+      with:
+        token: ${{ inputs.token }}
     - name: Read provider usage
       shell: bash
-      env:
-        BLACKSMITH_API_TOKEN: ${{ inputs.token }}
-        BLACKSMITH_DISABLE_AUTO_UPDATE: "1"
-      run: |
-        if [ -n "$BLACKSMITH_API_TOKEN" ]; then
-          printf '%s' "$BLACKSMITH_API_TOKEN" | blacksmith auth login \
-            --api-token - --non-interactive --organization discord-patched-electron
-        fi
-        python3 scripts/blacksmith_usage.py
+      run: python3 scripts/blacksmith_usage.py

@@ -25,6 +25,7 @@ def runtime_key(target: dict, sources: dict, toolchain: dict) -> str:
                     "scripts/build_reference.py",
                     "scripts/runtime_fingerprints.py",
                     "scripts/compiler_cache.py",
+                    "scripts/incremental_workspace.py",
                     "config/build.json",
                     "config/candidate-build.json",
                     "config/compiler-cache.json",

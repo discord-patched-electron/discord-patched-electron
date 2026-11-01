@@ -21,8 +21,38 @@ permissions:
 concurrency:
   group: electron-compilation
   cancel-in-progress: false
+env:
+  # Identical physical paths are required for reusable Clang modules.
+  ELECTRON_BUILD_CACHE: /tmp/dpe-electron-build
+  ELECTRON_INCREMENTAL_WORKSPACE: "1"
 jobs:
+  source:
+    if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_RUNTIME_KEY: ${{ inputs.runtime_key }}
+      ELECTRON_BUILD_TARGET: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Assemble and check source before reserving Blacksmith minutes
+        run: |
+          if [ -n "$EXPECTED_RUNTIME_KEY" ]; then
+            python3 scripts/check_runtime_key.py
+          fi
+          python3 scripts/build_reference.py --target "$ELECTRON_BUILD_TARGET" --source-only
+          python3 scripts/build_checkpoint.py pack --target "$ELECTRON_BUILD_TARGET" --directory out/source-checkpoint
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: prepared-source-${{ github.run_id }}
+          path: out/source-checkpoint/
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
   allowance:
+    needs: source
     concurrency:
       group: electron-state-writer
       cancel-in-progress: false
@@ -66,23 +96,40 @@ jobs:
       ELECTRON_BUILD_TARGET: ${{ inputs.target }}
       BUILD_MINUTES: ${{ needs.allowance.outputs.build_minutes }}
     steps:
+      - name: Start the reserved runner deadline
+        id: clock
+        run: echo "started=$(date +%s)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
-      - name: Restore bounded compiler cache
-        id: compiler-cache
+      - name: Identify the compatible incremental workspace
+        id: identity
+        run: echo "workspace=$(python3 scripts/build_checkpoint.py identity --target "$ELECTRON_BUILD_TARGET")" >> "$GITHUB_OUTPUT"
+      - name: Restore source and Ninja checkpoint
+        id: checkpoint
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: ${{ runner.temp }}/electron-sccache
-          key: compiler-linux-x64-${{ hashFiles('config/compiler-cache.json', 'config/candidate-build.json', 'ci/gn/BUILD.gn.in') }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/electron-checkpoint
+          key: ninja-v2-${{ steps.identity.outputs.workspace }}-${{ needs.allowance.outputs.runtime_key }}-${{ github.run_id }}
           restore-keys: |
-            compiler-linux-x64-${{ hashFiles('config/compiler-cache.json', 'config/candidate-build.json', 'ci/gn/BUILD.gn.in') }}-
-      - name: Build or reuse the locked runtime
+            ninja-v2-${{ steps.identity.outputs.workspace }}-${{ needs.allowance.outputs.runtime_key }}-
+            ninja-v2-${{ steps.identity.outputs.workspace }}-
+      - name: Download source prepared on the free runner
+        if: steps.checkpoint.outputs.cache-matched-key == ''
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: prepared-source-${{ github.run_id }}
+          path: ${{ runner.temp }}/electron-checkpoint
+      - name: Verify and restore the checkpoint at its original path
         env:
-          ELECTRON_BUILD_CACHE: ${{ runner.temp }}/electron-build
+          CHECKPOINT: ${{ runner.temp }}/electron-checkpoint
+        run: python3 scripts/build_checkpoint.py restore --target "$ELECTRON_BUILD_TARGET" --directory "$CHECKPOINT"
+      - name: Build or reuse the locked runtime
+        id: build
+        env:
           ELECTRON_COMPILER_CACHE: ${{ runner.temp }}/electron-sccache
         shell: bash
         run: |
@@ -91,8 +138,49 @@ jobs:
           fi
           mkdir -p out/capacity
           set -o pipefail
-          /usr/bin/time -v timeout --signal=INT --kill-after=60s "${BUILD_MINUTES}m" \
+          elapsed=$(( $(date +%s) - ${{ steps.clock.outputs.started }} ))
+          seconds=$(( BUILD_MINUTES * 60 - elapsed ))
+          if [ "$seconds" -le 0 ]; then
+            echo "Preparation used the available build time; retaining the checkpoint."
+            exit 1
+          fi
+          /usr/bin/time -v timeout --signal=INT --kill-after=60s "${seconds}s" \
             python3 scripts/build_reference.py --target "$ELECTRON_BUILD_TARGET" 2>&1 | tee out/capacity/build.log
+      - name: Retain binary for client compatibility tests
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: candidate-runtime-${{ github.run_id }}
+          path: out/capacity/runtime-dist.zip
+          compression-level: 0
+          retention-days: 90
+          if-no-files-found: error
+      - name: Checkpoint completed work before the job deadline
+        id: pack
+        if: always() && steps.build.outcome != 'skipped'
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          CHECKPOINT: ${{ runner.temp }}/electron-checkpoint
+        run: python3 scripts/build_checkpoint.py pack --target "$ELECTRON_BUILD_TARGET" --directory "$CHECKPOINT"
+      - name: Authenticate cache maintenance
+        id: cache-auth
+        continue-on-error: true
+        if: always() && steps.pack.outcome == 'success'
+        uses: ./.github/actions/blacksmith-cli
+        with:
+          token: ${{ secrets.BLACKSMITH_API_TOKEN }}
+      - name: Retain one managed checkpoint within the free cache capacity
+        id: trim
+        if: always() && steps.pack.outcome == 'success' && steps.cache-auth.outcome == 'success'
+        continue-on-error: true
+        run: python3 scripts/blacksmith_checkpoint_retention.py
+      - name: Save bounded checkpoint after successful or failed compilation
+        continue-on-error: true
+        if: always() && steps.pack.outcome == 'success' && steps.trim.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/electron-checkpoint
+          key: ${{ steps.checkpoint.outputs.cache-primary-key }}
       - name: Retain diagnostic logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -103,17 +191,3 @@ jobs:
             out/capacity/*.log
           retention-days: 90
           if-no-files-found: warn
-      - name: Retain binary for client compatibility tests
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: candidate-runtime-${{ github.run_id }}
-          path: out/capacity/runtime-dist.zip
-          compression-level: 0
-          retention-days: 90
-          if-no-files-found: error
-      - name: Save cache after successful or failed compilation
-        if: always() && steps.compiler-cache.outcome == 'success'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: ${{ runner.temp }}/electron-sccache
-          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
