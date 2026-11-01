@@ -92,7 +92,16 @@ To hear about new candidates, select **Watch → Custom → Releases** on the
 repository and choose your delivery method in GitHub's notification settings.
 
 Approval checks the successful main-branch workflow, all package hashes and the
-retained runtime. It records the approved version, updates the runtime used for
+retained runtime. It regenerates the changelog from the previous stable release
+of the same Discord channel and Electron track, including all intervening
+prerelease changes without the candidate notes' five-entry limit. Changes remain
+grouped into new features, improvements and fixes, and the full comparison link
+uses that same stable baseline. The first stable release includes project history
+through the tested commit. Approval retries and note refreshes retain this scope.
+
+Changelog generation finishes before approval state is written. The approval
+workflow fetches full Git history so this also works on a fresh Actions checkout.
+It records the approved version, updates the runtime used for
 future client-only updates, then marks that release **Latest**. It doesn't rebuild,
 re-upload or rename any package. It rejects an older candidate after a newer
 release has been approved. The four-day cadence is based on compilation time,

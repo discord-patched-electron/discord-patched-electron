@@ -33,6 +33,7 @@ jobs:
         with:
           persist-credentials: false
           ref: main
+          fetch-depth: 0
       - name: Verify and promote the tested files
         run: python3 scripts/releases.py approve "$RELEASE_TAG"
   aur:

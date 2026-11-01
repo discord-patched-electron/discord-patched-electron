@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -10,10 +11,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from common import ROOT, read_json, write_json
+from common import ROOT, digest, read_json, sha256, write_json
 from releases import (
     FORMATS,
     PROJECT,
+    approve,
     existing_candidate,
     install_notes,
     manifest_tag,
@@ -131,6 +133,137 @@ class ReleaseApproval(unittest.TestCase):
         approved.update(tag="different", version="20261025.010000")
         with self.assertRaisesRegex(ValueError, "rollback"):
             validate_approval(self.release, self.manifest, self.workflow, approved)
+
+    def test_approval_generates_rollup_before_mutation_and_only_publishes_complete_notes(self):
+        for fail_notes in (False, True):
+            with self.subTest(fail_notes=fail_notes), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                capacity = {"synthetic": True}
+                runtime = {
+                    "version": "46.0.0-alpha.1",
+                    "cache_release": "runtime-cache-fixture",
+                    "archive_sha256": "d" * 64,
+                    "capacity_sha256": digest(capacity),
+                    "run": "42",
+                    "compiler_commit": "e" * 40,
+                }
+                current = {
+                    **self.manifest,
+                    "tag_schema": 3,
+                    "workflow_run": "23",
+                    "minimum_glibc": "2.38",
+                    "assets": {
+                        "app" + ext: hashlib.sha256(b"fixture").hexdigest() for ext in FORMATS
+                    },
+                    "runtime": runtime,
+                }
+                baseline = {**current, "version": "20261023.120000", "source_commit": "c" * 40}
+                preview = {**current, "version": "20261024.110000", "source_commit": "f" * 40}
+                tag = manifest_tag(current)
+                directory = root / "out/approve-release" / tag
+                write_json(directory / "release.json", current)
+                for name in current["assets"]:
+                    (directory / name).write_bytes(b"fixture")
+                (directory / "SHA256SUMS").write_text("fixture")
+                write_json(directory / "runtime/capacity.json", capacity)
+                policy_path = root / "config/update-policy.json"
+                write_json(policy_path, {"last_good_runtime": runtime})
+                policy_before = policy_path.read_bytes()
+                approved_path = root / "config/approved-release.json"
+                release = {
+                    "id": 7,
+                    "tag_name": tag,
+                    "draft": False,
+                    "prerelease": True,
+                    "body": "Short candidate notes",
+                    "assets": [
+                        {"name": name, "digest": "sha256:" + sha256(directory / name)}
+                        for name in (*current["assets"], "release.json", "SHA256SUMS")
+                    ],
+                }
+                entries = [
+                    release,
+                    *[
+                        {"tag_name": manifest_tag(item), "draft": False, "prerelease": pending}
+                        for item, pending in ((preview, True), (baseline, False))
+                    ],
+                ]
+                writes = []
+
+                def api(
+                    endpoint, writes=writes, tag=tag, release=release, current=current, **kwargs
+                ):
+                    if kwargs.get("method") == "PATCH":
+                        writes.append((endpoint, kwargs["data"]))
+                        return {}
+                    return {
+                        "releases/tags/" + tag: release,
+                        "actions/runs/23": self.workflow,
+                        "commits/" + tag: {"sha": current["source_commit"]},
+                        "releases/tags/runtime-cache-fixture": {
+                            "draft": False,
+                            "assets": [
+                                {"name": "runtime-dist.zip", "digest": "sha256:" + "d" * 64}
+                            ],
+                        },
+                        "actions/runs/42": {
+                            "conclusion": "success",
+                            "head_sha": "e" * 40,
+                            "updated_at": "fixture",
+                        },
+                    }[endpoint]
+
+                with (
+                    patch("releases.ROOT", root),
+                    patch("releases.api", side_effect=api),
+                    patch("releases.run"),
+                    patch("releases.verify_assets"),
+                    patch("releases.verify_signatures"),
+                    patch("releases.signature_files", return_value=[]),
+                    patch("releases.published_releases", return_value=entries),
+                    patch("releases.published_manifest", return_value=baseline) as fetch,
+                    patch(
+                        "releases.subprocess.run", return_value=subprocess.CompletedProcess([], 0)
+                    ),
+                    patch(
+                        "releases.subprocess.check_output",
+                        side_effect=RuntimeError("Missing changelog history")
+                        if fail_notes
+                        else None,
+                        return_value="a" * 40 + "\tfeat: Change from an earlier prerelease\n",
+                    ) as log,
+                    patch.dict(
+                        os.environ,
+                        {
+                            "GITHUB_ACTOR": "fixture",
+                            "GITHUB_STEP_SUMMARY": str(root / "summary"),
+                        },
+                    ),
+                ):
+                    if fail_notes:
+                        with self.assertRaisesRegex(RuntimeError, "Missing changelog"):
+                            approve(tag)
+                    else:
+                        approve(tag)
+                    fetch.assert_called_once_with(entries[-1])
+                    self.assertIn(
+                        baseline["source_commit"] + ".." + current["source_commit"],
+                        log.call_args.args[0],
+                    )
+                if fail_notes:
+                    self.assertEqual(writes, [])
+                    self.assertEqual(policy_path.read_bytes(), policy_before)
+                    self.assertFalse(approved_path.exists())
+                else:
+                    self.assertEqual(len(writes), 1)
+                    endpoint, data = writes[0]
+                    self.assertEqual(endpoint, "releases/7")
+                    self.assertEqual(set(data), {"prerelease", "make_latest", "body"})
+                    self.assertFalse(data["prerelease"])
+                    self.assertEqual(data["make_latest"], "true")
+                    self.assertIn("**NEW** Change from an earlier prerelease", data["body"])
+                    self.assertIn(manifest_tag(baseline) + "..." + tag, data["body"])
+                    self.assertNotIn("Short candidate notes", data["body"])
 
     def test_pacman_artifact_is_required_and_every_asset_is_verified(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -298,11 +298,15 @@ def published_manifest(release: dict) -> dict:
     return manifest
 
 
-def previous_release(manifest: dict, releases: list[dict], fetch=published_manifest) -> dict | None:
+def previous_release(
+    manifest: dict, releases: list[dict], fetch=None, *, approved_only: bool = False
+) -> dict | None:
+    fetch = fetch or published_manifest
     candidates = []
     for release in releases:
         if (
             release["draft"]
+            or (approved_only and release.get("prerelease") is not False)
             or app_release_channel(release["tag_name"]) != manifest["channel"]
             or release["tag_name"] == manifest_tag(manifest)
         ):
@@ -353,20 +357,6 @@ def approval_action(manifest: dict) -> str:
     )
 
 
-def approved_notes(body: str, manifest: dict) -> str:
-    header = "| Distribution | Package |\n| --- | --- |\n"
-    row = aur_install_row(manifest)
-    if row not in body:
-        body = body.replace(header, header + row + "\n", 1)
-    return (
-        body.replace(approval_action(manifest), "", 1)
-        .replace("**Awaiting maintainer testing.**", PENDING, 1)
-        .replace("**I haven't tested and approved this build yet.**", PENDING, 1)
-        .replace("**I haven't approved this build as stable yet.**", PENDING, 1)
-        .replace(PENDING, "**This build has been approved as stable.**", 1)
-    )
-
-
 def change_category(subject: str) -> tuple[str, str]:
     """Only explicit feature commits earn NEW; unknown subjects stay neutral."""
     conventional = re.match(
@@ -383,15 +373,15 @@ def change_category(subject: str) -> tuple[str, str]:
 def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
     commit = manifest["source_commit"]
     log = ""
-    if previous and previous["source_commit"] != commit:
+    if (previous and previous["source_commit"] != commit) or (approved and previous is None):
         log = subprocess.check_output(
             [
                 "git",
                 "log",
                 "--first-parent",
                 "--format=%H%x09%s",
-                "--max-count=30",
-                f"{previous['source_commit']}..{commit}",
+                *([] if approved else ["--max-count=30"]),
+                f"{previous['source_commit']}..{commit}" if previous else commit,
                 "--",
                 "integration",
                 "scripts",
@@ -421,14 +411,19 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
         subject = re.sub(r"([\\`*_\[\]<>])", r"\\\1", subject).replace("@", "＠")
         badge = "**NEW** " if category == "New" else ""
         project_changes.append((category, f"- {badge}{subject} ([{sha[:7]}]({URL}/commit/{sha}))"))
+    visible_changes = project_changes if approved else project_changes[:5]
     for category in ("New", "Improvements", "Fixes"):
-        entries = [line for group, line in project_changes[:5] if group == category]
+        entries = [line for group, line in visible_changes if group == category]
         if entries:
             changes.extend(["", "### " + category, "", *entries])
-    if len(project_changes) > 5:
+    if not approved and len(project_changes) > 5:
         changes.append("- Additional project changes are in the full changelog.")
     if previous is None:
-        changes.append("- No earlier published baseline is available for comparison.")
+        changes.append(
+            "- First stable release. Project changes include the history through this build."
+            if approved
+            else "- No earlier published baseline is available for comparison."
+        )
     comparison = (
         f"\n\n[Full changelog]({URL}/compare/{manifest_tag(previous)}...{manifest_tag(manifest)})"
         if previous
@@ -472,9 +467,10 @@ def refresh_notes(tag: str | None, *, apply: bool = False):
     output.mkdir(parents=True, exist_ok=True)
     for release in targets:
         manifest = fetch(release)
-        previous = previous_release(manifest, releases, fetch)
         current = api("releases/" + str(release["id"])) if apply else release
-        body = notes(manifest, previous, approved=not current["prerelease"])
+        approved = not current["prerelease"]
+        previous = previous_release(manifest, releases, fetch, approved_only=approved)
+        body = notes(manifest, previous, approved=approved)
         (output / (release["tag_name"] + ".before.md")).write_text(current.get("body") or "")
         (output / (release["tag_name"] + ".md")).write_text(body)
         if apply and body != current.get("body"):
@@ -712,6 +708,11 @@ def approve(tag: str, *, check_only=False):
     if check_only:
         print("Release integrity and provenance checks passed. Approval status unchanged.")
         return directory
+    # Compute the complete stable-to-stable changelog before writing approval
+    # state. Excluding the candidate itself also makes approval retries stable
+    # after the approval record or GitHub release has already been promoted.
+    previous = previous_release(manifest, published_releases(), approved_only=True)
+    body = notes(manifest, previous, approved=True)
     policy["last_good_runtime"] = {**runtime, "completed_at": compiler["updated_at"]}
     write_json(policy_path, policy)
     write_json(
@@ -753,7 +754,7 @@ def approve(tag: str, *, check_only=False):
         data={
             "prerelease": False,
             "make_latest": "true",
-            "body": approved_notes(release["body"], manifest),
+            "body": body,
         },
     )
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:

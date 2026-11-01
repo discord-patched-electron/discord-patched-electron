@@ -10,7 +10,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from releases import (
     FORMATS,
     app_release_channel,
-    approved_notes,
     manifest_tag,
     notes,
     previous_release,
@@ -43,31 +42,19 @@ def release(item, **changes):
 class ReleaseNotes(unittest.TestCase):
     def test_approval_button_names_exact_candidate_and_disappears_after_approval(self):
         current = manifest()
-        pending = notes(current, None)
+        previous = manifest("20261025.120000")
+        pending = notes(current, previous)
         self.assertNotIn("aur.archlinux.org", pending)
         self.assertIn(".pkg.tar.zst", pending)
         self.assertIn("[![Approve this release]", pending)
         self.assertIn("/actions/workflows/approve-release.yml)", pending)
         self.assertIn(f"`{manifest_tag(current)}` into **release_tag**", pending)
         self.assertIn("confirm that you tested this build", pending)
-        promoted = approved_notes(pending, current)
+        promoted = notes(current, previous, approved=True)
         self.assertEqual(promoted.count("aur.archlinux.org"), 1)
-        self.assertEqual(promoted, notes(current, None, approved=True))
+        self.assertIn("**This build has been approved as stable.**", promoted)
         self.assertNotIn("Approve this release", promoted)
-        self.assertEqual(approved_notes(promoted, current), promoted)
-
-    def test_approval_preserves_old_notes_without_a_button(self):
-        current = manifest()
-        for status in (
-            "**Awaiting maintainer testing.**",
-            "**I haven't tested and approved this build yet.**",
-            "**I haven't approved this build as stable yet.**",
-            "**This build hasn't been approved as stable yet.**",
-        ):
-            self.assertEqual(
-                approved_notes(status + "\n\nExisting release details", current),
-                "**This build has been approved as stable.**\n\nExisting release details",
-            )
+        self.assertEqual(notes(current, previous, approved=True), promoted)
 
     def test_all_tag_generations_are_recognized_without_runtime_caches(self):
         for schema in (1, 2, 3):
@@ -94,6 +81,45 @@ class ReleaseNotes(unittest.TestCase):
             previous_release(current, entries, lambda item: by_tag[item["tag_name"]]), previous
         )
         self.assertIsNone(previous_release(old, entries, lambda item: by_tag[item["tag_name"]]))
+
+    def test_stable_baseline_skips_prereleases_other_tracks_drafts_and_itself_on_retry(self):
+        old = manifest("20261024.120000")
+        stable = manifest("20261025.120000")
+        preview = manifest("20261026.110000")
+        current = manifest()
+        future = manifest("20261027.120000")
+        other = manifest("20261026.115900", channel="ptb")
+        other_track = manifest("20261026.115800", electron_version="45.0.0")
+        draft = manifest("20261026.115700")
+        entries = [
+            release(preview),
+            release(future, prerelease=False),
+            release(old, prerelease=False),
+            release(other, prerelease=False),
+            release(other_track, prerelease=False),
+            release(stable, prerelease=False),
+            release(draft, prerelease=False, draft=True),
+            {"tag_name": "runtime-cache-fixture", "draft": False},
+        ]
+        by_tag = {manifest_tag(item): item for item in (old, stable, future, other, other_track)}
+        for already_promoted in (False, True):
+            # The fetch map omits the candidate and prereleases deliberately:
+            # neither should even need a manifest download during approval.
+            baseline = previous_release(
+                current,
+                [*entries, release(current, prerelease=not already_promoted)],
+                lambda item: by_tag[item["tag_name"]],
+                approved_only=True,
+            )
+            self.assertEqual(baseline, stable)
+        self.assertIsNone(
+            previous_release(
+                current,
+                [release(preview)],
+                lambda _: self.fail("Fetched a prerelease"),
+                approved_only=True,
+            )
+        )
 
     def test_history_paginates_and_filters_drafts_and_non_app_releases(self):
         first, second = release(manifest()), release(manifest("20261025.100000"))
@@ -155,7 +181,9 @@ class ReleaseNotes(unittest.TestCase):
                 return git("rev-parse", "HEAD")
 
             baseline = commit("scripts/app.py", "old", "Old shipped behavior")
-            for index in range(7):
+            # Exceed both the five-entry display limit and the thirty-commit
+            # prerelease scan limit. Stable notes must carry all of these.
+            for index in range(35):
                 commit("scripts/app.py", str(index), f"Fix behavior {index}")
             commit("docs/install.md", "docs", "Documentation only")
             commit("config/update-policy.json", "{}", "Approve tested Canary release")
@@ -167,7 +195,18 @@ class ReleaseNotes(unittest.TestCase):
                     manifest(source_commit=head),
                     manifest("20261025.100000", source_commit=baseline),
                 )
+                stable_body = notes(
+                    manifest(source_commit=head),
+                    manifest("20261025.100000", source_commit=baseline),
+                    approved=True,
+                )
+                first_stable = notes(manifest(source_commit=head), None, approved=True)
         self.assertEqual(body.count("- Fix behavior"), 5)
+        self.assertEqual(stable_body.count("- Fix behavior"), 35)
+        self.assertEqual(first_stable.count("- Fix behavior"), 35)
+        self.assertIn("Old shipped behavior", first_stable)
+        self.assertIn("First stable release", first_stable)
+        self.assertNotIn("Additional project changes", stable_body)
         for excluded in (
             "Old shipped behavior",
             "Documentation only",
@@ -175,6 +214,7 @@ class ReleaseNotes(unittest.TestCase):
             "Propose Discord",
         ):
             self.assertNotIn(excluded, body)
+            self.assertNotIn(excluded, stable_body)
         self.assertIn("Additional project changes", body)
 
     def test_categories_reserve_new_for_explicit_features_and_escape_subjects(self):
@@ -200,12 +240,13 @@ class ReleaseNotes(unittest.TestCase):
         self.assertIn(r"\[choices\]", body)
 
     def test_refresh_only_patches_bodies_and_preserves_each_release_approval_state(self):
-        old, new = manifest("20261025.100000"), manifest()
+        old, preview, new = (manifest("20261025.100000"), manifest("20261026.110000"), manifest())
         entries = [
             release(old, id=1, prerelease=False, body="old notes"),
-            release(new, id=2, body="new notes"),
+            release(preview, id=2, body="preview notes"),
+            release(new, id=3, prerelease=False, body="new notes"),
         ]
-        by_tag = {manifest_tag(item): item for item in (old, new)}
+        by_tag = {manifest_tag(item): item for item in (old, preview, new)}
         writes = []
 
         def api(endpoint, **kwargs):
@@ -220,13 +261,17 @@ class ReleaseNotes(unittest.TestCase):
             patch("releases.published_releases", return_value=entries),
             patch("releases.published_manifest", side_effect=lambda item: by_tag[item["tag_name"]]),
             patch("releases.api", side_effect=api),
+            patch("releases.subprocess.check_output", return_value=""),
         ):
             refresh_notes(None)
             self.assertFalse(writes)
             refresh_notes(None, apply=True)
-        self.assertEqual(len(writes), 2)
+        self.assertEqual(len(writes), 3)
         self.assertTrue(all(set(data) == {"body"} for _, data in writes))
         self.assertIn("approved as stable", writes[0][1]["body"])
         self.assertIn("hasn't been approved", writes[1][1]["body"])
         self.assertIn("aur.archlinux.org", writes[0][1]["body"])
         self.assertNotIn("aur.archlinux.org", writes[1][1]["body"])
+        stable_body = writes[2][1]["body"]
+        self.assertIn(manifest_tag(old) + "..." + manifest_tag(new), stable_body)
+        self.assertNotIn(manifest_tag(preview) + "...", stable_body)
