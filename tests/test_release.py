@@ -79,7 +79,7 @@ class PortableReleases(unittest.TestCase):
                 Path(command[command.index("--target") + 1]).write_bytes(b"package fixture")
 
             with (
-                patch("package_release.validate_capacity"),
+                patch("package_release.validate_provenance"),
                 patch("package_release.subprocess.run", side_effect=nfpm) as packager,
                 patch(
                     "package_release.subprocess.check_output",

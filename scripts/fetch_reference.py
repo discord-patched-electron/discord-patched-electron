@@ -78,6 +78,21 @@ def validate_capacity(
             raise ValueError("Candidate differs from current source, CPU or compiler configuration")
 
 
+def validate_provenance(provenance: dict, candidate: bool | None = None):
+    """Preserve compiler identity when downstream checks revalidate an artifact."""
+    capacity = provenance["capacity"]
+    match = re.fullmatch(
+        r"https://github\.com/discord-patched-electron/discord-patched-electron/actions/runs/([1-9][0-9]*)",
+        str(provenance.get("compiler_run", "")),
+    )
+    validate_capacity(
+        capacity,
+        capacity["source"]["target"] != "reference" if candidate is None else candidate,
+        run_id=match[1] if match else None,
+        compiler_commit=provenance.get("compiler_commit"),
+    )
+
+
 def extract(archive: Path, destination: Path, expected: str):
     if sha256(archive) != expected:
         raise ValueError("Reference archive checksum differs from compiler report")

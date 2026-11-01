@@ -14,7 +14,7 @@ from pathlib import Path
 from build_camera_support import build
 from camera_scope import write_scope
 from common import ROOT, read_json, sha256, write_json
-from fetch_reference import validate_capacity
+from fetch_reference import validate_provenance
 
 
 def main():
@@ -43,7 +43,7 @@ def main():
     provenance = read_json(args.provenance) if args.provenance else None
     if provenance is not None:
         capacity = provenance["capacity"]
-        validate_capacity(capacity, capacity["source"]["target"] != "reference")
+        validate_provenance(provenance)
     output = args.output.resolve()
     if output.exists():
         parser.error("Use a new output directory")

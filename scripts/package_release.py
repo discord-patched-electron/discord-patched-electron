@@ -29,7 +29,7 @@ from common import (
 )
 from desktop_identity import arch_conflicts, desktop_id
 from elftools.elf.elffile import ELFFile
-from fetch_reference import validate_capacity
+from fetch_reference import validate_provenance
 from releases import release_tag
 from stage_updater import validate_distribution
 
@@ -232,7 +232,9 @@ def package(app: Path, output: Path, version: str, epoch: int, nfpm: str):
     if sha256(app / "client-update.json") != build.get("client_manifest_sha256"):
         raise ValueError("Pinned Discord module manifest changed after launch validation")
     validate_distribution(app)
-    validate_capacity(build["capacity"], True)
+    validate_provenance(
+        {**build.get("runtime_provenance", {}), "capacity": build["capacity"]}, True
+    )
     if sha256(app / "runtime/electron") != build["executable_sha256"]:
         raise ValueError("Runtime changed after assembly")
     if output.exists():

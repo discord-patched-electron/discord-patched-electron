@@ -28,3 +28,18 @@ Changing the current expected key, source/configuration, downloaded report,
 compiler commit or run ID makes this exception inapplicable. The binary remains
 checked against the report's archive hash. No rebuild or Blacksmith allocation is
 needed to rerun qualification against this exact completed artifact.
+
+## Downstream validation follow-up
+
+Run 41289936227 fetched the report successfully, then frame capture and portable
+assembly revalidated only the capacity object, dropping the run/commit context.
+All downstream validators now use `validate_provenance`, including camera startup
+and final packaging. Packaging reads the identity retained in `local-build.json`.
+Only the exact project run URL supplies a run ID; foreign URLs and missing or
+changed provenance cannot activate a reviewed exception.
+
+The actual Blacksmith artifact was downloaded and hash-verified locally. All four
+frame-capture lifetime cases passed, portable app assembly passed, and final
+packaging provenance passed using that app's recorded compiler identity. Lint
+and 535 Python / 253 JavaScript tests passed. No physical camera test or native
+recompilation was performed.

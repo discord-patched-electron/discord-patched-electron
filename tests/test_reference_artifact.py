@@ -11,7 +11,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build_reference import build_config
 from common import ROOT, digest, read_json, sha256
-from fetch_reference import extract, fetch, validate_capacity
+from fetch_reference import extract, fetch, validate_capacity, validate_provenance
 from fingerprints import runtime_key
 
 
@@ -114,6 +114,21 @@ class ReferenceArtifact(unittest.TestCase):
 
         with patch("fetch_reference.read_json", side_effect=read):
             validate_capacity(capacity, True, run_id="123", compiler_commit="commit")
+            provenance = {
+                "capacity": capacity,
+                "compiler_commit": "commit",
+                "compiler_run": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/123",
+            }
+            validate_provenance(provenance)
+            validate_provenance(provenance, True)
+            for change in (
+                {"compiler_commit": "other"},
+                {"compiler_run": "https://github.com/other/repo/actions/runs/123"},
+                {"compiler_run": "123"},
+            ):
+                with self.assertRaises(ValueError):
+                    validate_provenance({**provenance, **change})
+
             for run_id, commit in (("other", "commit"), ("123", "other"), (None, None)):
                 with self.assertRaises(ValueError):
                     validate_capacity(capacity, True, run_id=run_id, compiler_commit=commit)

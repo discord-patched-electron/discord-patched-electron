@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 from common import ROOT, read_json, run, sha256, write_json
-from fetch_reference import validate_capacity
+from fetch_reference import validate_provenance
 
 
 def main():
@@ -15,8 +15,9 @@ def main():
     parser.add_argument("--provenance", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    capacity = read_json(args.provenance)["capacity"]
-    validate_capacity(capacity, capacity["source"]["target"] != "reference")
+    provenance = read_json(args.provenance)
+    capacity = provenance["capacity"]
+    validate_provenance(provenance)
     runtime, output = args.runtime.resolve(), args.output.resolve()
     if output.exists() or output.is_relative_to(runtime.parent):
         raise ValueError("Choose a fresh output outside the input distribution")

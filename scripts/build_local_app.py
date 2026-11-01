@@ -27,7 +27,7 @@ from common import (
     write_json,
 )
 from desktop_identity import desktop_id, display_name, profile_name
-from fetch_reference import extract, validate_capacity
+from fetch_reference import extract, validate_provenance
 from patch_app_audio import patch as audio_patch
 from patch_desktop_core import patch as desktop_patch
 from patch_krisp import patch as krisp_patch
@@ -56,7 +56,7 @@ def build(
         provenance = read_json(artifact / "artifact-provenance.json")
         capacity = provenance["capacity"]
         candidate = capacity["source"]["target"] != "reference"
-        validate_capacity(capacity, candidate)
+        validate_provenance(provenance, candidate)
     if portable and (not capacity or not candidate):
         raise ValueError("Portable releases require a verified compiled candidate runtime")
     electron = capacity["source"]["target"] if capacity and candidate else "prerelease"
