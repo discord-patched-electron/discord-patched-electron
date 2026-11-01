@@ -8,6 +8,7 @@ import shutil
 import ssl
 import subprocess
 import sys
+import tempfile
 
 root = pathlib.Path(os.environ["DPE_TOOLS_DIR"]).parent.parent
 assert pathlib.Path(sys.executable).resolve().is_relative_to(root)
@@ -24,5 +25,35 @@ assert (
     subprocess.check_output(["brotli", "--decompress", "--stdout"], input=compressed)
     == b"dependency test"
 )
+# Exercise the exact public signature path used by application/runtime updates,
+# without personal keys, network access or a host GnuPG installation.
+fixture = pathlib.Path(__file__).parent
+with tempfile.TemporaryDirectory() as temporary:
+    keyring = pathlib.Path(temporary) / "release.gpg"
+    subprocess.run(
+        [
+            "gpg",
+            "--batch",
+            "--homedir",
+            temporary,
+            "--dearmor",
+            "--output",
+            str(keyring),
+            str(fixture / "release-signing-key.asc"),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "gpgv",
+            "--homedir",
+            temporary,
+            "--keyring",
+            str(keyring),
+            str(fixture / "SHA256SUMS.sig"),
+            str(fixture / "SHA256SUMS"),
+        ],
+        check=True,
+    )
 print(json.dumps(sys.argv[1:]))
 sys.exit(23)

@@ -24,6 +24,14 @@ def check(tools: Path, container: bool = False):
             'exec python3 "$root/probe.py" "$@"\n'
         )
         (app / "launch.sh").chmod(0o755)
+        # Public signature fixture from release v20261101094752.0.0-canary.24fa86df36eefd56.
+        # Deliberately frozen: tests must verify without fetching a moving release.
+        for source, name in (
+            (ROOT / "packaging/release-signing-key.asc", "release-signing-key.asc"),
+            (ROOT / "tests/fixtures/appimage-SHA256SUMS", "SHA256SUMS"),
+            (ROOT / "tests/fixtures/appimage-SHA256SUMS.sig", "SHA256SUMS.sig"),
+        ):
+            (app / name).write_bytes(source.read_bytes())
         (app / "discord-ptb.desktop").write_text(
             "[Desktop Entry]\nType=Application\nName=Discord PTB\n"
             "Exec=discord-ptb %U\nIcon=discord-ptb\nCategories=Network;\n"

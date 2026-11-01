@@ -7,6 +7,7 @@ on:
       - packaging/linux/appimage-apprun.sh
       - scripts/stage_appimage_dependencies.sh
       - tests/fixtures/appimage-dependencies.py
+      - tests/fixtures/appimage-SHA256SUMS*
       - scripts/appimage.py
       - scripts/check_appimage.py
       - scripts/package_release.py
@@ -19,6 +20,7 @@ on:
       - packaging/linux/appimage-apprun.sh
       - scripts/stage_appimage_dependencies.sh
       - tests/fixtures/appimage-dependencies.py
+      - tests/fixtures/appimage-SHA256SUMS*
       - scripts/appimage.py
       - scripts/check_appimage.py
       - config/appimage-tools.json

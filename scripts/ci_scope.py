@@ -125,6 +125,7 @@ RULES = (
             "ci/appimage/*",
             "scripts/check_appimage.py",
             "tests/fixtures/appimage-dependencies.py",
+            "tests/fixtures/appimage-SHA256SUMS*",
             "config/appimage-tools.json",
             ".github/workflows/build-appimage.yml",
             "scripts/check_release_packages.py",
