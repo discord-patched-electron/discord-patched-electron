@@ -173,7 +173,13 @@ test("helper completion cleans up private-output children on success and failure
     await t.test(`exit ${code}`, async (t) => {
       let descendant;
       t.after(() => {
-        if (descendant && running(descendant)) process.kill(descendant, "SIGKILL");
+        if (descendant && running(descendant)) {
+          try {
+            process.kill(descendant, "SIGKILL");
+          } catch (error) {
+            if (error.code !== "ESRCH") throw error;
+          }
+        }
       });
       const task = runUpdate(
         {

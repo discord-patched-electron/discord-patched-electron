@@ -142,13 +142,13 @@ def check(
                     report["targets"] = [
                         {k: t.get(k) for k in ("type", "url", "title")} for t in targets
                     ]
-                    if any(t.get("url") == "dpe-splash://app/index.html" for t in targets):
+                    if any(t.get("url") == "dpe-splash://startup/index.html" for t in targets):
                         report["updater_ui_seen"] = True
                     welcome_target = next(
                         (
                             t
                             for t in targets
-                            if t.get("url") == "dpe-splash://app/config.html?mode=welcome"
+                            if t.get("url") == "dpe-splash://welcome/config.html?mode=welcome"
                         ),
                         None,
                     )
