@@ -37,6 +37,8 @@ function fixture({
       };
     if (name === "./desktop.cjs" || name === "./application-ready.cjs") return () => {};
     if (name === "./patches.cjs") return {};
+    if (name === "./capture-backends.cjs")
+      return { register: () => calls.push(["capture-backends"]) };
     if (name === "../desktop/preferences.cjs")
       return { install: () => calls.push(["desktop-preferences"]) };
     if (name === "./tray.cjs")

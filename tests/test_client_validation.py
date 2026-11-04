@@ -1,5 +1,6 @@
 import copy
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -54,6 +55,12 @@ class ClientValidation(unittest.TestCase):
     @patch("client_inputs.enabled_discord_channels", return_value=("stable", "ptb", "canary"))
     def test_module_free_packaging_and_one_failed_recipe_do_not_cancel_others(self, _channels):
         output = self.root / "packages"
+        real_output = subprocess.check_output
+
+        def command_output(command, **kwargs):
+            if command[0] == "pkg-config":
+                return real_output(command, **kwargs)
+            return "test packages\n"
 
         def download(url, target, expected=None):
             self.assertNotIn("full.distro", url)
@@ -70,7 +77,7 @@ class ClientValidation(unittest.TestCase):
 
         with (
             patch("smoke_packages.download", side_effect=download) as downloads,
-            patch("smoke_packages.subprocess.check_output", return_value="test packages\n"),
+            patch("smoke_packages.subprocess.check_output", side_effect=command_output),
             patch("smoke_packages.package_one", side_effect=package) as recipes,
         ):
             report = smoke(output, self.lock, ["stable", "ptb", "canary"])

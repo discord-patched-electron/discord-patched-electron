@@ -19,6 +19,7 @@ const spellcheck =
 const fixture = [
   require("./desktop-preferences-fixture.cjs"),
   spellcheck,
+  require("./spellcheck-menu-fixture.cjs"),
   tray,
   migration,
   modulePath,
@@ -42,6 +43,8 @@ test("unknown or duplicated desktop patch sites fail before activation", () => {
     modulePath,
     storage,
     popout,
+    "mainWebContents.setWindowOpenHandler(details=>{",
+    'popoutWindow.webContents.setWindowOpenHandler(({url})=>((0,securityUtils_1.saferShellOpenExternal)(url),{action:"deny"}))',
     "electron.session.defaultSession.setSpellCheckerLanguages([locale])",
     "electron.session.defaultSession.setSpellCheckerLanguages([...languages])",
   ]) {

@@ -15,26 +15,10 @@ import {
   DesktopSwitch,
   NotificationPreferences,
   WindowPreferences,
+  PopoutPreferences,
 } from "./desktop-preferences.jsx";
 
 const groups = [
-  [
-    "Screen sharing",
-    [
-      [
-        "Automatically detect screen-share audio",
-        "On Wayland, select a shared application's audio when its playback can be confidently matched. Otherwise, ask you to choose. Applies to your next share.",
-        "audioAutoDetect",
-        true,
-      ],
-      [
-        "Skip audio picker for entire screens",
-        "On Wayland, share system audio automatically when an entire screen is confirmed, excluding Discord. Turn off to choose audio for screens too. Applies to your next share.",
-        "audioSkipScreenPicker",
-        true,
-      ],
-    ],
-  ],
   [
     "Privacy",
     [
@@ -107,6 +91,17 @@ export function General({ config, desktop }) {
         </section>
       ))}
       <NotificationPreferences model={desktop} />
+      <section class="settings-group" aria-labelledby="webcam-heading">
+        <h3 class="section-label" id="webcam-heading">
+          Webcam
+        </h3>
+        <DesktopSwitch
+          model={desktop}
+          name="webcamFlip"
+          label="Flip webcam horizontally"
+          description="Flip your webcam for you and everyone watching. Your preview always matches the video you send."
+        />
+      </section>
     </div>
   );
 }
@@ -174,6 +169,7 @@ export function Appearance({ config, desktop }) {
     <div class="appearance-page">
       <DesktopError model={desktop} />
       <WindowPreferences model={desktop} />
+      <PopoutPreferences model={desktop} />
       <TrayIcons />
       <div class="appearance-heading">
         <label for="theme-css" class="section-label">

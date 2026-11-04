@@ -10,18 +10,19 @@ been removed; retained local sources and objects remain available for investigat
 Lint always runs. Code changes run the full Python/JavaScript unit suite, with
 integration jobs selected by their inputs:
 
-| Change                                                                        | Additional checks                            |
-| ----------------------------------------------------------------------------- | -------------------------------------------- |
-| README, contributor guides, agent notes                                       | None; lint only                              |
-| Release notes, approval/AUR/discovery tooling, unit tests                     | Unit suite only                              |
-| App settings, updater, package assets and templates                           | Arch packaging                               |
-| Launcher                                                                      | Arch packaging and shell syntax              |
-| Audio adapters or patches                                                     | Arch packaging and application audio         |
-| Krisp patcher                                                                 | Arch packaging and native baselines          |
-| Camera support                                                                | Arch packaging and camera binary compilation |
-| Compiler cache                                                                | Real compiler cache check                    |
-| Native/audio test fixtures                                                    | Their corresponding integration suite        |
-| Source/client locks, shared dependencies, selector/workflow, unfamiliar paths | Full checks                                  |
+| Change                                                                        | Additional checks                                                           |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| README, contributor guides, agent notes                                       | None; lint only                                                             |
+| Release notes, approval/AUR/discovery tooling, unit tests                     | Unit suite only                                                             |
+| App settings, updater, package assets and templates                           | Arch packaging                                                              |
+| Launcher                                                                      | Arch packaging and shell syntax                                             |
+| Audio adapters or patches                                                     | Arch packaging and application audio                                        |
+| Krisp patcher                                                                 | Arch packaging and native baselines                                         |
+| Camera support                                                                | Arch packaging and camera binary compilation                                |
+| Capture producers, hooks, protocols and their build scripts                   | Arch packaging, native baselines and independent capture bundle compilation |
+| Compiler cache                                                                | Real compiler cache check                                                   |
+| Native/audio test fixtures                                                    | Their corresponding integration suite                                       |
+| Source/client locks, shared dependencies, selector/workflow, unfamiliar paths | Full checks                                                                 |
 
 Mixed changes use the union of their scopes. Keep the rules conservative: a new
 unlisted path runs everything until its consumers have been identified. Changing

@@ -398,7 +398,7 @@ def check_popout(websocket: str) -> dict:
     """Exercise Discord's real popout handler and loaded handshake at the login page.
 
     The parent writes only a synthetic marker, never account or voice data.
-    Use the same name twice to verify that closing releases the popout registry.
+    Use each real video-popout name twice to verify that closing releases the registry.
     """
     expression = r"""(async () => {
       if (!document.querySelector('input[name=email]')
@@ -406,7 +406,9 @@ def check_popout(websocket: str) -> dict:
         return {passed:false, error:'Popout check requires the fresh login page'};
       }
       const attempts = [];
-      for (let attempt = 0; attempt < 2; attempt++) {
+      const keys = ['DISCORD_CHANNEL_CALL_POPOUT', 'DISCORD_CHANNEL_CALL_POPOUT',
+        'DISCORD_CALL_TILE_POPOUT_dpe_fixture', 'DISCORD_CALL_TILE_POPOUT_dpe_fixture'];
+      for (const key of keys) {
         const result = await new Promise(resolve => {
           let child, timer;
           const finish = value => {
@@ -437,15 +439,15 @@ def check_popout(websocket: str) -> dict:
           window.addEventListener('message', loaded);
           timer = setTimeout(() => finish({passed:false, error:'Popout loaded handshake timed out'}), 12000);
           try {
-            child = window.open('/popout', 'DISCORD_dpe_popout_check', 'width=640,height=480');
-            if (!child) finish({passed:false, error:'window.open returned null (opener severed)'});
+            child = window.open('/popout', key, 'menubar=no,toolbar=no,location=no,directories=no,width=854,height=480,');
+            if (!child) finish({passed:false, error:'window.open returned null (request denied or opener unavailable)'});
           } catch (error) { finish({passed:false, error:String(error)}); }
         });
-        attempts.push(result);
+        attempts.push({key, ...result});
         if (!result.passed) break;
         await new Promise(resolve => setTimeout(resolve, 150));
       }
-      return {passed:attempts.length === 2 && attempts.every(item => item.passed), attempts};
+      return {passed:attempts.length === keys.length && attempts.every(item => item.passed), attempts};
     })()"""
     result = cdp(
         websocket,

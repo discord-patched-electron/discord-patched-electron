@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: MIT
+// Fused scaling and BT.709 limited-range 4:2:0 conversion. Match the reviewed
+// native descriptor and push-constant interface; keep chroma filtering in this
+// dispatch rather than reading pixels back or running another conversion pass.
+#version 450
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(set = 0, binding = 0) uniform sampler2D image;
+layout(std430, set = 0, binding = 1) writeonly buffer Nv12 { uint8_t bytes[]; } nv12;
+layout(std430, set = 0, binding = 2) writeonly buffer I420 { uint8_t bytes[]; } i420;
+layout(push_constant) uniform Geometry {
+    ivec2 destination;
+    vec2 source;
+    vec4 crop;
+    int nv12Stride;
+    int nv12Chroma;
+    int i420Stride;
+    int i420ChromaStride;
+} geometry;
+
+vec3 samplePixel(ivec2 position) {
+    vec2 location = geometry.crop.xy + (vec2(position) + 0.5) /
+                    vec2(geometry.destination) * geometry.crop.zw;
+    return textureLod(image, location / geometry.source, 0.0).rgb;
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(p, geometry.destination))) return;
+    vec3 rgb = samplePixel(p);
+    uint8_t y = uint8_t(clamp(dot(rgb, vec3(0.2126, 0.7152, 0.0722)) * 219.0 + 16.0, 16.0, 235.0));
+    nv12.bytes[p.y * geometry.nv12Stride + p.x] = y;
+    i420.bytes[p.y * geometry.i420Stride + p.x] = y;
+    if (((p.x | p.y) & 1) != 0) return;
+    // Every 2x2 block has one writer. Native geometry is even, including crop
+    // and adaptation results; the last block stays inside the visible image.
+    vec3 average = (rgb + samplePixel(p + ivec2(1, 0)) +
+                    samplePixel(p + ivec2(0, 1)) + samplePixel(p + ivec2(1, 1))) * 0.25;
+    uint8_t u = uint8_t(clamp(dot(average, vec3(-0.1146, -0.3854, 0.5)) * 224.0 + 128.0, 16.0, 240.0));
+    uint8_t v = uint8_t(clamp(dot(average, vec3(0.5, -0.4542, -0.0458)) * 224.0 + 128.0, 16.0, 240.0));
+    int uv = geometry.nv12Chroma + (p.y / 2) * geometry.nv12Stride + p.x;
+    nv12.bytes[uv] = u;
+    nv12.bytes[uv + 1] = v;
+    int ySize = geometry.i420Stride * geometry.destination.y;
+    int uvSize = geometry.i420ChromaStride * (geometry.destination.y / 2);
+    int planar = (p.y / 2) * geometry.i420ChromaStride + p.x / 2;
+    i420.bytes[ySize + planar] = u;
+    i420.bytes[ySize + uvSize + planar] = v;
+}

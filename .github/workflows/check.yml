@@ -20,6 +20,7 @@ jobs:
       packaging: ${{ steps.scope.outputs.packaging }}
       compiler: ${{ steps.scope.outputs.compiler }}
       camera: ${{ steps.scope.outputs.camera }}
+      capture: ${{ steps.scope.outputs.capture }}
       launcher: ${{ steps.scope.outputs.launcher }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -53,7 +54,7 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'package.json') }}
       - run: uv sync --locked
       - run: bun install --frozen-lockfile --ignore-scripts
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv libpipewire-0.3-dev libgbm-dev libegl-dev libgles-dev libdrm-dev libva-dev nasm libcap-dev libwayland-dev libwayland-bin libvulkan-dev libgl-dev libx11-dev libxcb1-dev libxcb-xfixes0-dev cmake ninja-build
         if: needs.changes.outputs.unit == 'true'
       - run: bun run lint
       - run: bun run test
@@ -64,6 +65,13 @@ jobs:
       - name: Validate launcher syntax
         if: needs.changes.outputs.launcher == 'true'
         run: bash -n integration/launcher/discord-launcher.sh
+      - name: Restore independent HEVC compiler objects
+        if: needs.changes.outputs.camera == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: out/hevc-build
+          key: hevc-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build_hevc_support.py', 'integration/video/hevc-backend.c', 'integration/video/encoder-abi.h') }}
+          restore-keys: hevc-${{ runner.os }}-${{ runner.arch }}-
       - name: Compile the independent camera support binary
         if: needs.changes.outputs.camera == 'true'
         run: python scripts/build_camera_support.py --output out/camera-support
@@ -74,6 +82,17 @@ jobs:
           name: camera-support
           path: out/camera-support/
           retention-days: 7
+      - name: Build capture helpers independently of Electron
+        if: needs.changes.outputs.capture == 'true'
+        run: python scripts/stage_capture_backends.py --output out/capture-support
+      - name: Retain capture helpers and corresponding source
+        if: needs.changes.outputs.capture == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: capture-support
+          path: out/capture-support/
+          retention-days: 7
+          if-no-files-found: error
   native-baselines:
     needs: changes
     if: needs.changes.outputs.native == 'true'

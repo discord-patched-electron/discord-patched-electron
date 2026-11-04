@@ -8,7 +8,13 @@ starting a larger change so we can agree on its scope.
 Install Git, [Bun](https://bun.sh/docs/installation),
 [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 24 on Linux.
 Native tests also need a C/C++ compiler; updater tests need `brotli` and GnuPG
-(`gpg` and `gpgv`). Install those system tools through your package manager.
+(`gpg` and `gpgv`). Camera helpers also need Node.js development headers
+(`node_api.h`); capture support needs PipeWire development headers and `pkg-config`.
+GPU-source compile checks also need GBM, EGL, GLES, libdrm and libcap development headers; these
+checks compile the fixture without opening a GPU.
+Direct capture protocol tests need Wayland development headers and `wayland-scanner`;
+they use a private synthetic compositor over a socketpair.
+Install those system tools through your package manager.
 
 ```sh
 git clone https://github.com/discord-patched-electron/discord-patched-electron.git

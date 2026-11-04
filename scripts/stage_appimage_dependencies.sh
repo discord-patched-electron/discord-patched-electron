@@ -14,7 +14,7 @@ for executable in gpg gpgv brotli zenity pactl pw-dump pw-cli pw-cat pw-loopback
 done
 # Explicit dependencies cover Electron dlopen paths; graphics drivers, libc and
 # display-server libraries remain host-owned per linuxdeploy's exclusion policy.
-for library in libgtk-3.so.0 libnss3.so libnssutil3.so libsmime3.so libssl3.so libsoftokn3.so libfreebl3.so libfreeblpriv3.so libnssckbi.so libnspr4.so libasound.so.2 libatomic.so.1 libcups.so.2 libXss.so.1 libXtst.so.6 libpulse.so.0 libsecret-1.so.0 libnotify.so.4 libpipewire-0.3.so.0 libgmp.so.10 libcom_err.so.2 libexpat.so.1 libfontconfig.so.1 libfreetype.so.6 libfribidi.so.0 libgpg-error.so.0 libharfbuzz.so.0 libuuid.so.1 libz.so.1; do
+for library in libgtk-3.so.0 libnss3.so libnssutil3.so libsmime3.so libssl3.so libsoftokn3.so libfreebl3.so libfreeblpriv3.so libnssckbi.so libnspr4.so libasound.so.2 libatomic.so.1 libcups.so.2 libXss.so.1 libXtst.so.6 libpulse.so.0 libsecret-1.so.0 libnotify.so.4 libpipewire-0.3.so.0 libcap.so.2 libgmp.so.10 libcom_err.so.2 libexpat.so.1 libfontconfig.so.1 libfreetype.so.6 libfribidi.so.0 libgpg-error.so.0 libharfbuzz.so.0 libuuid.so.1 libz.so.1; do
   path="/usr/lib/x86_64-linux-gnu/$library"
   if [ ! -f "$path" ]; then path="/usr/lib/x86_64-linux-gnu/nss/$library"; fi
   arguments+=(--library "$path")

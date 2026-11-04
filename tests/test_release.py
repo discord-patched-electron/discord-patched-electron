@@ -13,11 +13,36 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT, read_json, sha256, write_json
-from package_release import metadata, normalize_permissions, package, tarball
+from package_release import metadata, normalize_permissions, package, required_glibc, tarball
 from prepare_app import patch_bundle
 
 
 class PortableReleases(unittest.TestCase):
+    def test_glibc_requirement_includes_embedded_private_encoder(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "inner.c"
+            source.write_text('#include <stdio.h>\nvoid inner(void) { puts("fixture"); }\n')
+            inner = root / "inner.so"
+            subprocess.run(["cc", "-shared", "-fPIC", str(source), "-o", str(inner)], check=True)
+            # Preserve a real versioned ELF structure, substituting a higher
+            # requirement without depending on the test host's glibc version.
+            data = inner.read_bytes()
+            self.assertIn(b"GLIBC_2.2.5", data)
+            inner.write_bytes(data.replace(b"GLIBC_2.2.5", b"GLIBC_9.9.9"))
+            assembly = root / "image.S"
+            assembly.write_text(
+                '.section .dpe.hevc,"a",@progbits\n'
+                f'.incbin "{inner.as_posix()}"\n'
+                '.section .note.GNU-stack,"",@progbits\n'
+            )
+            app = root / "app"
+            app.mkdir()
+            subprocess.run(
+                ["cc", "-shared", "-fPIC", str(assembly), "-o", str(app / "helper.so")], check=True
+            )
+            self.assertEqual(required_glibc(app), "9.9.9")
+
     def test_release_packages_share_a_runtime_free_payload_and_retain_the_verified_app(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

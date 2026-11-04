@@ -1,6 +1,7 @@
 # Third-party software and sources
 
-This project's code is [MIT licensed](LICENSE). Bundled components keep their
+This project's code is [MIT licensed](LICENSE), except where a source file specifies
+another license. Bundled components keep their
 own licenses and notices. Discord's executable and module files download separately from Discord;
 they are not included in release packages.
 
@@ -25,12 +26,62 @@ adapter is included. Open-source licences and codec patent rights are separate;
 see the [codec licensing investigation](docs/agent/codec-support.md#software-hevc-and-licensing-review)
 before changing or redistributing codec components.
 
+The independent HEVC encoder and AMD AV1 alignment workaround embed a private,
+minimal FFmpeg 9.0.2 VA-API build in the native helper. It enables no GPL or
+nonfree components and includes
+no software HEVC codec. FFmpeg retains its **LGPL-2.1-or-later** license; the
+[complete license](integration/video/HEVC-FFMPEG-LICENSE.txt) ships with the adapter
+source. [The build script](scripts/build_hevc_support.py) pins the official source
+archive by SHA-256 and contains the rate-update patch, full configuration and
+link commands. It and `integration/video/hevc-backend.c` ship in the application
+payload with the complete upstream archive under `sources/`, allowing the
+isolated library to be rebuilt. Set `DPE_HEVC_BACKEND` to
+the absolute path of a rebuilt `libdpe-hevc.so` to replace the embedded library.
+The host supplies libva, its GPU driver and libdrm.
+
 The external OpenH264 decoder downloads directly from Cisco into each user's
 profile. Its version and SHA-256 checksums are pinned in
 [`integration/updater/openh264.json`](integration/updater/openh264.json).
 The codec binary and compressed download are excluded from release packages.
 The [complete Cisco binary license](integration/updater/OPENH264-BINARY-LICENSE.txt)
 is also available beside the OpenH264 controls in Settings.
+
+## Wayland capture protocols
+
+The unmodified Wayland capture protocol XML files in
+[`integration/video/protocols/`](integration/video/protocols/) are imported from
+the installed `wayland-protocols` 1.50 package. Each retains its MIT copyright
+and permission notice. [`provenance.json`](integration/video/protocols/provenance.json)
+records the upstream source paths and imported SHA-256 hashes. Generated protocol
+bindings stay in build output directories.
+
+## Game capture hooks
+
+The optional game capture backend uses
+[`patches/capture/vkcapture-copy-rate.patch`](patches/capture/vkcapture-copy-rate.patch)
+and [the GPU handoff patch](patches/capture/vkcapture-dpe-handoff.patch) to modify
+[obs-vkcapture](https://github.com/nowrep/obs-vkcapture), GPL-2.0-or-later.
+Its upstream revision and archive checksum are pinned in
+[`scripts/stage_vkcapture.py`](scripts/stage_vkcapture.py). The retained
+[GPL text](patches/capture/GPL-2.0-or-later.txt) accompanies the patch; staging
+keeps upstream copyright/license files and supplies this project's MIT notice
+for `capture-rate.h`. Capture bundles include the hook binaries, their complete
+patched corresponding source, build instructions and licenses. The hooks load
+only in applications explicitly launched for game capture.
+
+## KMS monitor capture
+
+The standalone `dpe-kms-source` helper and `integration/video/kms-*` sources are
+GPL-3.0-only. Its [protocol header](integration/video/kms-protocol.h) retains GPU
+Screen Recorder's protocol 6 declarations, reviewed at revision `099a55b`, with
+upstream attribution and the [complete license](integration/video/protocols/GSR-GPL-3.0.txt).
+Capture bundles include its corresponding source; the build recipe is
+[`build_kms_source.py`](scripts/build_kms_source.py). DPE also bundles a small
+`dpe-kms-server`, retaining the pinned GSR DRM exporter source unchanged in
+`integration/video/vendor/gsr-kms-server.inc` with provenance and its GPL license.
+DPE's own entry point restricts arguments, peers, requests and revocation; it does
+not call the upstream server entry point. No separate GSR installation is needed.
+The privileged copy is installed only by the explicit Screensharing permission action.
 
 ## Discord client files
 

@@ -110,6 +110,59 @@ class Manifests(unittest.TestCase):
 
 
 class VersionsAndKeys(unittest.TestCase):
+    def test_capture_helper_updates_repackage_without_invalidating_electron(self):
+        sources = read_json(ROOT / "config/sources.lock.json")
+        target = sources["targets"]["prerelease"]
+        changed = {}
+        inputs = (
+            [
+                str(path.relative_to(ROOT))
+                for directory in ("integration/video", "integration/camera")
+                for path in (ROOT / directory).rglob("*")
+                if path.is_file() and "__pycache__" not in path.parts
+            ]
+            + [str(path.relative_to(ROOT)) for path in (ROOT / "patches/capture").glob("*.patch")]
+            + [
+                "scripts/build_camera_support.py",
+                "scripts/build_wayland_capture.py",
+                "scripts/build_wayland_source.py",
+                "scripts/build_vkcapture_backend.py",
+                "scripts/stage_vkcapture.py",
+                "scripts/stage_capture_backends.py",
+                "scripts/camera_scope.py",
+                "scripts/capture_scope.py",
+                "scripts/capture_picker_scope.py",
+                "scripts/capture_sync_scope.py",
+                "scripts/capture_scale_scope.py",
+                "scripts/capture_upstream_scope.py",
+                "scripts/encoder_scope.py",
+                "integration/updater/capture-backends.cjs",
+            ]
+        )
+
+        def hashes(paths):
+            return {name: changed.get(name, "unchanged") for name in paths}
+
+        with (
+            patch("fingerprints.hash_files", side_effect=hashes),
+            patch("runtime_fingerprints.hash_files", side_effect=hashes),
+        ):
+            runtime = runtime_key(target, sources, {})
+            package = integration_key(runtime, {"channel": "canary"}, "prerelease")
+            for name in inputs:
+                with self.subTest(path=name):
+                    self.assertTrue((ROOT / name).is_file())
+                    changed.clear()
+                    changed[name] = "updated helper"
+                    self.assertEqual(runtime_key(target, sources, {}), runtime)
+                    self.assertNotEqual(
+                        integration_key(runtime, {"channel": "canary"}, "prerelease"), package
+                    )
+            # Real Electron source changes must still invalidate its build.
+            changed.clear()
+            changed[sources["fork"]["patch"]] = "updated Electron patch"
+            self.assertNotEqual(runtime_key(target, sources, {}), runtime)
+
     def test_appimage_dependency_updates_get_a_new_release_identity(self):
         contents = {}
         client = {"channel": "canary"}

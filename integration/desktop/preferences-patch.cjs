@@ -13,12 +13,28 @@ function patch(source, adapter, replace) {
   const popoutSetup = matches[0] || popoutSignatures[0];
   const changes = [
     [
+      "let{url,frameName,features}=details,frameViewResponse=",
+      `${load}.tracePopoutRequest(details);let{url,frameName,features}=details,frameViewResponse=`,
+    ],
+    [
+      "existingWindow.setAlwaysOnTop(!0),existingWindow.focus(),existingWindow.setAlwaysOnTop(!1)",
+      `${load}.focusPopout(existingWindow,key)`,
+    ],
+    [
       "new electron_1.BrowserWindow(mainWindowOptions)",
       `${load}.createMainWindow(electron_1.BrowserWindow,mainWindowOptions)`,
     ],
     [
       "overrideBrowserWindowOptions:windowOptions}",
-      `overrideBrowserWindowOptions:${load}.windowOptions(windowOptions)}`,
+      `overrideBrowserWindowOptions:${load}.popoutOptions(windowOptions,key,parentWindow)}`,
+    ],
+    [
+      "popoutWindows.openOrFocusWindow(url,frameName,features)",
+      "popoutWindows.openOrFocusWindow(url,frameName,features,mainWindow)",
+    ],
+    [
+      "exports.openOrFocusWindow=function(windowURL,key,features){",
+      "exports.openOrFocusWindow=function(windowURL,key,features,parentWindow){",
     ],
     [popoutSetup, `${popoutSetup}${load}.attachPopout(popoutWindow,options);`],
     ["win.setMinimumSize(width,height)", `${load}.setMinimumSize(win,width,height)`],
@@ -38,11 +54,15 @@ function patch(source, adapter, replace) {
     ],
     [
       "function setAppBadge(count,force){",
-      `function setAppBadge(count,force){${load}.rememberOverlay(()=>setAppBadge(count,!0));`,
+      `function setAppBadge(count,force){${load}.rememberOverlay(count,()=>setAppBadge(count,!0));`,
     ],
     [
       "}(count);(force||lastIndex!==index)",
       `}(${load}.badgeCount(count));(force||lastIndex!==index)`,
+    ],
+    [
+      "function getTrayStates(){",
+      `function getTrayStates(){return ${load}.trayStates(getRawTrayStates())}function getRawTrayStates(){`,
     ],
     [
       "function createTray(){if(null!=atomTray)return;",
@@ -50,7 +70,7 @@ function patch(source, adapter, replace) {
     ],
     [
       ",(IS_WINDOWS||IS_LINUX)&&createTray()};let electron_1=",
-      `,${load}.registerTray(createTray,()=>{atomTray?.destroy();atomTray=null}),(IS_WINDOWS||IS_LINUX)&&createTray()};let electron_1=`,
+      `,${load}.registerTray(createTray,()=>{atomTray?.destroy();atomTray=null},()=>{if(atomTray&&!atomTray.isDestroyed())atomTray.setImage(getTrayIcon())}),(IS_WINDOWS||IS_LINUX)&&createTray()};let electron_1=`,
     ],
     [
       'settings?.get("MINIMIZE_TO_TRAY",!0)',

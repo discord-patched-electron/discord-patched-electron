@@ -1,7 +1,11 @@
 // The native integration sites retained from the pinned desktop-core bundle.
 // Other transform tests compose this with their own independent fixture sites.
 module.exports = [
+  "let{url,frameName,features}=details,frameViewResponse=",
+  "existingWindow.setAlwaysOnTop(!0),existingWindow.focus(),existingWindow.setAlwaysOnTop(!1)",
   "new electron_1.BrowserWindow(mainWindowOptions)",
+  "popoutWindows.openOrFocusWindow(url,frameName,features)",
+  "exports.openOrFocusWindow=function(windowURL,key,features){",
   'return{action:"allow",overrideBrowserWindowOptions:windowOptions}',
   "exports.setupPopout=function(popoutWindow,key,options,webappEndpoint,openerWebContents){",
   "win.setMinimumSize(width,height)",
@@ -12,6 +16,7 @@ module.exports = [
   "electron_1.default.app.dock.setBadge(badge)",
   "function setAppBadge(count,force){",
   "}(count);(force||lastIndex!==index)",
+  "function getTrayStates(){",
   "function createTray(){if(null!=atomTray)return;",
   ",(IS_WINDOWS||IS_LINUX)&&createTray()};let electron_1=",
   'settings?.get("MINIMIZE_TO_TRAY",!0)',

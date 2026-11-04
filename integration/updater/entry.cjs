@@ -79,6 +79,7 @@ function start() {
   supply("asarUpdate.js", () => {});
   supply("splash/index.js", require("./splash.cjs"));
   supply("config/index.js", require("./config.cjs"));
+  require("./capture-backends.cjs").register();
   const modules = Object.fromEntries(
     Object.entries(state.modules).map(([name, source]) => [
       name,

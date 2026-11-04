@@ -7,6 +7,7 @@
     ".venv/**",
     "packaging/upstream/**",
     "integration/updater/openasar/**",
+    "integration/video/vendor/**",
     "patches/**",
     "docs/evidence/**",
     "bun.lock",

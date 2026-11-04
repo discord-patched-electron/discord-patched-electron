@@ -19,9 +19,41 @@ function source(config, root) {
   if (injectionEnd < 0) throw new Error("Unsupported OpenAsar settings injection");
   script =
     script.slice(0, script.indexOf("// Settings injection")) +
+    require("../discord-ui/source.cjs").call(
+      require("../discord-ui/startup-presentation.cjs"),
+      {},
+      require("../discord-ui/presentation.cjs"),
+    ) +
+    ";\n" +
     require("../discord-ui/source.cjs").call(require("../discord-ui/settings.cjs"), {
       version: require("./presentation.cjs").metadata(root).dpe,
     }) +
+    ";\n" +
+    require("../discord-ui/source.cjs").call(require("../video/bitrate.cjs"), {
+      platform: process.platform,
+      maxBitrate: Number(process.env.DPE_SCREENSHARE_MAX_BITRATE),
+    }) +
+    ";\n" +
+    require("../discord-ui/source.cjs").call(require("../video/codecs.cjs"), {
+      platform: process.platform,
+      excludedCodecs: require("../video/settings.cjs").normalize(config.screensharing)
+        .excludedCodecs,
+    }) +
+    ";\n" +
+    require("../discord-ui/source.cjs").call(
+      require("../video/capture-policy.cjs"),
+      require("./screensharing.cjs").policy(config.screensharing),
+    ) +
+    ";\n" +
+    require("../discord-ui/source.cjs").call(
+      require("../discord-ui/capture-picker.cjs"),
+      {
+        ...require("./screensharing.cjs").policy(config.screensharing),
+        styles: fs.readFileSync(path.join(__dirname, "../discord-ui/components.css"), "utf8"),
+        icons: require("../discord-ui/icons.cjs")(),
+      },
+      require("../discord-ui/capture-picker-view.cjs"),
+    ) +
     ";\n" +
     script.slice(injectionEnd);
   return script

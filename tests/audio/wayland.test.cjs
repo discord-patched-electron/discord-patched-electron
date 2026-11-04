@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { wrap, installVoice } = require("../../integration/audio/wayland-audio.cjs");
-function fixture(t, pickerUI, autoDetect, disableAudio, skipScreenPicker) {
+function fixture(t, pickerUI, autoDetect, disableAudio, skipScreenPicker, captureSnapshot) {
   const calls = [],
     children = [];
   let ended;
@@ -47,6 +47,7 @@ function fixture(t, pickerUI, autoDetect, disableAudio, skipScreenPicker) {
     pickerUI,
     autoDetect,
     skipScreenPicker,
+    captureSnapshot,
     disableAudio: () => {
       disabled.push(true);
       return disableAudio ? disableAudio() : true;
@@ -671,4 +672,28 @@ test("repeated source setters can recover a failed helper and rejected null opti
   assert.throws(() => f.adapter.setDesktopSourceWithOptions(null), /invalid source options/);
   assert.equal(f.calls.at(-1).soundsharePid, 0);
   assert.equal(f.children[1].closed, true);
+});
+
+test("optimized capture identity reaches audio even with automatic matching disabled", async (t) => {
+  let capture = { requestId: 17, method: "kms", sourceType: "screen" };
+  const f = fixture(
+    t,
+    undefined,
+    () => false,
+    undefined,
+    () => false,
+    () => capture,
+  );
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  const child = f.children[0];
+  assert.deepEqual(child.messages.at(-1).capture, capture);
+  capture = null;
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(
+    child.messages.at(-1).capture,
+    null,
+    "ended request clears the helper's optimized identity",
+  );
+  assert.equal(child.messages.at(-1).generation, child.messages[0].generation);
 });

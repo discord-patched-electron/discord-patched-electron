@@ -9,6 +9,11 @@ export DPE_APP_ROOT="$root"
 # shellcheck source=integration/launcher/codec-preload.sh
 source "$root/integration/launcher/codec-preload.sh"
 dpe_restore_codec_environment
+# Keep the optional per-user game command stable across application updates.
+# Registration never starts capture and must not prevent Discord from opening.
+if [[ -f "$root/integration/video/gamecapture-command.py" ]]; then
+  python3 -I "$root/integration/video/gamecapture-command.py" --register "$root" >/dev/null 2>&1 || true
+fi
 config_root=${XDG_CONFIG_HOME:-$HOME/.config}
 export DISCORD_PORTAL_APP_ID=${DISCORD_PORTAL_APP_ID:-@DESKTOP_ID@}
 export CHROME_DESKTOP=${CHROME_DESKTOP:-@DESKTOP_ID@.desktop}

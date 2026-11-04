@@ -5,6 +5,7 @@ const {
   createController,
   patchDesktop,
   cachedLanguages,
+  openLanguages,
 } = require("../../integration/desktop/spellcheck.cjs");
 function fixture(config = {}, options) {
   const session = new EventEmitter();
@@ -25,6 +26,85 @@ function fixture(config = {}, options) {
   };
   return { session, electron, controller: createController(electron, () => config, options) };
 }
+
+test("Languages help navigation opens Spelling only from a trusted Discord window", () => {
+  const calls = [];
+  const contents = { getURL: () => "https://canary.discord.com/channels/@me" };
+  const open = (...args) => calls.push(args);
+  for (const address of [
+    "https://support.discord.com/hc/en-us/articles/360000877191",
+    "https://support.discord.com/hc/fr/articles/360000877191-Correcteur?source=menu#languages",
+    "https://support.discord.com/hc/articles/360000877191",
+  ])
+    assert.equal(openLanguages(address, contents, open), true);
+  assert.deepEqual(
+    calls,
+    Array.from({ length: 3 }, () => ["spelling", contents]),
+  );
+  for (const address of [
+    "invalid",
+    "https://example.com/hc/en-us/articles/360000877191",
+    "https://support.discord.com.evil.test/hc/en-us/articles/360000877191",
+    "https://support.discord.com/hc/en-us/articles/3600008771910",
+    "https://support.discord.com/hc/en-us/articles/12345",
+    "http://support.discord.com/hc/en-us/articles/360000877191",
+    "https://canary.discord.com/popout",
+  ])
+    assert.equal(openLanguages(address, contents, open), false);
+  for (const origin of [
+    "about:blank",
+    "https://example.com",
+    "https://discord.com.evil.test",
+    "http://discord.com",
+  ])
+    assert.equal(
+      openLanguages(
+        "https://support.discord.com/hc/en-us/articles/360000877191",
+        { getURL: () => origin },
+        open,
+      ),
+      false,
+    );
+  assert.equal(calls.length, 3);
+});
+
+test("patched main and popout handlers retain ordinary external links", () => {
+  const vm = require("node:vm");
+  const calls = [],
+    handlers = [];
+  const contents = {
+    getURL: () => "https://canary.discord.com/channels/@me",
+    setWindowOpenHandler: (fn) => handlers.push(fn),
+  };
+  const source =
+    "electron.session.defaultSession.setSpellCheckerLanguages([locale]);electron.session.defaultSession.setSpellCheckerLanguages([...languages]);" +
+    require("./spellcheck-menu-fixture.cjs");
+  const patched = patchDesktop(source, "/spelling.cjs", (s, a, b) => s.replace(a, b));
+  const external = (url) => calls.push(["external", url]);
+  vm.runInNewContext(patched, {
+    electron: { session: { defaultSession: {} } },
+    locale: "en-GB",
+    languages: [],
+    mainWebContents: contents,
+    popoutWindow: { webContents: contents },
+    external,
+    securityUtils_1: { saferShellOpenExternal: external },
+    require: () => ({
+      setLanguages() {},
+      openLanguages: (url, sender) => openLanguages(url, sender, (...args) => calls.push(args)),
+    }),
+  });
+  for (const handler of handlers) {
+    assert.equal(
+      handler({ url: "https://support.discord.com/hc/en-us/articles/360000877191" }).action,
+      "deny",
+    );
+    assert.deepEqual(calls.pop(), ["spelling", contents]);
+    assert.equal(handler({ url: "https://example.com" }).action, "deny");
+    assert.deepEqual(calls.pop(), ["external", "https://example.com"]);
+  }
+  assert.equal(handlers.length, 2);
+});
 test("system preferences enable multiple available browser dictionaries", () => {
   const { controller } = fixture();
   assert.deepEqual(controller.apply().languages, ["en-GB", "fr"]);
@@ -81,12 +161,16 @@ test("manual empty selection stays off across controller restarts and legacy emp
 test("minimal desktop patch routes both locale updates without changing result/learned-word IPC", () => {
   const source =
     "electron.session.defaultSession.setSpellCheckerLanguages([locale]);electron.session.defaultSession.setSpellCheckerLanguages([...languages]);SPELLCHECK_RESULT;setLearnedWords";
-  const result = patchDesktop(source, "/adapter.cjs", (s, a, b) => {
-    assert.equal(s.split(a).length, 2);
-    return s.replace(a, b);
-  });
+  const result = patchDesktop(
+    source + ";" + require("./spellcheck-menu-fixture.cjs"),
+    "/adapter.cjs",
+    (s, a, b) => {
+      assert.equal(s.split(a).length, 2);
+      return s.replace(a, b);
+    },
+  );
   assert.equal(
-    result,
+    result.slice(0, result.indexOf(";mainWebContents")),
     'require("/adapter.cjs").setLanguages(electron.session.defaultSession,[locale]);require("/adapter.cjs").setLanguages(electron.session.defaultSession,[...languages]);SPELLCHECK_RESULT;setLearnedWords',
   );
 });

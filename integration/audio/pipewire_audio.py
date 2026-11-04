@@ -555,6 +555,8 @@ class Controller:
         self.auto_detect = True
         self.skip_screen_picker = True
         self.observations = []
+        self.capture = None
+        self.optimized_seen = False
         self.observation_serials = {}
         self.detection_deadline = 0
         self.detected = None
@@ -625,10 +627,10 @@ class Controller:
 
     def update(self, message):
         if "observations" in message and "enabled" not in message:
-            if message.get("generation") == self.generation and (
-                self.auto_detect or self.skip_screen_picker
-            ):
-                self.set_observations(message["observations"])
+            if message.get("generation") == self.generation:
+                self.set_capture(message.get("capture"))
+                if self.auto_detect or self.skip_screen_picker:
+                    self.set_observations(message["observations"])
             return
         if "selection" in message:
             if (
@@ -662,6 +664,8 @@ class Controller:
             message.get("skipScreenPicker", self.auto_detect) is not False
             and message.get("forcePicker") is not True
         )
+        self.optimized_seen = False
+        self.set_capture(message.get("capture"))
         self.observations = []
         if self.auto_detect or self.skip_screen_picker:
             self.set_observations(message.get("observations", []))
@@ -669,6 +673,27 @@ class Controller:
             time.monotonic() + 1.2 if self.auto_detect or self.skip_screen_picker else 0
         )
         self.emit()
+
+    def set_capture(self, value):
+        capture = None
+        if (
+            isinstance(value, dict)
+            and type(value.get("requestId")) is int
+            and 0 < value["requestId"] <= 9007199254740991
+            and (
+                (
+                    value.get("method") in ("kms", "wayland-direct")
+                    and value.get("sourceType") == "screen"
+                )
+                or (value.get("method") == "vkcapture" and value.get("sourceType") == "window")
+            )
+        ):
+            capture = (value["requestId"], value["method"], value["sourceType"])
+        if capture is not None:
+            self.optimized_seen = True
+        if capture != self.capture:
+            self.reset()
+            self.capture = capture
 
     def set_observations(self, values):
         if isinstance(values, list) and len(values) <= 32:
@@ -987,9 +1012,16 @@ class Controller:
             raise EOFError()
         if not self.enabled:
             return
+        if self.optimized_seen and self.capture is None:
+            self.suspend()
+            return
         objects = graph()
         pulse = json.loads(command([system_tool("pactl"), "-f", "json", "list", "sink-inputs"]))
-        sources = video_sources(objects, self.owner)
+        # Direct GPU sources intentionally have no PipeWire video node. Bind the
+        # audio choice to the native capture request instead of guessing a node.
+        sources = (
+            {("optimized", self.capture[0])} if self.capture else video_sources(objects, self.owner)
+        )
         if len(sources) != 1:
             self.suspend()
             return
@@ -1004,18 +1036,21 @@ class Controller:
             and self.manual_source != source
             and self.choose_key != source
         )
-        if automatic and niri_available:
+        if automatic and self.capture and self.capture[2] == "screen":
+            target = {"kind": "system", "key": source, "backend": self.capture[1]}
+        if automatic and not self.capture and niri_available:
             try:
                 target = niri_target(sources, niri_request("Casts"), niri_request("Windows"))
             except (OSError, ValueError, KeyError, StopIteration):
                 pass  # Older niri versions use the explicit audio selector.
-        if target is None and automatic and not niri_available:
+        if target is None and automatic and not self.capture and not niri_available:
             target = self.detect_portal(objects, pulse, source)
         # A hint cannot override an ambiguous compositor/portal result. Numeric
         # video node IDs are never used as process hints.
         if (
             automatic
             and self.auto_detect
+            and not self.capture
             and target is None
             and not niri_available
             and not any(o["node"] == source[0] for o in self.observations)
@@ -1035,7 +1070,12 @@ class Controller:
         if target is None:
             if automatic and self.route:
                 self.suspend()
-            if automatic and not ask and time.monotonic() < self.detection_deadline:
+            if (
+                automatic
+                and not self.capture
+                and not ask
+                and time.monotonic() < self.detection_deadline
+            ):
                 return
             target = self.choose(objects, pulse, source)
         if target is None:

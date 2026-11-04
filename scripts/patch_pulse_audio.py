@@ -1,4 +1,4 @@
-"""Clear Discord's stale PulseAudio mixer samples before attaching a new source.
+"""Clear stale Pulse mixer samples and reject invalid native microphone volume state.
 
 Only the reviewed x86_64 controller layout is supported. Relocated addresses may
 change, but its instructions, buffer layout and lock/unlock targets must match.
@@ -166,11 +166,65 @@ def patch_site(data: bytes) -> tuple[int, bool]:
     return offset, already
 
 
+MIC_VOLUME = "_ZN6webrtc27AudioMixerManagerLinuxPulse19SetMicrophoneVolumeEj"
+# Reviewed native method, relocation operands normalized like ATTACH_CODE.
+MIC_VOLUME_CODE = bytes.fromhex(
+    "554889e54157415641554154534881ec980000004189f74989fee80000000084c0752b488d3d00000000488d35000000"
+    "00488d0d000000004c8d0d00000000bac81100004589f831c0e8000000006641837e02ff0f84ff000000498b5e18e800"
+    "00000048895dd04889dfff9090010000450fbf660249837e10007425e800000000498b7e10ff901001000085c07412e8"
+    "00000000498b7e10ff90f00000004189c4e800000000498b7e20488d15000000004489e64c89f1ff50604c89f74889c6"
+    "e800000000450fb66e3c0f2805000000000f2945b00f2945a00f2945900f2945800f298570ffffff0f298560ffffff0f"
+    "298550ffffff0f298540ffffffc745c0aaaaaaaae800000000488d9d40ffffff4889df4489ee4489faff90b8000000e8"
+    "00000000498b7e20488d0d000000004531ff4489e64889da4531c0ff90980000004885c074454989c4e8000000004c89"
+    "e7ff90c8000000eb7141bfffffffffe80000000084c07571488d3d00000000488d3500000000488d0d00000000baf211"
+    "000031c0e800000000eb4e41bfffffffffe80000000084c07530e800000000498b7e20ff5028488d3d00000000488d35"
+    "00000000488d0d00000000ba8a1300004189c031c0e800000000e800000000488b7dd0ff90b80100004489f84881c498"
+    "0000005b415c415d415e415f5dc3"
+)
+
+
+def volume_edits():
+    # Reuse only optional entry-log space. Read the cached channel count after
+    # source-info completion while the existing Pulse mainloop lock is held.
+    # Invalid device/volume state returns -1 through the native unlock epilogue.
+    start, end, read, resume, unlock = 0x23, 0x4E, 0xC5, 0xCA, 0x1CA
+    guard = bytes.fromhex("450fb66e3c418d4dff83f91f770a4585ff7805")
+    guard += jump(start + 5 + len(guard), resume)
+    guard += bytes.fromhex("41bfffffffff")
+    guard += jump(start + 5 + len(guard), unlock)
+    assert len(guard) <= end - start - 5
+    return (
+        (start, (jump(start, end) + guard).ljust(end - start, b"\x90")),
+        (read, jump(read, start + 5)),
+    )
+
+
+def volume_site(data):
+    elf = ELFFile(io.BytesIO(data))
+    symbols = elf.get_section_by_name(".symtab")
+    found = symbols.get_symbol_by_name(MIC_VOLUME) if symbols else None
+    if not found or len(found) != 1 or found[0]["st_info"]["type"] != "STT_FUNC":
+        raise ValueError("Missing or ambiguous microphone volume method")
+    symbol = found[0]
+    section = elf.get_section(symbol["st_shndx"])
+    if section.name != ".text" or symbol["st_size"] != len(MIC_VOLUME_CODE):
+        raise ValueError("Unknown microphone volume layout")
+    offset = section["sh_offset"] + symbol["st_value"] - section["sh_addr"]
+    code = normalized(data[offset : offset + symbol["st_size"]], symbol["st_value"])
+    patched = bytearray(MIC_VOLUME_CODE)
+    for at, replacement in volume_edits():
+        patched[at : at + len(replacement)] = replacement
+    if code not in (MIC_VOLUME_CODE, bytes(patched)):
+        raise ValueError("Unknown microphone volume instructions")
+    return offset, code == bytes(patched)
+
+
 def patch(binary: Path) -> dict:
     original = binary.read_bytes()
     before = hashlib.sha256(original).hexdigest()
     try:
         offset, already = patch_site(original)
+        volume_offset, volume_already = volume_site(original)
     except (ValueError, ELFError, CsError) as error:
         # The updater treats unsupported layouts as a permanent compatibility
         # failure, instead of repeatedly downloading the same unsupported module.
@@ -178,19 +232,27 @@ def patch(binary: Path) -> dict:
     candidate = bytearray(original)
     for relative, replacement in edits():
         candidate[offset + relative : offset + relative + len(replacement)] = replacement
-    if not already:
+    for relative, replacement in volume_edits():
+        candidate[volume_offset + relative : volume_offset + relative + len(replacement)] = (
+            replacement
+        )
+    if not already or not volume_already:
         with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
             target = Path(temporary) / binary.name
             shutil.copy2(binary, target)
             target.write_bytes(candidate)
             if patch_site(target.read_bytes()) != (offset, True):
                 raise ValueError("PulseAudio buffer patch failed validation")
+            if volume_site(target.read_bytes()) != (volume_offset, True):
+                raise ValueError("Microphone volume guard failed validation")
             target.replace(binary)
     return {
         "input_sha256": before,
         "output_sha256": sha256(binary),
         "offset": offset,
-        "already_patched": already,
+        "already_patched": already and volume_already,
+        "volume_offset": volume_offset,
+        "volume_guard": "reject-invalid-pulse-microphone-state-v1",
         "buffer_bytes": BUFFER_SIZE,
         "patch": "clear-pulse-mixer-before-attach-v1",
     }

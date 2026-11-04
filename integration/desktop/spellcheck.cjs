@@ -293,6 +293,30 @@ function setLanguages(_session, _requested) {
   const result = getController().apply();
   if (result.error) throw new Error(result.error);
 }
+function openLanguages(
+  address,
+  contents,
+  open = (...args) => require("../updater/config.cjs").open(...args),
+) {
+  // Discord's Languages menu opens this help article instead of a language picker.
+  // Resolve that native navigation locally, preserving its translated menu and
+  // keyboard behavior without depending on private renderer component exports.
+  if (!URL.canParse(address) || !URL.canParse(contents.getURL())) return false;
+  const target = new URL(address);
+  const source = new URL(contents.getURL());
+  if (
+    source.protocol !== "https:" ||
+    !["discord.com", "canary.discord.com", "ptb.discord.com"].includes(source.hostname) ||
+    target.protocol !== "https:" ||
+    target.hostname !== "support.discord.com" ||
+    !/^\/hc\/(?:[a-z]{2}(?:-[a-z0-9]+)*\/)?articles\/360000877191(?:-[^/]*)?\/?$/i.test(
+      target.pathname,
+    )
+  )
+    return false;
+  open("spelling", contents);
+  return true;
+}
 function patchDesktop(source, adapter, replace) {
   for (const argument of ["[locale]", "[...languages]"]) {
     source = replace(
@@ -301,6 +325,16 @@ function patchDesktop(source, adapter, replace) {
       `require(${JSON.stringify(adapter)}).setLanguages(electron.session.defaultSession,${argument})`,
     );
   }
+  source = replace(
+    source,
+    "mainWebContents.setWindowOpenHandler(details=>{",
+    `mainWebContents.setWindowOpenHandler(details=>{if(require(${JSON.stringify(adapter)}).openLanguages(details.url,mainWebContents))return{action:"deny"};`,
+  );
+  source = replace(
+    source,
+    'popoutWindow.webContents.setWindowOpenHandler(({url})=>((0,securityUtils_1.saferShellOpenExternal)(url),{action:"deny"}))',
+    `popoutWindow.webContents.setWindowOpenHandler(({url})=>(require(${JSON.stringify(adapter)}).openLanguages(url,popoutWindow.webContents)||(0,securityUtils_1.saferShellOpenExternal)(url),{action:"deny"}))`,
+  );
   return source;
 }
 module.exports = {
@@ -310,6 +344,7 @@ module.exports = {
   dictionaryMatch,
   install,
   setLanguages,
+  openLanguages,
   patchDesktop,
   apply: (value) => getController().apply(value),
   status: () => getController().status(),

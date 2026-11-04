@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 if (process.env.DPE_SETTINGS_OZONE_PLATFORM)
   app.commandLine.appendSwitch("ozone-platform", process.env.DPE_SETTINGS_OZONE_PLATFORM);
+if (process.env.DPE_SETTINGS_SCOPE === "popout") app.disableHardwareAcceleration();
 const output = process.env.DPE_SETTINGS_OUTPUT;
 if (!output) throw new Error("A private output directory is required");
 const root = process.env.DPE_APP_ROOT;
@@ -144,6 +145,47 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
+    if (process.env.DPE_SETTINGS_SCOPE === "screensharing") {
+      await open();
+      await require(path.join(root, "tests/launch-settings/screensharing.cjs"))({
+        window,
+        values,
+        click,
+        get,
+        until,
+        evaluate,
+        capture,
+        root,
+      });
+      checks.push(
+        "Screensharing preferences, restricted live diagnostics, save rollback, keyboard and responsive layout",
+      );
+      finish();
+      return;
+    }
+    if (process.env.DPE_SETTINGS_SCOPE === "popout") {
+      await open();
+      await require(path.join(root, "tests/launch-settings/popout.cjs"))({
+        window,
+        values,
+        click,
+        get,
+        until,
+        evaluate,
+      });
+      checks.push(
+        "PiP settings defaults, dependencies, persistence, keyboard and narrow zoomed layout",
+      );
+      window.destroy();
+      const fixture = new BrowserWindow({ show: true, frame: false, width: 640, height: 480 });
+      await require(path.join(root, "tests/discord-ui/popout-check.cjs"))(fixture);
+      checks.push(
+        "Legacy chrome preserves extra controls; metadata sizing selects the dominant video without capturing frames",
+      );
+      fixture.destroy();
+      finish();
+      return;
+    }
     const tray = require(path.join(root, "integration/updater/tray.cjs"));
     const custom = path.join(output, "custom-tray.png");
     const fixtureImage = nativeImage
@@ -182,6 +224,10 @@ app
       await require(path.join(root, "tests/discord-ui/footer-check.cjs"))(footerWindow);
       checks.push(
         "Discord footer spacing, tooltip anchor, default cursor and keyboard activation pass",
+      );
+      await require(path.join(root, "tests/discord-ui/webcam-check.cjs"))(footerWindow);
+      checks.push(
+        "Webcam preview CSS matches outgoing orientation in both states, including late class changes, without changing other video surfaces",
       );
     } finally {
       footerWindow.destroy();
@@ -426,6 +472,8 @@ app
     assert.match(await get('$("mods-error").textContent'), /internet connection/);
     assert.equal(await get('$("mods-install-vencord").dataset.installed'), "true");
     assert.equal(await get('$("mods-install-equicord").disabled'), false);
+    // The action restores focus on the next animation frame after enabling controls.
+    await until(() => evaluate('document.activeElement.id === "mods-install-equicord"'));
     assert.equal(await evaluate("document.activeElement.id"), "mods-install-equicord");
     assert.equal(
       originalFS
@@ -955,7 +1003,16 @@ app
     checks.push(
       "First-run mod choice, skip, setup persistence, invalid-choice rejection and local theme editing pass",
     );
-    await click("t_spelling");
+    assert.equal(
+      require(path.join(root, "integration/desktop/spellcheck.cjs")).openLanguages(
+        "https://support.discord.com/hc/en-us/articles/360000877191",
+        { getURL: () => "https://canary.discord.com/channels/@me" },
+        (tab) => {
+          assert.equal(settingsPage.open(tab), window, "Languages reuses the settings window");
+        },
+      ),
+      true,
+    );
     await until(() => get('Boolean($("spellcheck-enabled"))'));
     assert.equal(await get('$("spelling-help")'), null);
     assert.equal(await get('$("spelling-languages-help")'), null);
@@ -1234,6 +1291,48 @@ app
     );
     await click("t_settings");
     await until(() => get('$("desktop-startMinimized") && !$("desktop-startMinimized").disabled'));
+    assert.equal(await get('$("desktop-webcamFlip").checked'), false);
+    for (const [name, value] of [["webcamFlip", true]]) {
+      const id = `desktop-${name}`;
+      await until(() => get(`!$("${id}").disabled`));
+      await evaluate(`document.getElementById('${id}').focus()`);
+      window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Space" });
+      window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Space" });
+      await until(() => values.openasar.desktop?.[name] === value);
+      await until(() => get(`!$("${id}").disabled`));
+      assert.equal(await get("document.activeElement.id"), id);
+    }
+    await click("t_theming");
+    await click("t_settings");
+    await until(() => get('$("desktop-webcamFlip") && !$("desktop-webcamFlip").disabled'));
+    assert.equal(await get('$("desktop-webcamFlip").checked'), true);
+    const webcamSize = window.getSize();
+    window.setSize(420, 560);
+    window.webContents.setZoomFactor(1.25);
+    await evaluate(
+      `document.getElementById('desktop-webcamFlip-label').textContent = 'Flip webcam horizontally with a longer translated setting label'`,
+    );
+    await delay(100);
+    await evaluate(
+      "document.getElementById('webcam-heading').scrollIntoView({behavior:'instant',block:'start'})",
+    );
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    await capture("webcam-narrow");
+    window.webContents.setZoomFactor(1);
+    window.setSize(...webcamSize);
+    await evaluate(
+      "document.getElementById('desktop-webcamFlip-label').textContent = 'Flip webcam horizontally'",
+    );
+    await delay(100);
+    await evaluate(
+      "document.getElementById('webcam-heading').scrollIntoView({behavior:'instant',block:'start'})",
+    );
+    await capture("webcam");
+    await click("desktop-webcamFlip");
+    await until(() => values.openasar.desktop.webcamFlip === false);
+    checks.push(
+      "Unified webcam flip preserves its default, keyboard focus and saved state across tabs",
+    );
     assert.equal(await get('$("desktop-webRtcIPHandlingPolicy")'), null);
     for (const name of [
       "startMinimized",
@@ -1266,6 +1365,7 @@ app
     checks.push(
       "Desktop startup, tray and notification options have descriptions; native-voice-irrelevant WebRTC policy is absent",
     );
+    await click("t_screensharing");
     const detectionToggle = '[aria-label="Automatically detect screen-share audio"]';
     const screenToggle = '[aria-label="Skip audio picker for entire screens"]';
     assert.equal(await evaluate(`document.querySelector('${screenToggle}').checked`), true);
@@ -1285,7 +1385,7 @@ app
       false,
     );
     await click("t_flags");
-    await click("t_settings");
+    await click("t_screensharing");
     assert.equal(await evaluate(`document.querySelector('${detectionToggle}').checked`), false);
     await evaluate(`document.querySelector('${detectionToggle}').click()`);
     await until(() => values.openasar.audioAutoDetect === true);
@@ -1503,7 +1603,7 @@ app
       await evaluate(
         '[...document.querySelectorAll("[role=tab]")].map(x=>x.lastElementChild.textContent)',
       ),
-      ["General", "Appearance", "Spelling", "Mods", "Flags", "Troubleshooting"],
+      ["General", "Appearance", "Spelling", "Screensharing", "Mods", "Flags", "Troubleshooting"],
     );
     assert.equal(await evaluate('document.querySelectorAll("textarea").length'), 2);
     assert.equal(await get('$("preset")'), null);
@@ -1642,7 +1742,9 @@ app
     assert.equal(await evaluate("typeof window.require"), "undefined");
     assert.equal(await get('$("flags").value'), "--legacy-ui=kept");
     assert.ok((await editor.resolve()).effective.includes("--enable-libopenh264"));
-    checks.push("One DPE Settings window, six tabs, flags editor and collapsed optional sections");
+    checks.push(
+      "One DPE Settings window, seven tabs, flags editor and collapsed optional sections",
+    );
     assert.equal(await get('$("essential-section").hidden'), false);
     assert.equal(await get('$("essential-flags").disabled'), true);
     assert.equal(
@@ -2117,4 +2219,4 @@ app
     finish();
   })
   .catch(finish);
-setTimeout(() => finish(new Error("Settings probe timed out")), 45000);
+setTimeout(() => finish(new Error("Settings probe timed out")), 90000);

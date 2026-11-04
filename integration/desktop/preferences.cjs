@@ -7,11 +7,15 @@ const DEFAULTS = Object.freeze({
   maximizeButton: true,
   closeButton: true,
   minimumWindowSize: true,
+  popoutFloating: true,
+  popoutHideTitlebar: true,
+  popoutHideMembers: true,
   tray: true,
   notificationFlash: true,
   appBadge: true,
   badgeOnlyMentions: false,
   startMinimized: false,
+  webcamFlip: false,
 });
 
 function normalize(value = {}) {
@@ -25,7 +29,18 @@ function normalize(value = {}) {
 }
 
 const token = (name) => `:is([class^="${name}_"],[class*=" ${name}_"])`;
-function titlebarCSS(value) {
+function webcamCSS() {
+  // The native camera frame is shared by preview and encoder. Always remove
+  // Discord's additional self-view reflection, including its pre-call camera
+  // wrapper and native video components that don't carry the shared video class.
+  const previews = [
+    `${token("video")}${token("mirror")}`,
+    `.media-engine-video${token("mirror")}`,
+    `${token("camera")}:has(>.media-engine-video)`,
+  ];
+  return `${previews.join(",")}{transform:none!important}`;
+}
+function titlebarCSS(value, popout = false) {
   const settings = normalize(value);
   const buttons = token("winButtons");
   const legacy = token("titleBar");
@@ -41,6 +56,11 @@ function titlebarCSS(value) {
     // aligned to the same spacing tokens as the rest of the bar.
     return (
       `${buttons},${legacy}>${button}{display:none!important}` +
+      // The retained Windows bar includes a decorative wordmark. Preserve bars
+      // containing any other child (titles, navigation or mod-owned controls).
+      (popout
+        ? `${legacy}:has(>${button}):not(:has(>:not(${button}):not(${token("wordmark")}))){display:none!important}`
+        : "") +
       `${token("bar")}:has(>${token("trailing")} ${buttons}){padding-inline-end:var(--space-12,12px)!important}`
     );
   // These are Discord's existing three window actions, in their native order.
@@ -68,10 +88,15 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
   let lastBadge;
   let lastDockBadge;
   let overlayRefresh;
+  let notificationCount = 0;
+  let cameraSupported;
 
   function status() {
     return {
       values: { ...values },
+      ...(values.webcamFlip && cameraSupported === false
+        ? { error: "Outgoing webcam mirroring is unavailable with this native camera module." }
+        : {}),
       restartRequired: [...windows.values()].some(
         (state) => state.managed && state.nativeTitlebar !== values.nativeTitlebar,
       ),
@@ -83,9 +108,28 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
   const dockBadge = (text) =>
     !values.appBadge || (values.badgeOnlyMentions && !/^\d+$/.test(text)) ? "" : text;
 
+  // Discord sends its mention/DM notification count separately from the tray's
+  // ordinary-unread boolean. Linux maps the web's -1 unread sentinel to zero.
+  // Never derive a notification count from tray.unread (or coerce a boolean).
+  function rememberNotifications(count) {
+    notificationCount = Number.isSafeInteger(count) && count > 0 ? count : 0;
+    tray?.refresh?.();
+  }
+
+  function trayStates(state) {
+    return {
+      ...state,
+      unread: Boolean(
+        state.unread && values.appBadge && (!values.badgeOnlyMentions || notificationCount > 0),
+      ),
+    };
+  }
+
   function effectiveControls(window) {
     const nativeTitlebar = values.nativeTitlebar || windows.get(window)?.nativeTitlebar === true;
-    const windowControls = !nativeTitlebar && values.windowControls;
+    const state = windows.get(window);
+    const hidePopout = state?.video && state.floating && values.popoutHideTitlebar;
+    const windowControls = !nativeTitlebar && values.windowControls && !hidePopout;
     return {
       nativeTitlebar,
       windowControls,
@@ -144,10 +188,7 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
         if (window.isDestroyed() || web.isDestroyed()) return;
         const css =
           !state.excluded && web.getURL()
-            ? titlebarCSS({
-                ...values,
-                nativeTitlebar: state.nativeTitlebar || values.nativeTitlebar,
-              })
+            ? titlebarCSS({ ...values, ...effectiveControls(window) }, state.popout) + webcamCSS()
             : "";
         if (css === state.css) return;
         const previous = state.cssKey;
@@ -184,10 +225,33 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
     });
     window.webContents.on("dom-ready", () => {
       void updateCSS(window, state).catch(console.error);
+      void updatePopoutRenderer(window, state);
     });
     if (window.webContents.getURL()) void updateCSS(window, state).catch(console.error);
     window.on("focus", () => window.flashFrame(false));
     return window;
+  }
+
+  async function updatePopoutRenderer(window, state) {
+    const web = window.webContents;
+    if (state.excluded || !web.executeJavaScript || window.isDestroyed()) return;
+    const address = web.getURL();
+    if (!URL.canParse(address)) return;
+    const url = new URL(address);
+    if (
+      url.protocol !== "https:" ||
+      !["discord.com", "canary.discord.com", "ptb.discord.com"].includes(url.hostname)
+    )
+      return;
+    try {
+      await web.executeJavaScript(
+        require("../discord-ui/source.cjs").call(require("../discord-ui/popout.cjs"), {
+          hideMembers: values.popoutHideMembers,
+        }) + ";void 0;",
+      );
+    } catch {
+      // Closing/navigating a window must not interfere with a settings save.
+    }
   }
 
   function attach(window, options, main = false) {
@@ -254,6 +318,8 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
       if (!values.notificationFlash) window.flashFrame(false);
       if (!values.tray && state.main && !window.isVisible()) minimizeWithoutTray(window);
       updates.push(updateCSS(window, state));
+      updates.push(updatePopoutRenderer(window, state));
+      window.webContents.send?.("dpe-camera-flip", values.webcamFlip);
     }
     if (tray) {
       if (values.tray) tray.create();
@@ -263,6 +329,7 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
     else if (!values.appBadge && electron.app.isReady()) electron.app.setBadgeCount(0);
     if (lastDockBadge) lastDockBadge.dock.setBadge(dockBadge(lastDockBadge.text));
     overlayRefresh?.();
+    tray?.refresh?.();
     await Promise.all(updates);
     for (const subscription of subscriptions.values()) publishControls(subscription);
     return status();
@@ -271,41 +338,75 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
   return {
     status,
     apply,
+    cameraStatus: async (web, value) => {
+      if (![...windows.keys()].some((window) => window.webContents === web)) return;
+      if (typeof value?.supported !== "boolean" || typeof value?.active !== "boolean") return;
+      cameraSupported = value.supported;
+    },
     effectiveControls,
     subscribeControls,
     observeWindow,
     minimum,
     badgeCount,
+    trayStates,
     windowOptions,
+    popoutOptions: (options, key, parent) =>
+      require("./popout.cjs").windowOptions(
+        windowOptions(options),
+        key,
+        parent,
+        electron.screen,
+        options,
+        values,
+      ),
     minimizeWithoutTray,
     startMinimized: () => values.startMinimized || argv.includes("--start-minimized"),
     createMainWindow: (BrowserWindow, options) =>
       attach(new BrowserWindow(windowOptions(options)), options, true),
     createAuxiliaryWindow: (BrowserWindow, options) =>
       attach(new BrowserWindow(windowOptions(options)), options),
-    attachPopout: (window, options) =>
-      attach(window, {
-        ...options,
-        minWidth: Math.max(320, options.minWidth || 0),
-        minHeight: Math.max(180, options.minHeight || 0),
-      }),
+    attachPopout: (window, options) => {
+      observeWindow(window);
+      Object.assign(windows.get(window), {
+        popout: !options.outOfProcessOverlay,
+        video: require("./popout.cjs").isVideo(window.windowKey),
+        floating: options.dpeFloating === true,
+      });
+      const finish = (restored) =>
+        attach(window, {
+          ...restored,
+          minWidth: restored.dpeVideo ? restored.minWidth : Math.max(320, restored.minWidth || 0),
+          minHeight: restored.dpeVideo
+            ? restored.minHeight
+            : Math.max(180, restored.minHeight || 0),
+        });
+      // Do not relax the startup floating hint when minimum sizes are disabled,
+      // or remember that temporary fixed size as the user's minimum on saves.
+      if (!require("./popout.cjs").attach(window, options, finish, electron.screen))
+        finish(options);
+      void updateCSS(window, windows.get(window)).catch(console.error);
+      return window;
+    },
     minimizeToTray: (enabled) => values.tray && enabled,
     trayEnabled: () => values.tray,
-    registerTray: (create, destroy) => {
-      tray = { create, destroy };
+    registerTray: (create, destroy, refresh) => {
+      tray = { create, destroy, refresh };
     },
     setMinimumSize,
     flashFrame: (window, flag) => window.flashFrame(Boolean(flag && values.notificationFlash)),
     setBadgeCount: (app, count) => {
       lastBadge = { app, count };
+      rememberNotifications(count);
       return app.setBadgeCount(badgeCount(count));
     },
     setDockBadge: (dock, text) => {
       lastDockBadge = { dock, text };
+      rememberNotifications(/^\d+$/.test(text) ? Number(text) : 0);
       dock.setBadge(dockBadge(text));
     },
-    rememberOverlay: (refresh) => {
+    rememberOverlay: (count, refresh) => {
       overlayRefresh = refresh;
+      rememberNotifications(count);
     },
   };
 }
@@ -327,11 +428,18 @@ function install(electron, { getConfig = storedConfig } = {}) {
   if (!installed) {
     installed = true;
     electron.app.on("browser-window-created", (_event, window) => controller.observeWindow(window));
+    electron.ipcMain?.handle("dpe-camera-flip-load", () => controller.status().values.webcamFlip);
+    electron.ipcMain?.on("dpe-camera-flip-status", (event, value) => {
+      if (event.senderFrame !== event.sender.mainFrame) return;
+      void controller.cameraStatus(event.sender, value).catch(console.error);
+    });
     for (const window of electron.BrowserWindow.getAllWindows()) controller.observeWindow(window);
   }
   return controller;
 }
-module.exports = { DEFAULTS, normalize, titlebarCSS, createController, install };
+module.exports = { DEFAULTS, normalize, titlebarCSS, webcamCSS, createController, install };
+module.exports.focusPopout = (window, key) => require("./popout.cjs").focusExisting(window, key);
+module.exports.tracePopoutRequest = (details) => require("./popout.cjs").traceRequest(details);
 for (const name of [
   "status",
   "apply",
@@ -339,7 +447,9 @@ for (const name of [
   "subscribeControls",
   "minimum",
   "badgeCount",
+  "trayStates",
   "windowOptions",
+  "popoutOptions",
   "minimizeWithoutTray",
   "startMinimized",
   "createMainWindow",

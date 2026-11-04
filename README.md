@@ -60,8 +60,14 @@ Electron flags. Valid flag changes save automatically and apply on the next
 launch. **Undo** restores the flags from when you opened Settings. See
 [launcher settings](docs/linux-launcher.md) for more details.
 
+Under **General → Webcam**, **Flip webcam horizontally** changes your preview and
+the video others receive together. Your preview always matches the video you send.
+
 The **Troubleshooting** tab opens GPU, media, WebRTC and other diagnostic pages
 inside Discord’s Electron runtime.
+
+Use **Screensharing** to enable experimental capture sources in Discord’s picker
+and inspect the current share’s codec, encoder, frame rate, resolution and bitrate.
 
 ## Guides
 

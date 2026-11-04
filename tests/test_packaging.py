@@ -42,6 +42,37 @@ CAMERA = {
 
 
 class Recipes(unittest.TestCase):
+    def test_hevc_binary_recipe_includes_complete_pinned_upstream_source(self):
+        from build_hevc_support import ARCHIVE_SHA256, SOURCE_ARCHIVE, URL
+
+        client = read_json(ROOT / "config/clients.lock.json")["clients"]["canary"]
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            generate(
+                runtime("prerelease"),
+                client,
+                "prerelease",
+                1,
+                directory,
+                camera={**CAMERA, "hevc": {"schema": 1}},
+            )
+            recipe = (directory / "PKGBUILD").read_text()
+            self.assertIn(SOURCE_ARCHIVE + "::" + URL, recipe)
+            self.assertIn(ARCHIVE_SHA256, recipe)
+
+    def setUp(self):
+        # Capture compilation/manifest integrity is exercised independently.
+        # Recipe tests only need to verify prebuilt bytes and executable modes.
+        def capture(output):
+            output.mkdir()
+            binary = output / "dpe-wayland-source"
+            binary.write_bytes(b"capture executable fixture")
+            binary.chmod(0o755)
+
+        self.capture_stage = patch("generate_package.stage_capture", side_effect=capture)
+        self.capture_stage.start()
+        self.addCleanup(self.capture_stage.stop)
+
     def test_standalone_recipe_ships_every_python_import_for_prepare(self):
         client = read_json(ROOT / "config/clients.lock.json")["clients"]["canary"]
         with tempfile.TemporaryDirectory() as temporary:
@@ -61,6 +92,30 @@ class Recipes(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
+            self.assertEqual(
+                (directory / "support/prebuilt-capture/dpe-wayland-source").read_bytes(),
+                b"capture executable fixture",
+            )
+            self.assertTrue(
+                (directory / "support/prebuilt-capture/dpe-wayland-source").stat().st_mode & 0o111
+            )
+            # New native/video dependencies must survive standalone extraction.
+            for name in (
+                "scripts/patch_vaapi_hrd.py",
+                "scripts/patch_capture_dimensions.py",
+                "scripts/patch_capture_chroma.py",
+                "scripts/patch_decoder_eagain.py",
+                "scripts/encoder_scope.py",
+                "scripts/build_hevc_support.py",
+                "integration/video/hevc-backend.c",
+                "integration/video/HEVC-FFMPEG-LICENSE.txt",
+                "integration/video/transport.cjs",
+                "integration/video/encoder.cjs",
+                "integration/camera/flip.cjs",
+            ):
+                self.assertEqual(
+                    (directory / "support" / name).read_bytes(), (ROOT / name).read_bytes()
+                )
             # The extracted recipe must stage its verified UI bundle without
             # invoking Bun or needing this checkout's node_modules.
             subprocess.run(

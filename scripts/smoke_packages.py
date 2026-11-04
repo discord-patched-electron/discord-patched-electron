@@ -115,6 +115,11 @@ def package_one(
         "libdpe-camera-probe.so",
     ):
         os.link(downloads / filename, directory / filename)
+    if read_json(downloads / "camera-support.json").get("hevc"):
+        from build_hevc_support import SOURCE_ARCHIVE, stage_source
+
+        source = stage_source(downloads)
+        os.link(source, directory / SOURCE_ARCHIVE)
     for archive in downloads.glob("*.whl"):
         os.link(archive, directory / archive.name)
     with (directory / "makepkg.log").open("w") as log:
@@ -151,7 +156,7 @@ def smoke(
     output.mkdir(parents=True, exist_ok=True)
     downloads = output / "downloads"
     downloads.mkdir()
-    build_camera(downloads)
+    build_camera(downloads, hevc=True)
     clients = load_clients(clients_file, channels)
     targets = read_json(ROOT / "config/sources.lock.json")["targets"]
     bootstrap = read_json(ROOT / "config/openasar.lock.json")

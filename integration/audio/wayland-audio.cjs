@@ -64,6 +64,16 @@ function disableStreamAudio() {
   );
 }
 
+// Only the native adapter's active request is authoritative. Discord's generic
+// screen token also represents windows and cannot identify an entire monitor.
+function optimizedCapture() {
+  try {
+    return require("./dpe-capture-backends.cjs").snapshot();
+  } catch {
+    return null;
+  }
+}
+
 function wrap(
   instance,
   {
@@ -73,6 +83,7 @@ function wrap(
     autoDetect = detection.enabled,
     skipScreenPicker = detection.skipScreenPicker,
     disableAudio = disableStreamAudio,
+    captureSnapshot = optimizedCapture,
   } = {},
 ) {
   const nativeTransport = instance.setTransportOptions.bind(instance);
@@ -125,8 +136,12 @@ function wrap(
     helper = child;
     let lastObservations = "";
     observationTimer = setInterval(() => {
-      if (helper !== child || disposed || (!automatic && !skipScreen) || forcePicker) return;
-      const message = JSON.stringify({ generation, observations: observations.snapshot() });
+      if (helper !== child || disposed) return;
+      const message = JSON.stringify({
+        generation,
+        capture: captureSnapshot(),
+        observations: automatic || skipScreen ? observations.snapshot() : [],
+      });
       if (message !== lastObservations) child.stdin.write(message + "\n");
       lastObservations = message;
     }, 400);
@@ -260,6 +275,7 @@ function wrap(
         skipScreenPicker: skipScreen,
         forcePicker,
         observations: observations.snapshot(),
+        capture: captureSnapshot(),
         picker: pickerUI.available() ? "inline" : "native",
       }) + "\n",
     );

@@ -81,6 +81,11 @@ module.exports = async function checkFooter(window) {
     "the separate action does not bubble into copy-build-info",
   );
   assert.deepEqual(await run("calls"), [["DISCORD_UPDATED_QUOTES", "o"]]);
+  window.focus();
+  window.webContents.focus();
+  window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Tab" });
+  window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Tab" });
+  await settle();
   await run("document.querySelector('[data-dpe-settings-version]').focus()");
   assert.equal(
     await run("getComputedStyle(document.querySelector('[data-dpe-settings-version]')).outline"),

@@ -56,7 +56,7 @@ def check(runtime, output, media_cache=None):
             env=env,
             stdout=log,
             stderr=subprocess.STDOUT,
-            timeout=60,
+            timeout=120,
         )
     report = read_json(output / "settings.json")
     report.update(executable_sha256=sha256(runtime), process_exit=process.returncode)
