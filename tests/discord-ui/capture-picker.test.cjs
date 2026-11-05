@@ -569,8 +569,37 @@ test("Vanilla shortcut alone does not suppress the optimized empty state", () =>
   );
   assert.match(
     nodes(tree, (node) => node.type === "a")[0].props.href,
-    /linux-launcher.md#screensharing$/,
+    /screensharing.md#choose-a-capture-method$/,
   );
+});
+
+test("loading and failure use one centered icon state without contradictory empty copy", () => {
+  const View = makeView(
+    {
+      createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
+      useRef: (value) => ({ current: value }),
+      useState: (value) => [value, () => {}],
+      useEffect() {},
+    },
+    () => "",
+  );
+  for (const [props, kind, role, icon] of [
+    [{ loading: true }, "loading", "status", "screen"],
+    [{ error: "Capture selection is unavailable." }, "error", "alert", "warning"],
+    [{ loading: true, error: "Capture selection is unavailable." }, "error", "alert", "warning"],
+  ]) {
+    const tree = View(props);
+    const states = nodes(tree, (node) => node.props["data-dpe-capture-state"]);
+    assert.equal(states.length, 1);
+    assert.equal(states[0].props["data-dpe-capture-state"], kind);
+    assert.equal(states[0].props.role, role);
+    assert.equal(
+      nodes(tree, (node) => node.props.className === "dpe-capture-empty-icon")[0].props.name,
+      icon,
+    );
+    assert.equal(nodes(tree, (node) => node.type === "h3").length, 1);
+    assert.equal(nodes(tree, (node) => node.type === "a").length, 0);
+  }
 });
 
 for (const token of ["game-token", "screen-token"]) {

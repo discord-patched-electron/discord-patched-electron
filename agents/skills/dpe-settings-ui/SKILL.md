@@ -46,7 +46,7 @@ uv run python scripts/check_launch_settings.py /path/to/runtime/electron \
 
 The harness rebuilds the local Preact bundles. Optional `--media-cache` verifies
 the pinned fonts from a local cache. `DPE_SETTINGS_SCOPE` supports focused
-`screensharing`, `popout` and `media-controls` checks; choose one only when it
+`screensharing`, `capture-picker`, `popout` and `media-controls` checks; choose one only when it
 covers the change. Inspect current harness options rather than inventing a scope.
 
 Check enabled, disabled, selected, loading, empty and error states, keyboard use,

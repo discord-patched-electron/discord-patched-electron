@@ -14,6 +14,23 @@ module.exports = function makeView(React, iconLookup) {
         })
       : null;
   }
+  function State({ kind, title, description, children }) {
+    return h(
+      "div",
+      {
+        className: "dpe-capture-empty-state",
+        "data-dpe-capture-state": kind,
+        role: kind === "error" ? "alert" : "status",
+      },
+      h(Icon, {
+        name: kind === "error" ? "warning" : "screen",
+        className: "dpe-capture-empty-icon",
+      }),
+      h("h3", null, title),
+      description && h("p", null, description),
+      children,
+    );
+  }
   return function Sources({
     sources = [],
     loading,
@@ -152,30 +169,26 @@ module.exports = function makeView(React, iconLookup) {
     return h(
       "div",
       { ref: host, className: "dpe-ui dpe-capture-sources", "aria-busy": Boolean(loading || busy) },
-      error && h("p", { className: "dpe-capture-error", role: "alert" }, error),
-      loading && !ordered.length
-        ? h("p", { className: "dpe-capture-empty", role: "status" }, "Finding screens and games…")
-        : !ordered.length &&
-            h(
-              "div",
-              { className: "dpe-capture-empty-state", role: "status" },
-              h(Icon, { name: "screen", className: "dpe-capture-empty-icon" }),
-              h("h3", null, "You don’t have any Optimized capture sources available."),
-              h(
-                "p",
-                null,
+      error
+        ? State({ kind: "error", title: "Couldn’t load capture sources", description: error })
+        : loading && !ordered.length
+          ? State({ kind: "loading", title: "Finding screens and games…" })
+          : !ordered.length &&
+            State({
+              kind: "empty",
+              title: "You don’t have any Optimized capture sources available.",
+              description:
                 "Allow direct screen capture in DPE settings, or launch a game with vkcapture.",
-              ),
-              h(
+              children: h(
                 "a",
                 {
-                  href: "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/linux-launcher.md#screensharing",
+                  href: "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/screensharing.md#choose-a-capture-method",
                   target: "_blank",
                   rel: "noreferrer",
                 },
                 "Learn More",
               ),
-            ),
+            }),
       ordered.length > 0 &&
         h(
           "div",

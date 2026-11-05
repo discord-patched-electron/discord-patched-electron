@@ -145,6 +145,14 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
+    if (process.env.DPE_SETTINGS_SCOPE === "capture-picker") {
+      await require(path.join(root, "tests/launch-settings/capture-picker.cjs"))({ root, output });
+      checks.push(
+        "Capture picker loading, error and empty states, shared icons, themes and narrow zoomed layouts",
+      );
+      finish();
+      return;
+    }
     if (process.env.DPE_SETTINGS_SCOPE === "media-controls") {
       await open();
       await click("t_settings");

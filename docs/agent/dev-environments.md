@@ -98,3 +98,18 @@ and 430 JavaScript passes (three skips). Evidence: `out/picker-helper-check/`,
 `out/picker-helper-tests.log` and `out/picker-helper-lint.log`. The Electron check
 exercised page/preload events and IPC without logging in or capturing a source.
 Live account sharing remains unverified. Existing user profiles were untouched.
+
+### Installed-view follow-up
+
+The first repair corrected the cache, but `prepare_view` could reuse an installed
+view still linked to canonical sources. Private dev installations now include
+helper link destinations in their identity. Restarting republishes the corrected
+view once; helper content edits retain the same identity. Production installation
+rules remain unchanged.
+
+The regression reproduces stale reuse, then checks migration, publication and
+reuse after a content edit. The current dev profile’s published helper paths were
+also checked. Picker loading and errors now reuse the centered icon state instead
+of showing plain text alongside contradictory empty-state content. The real
+settings harness covers light/dark themes and narrow zoomed windows under its
+`capture-picker` scope; evidence is in `out/picker-state-ui/`.

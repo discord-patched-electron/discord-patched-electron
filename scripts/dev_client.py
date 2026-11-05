@@ -9,6 +9,26 @@ import sys
 from pathlib import Path
 
 
+def configure_installation(app: Path):
+    installation = app / "integration/updater/installation.py"
+    source = installation.read_text()
+    before = '"host": str(host),'
+    after = (
+        before
+        + """
+                "dev_helper_links": {
+                    item.relative_to(host / "modules/discord_voice").as_posix(): os.readlink(item)
+                    for item in (host / "modules/discord_voice").rglob("*")
+                    if item.is_symlink()
+                },"""
+    )
+    if after in source:
+        return
+    if source.count(before) != 1:
+        raise ValueError("Unsupported development installation identity")
+    installation.write_text(source.replace(before, after))
+
+
 def link_helpers(app: Path, voice: Path, sidecars: dict):
     # Node resolves symlinks before resolving relative require() calls. Keep
     # the packaged dpe-* names together, including Python helper siblings.
@@ -27,6 +47,7 @@ def link_helpers(app: Path, voice: Path, sidecars: dict):
 def prepare(app: Path, profile: Path, downloads: Path):
     if not (app / "dev-version.json").is_file():
         raise ValueError("Editable overlays require a managed development version")
+    configure_installation(app)
     sys.path.insert(0, str(app / "integration/updater"))
     import client
     from support import checksum, read_object, write_json

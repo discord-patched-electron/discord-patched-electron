@@ -58,6 +58,9 @@ Keep helper links pointed at the staged `integration/audio/` layout with its
 packaged `dpe-*` names. Node resolves symlinks before relative imports; linking
 straight to `integration/video/` breaks sibling dependencies. Sync must refresh
 the packaged aliases as well as their source copies.
+After a link-layout migration, verify the published `app-*/modules/` view too.
+A repaired download cache can coexist with an intact but stale installed view;
+the private dev installation identity must track helper link destinations.
 
 ## Control storage and cleanup
 

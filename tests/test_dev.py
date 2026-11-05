@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import read_json, write_json
 from dev import Manager, copy_changed, lock, name, sync_sidecars
-from dev_client import link_helpers
+from dev_client import configure_installation, link_helpers
 
 
 class DevTests(unittest.TestCase):
@@ -182,6 +182,81 @@ window.dispatchEvent(new CustomEvent('dpe-capture-picker-request', {
             (voice / "dpe-screenshare-settings.cjs").read_bytes(), settings.read_bytes()
         )
         subprocess.run(["node", "-e", script, str(app)], check=True, timeout=10)
+
+    def test_installed_view_migrates_helper_links_and_reuses_content_edits(self):
+        app = self.manager.path("versions", "fixture")
+        updater = app / "integration/updater"
+        updater.mkdir(parents=True)
+        root = Path(__file__).resolve().parents[1]
+        for filename in ("installation.py", "client_mods.py"):
+            shutil.copy2(root / "integration/updater" / filename, updater / filename)
+        (updater / "client.py").write_text("def compatibility_key():\n    return 'fixture'\n")
+        self.manager.freeze_client(app)
+        profile = self.manager.profile("fixture")
+        host = app / "host"
+        voice = host / "modules/discord_voice"
+        voice.mkdir(parents=True)
+        (host / "resources").mkdir()
+        (app / "resources").mkdir()
+        runtime = app / "runtime"
+        runtime.mkdir()
+        (runtime / "electron").write_bytes(b"runtime")
+        (app / "libdpe-camera-probe.so").write_bytes(b"helper")
+        (app / "resources/app.asar").write_bytes(b"fixture")
+        write_json(host / "resources/build_info.json", {"version": "1.0.1"})
+        state = {
+            "channel": "canary",
+            "version": "1.0.1",
+            "modules": {"discord_voice": {"version": 1}},
+        }
+        write_json(host / "client.json", state)
+        old_helper, new_helper = app / "old.cjs", app / "packaged.cjs"
+        old_helper.write_text("same bytes")
+        new_helper.write_text("same bytes")
+        link = voice / "dpe-helper.cjs"
+        link.symlink_to(old_helper)
+
+        def load():
+            sys.path.insert(0, str(root / "integration/updater"))
+            try:
+                namespace = {"__file__": str(updater / "installation.py")}
+                exec(
+                    compile(
+                        (updater / "installation.py").read_text(), namespace["__file__"], "exec"
+                    ),
+                    namespace,
+                )
+                return namespace
+            finally:
+                sys.path.pop(0)
+
+        prepare = load()["prepare_view"]
+        previous = prepare(app, profile, host, runtime / "electron", state)
+        link.unlink()
+        link.symlink_to(new_helper)
+        self.assertEqual(prepare(app, profile, host, runtime / "electron", state), previous)
+        configure_installation(app)
+        before = (updater / "installation.py").read_bytes()
+        configure_installation(app)
+        self.assertEqual((updater / "installation.py").read_bytes(), before)
+        installation = load()
+        prepare = installation["prepare_view"]
+        current = prepare(app, profile, host, runtime / "electron", state)
+        self.assertNotEqual(current, previous)
+        installed = current / "modules/discord_voice-1/discord_voice/dpe-helper.cjs"
+        self.assertEqual(installed.resolve(), new_helper)
+        published = installation["publish"](app, profile, host, runtime / "electron")
+        self.assertEqual(
+            (published / "modules/discord_voice-1/discord_voice/dpe-helper.cjs").resolve(),
+            new_helper,
+        )
+        self.assertEqual(
+            (previous / "modules/discord_voice-1/discord_voice/dpe-helper.cjs").resolve(),
+            old_helper,
+        )
+        new_helper.write_text("edited helper")
+        self.assertEqual(prepare(app, profile, host, runtime / "electron", state), current)
+        self.assertEqual(installed.read_text(), "edited helper")
 
     def test_create_failure_cleans_partial_version(self):
         with self.assertRaises((OSError, ValueError)):
