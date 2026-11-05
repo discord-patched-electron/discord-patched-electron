@@ -76,6 +76,12 @@ def copy_changed(source: Path, destination: Path):
         temporary.unlink(missing_ok=True)
 
 
+def sync_sidecars(app: Path, sidecars: dict):
+    audio = app / "integration/audio"
+    for source, destination in sidecars.items():
+        copy_changed(audio / source, audio / destination)
+
+
 class Manager:
     def __init__(self, home: Path):
         self.home = home.resolve()
@@ -239,6 +245,7 @@ class Manager:
     def sync(self, app: Path):
         """Refresh owned JS/CSS only, without repatching native binaries."""
         from build_ui import build as build_ui
+        from patch_app_audio import SIDECARS
 
         with tempfile.TemporaryDirectory(prefix="dpe-dev-ui-") as temporary:
             bundle = build_ui(Path(temporary))
@@ -251,6 +258,7 @@ class Manager:
             for relative in ("integration/discord-ui", "integration/audio/discord-ui"):
                 for filename in ("ui-runtime.cjs", "PREACT-LICENSE.txt"):
                     copy_changed(bundle / filename, app / relative / filename)
+            sync_sidecars(app, SIDECARS)
 
     def stamp(self):
         # Poll metadata rather than reading every source on each tick.

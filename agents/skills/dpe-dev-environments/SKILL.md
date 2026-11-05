@@ -54,6 +54,11 @@ also omit mutable logs. These development semantics prevent repeated generation
 creation; keep them confined to managed payloads. Preserve normal updater
 verification and qualification behavior.
 
+Keep helper links pointed at the staged `integration/audio/` layout with its
+packaged `dpe-*` names. Node resolves symlinks before relative imports; linking
+straight to `integration/video/` breaks sibling dependencies. Sync must refresh
+the packaged aliases as well as their source copies.
+
 ## Control storage and cleanup
 
 Electron objects are read-only hard links, including matching files in managed

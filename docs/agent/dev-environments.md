@@ -78,3 +78,23 @@ including login, native module APIs, codec preload and popouts. The verification
 profile, reports and temporary build directories were then deleted as requested;
 `out/` retains only the new managed environment and its shared download/runtime
 caches. Start it with `bun run dev run current --profile dev --watch`.
+
+## Picker helper resolution fix (2026-11-05)
+
+Managed voice helpers linked directly to canonical source files. Node followed
+those links into `integration/video/`, where renamed imports such as
+`./dpe-screenshare-settings.cjs` do not exist. Capture backend setup stopped before
+registering its picker listener, producing the 15-second selection timeout.
+
+Links now target the staged `integration/audio/` sidecars with their packaged
+names. Sync refreshes those aliases before restart. The next manager run repairs
+existing profile links; no native rebuild or profile reset is needed. Restart
+the manager itself to load the updated watch implementation.
+
+Validation: real Node module resolution and picker RPC regression, including
+migration and helper edits; an isolated Electron 46 check with the prepared
+Canary 1.0.2357 voice module and real native picker hooks; lint; 720 Python tests
+and 430 JavaScript passes (three skips). Evidence: `out/picker-helper-check/`,
+`out/picker-helper-tests.log` and `out/picker-helper-lint.log`. The Electron check
+exercised page/preload events and IPC without logging in or capturing a source.
+Live account sharing remains unverified. Existing user profiles were untouched.

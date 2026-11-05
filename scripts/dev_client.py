@@ -9,6 +9,21 @@ import sys
 from pathlib import Path
 
 
+def link_helpers(app: Path, voice: Path, sidecars: dict):
+    # Node resolves symlinks before resolving relative require() calls. Keep
+    # the packaged dpe-* names together, including Python helper siblings.
+    audio = app / "integration/audio"
+    helpers = {"dpe-app-audio.cjs": audio / "app-audio.cjs"}
+    helpers.update({destination: audio / destination for destination in sidecars.values()})
+    for destination, source in helpers.items():
+        path = voice / destination
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.is_symlink() and path.resolve() == source.resolve():
+            continue
+        path.unlink(missing_ok=True)
+        path.symlink_to(source.resolve())
+
+
 def prepare(app: Path, profile: Path, downloads: Path):
     if not (app / "dev-version.json").is_file():
         raise ValueError("Editable overlays require a managed development version")
@@ -32,20 +47,7 @@ def prepare(app: Path, profile: Path, downloads: Path):
     root = profile / "dpe-updater"
     host = client.ensure_client(root, "canary", executable=app / "runtime/electron")
     voice = (host / "modules/discord_voice").resolve()
-    helpers = {"dpe-app-audio.cjs": app / "integration/audio/app-audio.cjs"}
-    helpers.update(
-        {
-            destination: app / "integration/audio" / source
-            for source, destination in SIDECARS.items()
-        }
-    )
-    for destination, source in helpers.items():
-        path = voice / destination
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if path.is_symlink() and path.resolve() == source.resolve():
-            continue
-        path.unlink(missing_ok=True)
-        path.symlink_to(source.resolve())
+    link_helpers(app, voice, SIDECARS)
     marker = read_object(voice / ".complete")
     marker["files"] = client.module_files(voice)
     write_json(voice / ".complete", marker)

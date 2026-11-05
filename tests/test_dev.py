@@ -1,5 +1,6 @@
 """Development storage and profile isolation contracts."""
 
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -8,7 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import read_json, write_json
-from dev import Manager, copy_changed, lock, name
+from dev import Manager, copy_changed, lock, name, sync_sidecars
+from dev_client import link_helpers
 
 
 class DevTests(unittest.TestCase):
@@ -97,6 +99,89 @@ class DevTests(unittest.TestCase):
         before = destination.stat().st_mtime_ns
         copy_changed(source, destination)
         self.assertEqual(destination.stat().st_mtime_ns, before)
+
+    def test_editable_sidecars_keep_node_resolution_and_picker_rpc_working(self):
+        app = self.manager.path("versions", "fixture")
+        audio = app / "integration/audio"
+        audio.mkdir(parents=True)
+        (audio / "app-audio.cjs").write_text("module.exports = {};\n")
+        voice = app / "voice"
+        voice.mkdir()
+        root = Path(__file__).resolve().parents[1]
+        sidecars = {
+            "../video/capture-backends.cjs": "dpe-capture-backends.cjs",
+            "../video/settings.cjs": "dpe-screenshare-settings.cjs",
+            "../video/capture-picker.cjs": "dpe-capture-picker.cjs",
+        }
+        for source in sidecars:
+            target = audio / source
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(root / "integration/audio" / source, target)
+        # Migrate the previous overlay layout, which Node resolves into video/.
+        for source, destination in sidecars.items():
+            (voice / destination).symlink_to((audio / source).resolve())
+        sync_sidecars(app, sidecars)
+        link_helpers(app, voice, sidecars)
+        profile = app / "profile"
+        profile.mkdir()
+        write_json(
+            profile / "settings.json",
+            {"openasar": {"screensharing": {"experimentalCapture": True}}},
+        )
+        script = r"""
+const assert = require('node:assert/strict');
+const {createRequire} = require('node:module');
+const Module = require('node:module');
+const {EventEmitter} = require('node:events');
+const path = require('node:path');
+const app = process.argv[1];
+process.env.DPE_APP_ROOT = app;
+process.env.DPE_PROFILE_DIR = path.join(app, 'profile');
+const load = createRequire(path.join(app, 'voice/index.js'));
+const entry = load.resolve('./dpe-capture-backends.cjs');
+assert.equal(createRequire(entry).resolve('./dpe-screenshare-settings.cjs'),
+  load.resolve('./dpe-screenshare-settings.cjs'));
+assert.equal(createRequire(entry).resolve('./dpe-capture-picker.cjs'),
+  load.resolve('./dpe-capture-picker.cjs'));
+const ipc = new EventEmitter();
+ipc.invoke = async (channel, request) => {
+  if (channel === 'dpe-capture-methods') return ['vkcapture'];
+  assert.equal(channel, 'dpe-capture-picker');
+  assert.equal(request.op, 'list');
+  return {enabled: true, sources: []};
+};
+const original = Module._load;
+Module._load = function(request, ...args) {
+  if (request === 'electron') return {ipcRenderer: ipc};
+  if (request === './dpe-capture-picker.cjs') return {load: () => ({})};
+  return original.call(this, request, ...args);
+};
+global.window = new EventTarget();
+load('./dpe-capture-backends.cjs').install(path.join(app, 'voice'), {});
+const timeout = setTimeout(() => { throw Error('Picker RPC did not reply'); }, 1000);
+window.addEventListener('dpe-capture-picker-reply', event => {
+  const reply = JSON.parse(event.detail);
+  assert.equal(reply.id, '00000000-0000-0000-0000-000000000001');
+  assert.deepEqual(reply.value, {enabled: true, sources: []});
+  assert.equal(reply.error, undefined);
+  clearTimeout(timeout);
+});
+window.dispatchEvent(new CustomEvent('dpe-capture-picker-request', {
+  detail: JSON.stringify({id: '00000000-0000-0000-0000-000000000001', op: 'list'})
+}));
+"""
+        subprocess.run(["node", "-e", script, str(app)], check=True, timeout=10)
+        # Watch/restart must refresh aliases without changing their link identity.
+        settings = audio / "../video/settings.cjs"
+        settings.write_text(settings.read_text() + "\n// Edited helper\n")
+        before = (voice / "dpe-screenshare-settings.cjs").readlink()
+        sync_sidecars(app, sidecars)
+        link_helpers(app, voice, sidecars)
+        self.assertEqual((voice / "dpe-screenshare-settings.cjs").readlink(), before)
+        self.assertEqual(
+            (voice / "dpe-screenshare-settings.cjs").read_bytes(), settings.read_bytes()
+        )
+        subprocess.run(["node", "-e", script, str(app)], check=True, timeout=10)
 
     def test_create_failure_cleans_partial_version(self):
         with self.assertRaises((OSError, ValueError)):
