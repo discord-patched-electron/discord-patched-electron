@@ -45,23 +45,31 @@ Documentation-only changes need `bun run lint` and a review of changed links and
 instructions. CI selects integration checks by affected files; see
 [check selection](docs/agent/ci-setup.md#check-selection).
 
+For reusable local app versions, independent profiles and watch/restart, see the
+[local development guide](docs/development.md).
+
 ## Repository layout
 
-| Path           | Contents                                               |
-| -------------- | ------------------------------------------------------ |
-| `integration/` | Launcher and Linux audio, camera and desktop adapters  |
-| `scripts/`     | Discovery, source assembly, packaging and verification |
-| `tests/`       | Unit tests and native/audio fixtures                   |
-| `config/`      | Pinned sources, clients and build policies             |
-| `patches/`     | Discord's Electron changes and compatibility patches   |
-| `packaging/`   | Package templates and upstream reference files         |
-| `.github/`     | CI workflows                                           |
-| `docs/`        | User guides; contributor notes live in `docs/agent/`   |
+| Path             | Contents                                               |
+| ---------------- | ------------------------------------------------------ |
+| `integration/`   | Launcher and Linux audio, camera and desktop adapters  |
+| `scripts/`       | Discovery, source assembly, packaging and verification |
+| `tests/`         | Unit tests and native/audio fixtures                   |
+| `config/`        | Pinned sources, clients and build policies             |
+| `patches/`       | Discord's Electron changes and compatibility patches   |
+| `packaging/`     | Package templates and upstream reference files         |
+| `.github/`       | CI workflows                                           |
+| `agents/skills/` | Reusable repository workflows for coding agents        |
+| `docs/`          | User guides; contributor notes live in `docs/agent/`   |
 
 Generated files belong in `out/`. Don't commit downloaded clients, compiler
 workspaces or test profiles. Don't edit `packaging/upstream/` or reformat
 `patches/`: they contain pinned upstream files. Source updates need an explicit
 import with new checksums.
+
+The [repository skill catalog](AGENTS.md#repository-skills) links focused
+implementation and validation workflows. Each skill has a `SKILL.md` with its
+scope and references to the maintained guides.
 
 ## Dependencies
 

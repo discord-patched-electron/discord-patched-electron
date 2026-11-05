@@ -5,6 +5,11 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 
 > [!WARNING]
 > Experimental. Testing is limited, and bugs are expected.
+>
+> Client modifications are against Discord’s Terms of Service.
+> This is the same warning used in [Vencord’s disclaimer](https://github.com/Vendicated/Vencord#disclaimer).
+> Your account could be suspended or terminated. Use the official client if you
+> cannot accept that risk.
 
 <br />
 
@@ -12,6 +17,8 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 
 - Updated Electron for newer Chromium features and Linux improvements.
 - Discord's native screen sharing and Krisp noise suppression.
+- [Improved screensharing](docs/screensharing.md): experimental game and monitor
+  capture, hardware codecs, motion quality and smoother remote playback.
 - Wayland by default, with X11 support too.
 - [Application audio](docs/wayland-audio.md) for screen sharing.
 - Faster camera startup and hardware video decoding where supported.
@@ -67,13 +74,17 @@ The **Troubleshooting** tab opens GPU, media, WebRTC and other diagnostic pages
 inside Discord’s Electron runtime.
 
 Use **Screensharing** to enable experimental capture sources in Discord’s picker
-and inspect the current share’s codec, encoder, frame rate, resolution and bitrate.
+and inspect outgoing quality and incoming hardware decoding. See the
+[screensharing guide](docs/screensharing.md) for features, defaults and limitations.
 
 ## Guides
 
 - [Appearance, startup and launcher settings](docs/linux-launcher.md)
 - [Screen-share audio and desktop support](docs/wayland-audio.md)
+- [Screensharing features and quality settings](docs/screensharing.md)
+- [Set up optimized game and monitor capture](docs/optimized-screensharing.md)
 - [Vencord and Equicord](docs/client-mods.md)
+- [Local development and reusable dev profiles](docs/development.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## AI usage

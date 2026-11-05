@@ -12,7 +12,7 @@ integration jobs selected by their inputs:
 
 | Change                                                                        | Additional checks                                                           |
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| README, contributor guides, agent notes                                       | None; lint only                                                             |
+| README, contributor guides, agent notes and skill instructions                | None; lint only                                                             |
 | Release notes, approval/AUR/discovery tooling, unit tests                     | Unit suite only                                                             |
 | App settings, updater, package assets and templates                           | Arch packaging                                                              |
 | Launcher                                                                      | Arch packaging and shell syntax                                             |
@@ -28,6 +28,9 @@ Mixed changes use the union of their scopes. Keep the rules conservative: a new
 unlisted path runs everything until its consumers have been identified. Changing
 the selector or `check.yml` itself also runs everything. No check here recompiles
 Electron; compilation remains a separate budgeted workflow.
+
+Only `agents/skills/*/SKILL.md` is classified as skill documentation. Executable
+helpers and other new skill resources keep full checks until explicitly scoped.
 
 The selector compares the complete push range or the PR merge base and head.
 It includes deleted and renamed files, without GitHub's API/path-filter file

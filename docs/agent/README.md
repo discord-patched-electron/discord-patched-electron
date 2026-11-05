@@ -9,12 +9,26 @@ that test run.
 
 ## Start here
 
+- [Repository skills](../../AGENTS.md#repository-skills): focused implementation
+  and validation workflows under `agents/skills/`.
+- [Complete screensharing review and regression fixes](screenshare-review-20261105.md).
 - [Handoff](handoff.md): current configuration, retained builds and open test gaps.
 - [Release packaging](releases.md): make, test and approve a release.
 - [Runtime validation](runtime-validation.md): test native video and Krisp.
 - [Channel switches](channels.md): enable or disable supported build tracks.
 
 ## Builds and updates
+
+- [Local development guide](../development.md) and
+  [manager implementation and evidence](dev-environments.md)
+
+- [Required whole-diff upstream update review](upstream-update-review.md)
+
+- [Complete Canary 1.0.2444 compatibility](client-2444-compatibility.md)
+
+- [Discovery relaunch failure and CSP investigation](discovery-relaunch-20261105.md)
+
+- [AppImage host library boundary and validation](appimage-host-libraries-20261105.md)
 
 - [CI runners and budget](ci-setup.md)
 - [CPU target and build caching](build-caching.md)
@@ -26,6 +40,20 @@ that test run.
 - [Installer resilience and GitHub API limits](mod-network-resilience-20261031.md)
 
 ## Linux integration
+
+- [Automatic AV1 cropping in the native software decoder](software-av1-crop-20261105.md)
+
+- [Native AMD AV1 two-row padding and the 1082 fast path](native-av1-two-row-padding-20261105.md)
+
+- [Default-off desktop media controls](desktop-media-controls-20261105.md)
+
+- [Automatic AV1 source-rectangle cropping and compatibility checks](automatic-av1-crop-20261105.md)
+
+- [Niri scene-change judder: packet pacing fix and viewer measurements](niri-transition-timing-20261104.md)
+
+- [Receiver presentation clock and native-size AMD AV1 padding](receiver-clock-av1-padding-20261104.md)
+
+- [Live source budgeting and receive decoder diagnostics](source-bitrate-decode-20261104.md)
 
 - [Optimized picker closure and native handoff](optimized-handoff-20261104.md)
 
