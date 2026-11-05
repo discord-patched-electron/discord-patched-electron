@@ -1,5 +1,7 @@
 # Screensharing
 
+Discord Patched Electron (DPE) is a modified Discord desktop app for Linux.
+
 Open **User Settings → DPE Settings → Screensharing**. Choose resolution, FPS and
 sound in Discord’s share dialog. See [screen-share audio](wayland-audio.md) for
 application audio setup.
@@ -49,15 +51,24 @@ or a restricted launch environment. Restart DPE outside that restriction if need
 
 ## Quality and codecs
 
-Discord negotiates a codec supported by the sender and viewers:
+Codecs compress video before sending it. Discord chooses one supported by both
+the sender and viewers. A graphics card supporting a codec is not enough:
+Discord also needs working software to use it.
+Bitrate is the amount of video data sent each second.
 
-| Codec        | Support                                                                               |
-| ------------ | ------------------------------------------------------------------------------------- |
-| H.264        | Native hardware encoding; managed OpenH264 for software reception.                    |
-| HEVC / H.265 | Added AMD/Intel VAAPI encoding; native NVIDIA encoding. Requires a compatible viewer. |
-| AV1 / AV1X   | Hardware-dependent encoding, with padding/cropping fixes for affected AMD hardware.   |
-| VP8          | Software encoding; high resolutions and FPS can be CPU-limited.                       |
-| VP9          | No encoder in the currently reviewed native module.                                   |
+| Area         | What was wrong or missing                                                                               | What DPE changes                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| H.264        | Encoder settings could waste quality, unnecessarily shrink the picture or reduce its bitrate allowance. | Corrects buffering and quality decisions, and improves compression settings on affected AMD hardware.                             |
+| HEVC / H.265 | Discord lacked the Linux AMD/Intel encoding path, even on capable cards.                                | Adds GPU encoding for supported AMD/Intel devices and keeps NVIDIA’s existing path. Viewers need HEVC support.                    |
+| AV1 / AV1X   | Discord’s Linux rollout could hide AV1, and some AMD cards mishandled 1080p.                            | Enables supported AV1 and preserves the original picture using padding where needed. DPE viewers trim that padding automatically. |
+| VP8          | Encoding uses the CPU, which can struggle at high resolutions and FPS.                                  | Keeps software encoding available; high-FPS performance still depends on the CPU.                                                 |
+| VP9          | Discord’s native module has no VP9 encoder.                                                             | Reports it as unavailable; installing a system codec cannot add it.                                                               |
+| Motion       | Scene changes could build sending queues, and viewers could display frames unevenly.                    | Improves packet pacing and DPE viewer timing to reduce judder.                                                                    |
+| Color detail | Color conversion sampled too little detail before compression.                                          | Improves GPU color filtering without adding another conversion pass.                                                              |
+| Capture      | High-refresh sources could cause excess work, repeated frames or slow adaptation.                       | Adds game/direct-monitor capture, skips excess frames safely and fixes resize and synchronization handling.                       |
+| Bitrate      | Small viewer tiles could reduce the allowance for a detailed source.                                    | Adds an option to keep more bitrate for the shared picture. It is off by default; network limits still apply.                     |
+| Viewing      | Software H.264 could fail to find its decoder; buffered frames could be mistaken for errors.            | Fixes decoder loading and buffered-output handling, and shows hardware/software decoding status.                                  |
+| Reliability  | Cancelling, resizing or changing FPS could interrupt capture incorrectly.                               | Fixes cancellation, source loss and capture restarts.                                                                             |
 
 **Excluded codecs** applies to the next outgoing screenshare, leaving camera
 calls and incoming decoding unchanged. Keep at least one usable encoder enabled.
