@@ -79,11 +79,13 @@ test("bootstrap transforms restore settings through the renderer adapter and kee
   const entry =
     "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});";
   const source =
-    "const startMin = process.argv?.includes?.('--start-minimized');\nbefore\n  app.on('browser-window-created', customize);\ncustomization();\n  desktopCore = require('discord_desktop_core');\nafter";
+    "const startMin = process.argv?.includes?.('--start-minimized');\ndesktopCore.setMainWindowVisible(!startMin);\ndesktopCore?.handleOpenUrl?.(a.includes('--url') && a[a.indexOf('--') + 1]);\nbefore\n  app.on('browser-window-created', customize);\ncustomization();\n  desktopCore = require('discord_desktop_core');\nafter";
   const transformed = bootstrap(source, "bootstrap.js", "/desktop-exec.cjs");
   assert.ok(!transformed.includes("customization()"));
   assert.ok(transformed.includes("renderer.cjs"));
   assert.ok(transformed.includes("preferences.cjs').startMinimized()"));
+  assert.ok(transformed.includes("links.cjs').receive(a);"));
+  assert.ok(transformed.includes("if (link) desktopCore.handleOpenUrl(link);"));
   assert.ok(bootstrap(entry, "index.js").includes("...settings.get('openasar', {})"));
   assert.ok(transformed.endsWith("  desktopCore = require('discord_desktop_core');\nafter"));
   assert.ok(bootstrap(entry, "index.js").includes("autoupdate: false"));

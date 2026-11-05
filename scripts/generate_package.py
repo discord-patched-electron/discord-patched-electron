@@ -172,10 +172,9 @@ def generate(
     desktop = (
         f"[Desktop Entry]\nName={display_name(client['channel'])}\n"
         f"Exec=/usr/bin/{name} %U\nIcon={desktop_id(client['channel'])}\nType=Application\nTerminal=false\n"
-        f"Categories=Network;InstantMessaging;\nStartupWMClass={desktop_id(client['channel'])}\n"
+        f"Categories=Network;InstantMessaging;\nMimeType=x-scheme-handler/discord;\n"
+        f"StartupWMClass={desktop_id(client['channel'])}\n"
     )
-    # No shared x-scheme-handler/discord association: installing a second channel
-    # must not silently change which client receives the user's Discord links.
     write_file(output / "discord.desktop", desktop.encode())
     inputs = {
         "schema": 1,

@@ -14,6 +14,7 @@ import {
   DesktopError,
   DesktopSwitch,
   NotificationPreferences,
+  LinkPreferences,
   WindowPreferences,
 } from "./desktop-preferences.jsx";
 
@@ -106,6 +107,7 @@ export function General({ config, desktop }) {
           )}
         </section>
       ))}
+      <LinkPreferences model={desktop} />
       <NotificationPreferences model={desktop} />
     </div>
   );

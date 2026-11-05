@@ -28,6 +28,14 @@ function bootstrap(source, filename, desktopExec) {
       "const startMin = process.argv?.includes?.('--start-minimized');",
       "const startMin = require(process.env.DPE_APP_ROOT + '/integration/desktop/preferences.cjs').startMinimized();",
     );
+    patch(
+      "desktopCore.setMainWindowVisible(!startMin);",
+      "desktopCore.setMainWindowVisible(!startMin);\n    const link = require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').take();\n    if (link) desktopCore.handleOpenUrl(link);",
+    );
+    patch(
+      "desktopCore?.handleOpenUrl?.(a.includes('--url') && a[a.indexOf('--') + 1]);",
+      "require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').receive(a);\n    if (desktopCore) desktopCore.handleOpenUrl(require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').take());",
+    );
   } else if (filename === "index.js") {
     patch(
       "process.resourcesPath = join(__dirname, '..');",

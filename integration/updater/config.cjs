@@ -182,11 +182,19 @@ function open(tab = "settings", sourceContents, options = {}) {
     await shell.openExternal(links[name]);
   });
   handle("dpe-config-diagnostic", (name) => require("./diagnostics.cjs").open(name));
-  const desktopState = () => {
+  const desktopState = async () => {
     const desktop = require("../desktop/preferences.cjs");
-    return { ...desktop.status(), values: desktop.normalize(settings.get("openasar", {}).desktop) };
+    return {
+      ...desktop.status(),
+      values: desktop.normalize(settings.get("openasar", {}).desktop),
+      linksElsewhere: await desktop.linksElsewhere(),
+    };
   };
   handle("dpe-desktop-load", desktopState);
+  handle("dpe-desktop-claim-links", () => {
+    require("../desktop/preferences.cjs").claimLinks();
+    return desktopState();
+  });
   handle("dpe-desktop-save", async (patch) => {
     const desktop = require("../desktop/preferences.cjs");
     if (
@@ -208,18 +216,22 @@ function open(tab = "settings", sourceContents, options = {}) {
       throw error;
     }
     global.oaConfig = { ...next, autoupdate: false };
+    const errors = [];
     try {
       await desktop.apply(next.desktop);
     } catch (error) {
       // The preference is already durable. Keep the UI on the saved values
       // when a window closes mid-update or a live native operation fails.
       console.error("Could not apply desktop preferences", error);
-      return {
-        ...desktopState(),
-        error: "Settings saved. Restart Discord to finish applying these changes.",
-      };
+      errors.push("Settings saved. Restart Discord to finish applying these changes.");
     }
-    return desktopState();
+    if (patch.discordLinks && !previous.desktop?.discordLinks)
+      try {
+        desktop.claimLinks();
+      } catch (error) {
+        errors.push(error.message);
+      }
+    return { ...(await desktopState()), error: errors.join(" ") };
   });
   const spellingState = () => {
     const state = require("../desktop/spellcheck.cjs").status();

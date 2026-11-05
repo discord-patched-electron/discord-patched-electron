@@ -1,30 +1,39 @@
 /** @jsxImportSource preact */
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { Button, errorMessage } from "./primitives.jsx";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { Button, Switch, errorMessage } from "./primitives.jsx";
 import { Mods } from "./mods.jsx";
+import { discordLinkSwitch } from "./desktop-preferences.jsx";
 
 export function Onboarding({ model }) {
   const [page, setPage] = useState(0);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
+  const [links, setLinks] = useState();
   const operation = useRef(false);
+  useEffect(() => {
+    window.Native.desktopLoad()
+      .then(({ values, linksElsewhere }) =>
+        setLinks({ enabled: values.discordLinks || !linksElsewhere, elsewhere: linksElsewhere }),
+      )
+      .catch(() => setLinks({ enabled: false, elsewhere: false }));
+  }, []);
   useLayoutEffect(() => {
     document.body.dataset.welcomePage = page === 1 ? "ready" : "mods";
     return () => delete document.body.dataset.welcomePage;
   }, [page]);
   useLayoutEffect(() => {
     if (page !== 1) return;
-    const intro = document.querySelector(".setup-intro");
+    const copy = document.querySelector(".welcome-links");
     const updateShade = () => {
       document.body.style.setProperty(
         "--welcome-copy-bottom",
-        `${Math.ceil(intro.getBoundingClientRect().bottom)}px`,
+        `${Math.ceil(copy.getBoundingClientRect().bottom)}px`,
       );
     };
     updateShade();
     const observer = new ResizeObserver(updateShade);
-    observer.observe(intro);
-    observer.observe(intro.parentElement);
+    observer.observe(copy);
+    observer.observe(copy.parentElement);
     return () => {
       observer.disconnect();
       document.body.style.removeProperty("--welcome-copy-bottom");
@@ -50,6 +59,8 @@ export function Onboarding({ model }) {
     setWorking(true);
     setError("");
     try {
+      if (links) await window.Native.desktopSave({ discordLinks: links.enabled });
+      if (links?.enabled) await window.Native.desktopClaimLinks().catch(console.error);
       const result = await window.Native.setupAction(action);
       if (result?.error) throw new Error(result.error);
     } catch (failure) {
@@ -75,6 +86,8 @@ export function Onboarding({ model }) {
       page={page}
       working={working}
       error={error}
+      links={links}
+      setLinks={setLinks}
       next={next}
       finish={finish}
       back={back}
@@ -82,7 +95,7 @@ export function Onboarding({ model }) {
   );
 }
 
-export function WelcomeView({ model, page, working, error, next, finish, back }) {
+export function WelcomeView({ model, page, working, error, links, setLinks, next, finish, back }) {
   return (
     <div class="onboarding">
       <div class="welcome-artwork" aria-hidden="true" hidden={page !== 1}>
@@ -110,6 +123,18 @@ export function WelcomeView({ model, page, working, error, next, finish, back })
             <p class="setup-intro">
               You’re ready to open Discord. You can also adjust your settings first.
             </p>
+            <div class="welcome-links">
+              <Switch
+                id="setup-discord-links"
+                label={discordLinkSwitch.label}
+                description={
+                  links?.elsewhere ? discordLinkSwitch.elsewhere : discordLinkSwitch.description
+                }
+                checked={links?.enabled ?? false}
+                disabled={working || !links}
+                onChange={(enabled) => setLinks({ ...links, enabled })}
+              />
+            </div>
           </>
         )}
         <p id="setup-error" role="alert" hidden={!error}>
