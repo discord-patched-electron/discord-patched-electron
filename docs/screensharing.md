@@ -84,6 +84,5 @@ not prove hardware acceleration.
 Try the system picker to isolate capture problems. For poor quality, compare
 requested and outgoing FPS, dimensions, bitrate allowance and discards. Hardware,
 HDR, output transforms, games and receivers have different limits; identical
-Windows performance is not guaranteed. Advanced bitrate overrides are covered in
-[launcher settings](linux-launcher.md#screensharing); implementation and test
-results are in the [screensharing review](agent/screenshare-review-20261105.md).
+Windows performance is not guaranteed. Implementation and test results are in
+the [screensharing review](agent/screenshare-review-20261105.md).

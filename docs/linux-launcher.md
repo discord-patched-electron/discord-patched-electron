@@ -63,11 +63,6 @@ stays accessible from the taskbar. Start minimized also applies to OS autostart.
 See [screensharing](screensharing.md) for game setup, direct capture permissions,
 codecs and quality settings.
 
-For advanced tests, `DPE_SCREENSHARE_MAX_BITRATE=16000000` requests a 16 Mbps
-ceiling for eligible H.264/AV1/HEVC shares. Values must be above 9,000,000 and at
-most 32,000,000 bits per second. Lower-quality limits, viewer/server limits and
-congestion control still apply. Unset it or use `0` to restore the default.
-
 ## Spelling and tray icons
 
 In **Spelling**, enable **Check spelling as you type**. System languages
