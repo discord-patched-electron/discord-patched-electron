@@ -121,6 +121,15 @@ int main(void) {
              format(negotiated_memory, sizeof(negotiated_memory), SPA_PARAM_Format, 60, 240));
   apply_pending(current);
   assert(atomic_load(&counts.width) == 1920 && atomic_load(&counts.height) == 1080);
+  struct spa_pod_prop *size_prop = (struct spa_pod_prop *)spa_pod_find_prop(
+      (struct spa_pod *)negotiated_memory, NULL, SPA_FORMAT_VIDEO_size);
+  assert(size_prop);
+  struct spa_rectangle *resize = SPA_POD_BODY(&size_prop->value);
+  resize->width = 1280;
+  resize->height = 720;
+  negotiated(current, SPA_PARAM_Format, (struct spa_pod *)negotiated_memory);
+  assert(atomic_load(&counts.width) == 1280 && atomic_load(&counts.height) == 720);
+
   assert(calls == 0); // Fixed framerate is unchanged even when max is present.
   negotiated(current, SPA_PARAM_Format,
              format(negotiated_memory, sizeof(negotiated_memory), SPA_PARAM_Format, 0, 0));

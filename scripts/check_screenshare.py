@@ -40,6 +40,7 @@ RESOLUTIONS = (
     "854x480",
     "1280x720",
     "1920x1080",
+    "1920x1088",
     "2560x1440",
     "3840x2160",
     "1280x1024",
@@ -182,8 +183,20 @@ def validate_report(report, observations):
         # must not turn an oversized decoded picture into a successful check.
         # Smaller dimensions remain valid for explicit adaptation experiments;
         # --expect-resolution separately requires an exact, stable rendition.
+        padding = report.get("av1Padding") or {}
+        padded = (
+            config["encoder"] == "av1-vaapi"
+            and (report.get("encoderGuard") or {}).get("hardwareScope") == "amd-vcn4"
+            and padding.get("checked", 0) >= minimum_frames
+            and padding.get("failed", 0) == 0
+        )
+        aligned = ((maximum_width + 63) & ~63, (maximum_height + 15) & ~15)
+        padded_sizes = {aligned}
+        if maximum_width % 64 == 0 and maximum_height % 16 == 8:
+            padded_sizes.add((maximum_width, maximum_height + 2))
         validation["framing_integrity_verified"] = bool(dimensions) and all(
-            0 < width <= maximum_width and 0 < height <= maximum_height
+            (0 < width <= maximum_width and 0 < height <= maximum_height)
+            or (padded and (width, height) in padded_sizes)
             for width, height in dimensions
         )
     if config.get("sync_timeline"):
@@ -310,6 +323,13 @@ def validate_report(report, observations):
                         config.get("external_pipewire_node")
                         or config.get("source_fps", 0) <= config["fps"]
                         or counters.get("paced", 0) > 0
+                        # Explicit-sync buffers deliberately bypass the frame
+                        # gate: native must consume their acquire/release lease.
+                        or (
+                            config.get("sync_timeline")
+                            and counters.get("syncTimelineFrames", 0) > 0
+                            and adapter.get("pacingBypassFrames", 0) > 0
+                        )
                     )
                 )
             )
@@ -432,7 +452,7 @@ def check(
         or reconfigure_after >= seconds
     ):
         raise ValueError("Choose a reconfiguration time within the fixture duration")
-    if content_pattern not in ("tiles", "scroll", "scroll16", "noise", "framing", "scenes"):
+    if content_pattern not in ("tiles", "scroll", "scroll16", "noise", "framing", "scenes", "cuts"):
         raise ValueError("Unknown synthetic content pattern")
     if content_pattern != "tiles" and (backend != "pipewire" or memory != "dmabuf"):
         raise ValueError("Detailed content patterns require the synthetic GPU PipeWire producer")
@@ -888,7 +908,7 @@ def main():
     parser.add_argument("--motion", choices=("static", "moving"), default="moving")
     parser.add_argument(
         "--content-pattern",
-        choices=("tiles", "scroll", "scroll16", "noise", "framing", "scenes"),
+        choices=("tiles", "scroll", "scroll16", "noise", "framing", "scenes", "cuts"),
         default="tiles",
         help="Synthetic GPU content: simple tiles, moving detailed texture, or worst-case noise",
     )

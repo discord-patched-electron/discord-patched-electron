@@ -105,6 +105,28 @@ class ScreenshareFixtureValidation(unittest.TestCase):
                 validation = validate_report(report, self.observations)["validation"]
                 self.assertEqual(validation["framing_integrity_verified"], expected)
 
+    def test_only_verified_amd_av1_padding_with_pixel_evidence_is_accepted(self):
+        report = copy.deepcopy(self.report)
+        report["config"].update(encoder="av1-vaapi", width=1920, height=1080)
+        report["measurements"]["phases"]["initial"]["dimensions"] = ["1920x1088"]
+        report["encoderGuard"] = {"hardwareScope": "amd-vcn4"}
+        report["av1Padding"] = {"checked": 90, "failed": 0}
+        self.assertTrue(
+            validate_report(report, self.observations)["validation"]["framing_integrity_verified"]
+        )
+        for changes in ({"checked": 0, "failed": 0}, {"checked": 90, "failed": 1}):
+            report["av1Padding"] = changes
+            self.assertFalse(
+                validate_report(report, self.observations)["validation"][
+                    "framing_integrity_verified"
+                ]
+            )
+        report["av1Padding"] = {"checked": 90, "failed": 0}
+        report["encoderGuard"]["hardwareScope"] = "unverified"
+        self.assertFalse(
+            validate_report(report, self.observations)["validation"]["framing_integrity_verified"]
+        )
+
     def test_framing_uses_explicit_encoder_geometry_and_exact_resolution_gate(self):
         self.report["config"].update(width=1920, height=1080, encode_width=1280, encode_height=720)
         self.report["measurements"]["phases"]["initial"]["dimensions"] = ["1920x1080"]
@@ -115,6 +137,23 @@ class ScreenshareFixtureValidation(unittest.TestCase):
         validate_report(self.report, self.observations)
         self.assertTrue(self.report["validation"]["framing_integrity_verified"])
         self.assertFalse(self.report["validation"]["dimensions_verified"])
+
+    def test_native_two_row_padding_requires_matching_source_geometry(self):
+        for width, height, output, expected in (
+            (1920, 1080, "1920x1082", True),
+            (640, 360, "640x362", True),
+            (1920, 1080, "1920x1084", False),
+            (1280, 720, "1280x722", False),
+            (1918, 1080, "1920x1082", False),
+        ):
+            with self.subTest(source=(width, height), output=output):
+                report = copy.deepcopy(self.report)
+                report["config"].update(encoder="av1-vaapi", width=width, height=height)
+                report["measurements"]["phases"]["initial"]["dimensions"] = [output]
+                report["encoderGuard"] = {"hardwareScope": "amd-vcn4"}
+                report["av1Padding"] = {"checked": 90, "failed": 0}
+                validation = validate_report(report, self.observations)["validation"]
+                self.assertEqual(validation["framing_integrity_verified"], expected)
 
     def test_hardware_requires_codec_implementation_and_native_hardware_evidence(self):
         for change in (
@@ -263,7 +302,7 @@ class ScreenshareFixtureValidation(unittest.TestCase):
                     report["samples"][0]["sent"]["codecName"] = "AV1X"
                 self.assertFalse(validate_report(report, self.observations)["passed"])
 
-    def test_production_transport_requires_observed_active_media_and_idle_cleanup(self):
+    def _configure_production_transport(self):
         self.report["config"].update(
             transport_adapter=True, backend="pipewire", fps=30, source_fps=240
         )
@@ -283,6 +322,9 @@ class ScreenshareFixtureValidation(unittest.TestCase):
             },
             "idle": {"active": False},
         }
+
+    def test_production_transport_requires_observed_active_media_and_idle_cleanup(self):
+        self._configure_production_transport()
         self.assertTrue(validate_report(copy.deepcopy(self.report), self.observations)["passed"])
         for field in ("active", "actualCodec", "inputFps", "captureMethod", "idle", "pacingFps"):
             with self.subTest(field=field):
@@ -305,6 +347,37 @@ class ScreenshareFixtureValidation(unittest.TestCase):
         self.assertTrue(validate_report(self.report, self.observations)["passed"])
         received["decoderImplementationName"] = "dav1d"
         self.assertFalse(validate_report(self.report, self.observations)["passed"])
+
+    def test_transport_accepts_only_observed_explicit_sync_pacing_bypass(self):
+        self._configure_production_transport()
+        counters = self.report["transportAdapter"]["active"]["captureCounters"]
+        counters["paced"] = 0
+        self.assertFalse(
+            validate_report(copy.deepcopy(self.report), self.observations)["validation"][
+                "transport_verified"
+            ]
+        )
+        self.report["config"]["sync_timeline"] = True
+        counters["syncTimelineFrames"] = 100
+        self.report["captureAdapter"]["pacingBypassFrames"] = 100
+        self.assertTrue(
+            validate_report(copy.deepcopy(self.report), self.observations)["validation"][
+                "transport_verified"
+            ]
+        )
+        for owner, name in (
+            (self.report["config"], "sync_timeline"),
+            (counters, "syncTimelineFrames"),
+            (self.report["captureAdapter"], "pacingBypassFrames"),
+        ):
+            previous = owner[name]
+            owner[name] = 0
+            self.assertFalse(
+                validate_report(copy.deepcopy(self.report), self.observations)["validation"][
+                    "transport_verified"
+                ]
+            )
+            owner[name] = previous
 
     def test_scaler_install_without_exercising_the_native_call_is_not_verified(self):
         self.report["config"]["capture_scale"] = True

@@ -1,6 +1,6 @@
 "use strict";
 
-// Preserve the negotiated share ceiling when viewer pixel wants change. The
+// Optionally preserve the share ceiling when viewer pixel wants change. The
 // optional higher ceiling still travels through Discord quality and signaling.
 module.exports = function installBitrate(options, runtime) {
   if (options?.platform !== "linux" || !runtime?.watch) return;
@@ -9,10 +9,12 @@ module.exports = function installBitrate(options, runtime) {
   const key = Symbol.for("dpe.videoBitrate");
   if (globalThis[key]) {
     globalThis[key].requestedMaxBitrate = maximum;
+    globalThis[key].preserveViewerBitrate = options.preserveViewerBitrate === true;
     return;
   }
   const state = {
     requestedMaxBitrate: maximum,
+    preserveViewerBitrate: options.preserveViewerBitrate === true,
     constantsReviewed: false,
     installed: 0,
     connections: 0,
@@ -26,7 +28,14 @@ module.exports = function installBitrate(options, runtime) {
   let sourceSize = null,
     pendingSize = "";
   globalThis.addEventListener?.("dpe-video-source-size", (event) => {
-    const { width, height } = event.detail || {};
+    if (typeof event.detail !== "string" || event.detail.length > 128) return;
+    let dimensions;
+    try {
+      dimensions = JSON.parse(event.detail);
+    } catch {
+      return;
+    }
+    const { width, height } = dimensions || {};
     const size =
       Number.isInteger(width) &&
       Number.isInteger(height) &&
@@ -45,9 +54,23 @@ module.exports = function installBitrate(options, runtime) {
         connections.delete(connection);
         continue;
       }
+      if (!state.preserveViewerBitrate) continue;
       const last = connection.lastDesktopEncodingOptions;
-      if (owned(connection) && connection.hasDesktopSource?.() && last)
-        connection.setDesktopEncodingOptions(last.width, last.height, last.framerate);
+      if (owned(connection) && connection.hasDesktopSource?.() && last) {
+        const update = connection.updateVideoQuality;
+        const body = typeof update === "function" ? update.toString().replace(/\s+/g, "") : "";
+        // Reapplying the same selection is a native no-op. Refresh the reviewed
+        // constraints and stream parameters together when source size changes.
+        if (
+          [
+            "this.applyQualityConstraints(",
+            "this.videoStreamParameters",
+            "streamParameters",
+            "this.updateVideoQualityCore(",
+          ].every((part) => body.includes(part))
+        )
+          Reflect.apply(update, connection, []);
+      }
     }
   });
   const owned = (connection) =>
@@ -111,6 +134,8 @@ module.exports = function installBitrate(options, runtime) {
         "this.scaleLinearly(",
         "this.goliveMaxQuality.bitrateMax",
         "bitrateMax:Math.max(Math.ceil(",
+        "encode:this.goliveMaxQuality.encode",
+        "capture:this.goliveMaxQuality.capture",
       ].every((part) => body.includes(part))
     )
       return;
@@ -119,6 +144,7 @@ module.exports = function installBitrate(options, runtime) {
       const ceiling = this.goliveMaxQuality;
       const encode = ceiling?.encode;
       if (
+        state.preserveViewerBitrate &&
         owned(connection) &&
         state.constantsReviewed &&
         quality &&
@@ -132,17 +158,15 @@ module.exports = function installBitrate(options, runtime) {
         quality.bitrateMax <= ceiling.bitrateMax
       ) {
         state.preservedCeilings++;
-        // Budget the currently available source raster, bounded by the selected
-        // quality and live receiver wants. Native congestion owns actual rates.
+        // Budget the available source raster at the selected encode quality.
+        // Receiver pixel wants do not change this policy's encode dimensions,
+        // so using them here can starve a full-size encoder behind a small tile.
+        // Native congestion control still owns the actual allocation.
         let maximum = ceiling.bitrateMax;
         if (sourceSize) {
           const selected =
             encode.pixelCount > 0 ? encode.pixelCount : sourceSize.width * sourceSize.height;
-          const pixels = Math.min(
-            selected,
-            sourceSize.width * sourceSize.height,
-            args[1] > 0 ? args[1] : Infinity,
-          );
+          const pixels = Math.min(selected, sourceSize.width * sourceSize.height);
           const budget =
             9000000 *
             Math.sqrt(pixels / (1920 * 1080)) *

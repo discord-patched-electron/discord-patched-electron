@@ -735,7 +735,7 @@ test("source geometry follows stable PipeWire resize and clears when sharing sto
   const previousWindow = global.window,
     previousEvent = global.CustomEvent;
   const sizes = [];
-  global.window = { dispatchEvent: (event) => sizes.push(event.detail) };
+  global.window = { dispatchEvent: (event) => sizes.push(JSON.parse(event.detail)) };
   global.CustomEvent = class {
     constructor(type, options) {
       this.type = type;

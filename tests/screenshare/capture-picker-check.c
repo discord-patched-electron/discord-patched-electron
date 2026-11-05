@@ -26,6 +26,37 @@ static napi_status release_dispatcher(napi_threadsafe_function fn,
   releases++;
   return napi_ok;
 }
+static void *cleanup_token;
+static void (*registered_cleanup)(void *);
+static napi_status make_resource(napi_env env, const char *value, size_t length, napi_value *out) {
+  (void)env;
+  (void)length;
+  assert(!strcmp(value, "DPE external capture"));
+  *out = (void *)3;
+  return napi_ok;
+}
+static napi_status make_dispatcher(napi_env env, napi_value callback_value, napi_value resource,
+                                   napi_value name, size_t queue, size_t threads, void *final_data,
+                                   napi_finalize finalizer, void *context,
+                                   napi_threadsafe_function_call_js call,
+                                   napi_threadsafe_function *out) {
+  (void)env;
+  assert(callback_value == (void *)4 && !resource && name == (void *)3);
+  assert(queue == 64 && threads == 1 && !final_data && !finalizer && !context && call == deliver);
+  *out = (void *)2;
+  return napi_ok;
+}
+static napi_status unref_dispatcher(napi_env env, napi_threadsafe_function value) {
+  (void)env;
+  assert(value == (void *)2);
+  return napi_ok;
+}
+static napi_status on_cleanup(napi_env env, void (*hook)(void *), void *data) {
+  (void)env;
+  registered_cleanup = hook;
+  cleanup_token = data;
+  return napi_ok;
+}
 static void callback(const struct picker_result *value, const void *data) {
   assert(data == (void *)77);
   result = *value;
@@ -172,6 +203,24 @@ int main(void) {
   assert(show_picker(&options) == 0 && originals == 2);
   cleanup(NULL);
   assert(releases == 1);
+  // Replacing the document retires its Node environment but keeps the native
+  // hook installed. The replacement callback must resume optimized capture.
+  api_napi_create_string_utf8 = make_resource;
+  api_napi_create_threadsafe_function = make_dispatcher;
+  api_napi_unref_threadsafe_function = unref_dispatcher;
+  api_napi_add_env_cleanup_hook = on_cleanup;
+  assert(bind_dispatcher((void *)7, (void *)4) && dispatcher == (void *)2 && !closing);
+  unsigned old_originals = originals;
+  assert(show_picker(&options) == 0 && originals == old_originals);
+  uint32_t replacement_request = current_request;
+  assert(find(replacement_request)->state == WAITING && strstr(last_event, "request"));
+  cleanup((void *)1); // A retired context's hook cannot close the new callback.
+  assert(dispatcher == (void *)2 && !closing && releases == 1);
+  assert(cleanup_token == (void *)2 && registered_cleanup == cleanup);
+  registered_cleanup(cleanup_token);
+  assert(!dispatcher && closing && releases == 2 && !find(replacement_request));
+  registered_cleanup(cleanup_token);
+  assert(releases == 2);
   close(server);
   unlink(pathname);
   rmdir(directory);

@@ -1,17 +1,23 @@
 "use strict";
 
-function fullPictureEdges({ width, height, data } = {}) {
+function fullPictureEdges({ width: stride, height: rows, data, contentRect } = {}) {
+  const { x: originX = 0, y: originY = 0, width = stride, height = rows } = contentRect || {};
   if (
     !Number.isInteger(width) ||
     !Number.isInteger(height) ||
     width < 64 ||
     height < 64 ||
     !data ||
-    data.length !== width * height * 4
+    data.length !== stride * rows * 4 ||
+    ![originX, originY, stride, rows].every(Number.isInteger) ||
+    originX < 0 ||
+    originY < 0 ||
+    originX + width > stride ||
+    originY + height > rows
   )
     return false;
   const pixel = (x, y) => {
-    const offset = (y * width + x) * 4;
+    const offset = ((originY + y) * stride + originX + x) * 4;
     return Array.from(data.slice(offset, offset + 3));
   };
   const left = pixel(8, Math.floor(height / 2));

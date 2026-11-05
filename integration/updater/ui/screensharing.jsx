@@ -593,6 +593,20 @@ export function Screensharing({ active, config }) {
           />
         ))}
       </section>
+      <section class="settings-group" aria-labelledby="screenshare-quality-title">
+        <h3 id="screenshare-quality-title" class="section-label">
+          Quality
+        </h3>
+        <Switch
+          id="screenshare-preserve-bitrate"
+          label="Preserve bitrate in smaller viewer windows"
+          description="Keep the bitrate allowance based on your source and selected quality when viewers use smaller tiles. Can use more bandwidth. Applies to your next screenshare."
+          checked={values?.preserveViewerBitrate === true}
+          disabled={!values || busy}
+          pending={busy}
+          onChange={(preserveViewerBitrate) => save({ preserveViewerBitrate })}
+        />
+      </section>
       <section class="settings-group" aria-labelledby="screenshare-codecs-title">
         <h3 id="screenshare-codecs-title" class="section-label">
           Codecs
@@ -665,7 +679,7 @@ export function Screensharing({ active, config }) {
                 <dt>Decoding</dt>
                 <dd>
                   {label(video.hardware, {
-                    hardware: "Hardware (decoder reported)",
+                    hardware: "Hardware",
                     software: "Software",
                     unknown: "Not reported",
                   })}

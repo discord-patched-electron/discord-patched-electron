@@ -40,6 +40,11 @@ disables Discord's controls; switching it off restores your individual choices.
 Controls also apply to DPE and auxiliary windows, including client-mod windows.
 Native auxiliary windows use a GTK titlebar while individual controls are hidden.
 
+**General → Media → Desktop media controls** lets Discord appear in the desktop
+media player and respond to media keys. It is off by default for all Discord
+media, including notification and calling sounds, videos and voice messages.
+Changes apply after restarting Discord; playback inside Discord is unaffected.
+
 **Appearance → Video popouts** controls floating windows, their titlebar, and
 automatic member-bar collapse when expanding a screenshare. All three default
 on. Global window controls Off also hides popout controls; extra legacy titlebar
@@ -64,9 +69,12 @@ H.264/AV1/HEVC shares that normally use Discord's higher-quality bitrate default
 and congestion control remain active. Server/viewer limits may prevent reaching
 the requested rate. Unset the variable or set it to `0` to restore the default.
 
-HEVC encoding uses supported VA-API hardware. On RX 7000, unaligned AV1 pictures
-are resampled on the GPU without padding or lost edges; a 1920×1080 source is
-encoded at 1920×1072. Aligned AV1 pictures keep their native encoder path.
+HEVC encoding uses supported VA-API hardware. On affected RX 7000 hardware, AV1
+preserves the source pixels without resampling. Mesa's native 1920×1082 path
+adds two black lines below a 1920×1080 source and avoids an extra padding pass.
+Other unaligned sizes use centred padding where this fast path is unavailable.
+DPE's Electron and dav1d software AV1 decoders automatically trim this padding
+using the sender's crop metadata. Unmodified viewers retain the padding.
 
 Enable **Experimental capture methods** in **Screensharing** to add **Optimized**
 as the first tab in Discord's share picker. It lists screens as **Screen 1 (DP-2)**
@@ -92,6 +100,13 @@ off asks to remove an installed rule too. Cancelling removal keeps capture enabl
 other applications running as your Unix user can invoke the permitted helper.
 The installed status describes the rule’s presence. An obsolete or blocked rule
 is reported separately and does not imply direct capture is usable.
+
+DPE Settings shows live capture and outgoing sizes separately. **Preserve bitrate in
+smaller viewer windows** is off by default, keeping Discord’s normal viewer-size
+and zoom adaptation. Turn it on to base bitrate headroom on your source and selected
+quality instead; this can use more bandwidth. Applies to your next screenshare.
+The **Incoming video** section reports each active decoder and its declared
+hardware/software status; unknown decoder status appears as **Not reported**.
 
 **Match capture to the share frame rate** skips excess PipeWire frames before
 processing them. Game capture uses direct GPU buffer sharing when supported,

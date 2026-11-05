@@ -328,16 +328,22 @@ int main(void) {
   assert(!s.failed && queued_size == 4096 && queued_sequence == 5 && s.delivered == 1);
   assert(response(fds[1], DPE_VK_RELEASE).sequence == 5);
   // A rate decrease applies immediately; a raise waits for accepted maxFramerate.
+  // A relay request may have fallen back to copying for cursor composition.
+  // Changing FPS must preserve the already active hook allocation contract.
+  s.hook_direct = true;
+  assert(!s.relay);
   s.requested_fps = 30;
   update_rate(&s);
   assert(s.negotiated);
-  assert(response(fds[1], DPE_VK_CONTROL).fps == 30);
+  struct dpe_vk_packet rate_control = response(fds[1], DPE_VK_CONTROL);
+  assert(rate_control.fps == 30 && rate_control.flags == (DPE_VK_CAPTURE | DPE_VK_DIRECT));
   set_format(&s, 1024, 768, 30);
   s.requested_fps = 60;
   update_rate(&s);
   assert(s.hook_fps == 30 && s.negotiated);
   set_format(&s, 1024, 768, 60);
-  assert(response(fds[1], DPE_VK_CONTROL).fps == 60);
+  rate_control = response(fds[1], DPE_VK_CONTROL);
+  assert(rate_control.fps == 60 && rate_control.flags == (DPE_VK_CAPTURE | DPE_VK_DIRECT));
   format(&s, SPA_PARAM_Format, NULL);
   assert(!s.negotiated && !s.failed);
   packet(fds[1], DPE_VK_FRAME, 3, 6);

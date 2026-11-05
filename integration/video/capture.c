@@ -108,7 +108,7 @@ static void maximum(atomic_uint_fast64_t *value, uint64_t next) {
 static bool supersedable(const struct pw_buffer *pw) {
   const struct spa_buffer *buffer = pw ? pw->buffer : NULL;
   if (!buffer || !buffer->n_datas || buffer->n_datas > 4 || !buffer->datas ||
-      (buffer->n_metas && !buffer->metas))
+      buffer->n_metas > 64 || (buffer->n_metas && !buffer->metas))
     return false;
   for (uint32_t i = 0; i < buffer->n_datas; i++) {
     const struct spa_data *data = &buffer->datas[i];
@@ -246,7 +246,9 @@ static struct captured_buffer capture_dequeue(struct pw_stream *stream) {
         (data->type != SPA_DATA_DmaBuf && !data->chunk->size))
       atomic_fetch_add_explicit(&counts.empty, 1, memory_order_relaxed);
     struct spa_meta_header *header =
-        spa_buffer_find_meta_data(buffer, SPA_META_Header, sizeof(*header));
+        buffer->metas && buffer->n_metas <= 64
+            ? spa_buffer_find_meta_data(buffer, SPA_META_Header, sizeof(*header))
+            : NULL;
     atomic_fetch_add_explicit(header && header->pts >= 0 ? &counts.pts_known : &counts.pts_unknown,
                               1, memory_order_relaxed);
   }

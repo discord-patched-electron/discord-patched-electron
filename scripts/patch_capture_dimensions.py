@@ -1,4 +1,4 @@
-"""Preserve visible GPU capture dimensions in two reviewed native modules.
+"""Preserve visible GPU capture dimensions in reviewed native modules.
 
 Apply after patch_vaapi_hrd during private preparation. The native NV12 allocator
 already aligns row pitch independently, and the fused shader bounds-checks its
@@ -15,6 +15,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import native_client_2444
 import patch_capture_chroma as chroma
 import patch_decoder_eagain as decoder
 
@@ -40,6 +41,10 @@ PINNED_OFFSET = 0x15719AE
 
 
 def reviewed(digest):
+    current = native_client_2444.reviewed("dimensions", digest)
+    if current:
+        before, after, sites = current
+        return before, after, sites[0][0]
     base = chroma.SCOPE_BASES.get(digest)
     if base in (decoder.OUTPUT_SHA256, decoder.PINNED_OUTPUT_SHA256):
         return digest, digest, OFFSET if base == decoder.OUTPUT_SHA256 else PINNED_OFFSET

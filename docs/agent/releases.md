@@ -5,6 +5,10 @@ for users. Only Canary with alpha/beta Electron is enabled; see
 [channel switches](channels.md) for other tracks. Installing the app is covered
 in the [user guide](../install.md).
 
+Before treating update compatibility work as complete, reconcile the full
+[upstream diff review](upstream-update-review.md), including native modules and
+packaged adapters. Passing qualification checks does not replace that review.
+
 ## Automatic candidates
 
 **Discover upstream releases** polls Discord and reserves work by content identity.
@@ -294,7 +298,10 @@ installs its own executable, desktop file and icons. It is not a conflicting
 Canary package. Stable, PTB, standalone mod installers and separate clients are
 not blocked merely because they are related to Discord.
 
-AppImage uses the pinned tool and runtime in `config/appimage-tools.json`. It includes Python and user-space dependencies around
-the same bootstrap as the native packages and is covered by signed release
-checksums. See the [packaging review](packaging-ux-20261101.md) for repository
-publishing and self-contained AppImage options.
+AppImage uses the pinned tool and runtime in `config/appimage-tools.json`. It includes Python, GnuPG and Brotli with private helper libraries around the
+same bootstrap as the native packages and is covered by signed release checksums.
+Desktop/audio libraries and tools come from the host. Rebuild dependencies in a
+fresh tools directory after a recipe/container/tool change; packaging rejects
+stale bundles. See the [AppImage dependency review](appimage-host-libraries-20261105.md)
+for the current boundary and the [earlier packaging review](packaging-ux-20261101.md)
+for repository publishing options.

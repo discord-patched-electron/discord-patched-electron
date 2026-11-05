@@ -752,18 +752,46 @@ static bool cancel(uint32_t id) {
   }
   return true;
 }
-static void cleanup(void *unused) {
-  (void)unused;
+static void cleanup(void *expected) {
   pthread_mutex_lock(&mutex);
+  // A retired environment must not close a replacement environment's callback.
+  if (expected && dispatcher != expected) {
+    pthread_mutex_unlock(&mutex);
+    return;
+  }
   closing = true;
   for (unsigned i = 0; i < REQUESTS; i++)
     if (requests[i].state == SELECTED)
       cancel_locked(&requests[i]);
+    else if (requests[i].state == WAITING)
+      memset(&requests[i], 0, sizeof(requests[i]));
   napi_threadsafe_function previous = dispatcher;
   dispatcher = NULL;
   pthread_mutex_unlock(&mutex);
   if (previous)
     api_napi_release_threadsafe_function(previous, napi_tsfn_abort);
+}
+// The native library and its hooks survive a renderer document reload, while
+// the Node environment and TSFN do not. Rebind the callback without patching
+// already-installed GOT slots or retaining a callback from the retired page.
+static bool bind_dispatcher(napi_env env, napi_value callback) {
+  napi_value resource;
+  napi_threadsafe_function next;
+  if (api_napi_create_string_utf8(env, "DPE external capture", NAPI_AUTO_LENGTH, &resource) !=
+          napi_ok ||
+      api_napi_create_threadsafe_function(env, callback, NULL, resource, 64, 1, NULL, NULL, NULL,
+                                          deliver, &next) != napi_ok)
+    return false;
+  api_napi_unref_threadsafe_function(env, next);
+  if (api_napi_add_env_cleanup_hook(env, cleanup, next) != napi_ok) {
+    api_napi_release_threadsafe_function(next, napi_tsfn_abort);
+    return false;
+  }
+  pthread_mutex_lock(&mutex);
+  dispatcher = next;
+  closing = false;
+  pthread_mutex_unlock(&mutex);
+  return true;
 }
 static int protection(uintptr_t base, uintptr_t address, size_t size) {
   const ElfW(Ehdr) *header = (void *)base;
@@ -825,8 +853,14 @@ static napi_value install(napi_env env, napi_callback_info info) {
   size_t page_size = sysconf(_SC_PAGESIZE);
   if (installed_slot) {
     dlclose(handle);
-    return installed_slot == base + offsets[0] ? undefined(env)
-                                               : fail(env, "Capture picker module changed.");
+    if (installed_slot != base + offsets[0])
+      return fail(env, "Capture picker module changed.");
+    pthread_mutex_lock(&mutex);
+    bool active = dispatcher && !closing;
+    pthread_mutex_unlock(&mutex);
+    return active || bind_dispatcher(env, args[15])
+               ? undefined(env)
+               : fail(env, "Capture picker callback is unavailable.");
   }
   const char *names[] = {"cc_linux_show_picker", "cc_linux_capture_new", "cc_linux_capture_destroy",
                          "cc_linux_capture_update"};
@@ -847,6 +881,7 @@ static napi_value install(napi_env env, napi_callback_info info) {
   // Each reviewed export address pins its revision's matching private storage.
   uint32_t selection_base = offsets[1] == 0xe5fe50   ? 0x22ecb40
                             : offsets[1] == 0xe2c3b0 ? 0x22f1b40
+                            : offsets[1] == 0xe326f0 ? 0x2311b40
                                                      : 0;
   const uint32_t selection_offsets[] = {selection_base, selection_base + 0x50,
                                         selection_base + 0x58};
@@ -870,29 +905,19 @@ static napi_value install(napi_env env, napi_callback_info info) {
       return fail(env, "Capture delivery linkage differs from reviewed native code.");
     }
   }
-  napi_value resource;
-  napi_threadsafe_function next;
-  if (api_napi_create_string_utf8(env, "DPE external capture", NAPI_AUTO_LENGTH, &resource) !=
-          napi_ok ||
-      api_napi_create_threadsafe_function(env, args[15], NULL, resource, 64, 1, NULL, NULL, NULL,
-                                          deliver, &next) != napi_ok) {
-    dlclose(handle);
-    return fail(env, "Capture picker callback is unavailable.");
-  }
-  api_napi_unref_threadsafe_function(env, next);
-  if (api_napi_add_env_cleanup_hook(env, cleanup, NULL) != napi_ok) {
-    api_napi_release_threadsafe_function(next, napi_tsfn_abort);
-    dlclose(handle);
-    return fail(env, "Capture picker cleanup is unavailable.");
-  }
   for (unsigned i = 0; i < 4; i++) {
     if (mprotect((void *)pages[i], page_size, permissions[i] | PROT_WRITE)) {
       for (unsigned j = 0; j < i; j++)
         mprotect((void *)pages[j], page_size, permissions[j]);
-      api_napi_release_threadsafe_function(next, napi_tsfn_abort);
       dlclose(handle);
       return fail(env, "Could not prepare capture picker linkage.");
     }
+  }
+  if (!bind_dispatcher(env, args[15])) {
+    for (unsigned i = 0; i < 4; i++)
+      mprotect((void *)pages[i], page_size, permissions[i]);
+    dlclose(handle);
+    return fail(env, "Capture picker callback is unavailable.");
   }
   original_show = (show_fn)targets[0];
   original_new = (new_fn)targets[1];
@@ -904,10 +929,6 @@ static napi_value install(napi_env env, napi_callback_info info) {
   picked_mutex = (void *)(base + offsets[6]);
   picked_config = (void *)(base + offsets[7]);
   picked_present = (void *)(base + offsets[8]);
-  pthread_mutex_lock(&mutex);
-  dispatcher = next;
-  closing = false;
-  pthread_mutex_unlock(&mutex);
   uintptr_t replacements[] = {(uintptr_t)show_picker, (uintptr_t)capture_new,
                               (uintptr_t)capture_destroy, (uintptr_t)capture_update};
   for (unsigned i = 0; i < 4; i++)
@@ -954,10 +975,12 @@ static uint8_t *wake_near_page(uintptr_t site, size_t size) {
   }
   return MAP_FAILED;
 }
-static const uint32_t wake_offsets[2][10] = {{0xe799cd, 0xe639b0, 0xe84f16, 0xe63ac0, 0xe83765,
+static const uint32_t wake_offsets[3][10] = {{0xe799cd, 0xe639b0, 0xe84f16, 0xe63ac0, 0xe83765,
                                               0xe63ac0, 0xe2880e, 0x14da210, 0xe28836, 0xe50d70},
                                              {0xe8ee2d, 0xe78e10, 0xe9a376, 0xe78f20, 0xe98bc5,
-                                              0xe78f20, 0xe5c83e, 0x14e76b0, 0xe5c866, 0xe661d0}};
+                                              0xe78f20, 0xe5c83e, 0x14e76b0, 0xe5c866, 0xe661d0},
+                                             {0xe7fd0d, 0xe69cf0, 0xe8b256, 0xe69e00, 0xe89aa5,
+                                              0xe69e00, 0xe2eb4e, 0x14e0550, 0xe2eb76, 0xe570b0}};
 static bool wake_call_matches(uintptr_t base, unsigned index, uintptr_t site, uintptr_t target) {
   static const uint8_t before[][11] = {
       {0x48, 0x8b, 0x7f, 0x18, 0x48, 0x83, 0xc7, 0x10},
@@ -1021,6 +1044,7 @@ static napi_value install_wake(napi_env env, napi_callback_info info) {
   uintptr_t show = (uintptr_t)original_show - base;
   const uint32_t *expected = show == 0xe2c3b0   ? wake_offsets[0]
                              : show == 0xe5fe50 ? wake_offsets[1]
+                             : show == 0xe326f0 ? wake_offsets[2]
                                                 : NULL;
   if (!expected || memcmp(offsets, expected, sizeof(offsets))) {
     dlclose(handle);

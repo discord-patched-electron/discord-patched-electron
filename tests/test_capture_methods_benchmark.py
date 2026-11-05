@@ -6,10 +6,21 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from benchmark_capture_methods import Run, counters, descendants, summarize_resources
+from benchmark_capture_methods import (
+    Run,
+    counters,
+    descendants,
+    needs_fullscreen,
+    summarize_resources,
+)
 
 
 class CaptureMethodsBenchmark(unittest.TestCase):
+    def test_fullscreen_workload_is_not_toggled_back_into_a_tile(self):
+        self.assertFalse(needs_fullscreen({"layout": {"window_size": [1920, 1080]}}))
+        self.assertTrue(needs_fullscreen({"layout": {"window_size": [945, 1018]}}))
+        self.assertTrue(needs_fullscreen({}))
+
     def test_children_from_non_main_threads_are_included(self):
         with tempfile.TemporaryDirectory() as folder:
             proc = Path(folder)

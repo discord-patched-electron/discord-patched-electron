@@ -142,6 +142,12 @@ def compositor_pid(environment):
         return pid
 
 
+def needs_fullscreen(window):
+    # Window rules can already open this owned workload fullscreen. The niri
+    # action is a toggle; calling it blindly reverses every lifecycle phase.
+    return window.get("layout", {}).get("window_size") != [1920, 1080]
+
+
 class Run:
     def __init__(self, args):
         self.args = args
@@ -323,12 +329,33 @@ class Run:
             time.sleep(0.03)
         if not window:
             raise RuntimeError("Owned workload window missing")
-        for command in (
-            ["move-window-to-monitor", "--id", str(window["id"]), args.monitor],
-            ["fullscreen-window", "--id", str(window["id"])],
-        ):
+        subprocess.run(
+            [
+                "niri",
+                "msg",
+                "action",
+                "move-window-to-monitor",
+                "--id",
+                str(window["id"]),
+                args.monitor,
+            ],
+            env=self.host,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            timeout=3,
+        )
+        time.sleep(0.2)
+        windows = json.loads(
+            subprocess.check_output(
+                ["niri", "msg", "--json", "windows"], env=self.host, text=True, timeout=3
+            )
+        )
+        moved = next((w for w in windows if w.get("id") == window["id"]), None)
+        if moved is None:
+            raise RuntimeError("Owned workload disappeared while moving to its monitor")
+        if needs_fullscreen(moved):
             subprocess.run(
-                ["niri", "msg", "action", *command],
+                ["niri", "msg", "action", "fullscreen-window", "--id", str(window["id"])],
                 env=self.host,
                 check=True,
                 stdout=subprocess.DEVNULL,

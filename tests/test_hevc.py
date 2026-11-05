@@ -130,6 +130,7 @@ class HevcSupport(unittest.TestCase):
                             hevc.SOURCE,
                             hevc.HEADER,
                             "integration/video/av1-level.h",
+                            "integration/video/av1-crop.h",
                             "integration/video/hevc-level.h",
                             "scripts/build_hevc_support.py",
                         ]

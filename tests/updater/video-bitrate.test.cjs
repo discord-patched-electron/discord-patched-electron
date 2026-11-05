@@ -46,7 +46,11 @@ function fixture(options = {}, methods = "") {
   run(
     `(${install.toString()})(${JSON.stringify({ platform: "linux", maxBitrate: 16000000, ...options })},runtime)`,
   );
-  return { run, context, emit: (name, detail) => listeners.get(name)?.({ detail }) };
+  return {
+    run,
+    context,
+    emit: (name, detail) => listeners.get(name)?.({ detail: JSON.stringify(detail) }),
+  };
 }
 
 test("higher bitrate remains disabled unless explicitly requested within bounds", () => {
@@ -54,6 +58,16 @@ test("higher bitrate remains disabled unless explicitly requested within bounds"
     const { run } = fixture({ maxBitrate });
     assert.equal(run('globalThis[Symbol.for("dpe.videoBitrate")].requestedMaxBitrate'), 0);
   }
+  assert.equal(
+    fixture().run('globalThis[Symbol.for("dpe.videoBitrate")].preserveViewerBitrate'),
+    false,
+  );
+  assert.equal(
+    fixture({ preserveViewerBitrate: "true" }).run(
+      'globalThis[Symbol.for("dpe.videoBitrate")].preserveViewerBitrate',
+    ),
+    false,
+  );
   assert.equal(fixture({ platform: "win32" }).run("Object.keys(watchers).length"), 0);
 });
 
@@ -210,7 +224,7 @@ test(
 );
 
 test("receiver pixel wants retain the negotiated ceiling without forcing allocation, FPS or resolution", () => {
-  const { run, emit } = fixture({ maxBitrate: 0 });
+  const { run, emit } = fixture({ maxBitrate: 0, preserveViewerBitrate: true });
   run(`
     config.videoQualityManager=new(class {
       goliveMaxQuality={encode:{width:2560,height:1440,pixelCount:3686400,framerate:60},
@@ -229,6 +243,19 @@ test("receiver pixel wants retain the negotiated ceiling without forcing allocat
           bitrateTarget:Math.max(Math.ceil(o),this.options.videoBitrateFloor),localWant:e};
       }
     })();
+    config.hasDesktopSource=()=>true;
+    config.lastDesktopEncodingOptions={width:2560,height:1440,framerate:60};
+    Connection.prototype.applyQualityConstraints=function(){return {quality:this.videoQualityManager.getGoliveQuality(100,170739),constraints:{}}};
+    Connection.prototype.updateVideoQualityCore=function(constraints,quality){
+      this.nativeBudget=quality.bitrateMax;this.nativeRefreshes=(this.nativeRefreshes||0)+1;
+      this.nativeStreamParameters=constraints.streamParameters;
+    };
+    Connection.prototype.updateVideoQuality=function(){
+      const {quality,constraints}=this.applyQualityConstraints();
+      this.videoStreamParameters[0].maxBitrate=quality.bitrateMax;
+      constraints.streamParameters=this.videoStreamParameters;
+      this.updateVideoQualityCore(constraints,quality);
+    };
     globalThis.manager=config.videoQualityManager;
     globalThis.before=manager.getGoliveQuality(100,921600);
     globalThis.connection=new Engine().connect();
@@ -236,13 +263,35 @@ test("receiver pixel wants retain the negotiated ceiling without forcing allocat
   `);
   assert.equal(run("before.bitrateMax"), 4423680);
   assert.equal(run("after.bitrateMax"), 9000000);
+  run(`(${install.toString()})({platform:'linux',maxBitrate:0},runtime)`);
+  assert.equal(run("manager.getGoliveQuality(100,921600).bitrateMax"), 4423680);
+  assert.equal(run("manager.getGoliveQuality(100,3686400).bitrateMax"), 9000000);
+  emit("dpe-video-source-size", { width: 1280, height: 720 });
+  assert.equal(run("connection.nativeRefreshes"), undefined);
+  assert.equal(run("manager.getGoliveQuality(100,921600).bitrateMax"), 4423680);
+  run(
+    `(${install.toString()})({platform:'linux',maxBitrate:0,preserveViewerBitrate:true},runtime)`,
+  );
+  emit("dpe-video-source-size", { width: 0, height: 0 });
+  run("connection.nativeRefreshes=0");
   for (const key of ["encode", "capture", "bitrateMin", "bitrateTarget", "localWant"])
     assert.equal(run(`before.${key}===after.${key}`), true);
   assert.equal(run("manager.goliveMaxQuality.bitrateMax"), 9000000);
   emit("dpe-video-source-size", { width: 1920, height: 1080 });
   assert.equal(run("manager.getGoliveQuality(100,2073600).bitrateMax"), 9000000);
+  assert.equal(run("connection.nativeBudget"), 9000000);
+  assert.equal(run("connection.nativeStreamParameters[0].maxBitrate"), 9000000);
+  assert.equal(run("connection.nativeRefreshes"), 1);
+  // The reviewed native policy keeps the large encode raster behind a small
+  // viewer tile. Pixel wants must not turn 1080p60 into a 2.75 Mbps session.
+  assert.equal(run("manager.getGoliveQuality(100,170739).bitrateMax"), 9000000);
+  assert.equal(run("manager.getGoliveQuality(100,170739).encode.pixelCount"), 3686400);
   emit("dpe-video-source-size", { width: 1280, height: 720 });
   assert.equal(run("manager.getGoliveQuality(100,2073600).bitrateMax"), 6000000);
+  assert.equal(run("manager.getGoliveQuality(100,170739).bitrateMax"), 6000000);
+  assert.equal(run("connection.nativeBudget"), 6000000);
+  assert.equal(run("connection.nativeStreamParameters[0].maxBitrate"), 6000000);
+  assert.equal(run("connection.lastDesktopEncodingOptions.framerate"), 60);
   emit("dpe-video-source-size", { width: 1920, height: 1080 });
   assert.equal(run("manager.getGoliveQuality(100,2073600).bitrateMax"), 9000000);
   emit("dpe-video-source-size", { width: 0, height: 0 });
@@ -267,7 +316,7 @@ test(
     const start = source.indexOf("getGoliveQuality(e,t){");
     const end = source.indexOf("getDefaultGoliveQuality(){", start);
     assert.ok(start > 0 && end > start && end - start < 2500);
-    const { run } = fixture({ maxBitrate: 0 });
+    const { run } = fixture({ maxBitrate: 0, preserveViewerBitrate: true });
     run(`globalThis.r={YU:.02};globalThis.s=class{constructor(value){Object.assign(this,value)}};
     config.videoQualityManager=new(class {
       options={videoBitrateFloor:150000};fakeGoLiveEncodePixelCount=null;

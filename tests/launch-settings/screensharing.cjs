@@ -41,6 +41,7 @@ module.exports = async function check({
   assert.equal(await get('$("screenshare-permission-allow").disabled'), true);
   assert.equal(await get('$("screenshare-method")'), null);
   assert.equal(await get('$("screenshare-pacing").checked'), true);
+  assert.equal(await get('$("screenshare-preserve-bitrate").checked'), false);
   assert.equal(await get('$("screenshare-details")'), null);
   assert.match(await get('$("screenshare-current-state").textContent'), /aren’t available/);
   assert.equal(permissionCalls, 0);
@@ -123,9 +124,7 @@ module.exports = async function check({
     });
     await reload();
     await until(() =>
-      get(
-        '$("screenshare-incoming-title")?.parentElement.textContent.includes("Hardware (decoder reported)")',
-      ),
+      get('$("screenshare-incoming-title")?.parentElement.textContent.includes("Hardware")'),
     );
     assert.match(
       await get('$("screenshare-incoming-title").parentElement.textContent'),
@@ -369,6 +368,34 @@ module.exports = async function check({
     await reload();
     await until(() => get('$("screenshare-codec-error").hidden'));
 
+    window.focus();
+    window.webContents.focus();
+    await evaluate('document.getElementById("screenshare-preserve-bitrate").focus()');
+    for (const type of ["keyDown", "keyUp"])
+      window.webContents.sendInputEvent({ type, keyCode: "Space" });
+    await until(() => values.openasar.screensharing.preserveViewerBitrate === true);
+    await until(() => get('!$("screenshare-preserve-bitrate").disabled'));
+    await reload();
+    assert.equal(await get('$("screenshare-preserve-bitrate").checked'), true);
+    await evaluate(
+      'document.getElementById("screenshare-preserve-bitrate").scrollIntoView({block:"center"})',
+    );
+    await capture("screensharing-bitrate-preserved");
+    const bitrateSave = global.settings.save;
+    global.settings.save = () => {
+      throw new Error("Screensharing bitrate save failed");
+    };
+    await click("screenshare-preserve-bitrate");
+    await until(() => get('!$("screenshare-save-error").hidden'));
+    assert.equal(await get('$("screenshare-preserve-bitrate").checked'), true);
+    assert.equal(values.openasar.screensharing.preserveViewerBitrate, true);
+    global.settings.save = bitrateSave;
+    await click("screenshare-preserve-bitrate");
+    await until(() => values.openasar.screensharing.preserveViewerBitrate === false);
+    await until(() => get('!$("screenshare-preserve-bitrate").disabled'));
+    await reload();
+    assert.equal(await get('$("screenshare-preserve-bitrate").checked'), false);
+
     await click("screenshare-pacing");
     await until(() => values.openasar.screensharing.capturePacing === false);
     await until(() => get('!$("screenshare-pacing").disabled'));
@@ -557,6 +584,22 @@ module.exports = async function check({
       true,
     );
     await capture("screensharing-narrow-zoom");
+    await evaluate(`document.getElementById('screenshare-preserve-bitrate-label').textContent =
+      'Preserve the screenshare bitrate allowance in smaller viewer windows with a longer translated label';
+      document.getElementById('screenshare-preserve-bitrate').scrollIntoView({block:'center'});
+      new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), true);
+    assert.equal(
+      await evaluate(`(() => {
+      const input=document.getElementById('screenshare-preserve-bitrate');
+      const row=input.closest('.setting-row').getBoundingClientRect();
+      const label=document.getElementById('screenshare-preserve-bitrate-label').getBoundingClientRect();
+      const control=input.parentElement.getBoundingClientRect();
+      return label.right <= control.left + 1 && control.right <= row.right + 1;
+    })()`),
+      true,
+    );
+    await capture("screensharing-bitrate-narrow-zoom");
     await evaluate('document.documentElement.dir = "rtl"');
     assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), true);
     await evaluate('document.documentElement.dir = "ltr"');
@@ -606,9 +649,7 @@ module.exports = async function check({
     });
     await reload();
     await until(() =>
-      get(
-        '$("screenshare-incoming-title")?.parentElement.textContent.includes("Hardware (decoder reported)")',
-      ),
+      get('$("screenshare-incoming-title")?.parentElement.textContent.includes("Hardware")'),
     );
     assert.match(
       await get('$("screenshare-incoming-title").parentElement.textContent'),

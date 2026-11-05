@@ -38,14 +38,25 @@ function drawMarker(context, width, height, sequence) {
 }
 
 function readMarker(image) {
-  const { width, height, data } = image || {};
+  const { width: stride, height: rows, data } = image || {};
+  const {
+    x: originX = 0,
+    y: originY = 0,
+    width = stride,
+    height = rows,
+  } = image?.contentRect || {};
   if (
     !Number.isInteger(width) ||
     !Number.isInteger(height) ||
     width < BITS * 2 ||
     height < 64 ||
     !data ||
-    data.length < width * height * 4
+    data.length < stride * rows * 4 ||
+    ![originX, originY, stride, rows].every(Number.isInteger) ||
+    originX < 0 ||
+    originY < 0 ||
+    originX + width > stride ||
+    originY + height > rows
   )
     return null;
   const bytes = Array(5).fill(0);
@@ -53,7 +64,7 @@ function readMarker(image) {
     const x = Math.floor(((bit + 0.5) * width) / BITS);
     const luminance = (row) => {
       const y = Math.floor((row + 0.5) * height * 0.06);
-      const offset = (y * width + x) * 4;
+      const offset = ((originY + y) * stride + originX + x) * 4;
       return (data[offset] + data[offset + 1] + data[offset + 2]) / 3;
     };
     const top = luminance(0),

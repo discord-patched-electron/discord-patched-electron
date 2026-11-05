@@ -35,6 +35,7 @@ class CheckSelection(unittest.TestCase):
         cases = {
             "README.md": set(),
             "docs/agent/releases.md": set(),
+            "agents/skills/dpe-upstream-review/SKILL.md": set(),
             "scripts/releases.py": {"unit"},
             "scripts/check_desktop_launch.py": {"unit", "packaging"},
             "scripts/appimage.py": {"unit", "packaging"},
@@ -117,6 +118,8 @@ class CheckSelection(unittest.TestCase):
             "config/build.json",
             "patches/future.patch",
             "scripts/new-helper.py",
+            "agents/skills/dpe-upstream-review/scripts/check.py",
+            "agents/skills/dpe-native-patches/assets/helper.c",
             "integration/new-adapter/file.c",
             "pyproject.toml",
             "uv.lock",

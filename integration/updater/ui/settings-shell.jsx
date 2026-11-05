@@ -242,7 +242,7 @@ export function SettingsShell({ model, error, onError }) {
             class="sidebar-note"
             hidden={!desktop.state?.restartRequired}
           >
-            Titlebar changes apply next launch.
+            Desktop integration changes apply next launch.
           </p>
           <FlagsChangeNotice />
           {onboarding && (

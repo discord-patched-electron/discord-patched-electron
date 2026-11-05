@@ -33,8 +33,8 @@ def check(backend, node, output):
         ],
         check=True,
     )
-    files = [output / "generated.265", output / "generated.obu"]
-    recovery = [output / "recovery.265", output / "recovery.obu"]
+    files = [output / "generated.265", output / "generated.ivf"]
+    recovery = [output / "recovery.265", output / "recovery.ivf"]
     with (output / "lifecycle.log").open("w") as log:
         subprocess.run(
             [str(binary), str(backend.resolve()), str(node), *map(str, [*files, *recovery])],
@@ -63,8 +63,16 @@ def check(backend, node, output):
             timeout=20,
         )
         stream = json.loads(probe.stdout)["streams"][0]
-        expected = "1" if file in recovery else "9"
-        if stream.get("nb_read_frames") != expected or probe.stderr:
+        expected = "1" if file in recovery else "21"
+        # Older dav1d versions log unknown proposed metadata even at error level.
+        # Permit only this diagnostic; decoding errors must still fail the test.
+        diagnostics = [line.strip() for line in probe.stderr.splitlines() if line.strip()]
+        metadata_only = file.suffix == ".ivf" and all(
+            "Unknown Metadata OBU type 32" in line
+            or (index > 0 and line.startswith("Last message repeated "))
+            for index, line in enumerate(diagnostics)
+        )
+        if stream.get("nb_read_frames") != expected or (diagnostics and not metadata_only):
             raise ValueError("Lifecycle or fresh-decoder recovery output did not decode cleanly")
         decoded.append(stream)
     report = {

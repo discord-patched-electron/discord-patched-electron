@@ -66,7 +66,6 @@ function start() {
   }
   supply("utils/buildInfo.js", info);
   supply("paths.js", require("./profile.cjs").paths(app, info, installed));
-  supply("updater/updater.js", { getUpdater: () => null, tryInitUpdater: () => false });
   const updater = require("./module-updater.cjs")(
     app,
     state,
@@ -76,6 +75,7 @@ function start() {
     path.dirname(fs.realpathSync(path.join(installed, "modules"))),
   );
   supply("updater/moduleUpdater.js", updater);
+  supply("updater/updater.js", { getUpdater: () => updater.native, tryInitUpdater: () => false });
   supply("asarUpdate.js", () => {});
   supply("splash/index.js", require("./splash.cjs"));
   supply("config/index.js", require("./config.cjs"));
@@ -107,7 +107,7 @@ function start() {
   require("./application-ready.cjs")(app, process.env.DPE_APPLICATION_READY, info.releaseChannel);
   require(bootstrap);
   if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)
-    app.whenReady().then(() => setTimeout(() => updater.checkForUpdates(), 1000).unref());
+    app.whenReady().then(() => setTimeout(() => updater.requestCheck(), 1000).unref());
 }
 
 function fail(error) {
@@ -119,6 +119,10 @@ function fail(error) {
 }
 
 try {
+  require("../desktop/preferences.cjs").configureMediaControls(
+    app.commandLine,
+    require("./profile.cjs").config().desktop,
+  );
   // Electron overwrites CHROME_DESKTOP from the outer loader's package.json
   // before this entry runs. Mod loaders commonly call themselves "discord".
   const desktopName = process.env.DPE_DESKTOP_ID

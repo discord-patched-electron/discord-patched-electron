@@ -2,6 +2,7 @@
 // codec-error path handles negotiation; this never relabels encoded payloads.
 #define _GNU_SOURCE
 #include "av1-level.h"
+#include "av1-software-crop.h"
 #include "encoder-abi.h"
 #include "encoder-hevc.h"
 #include <dlfcn.h>
@@ -191,7 +192,7 @@ static void *stream_limit(void *output, uint64_t pixels, const void *limits, con
   memcpy(&end, metadata + 0xb8, sizeof(end));
   bool eligible = allocation_metadata(metadata) && begin == end;
   original_info_destructor(metadata);
-  bool tracked = dpe_hevc_active();
+  bool tracked = eligible && dpe_hevc_active();
   pthread_mutex_lock(&guard_mutex);
   for (struct guarded_encoder *entry = guarded; eligible && entry; entry = entry->next)
     tracked |= entry->amd_vbaq;
@@ -491,13 +492,20 @@ static bool guarded_create(uint32_t type, const void *frame, void *context, void
     pthread_mutex_lock(&guard_mutex);
     verified_hardware = true;
     pthread_mutex_unlock(&guard_mutex);
+    // Use the resizable backend for this generation even when the first
+    // rendition is aligned. A later window resize can require padding; an
+    // aligned frame takes the same direct import path without a VPP pass.
+    void *aligned_encoder = NULL;
+    int aligned = dpe_av1_create(type, context, encoded_callback, dropped_callback,
+                                 &aligned_encoder, session, options);
+    if (aligned > 0 && aligned_encoder) {
+      original_destroy(*output);
+      *output = aligned_encoder;
+      return true;
+    }
     if (changes_visible_size(options.dimensions)) {
       original_destroy(*output);
       *output = NULL;
-      int aligned = dpe_av1_create(type, context, encoded_callback, dropped_callback, output,
-                                   session, options);
-      if (aligned >= 0 && *output)
-        return true;
       record_rejection(options.dimensions, false, "amd-av1-coded-size-padding");
       return false;
     }
@@ -524,13 +532,12 @@ static bool guarded_create(uint32_t type, const void *frame, void *context, void
 static bool guarded_update(void *handle, struct encoder_options options) {
   if (dpe_hevc_owned(handle))
     return dpe_hevc_update(handle, options);
-  bool dimension_guard = false, allocation_peak = false;
+  bool dimension_guard = false;
   uint8_t level = 31;
   pthread_mutex_lock(&guard_mutex);
   for (struct guarded_encoder *entry = guarded; entry; entry = entry->next)
     if (entry->handle == handle) {
       dimension_guard = entry->dimension_guard;
-      allocation_peak = entry->amd_vbaq || entry->dimension_guard;
       level = entry->level;
       break;
     }
@@ -550,11 +557,6 @@ static bool guarded_update(void *handle, struct encoder_options options) {
     record_rejection(options.dimensions, true, "av1-level-limit");
     return false;
   }
-  // A session ceiling is not the currently allocated network budget. Let VBR
-  // spend its reservoir on a scene cut without targeting a 32 Mbps burst on a
-  // 9 Mbps allocation. Suspension and untracked encoders remain native.
-  if (allocation_peak && options.bitrate_target && options.bitrate_maximum > options.bitrate_target)
-    options.bitrate_maximum = options.bitrate_target;
   return original_update(handle, options);
 }
 
@@ -1364,6 +1366,39 @@ static napi_value install_qp_trust(napi_env env, napi_callback_info info) {
   return undefined(env);
 }
 
+static napi_value install_software_av1(napi_env env, napi_callback_info info) {
+  napi_value args[11];
+  size_t count = 11, length;
+  char filename[PATH_MAX];
+  uint32_t offsets[10];
+  if (api_napi_get_cb_info(env, info, &count, args, NULL, NULL) != napi_ok || count != 11 ||
+      api_napi_get_value_string_utf8(env, args[0], filename, sizeof(filename), &length) !=
+          napi_ok ||
+      !length || length >= sizeof(filename) - 1)
+    return fail(env, "Invalid software AV1 crop arguments.");
+  for (unsigned i = 0; i < 10; i++)
+    if (api_napi_get_value_uint32(env, args[i + 1], &offsets[i]) != napi_ok || !offsets[i])
+      return fail(env, "Invalid software AV1 crop offset.");
+  if (!dpe_software_av1_install(filename, offsets))
+    return fail(env, "Could not install the reviewed software AV1 crop adapter.");
+  return undefined(env);
+}
+static napi_value software_av1_stats(napi_env env, napi_callback_info info) {
+  (void)info;
+  uint64_t values[6];
+  dpe_software_av1_stats(values);
+  char json[384];
+  snprintf(json, sizeof(json),
+           "{\"installed\":%s,\"contexts\":%llu,\"submitted\":%llu,\"cropped\":%llu,"
+           "\"rejected\":%llu,\"unmatched\":%llu}",
+           values[0] ? "true" : "false", (unsigned long long)values[1],
+           (unsigned long long)values[2], (unsigned long long)values[3],
+           (unsigned long long)values[4], (unsigned long long)values[5]);
+  napi_value value;
+  api_napi_create_string_utf8(env, json, NAPI_AUTO_LENGTH, &value);
+  return value;
+}
+
 static napi_value install_hevc(napi_env env, napi_callback_info info) {
   napi_value args[20];
   size_t count = 20, length;
@@ -1437,7 +1472,13 @@ napi_value dpe_encoder_register(napi_env env, napi_value exports) {
   LOAD(napi_set_named_property);
   LOAD(napi_throw_error);
   napi_value function;
-  if (api_napi_create_function(env, "installEncoderGuard", NAPI_AUTO_LENGTH, install_guard, NULL,
+  if (api_napi_create_function(env, "installSoftwareAv1Crop", NAPI_AUTO_LENGTH,
+                               install_software_av1, NULL, &function) != napi_ok ||
+      api_napi_set_named_property(env, exports, "installSoftwareAv1Crop", function) != napi_ok ||
+      api_napi_create_function(env, "softwareAv1CropStats", NAPI_AUTO_LENGTH, software_av1_stats,
+                               NULL, &function) != napi_ok ||
+      api_napi_set_named_property(env, exports, "softwareAv1CropStats", function) != napi_ok ||
+      api_napi_create_function(env, "installEncoderGuard", NAPI_AUTO_LENGTH, install_guard, NULL,
                                &function) != napi_ok ||
       api_napi_set_named_property(env, exports, "installEncoderGuard", function) != napi_ok ||
       api_napi_create_function(env, "installHevcEncoder", NAPI_AUTO_LENGTH, install_hevc, NULL,

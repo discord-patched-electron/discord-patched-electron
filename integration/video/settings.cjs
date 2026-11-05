@@ -6,6 +6,7 @@ const DEFAULTS = Object.freeze({
   captureMethod: "auto",
   capturePacing: true,
   experimentalCapture: false,
+  preserveViewerBitrate: false,
   excludedCodecs: Object.freeze([]),
 });
 const METHODS = ["auto", "portal", "x11", "wayland-direct", "vkcapture", "kms"];
@@ -18,6 +19,7 @@ function normalize(value) {
     captureMethod: METHODS.includes(value?.captureMethod) ? value.captureMethod : "auto",
     capturePacing: value?.capturePacing !== false,
     experimentalCapture: value?.experimentalCapture === true,
+    preserveViewerBitrate: value?.preserveViewerBitrate === true,
     // A hand-edited profile cannot disable every advertised choice.
     excludedCodecs: excludedCodecs.length < CODECS.length ? excludedCodecs : [],
   };

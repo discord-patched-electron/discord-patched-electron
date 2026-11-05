@@ -35,7 +35,7 @@ struct source {
   struct pw_buffer *pending;
   struct dpe_vk_buffer *pending_gpu;
   struct dpe_vk_relay *pending_relay;
-  bool relay, auto_relay, compat;
+  bool relay, auto_relay, compat, hook_direct;
   struct spa_source *compat_timer, *stop_timer;
   struct dpe_obs_texture compat_texture;
   size_t compat_size;
@@ -209,7 +209,9 @@ static void control_rate(struct source *s) {
     return;
   }
   struct dpe_vk_packet p = dpe_vk_packet(DPE_VK_CONTROL);
-  p.flags = DPE_VK_CAPTURE | (s->relay ? DPE_VK_DIRECT : 0);
+  // Copy fallback changes our consumer path, not the hook's active allocation
+  // contract. Switching that contract during an FPS update disconnects the hook.
+  p.flags = DPE_VK_CAPTURE | (s->hook_direct ? DPE_VK_DIRECT : 0);
   p.fps = fps;
   memcpy(p.uuid, dpe_vk_gpu_uuid(s->gpu), 16);
   if (!send_packet(s, &p))
@@ -890,8 +892,9 @@ int main(int argc, char **argv) {
   pw_loop_add_signal(loop, SIGINT, quit, &s);
   s.stop_timer = pw_loop_add_timer(loop, stopped_timeout, &s);
   preflight_relay(&s);
+  s.hook_direct = s.relay;
   struct dpe_vk_packet control = dpe_vk_packet(DPE_VK_CONTROL);
-  control.flags = DPE_VK_CAPTURE | (s.relay ? DPE_VK_DIRECT : 0);
+  control.flags = DPE_VK_CAPTURE | (s.hook_direct ? DPE_VK_DIRECT : 0);
   control.fps = s.fps;
   s.hook_fps = s.fps;
   memcpy(control.uuid, dpe_vk_gpu_uuid(s.gpu), 16);

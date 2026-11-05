@@ -41,6 +41,7 @@ test("encoder guard verifies the module before installing exact reviewed slots",
       codec: 2700,
     },
     qp_trust: { slot: 1400, target: 1500, bandwidth_call: 1600, config_target: 1700 },
+    software_av1_crop: { abi: 1, offsets: Array.from({ length: 10 }, (_, i) => 4000 + i) },
   };
   const write = () =>
     fs.writeFileSync(path.join(directory, "encoder-scope.json"), JSON.stringify(metadata));
@@ -67,6 +68,12 @@ test("encoder guard verifies the module before installing exact reviewed slots",
             700,
           ]),
         encoderGuardStats: () => '{"reason":"amd-av1-coded-size-padding"}',
+        installSoftwareAv1Crop: (...args) =>
+          assert.deepEqual(args, [
+            path.join(directory, "discord_voice.node"),
+            ...metadata.software_av1_crop.offsets,
+          ]),
+        softwareAv1CropStats: () => '{"installed":true,"cropped":42}',
         installAv1Levels: (...args) =>
           assert.deepEqual(args, [path.join(directory, "discord_voice.node"), 800, 900, 1000]),
         installEncoderAllocation: (...args) =>
@@ -111,9 +118,14 @@ test("encoder guard verifies the module before installing exact reviewed slots",
     };
     const adapter = load(directory, "helper");
     assert.equal(adapter.snapshot().reason, "amd-av1-coded-size-padding");
+    assert.equal(adapter.snapshot().softwareAv1Crop.cropped, 42);
     assert.equal(adapter.decoderHardware("electron"), true);
     assert.equal(adapter.decoderHardware("dav1d"), false);
     assert.equal(adapter.decoderHardware("future"), null);
+    metadata.software_av1_crop.abi = 2;
+    write();
+    assert.throws(() => load(directory, "helper"), /Software AV1 crop metadata/);
+    metadata.software_av1_crop.abi = 1;
     metadata.update.slot = -1;
     write();
     assert.throws(() => load(directory, "helper"), /reviewed compatibility guard/);
@@ -121,7 +133,7 @@ test("encoder guard verifies the module before installing exact reviewed slots",
     write();
     fs.appendFileSync(path.join(directory, "discord_voice.node"), "tampered");
     assert.throws(() => load(directory, "helper"), /reviewed compatibility guard/);
-    assert.equal(loaded, 1);
+    assert.equal(loaded, 2);
   } finally {
     process.dlopen = original;
     fs.rmSync(directory, { recursive: true, force: true });

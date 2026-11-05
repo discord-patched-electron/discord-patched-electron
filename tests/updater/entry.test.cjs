@@ -40,7 +40,10 @@ function fixture({
     if (name === "./capture-backends.cjs")
       return { register: () => calls.push(["capture-backends"]) };
     if (name === "../desktop/preferences.cjs")
-      return { install: () => calls.push(["desktop-preferences"]) };
+      return {
+        install: () => calls.push(["desktop-preferences"]),
+        configureMediaControls: () => calls.push(["media-controls"]),
+      };
     if (name === "./tray.cjs")
       return { setDefaultDirectory: (directory) => calls.push(["tray-assets", directory]) };
     if (name === "../desktop/spellcheck.cjs") return { install: () => calls.push(["spellcheck"]) };
@@ -91,6 +94,7 @@ test("pending first launch never evaluates Discord before Welcome completion", a
   for (const existingProfile of [false, true]) {
     const calls = fixture({ existingProfile });
     await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(calls[0][0], "media-controls");
     assert.ok(calls.some(([name]) => name === "welcome"));
     assert.deepEqual(
       calls.find(([name]) => name === "tray-assets"),

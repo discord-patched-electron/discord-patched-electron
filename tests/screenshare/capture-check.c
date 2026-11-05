@@ -68,6 +68,20 @@ static void reset(size_t size) {
   }
 }
 int main(void) {
+  // Diagnostics must leave malformed/unfamiliar buffers to native without
+  // dereferencing a missing or unbounded metadata inventory.
+  for (unsigned count = 1; count <= 65; count += 64) {
+    reset(1);
+    spa_frames[0].metas = NULL;
+    spa_frames[0].n_metas = count;
+    struct captured_buffer unchanged = capture_dequeue(stream);
+    assert(unchanged.buffer == &frames[0] && !released && !returned);
+    assert(counts.pts_unknown == 1 && counts.conservative == 1);
+  }
+  reset(1);
+  spa_frames[0].n_metas = 65;
+  assert(capture_dequeue(stream).buffer == &frames[0]);
+  assert(!released && !returned && counts.pts_unknown == 1 && counts.conservative == 1);
   // Explicit synchronization is observed only with complete metadata and two
   // valid SyncObj FDs. Neither this inspection nor pacing consumes the points.
   reset(0);

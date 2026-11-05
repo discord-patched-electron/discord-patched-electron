@@ -70,6 +70,9 @@ def build(output: Path, compiler="cc", *, hevc=False) -> dict:
                     "integration/video/encoder-hevc.h",
                     "integration/video/encoder-abi.h",
                     "integration/video/av1-level.h",
+                    "integration/video/av1-crop.h",
+                    "integration/video/av1-software-crop.h",
+                    "integration/video/av1-software-crop.c",
                     "integration/video/capture-rate.h",
                     "scripts/build_camera_support.py",
                 ]
@@ -90,6 +93,7 @@ def build(output: Path, compiler="cc", *, hevc=False) -> dict:
             str(ROOT / "integration/video/capture-picker.c"),
             str(ROOT / "integration/video/encoder.c"),
             str(ROOT / "integration/video/encoder-hevc.c"),
+            str(ROOT / "integration/video/av1-software-crop.c"),
             *extra,
             *subprocess.check_output(
                 ["pkg-config", "--cflags", "libpipewire-0.3"], text=True

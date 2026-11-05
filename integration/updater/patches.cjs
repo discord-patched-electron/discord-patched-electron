@@ -75,10 +75,12 @@ function desktop(source, adapter) {
     "event.returnValue=injectedUpdater?.getUpdater()!=null",
     "event.returnValue=!0",
   );
+  // Canary 1.0.2444 removed the legacy injectedModuleUpdater binding. Resolve
+  // through the bootstrap module supplied by entry.cjs instead of that binding.
   source = replace(
     source,
     "return null!=newUpdater?newUpdater.committedModulePaths.get(name)??null:null",
-    "return null!=newUpdater?newUpdater.committedModulePaths.get(name)??null:injectedModuleUpdater?.getModulePath(name)??null",
+    'return null!=newUpdater?newUpdater.committedModulePaths.get(name)??null:require(process.env.DPE_APP_ROOT+"/bootstrap/src/updater/moduleUpdater.js").getModulePath(name)??null',
   );
   // Discord's main renderer explicitly uses sandbox:false. Electron now severs
   // window.opener when its child defaults to sandbox:true, leaving /popout's

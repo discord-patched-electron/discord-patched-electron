@@ -129,10 +129,13 @@ def stage(
         "build_capture_shader.py",
         "patch_krisp.py",
         "patch_app_audio.py",
+        "native_client_2444.py",
         "patch_pulse_audio.py",
         "patch_vaapi_hrd.py",
         "patch_capture_dimensions.py",
         "patch_capture_chroma.py",
+        "patch_presentation_clock.py",
+        "patch_video_pacing.py",
         "patch_decoder_eagain.py",
         "common.py",
     ):

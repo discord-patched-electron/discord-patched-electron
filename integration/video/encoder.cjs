@@ -98,8 +98,26 @@ function load(directory, helper) {
       throw new Error("HEVC encoder metadata does not match the reviewed interface.");
     addon.exports.installHevcEncoder(filename, ...offsets);
   }
+  if (metadata.software_av1_crop) {
+    const { abi, offsets } = metadata.software_av1_crop;
+    if (
+      abi !== 1 ||
+      !Array.isArray(offsets) ||
+      offsets.length !== 10 ||
+      offsets.some((value) => !Number.isSafeInteger(value) || value <= 0 || value > 0xffffffff) ||
+      typeof addon.exports.installSoftwareAv1Crop !== "function" ||
+      typeof addon.exports.softwareAv1CropStats !== "function"
+    )
+      throw new Error("Software AV1 crop metadata does not match the reviewed interface.");
+    addon.exports.installSoftwareAv1Crop(filename, ...offsets);
+  }
   return {
-    snapshot: () => JSON.parse(addon.exports.encoderGuardStats()),
+    snapshot: () => ({
+      ...JSON.parse(addon.exports.encoderGuardStats()),
+      ...(metadata.software_av1_crop
+        ? { softwareAv1Crop: JSON.parse(addon.exports.softwareAv1CropStats()) }
+        : {}),
+    }),
     decoderHardware: (name) =>
       typeof metadata.decoder_hardware?.[name] === "boolean"
         ? metadata.decoder_hardware[name]

@@ -1,11 +1,16 @@
 // Built into a separate shared object with a private, minimal FFmpeg. Never
 // link a second system libavcodec into Electron's global symbol namespace.
+#include "av1-crop.h"
 #include "av1-level.h"
 #include "encoder-abi.h"
 #include "hevc-level.h"
+#include <glob.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <va/va_drmcommon.h>
 #include <va/va_vpp.h>
 
@@ -20,16 +25,19 @@ struct pending_frame {
   bool used;
   int64_t pts;
   struct encoder_frame_meta meta;
+  struct dpe_av1_crop crop;
 };
 struct hevc_encoder {
   char *node;
   AVCodecContext *codec;
   AVBufferRef *device, *frames, *upload_frames;
-  AVFrame *cpu, *input;
+  AVFrame *cpu, *input, *black;
+  VASurfaceID *initialized_surfaces;
+  size_t initialized_count, initialized_capacity;
   AVPacket *packet;
   struct encoder_session session;
   struct encoder_options options;
-  struct encoder_dimensions opened_size;
+  struct encoder_dimensions opened_size, encoded_size;
   struct pending_frame pending[PENDING_FRAMES];
   void *context;
   encoder_encoded_fn encoded;
@@ -38,7 +46,7 @@ struct hevc_encoder {
   uint32_t vendor;
   VAConfigID filter_config;
   VAContextID filter_context;
-  bool filtering;
+  bool filtering, vcn4_av1;
 };
 
 static bool dimensions_valid(struct encoder_dimensions size) {
@@ -55,6 +63,10 @@ static void close_codec(struct hevc_encoder *encoder) {
   avcodec_free_context(&encoder->codec);
   av_frame_free(&encoder->cpu);
   av_frame_free(&encoder->input);
+  av_frame_free(&encoder->black);
+  free(encoder->initialized_surfaces);
+  encoder->initialized_surfaces = NULL;
+  encoder->initialized_count = encoder->initialized_capacity = 0;
   av_packet_free(&encoder->packet);
   av_buffer_unref(&encoder->frames);
   av_buffer_unref(&encoder->upload_frames);
@@ -96,12 +108,41 @@ static uint32_t device_vendor(AVBufferRef *device) {
 }
 static uint32_t vendor(void *opaque) { return ((struct hevc_encoder *)opaque)->vendor; }
 
+// Query this render node, not another GPU in a mixed-device system. Unknown
+// kernel discovery data retains the generic aligned-surface path.
+static bool device_vcn4(const char *node) {
+  struct stat status;
+  if (stat(node, &status) || !S_ISCHR(status.st_mode))
+    return false;
+  char pattern[PATH_MAX];
+  if (snprintf(pattern, sizeof(pattern),
+               "/sys/dev/char/%u:%u/device/ip_discovery/die/*/UVD/*/major", major(status.st_rdev),
+               minor(status.st_rdev)) >= (int)sizeof(pattern))
+    return false;
+  glob_t versions = {0};
+  bool valid = glob(pattern, 0, NULL, &versions) == 0 && versions.gl_pathc;
+  for (size_t i = 0; valid && i < versions.gl_pathc; i++) {
+    FILE *file = fopen(versions.gl_pathv[i], "r");
+    unsigned version;
+    valid = file && fscanf(file, "%u", &version) == 1 && version == 4;
+    if (file)
+      fclose(file);
+  }
+  globfree(&versions);
+  return valid;
+}
+static bool native_short_padding(struct hevc_encoder *encoder, struct encoder_dimensions size) {
+  // Mesa's VCN4 rule is generic: an already aligned width and height 8 mod 16
+  // can use firmware-generated two-row padding (1080 -> 1082, 360 -> 362).
+  return encoder->vcn4_av1 && !(size.width & 63) && (size.height & 15) == 8;
+}
+
 static struct encoder_dimensions coded_size(struct hevc_encoder *encoder,
                                             struct encoder_options options) {
   struct encoder_dimensions size = options.dimensions;
-  if (encoder->session.codec == 2) {
-    size.width &= ~63u;
-    size.height &= ~15u;
+  if (encoder->session.codec == 2 && encoder->vendor == 1 && !native_short_padding(encoder, size)) {
+    size.width = (size.width + 63u) & ~63u;
+    size.height = (size.height + 15u) & ~15u;
   }
   return size;
 }
@@ -114,9 +155,14 @@ static int stream_level(struct hevc_encoder *encoder, struct encoder_options opt
                         ? encoder->session.maximum.height
                         : options.dimensions.height;
   uint32_t fps = encoder->session.fps > options.fps ? encoder->session.fps : options.fps;
-  return encoder->session.codec == 2
-             ? dpe_av1_level(width & ~63u, height & ~15u, fps, options.bitrate_maximum)
-             : (int)dpe_hevc_level(width, height, fps, options.bitrate_maximum);
+  if (encoder->session.codec == 2) {
+    if (encoder->vendor == 1) {
+      width = (width + 63u) & ~63u;
+      height = (height + 15u) & ~15u;
+    }
+    return dpe_av1_level(width, height, fps, options.bitrate_maximum);
+  }
+  return (int)dpe_hevc_level(width, height, fps, options.bitrate_maximum);
 }
 
 static AVBufferRef *frame_pool(struct hevc_encoder *encoder, struct encoder_dimensions size) {
@@ -141,6 +187,11 @@ static bool open_codec(struct hevc_encoder *encoder, struct encoder_options opti
   encoder->options = options;
   encoder->opened_size = options.dimensions;
   struct encoder_dimensions coded = coded_size(encoder, options);
+  encoder->encoded_size = coded;
+  // Input surfaces keep their original size; firmware adds two bottom rows.
+  // Report actual bitstream dimensions independently of the input context.
+  if (native_short_padding(encoder, coded))
+    encoder->encoded_size.height += 2;
   encoder->frames = frame_pool(encoder, coded);
   if (!encoder->frames)
     return false;
@@ -216,6 +267,11 @@ static void *create(const char *node, struct encoder_session session,
   if (av_hwdevice_ctx_create(&encoder->device, AV_HWDEVICE_TYPE_VAAPI, node, NULL, 0) < 0)
     goto fail;
   encoder->vendor = device_vendor(encoder->device);
+  AVHWDeviceContext *device = (void *)encoder->device->data;
+  AVVAAPIDeviceContext *va = device->hwctx;
+  const char *driver = vaQueryVendorString(va->display);
+  encoder->vcn4_av1 = encoder->session.codec == 2 && encoder->vendor == 1 && driver &&
+                      strstr(driver, "Mesa Gallium driver ") && device_vcn4(node);
   if ((encoder->vendor != 1 && encoder->vendor != 2) || !open_codec(encoder, options))
     goto fail;
   return encoder;
@@ -238,6 +294,24 @@ static bool receive_packets(struct hevc_encoder *encoder) {
       return false;
     }
     pending->used = false;
+    if (encoder->session.codec == 2 && (encoder->packet->flags & AV_PKT_FLAG_KEY) &&
+        (pending->crop.width != pending->meta.width ||
+         pending->crop.height != pending->meta.height)) {
+      // AOM crop metadata describes the original picture, independently of
+      // hardware coded alignment. Reannounce at each keyframe; stock decoders
+      // can ignore it. No pixel work or new Discord packet type is needed.
+      uint8_t crop_obu[12];
+      size_t offset, length = dpe_av1_crop_write(crop_obu, pending->crop);
+      int previous_size = encoder->packet->size;
+      if (!length || !dpe_av1_crop_position(encoder->packet->data, previous_size, &offset) ||
+          av_grow_packet(encoder->packet, (int)length) < 0) {
+        av_packet_unref(encoder->packet);
+        return false;
+      }
+      memmove(encoder->packet->data + offset + length, encoder->packet->data + offset,
+              previous_size - offset);
+      memcpy(encoder->packet->data + offset, crop_obu, length);
+    }
     // Slice-header QP is not a frame average with adaptive quantization. The
     // adapter advertises that contract instead of presenting it as trusted QP.
     uint64_t info =
@@ -255,11 +329,51 @@ static void release_source(void *opaque, uint8_t *unused) {
   av_frame_free(&source);
 }
 
+// Mesa's compositor VPP path leaves pixels outside output_region untouched.
+// Initialize each pooled output once with neutral NV12 black. Steady-state
+// frames retain one VPP pass, with no CPU readback or per-frame black upload.
+static bool initialize_padding(struct hevc_encoder *encoder, AVFrame *output) {
+  VASurfaceID surface = (VASurfaceID)(uintptr_t)output->data[3];
+  for (size_t i = 0; i < encoder->initialized_count; i++)
+    if (encoder->initialized_surfaces[i] == surface)
+      return true;
+  if (encoder->initialized_count == encoder->initialized_capacity) {
+    size_t capacity = encoder->initialized_capacity ? encoder->initialized_capacity * 2 : 8;
+    VASurfaceID *next = realloc(encoder->initialized_surfaces, capacity * sizeof(*next));
+    if (!next)
+      return false;
+    encoder->initialized_surfaces = next;
+    encoder->initialized_capacity = capacity;
+  }
+  if (!encoder->black) {
+    AVFrame *black = av_frame_alloc();
+    if (!black)
+      return false;
+    black->format = AV_PIX_FMT_NV12;
+    black->width = output->width;
+    black->height = output->height;
+    if (av_frame_get_buffer(black, 32) < 0) {
+      av_frame_free(&black);
+      return false;
+    }
+    for (int y = 0; y < black->height; y++)
+      memset(black->data[0] + y * black->linesize[0], 16, black->width);
+    for (int y = 0; y < black->height / 2; y++)
+      memset(black->data[1] + y * black->linesize[1], 128, black->width);
+    encoder->black = black;
+  }
+  if (av_hwframe_transfer_data(output, encoder->black, 0) < 0)
+    return false;
+  encoder->initialized_surfaces[encoder->initialized_count++] = surface;
+  return true;
+}
+
 static bool filter_input(struct hevc_encoder *encoder) {
   if (!encoder->filtering)
     return true;
   AVFrame *output = av_frame_alloc();
-  if (!output || av_hwframe_get_buffer(encoder->frames, output, 0) < 0) {
+  if (!output || av_hwframe_get_buffer(encoder->frames, output, 0) < 0 ||
+      !initialize_padding(encoder, output)) {
     av_frame_free(&output);
     return false;
   }
@@ -278,11 +392,16 @@ static bool filter_input(struct hevc_encoder *encoder) {
   AVHWDeviceContext *device = (void *)encoder->device->data;
   AVVAAPIDeviceContext *va = device->hwctx;
   VARectangle input_region = {0, 0, encoder->input->width, encoder->input->height};
-  VARectangle output_region = {0, 0, output->width, output->height};
+  // Keep the entire source at 1:1 sampling. Even offsets preserve the NV12
+  // chroma grid; unequal padding differs by at most two luma pixels.
+  VARectangle output_region = {((output->width - encoder->input->width) / 2) & ~1,
+                               ((output->height - encoder->input->height) / 2) & ~1,
+                               encoder->input->width, encoder->input->height};
   VAProcPipelineParameterBuffer parameters = {
       .surface = (VASurfaceID)(uintptr_t)encoder->input->data[3],
       .surface_region = &input_region,
       .output_region = &output_region,
+      .output_background_color = 0xff000000,
       .surface_color_standard = VAProcColorStandardBT709,
       .output_color_standard = VAProcColorStandardBT709,
   };
@@ -330,8 +449,14 @@ static bool send_frame(struct hevc_encoder *encoder, const struct encoder_frame_
     pts = encoder->last_pts + 1;
   encoder->last_pts = pts;
   *pending = (struct pending_frame){.used = true, .pts = pts, .meta = *meta};
-  pending->meta.width = encoder->codec->width;
-  pending->meta.height = encoder->codec->height;
+  pending->meta.width = encoder->encoded_size.width;
+  pending->meta.height = encoder->encoded_size.height;
+  pending->crop = (struct dpe_av1_crop){
+      .x = ((encoder->codec->width - meta->width) / 2) & ~1u,
+      .y = ((encoder->codec->height - meta->height) / 2) & ~1u,
+      .width = meta->width,
+      .height = meta->height,
+  };
   encoder->input->pts = pts;
   encoder->input->pict_type = info.idr ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
   int result = avcodec_send_frame(encoder->codec, encoder->input);
@@ -360,10 +485,6 @@ static bool update(void *opaque, struct encoder_options options) {
     encoder->options = options;
     return true;
   }
-  // Follow the current WebRTC allocation, rather than a larger session ceiling,
-  // for peak RC as well as target. Keep the one-second HRD reservoir for IDRs.
-  if (options.bitrate_maximum > options.bitrate_target)
-    options.bitrate_maximum = options.bitrate_target;
   int required_level = stream_level(encoder, options);
   if (encoder->session.codec == 1 && !required_level)
     return false;

@@ -32,6 +32,8 @@ function source(config, root) {
     require("../discord-ui/source.cjs").call(require("../video/bitrate.cjs"), {
       platform: process.platform,
       maxBitrate: Number(process.env.DPE_SCREENSHARE_MAX_BITRATE),
+      preserveViewerBitrate: require("../video/settings.cjs").normalize(config.screensharing)
+        .preserveViewerBitrate,
     }) +
     ";\n" +
     require("../discord-ui/source.cjs").call(require("../video/codecs.cjs"), {

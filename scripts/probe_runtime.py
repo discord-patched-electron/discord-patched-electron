@@ -17,7 +17,13 @@ from common import ROOT, download, hash_files, read_json, run, sha256, write_jso
 
 
 def probe(
-    runtime: Path, executable: str, modules: Path, output: Path, audio_fixtures: Path | None = None
+    runtime: Path,
+    executable: str,
+    modules: Path,
+    output: Path,
+    audio_fixtures: Path | None = None,
+    *,
+    presentation: bool = False,
 ) -> dict:
     runtime, modules, output = runtime.resolve(), modules.resolve(), output.absolute()
     if executable not in {"electron", "Discord", "DiscordPTB", "DiscordCanary"}:
@@ -80,6 +86,7 @@ def probe(
         "DPE_PROBE_REPORT": str(output / "runtime-report.json"),
         "DPE_PROBE_MODULES": str(output / "modules"),
         "DPE_PROBE_ADDON": str(output / "frame_addon.node"),
+        "DPE_PROBE_PRESENTATION": "1" if presentation else "0",
         "PULSE_SERVER": "unix:" + str(output / "run/no-pulse"),
         "PIPEWIRE_REMOTE": "no-pipewire",
         "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(output / "run/no-dbus"),
@@ -161,12 +168,22 @@ def main():
     parser.add_argument("--modules", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
+        "--presentation", action="store_true", help="Require scheduled native burst presentation"
+    )
+    parser.add_argument(
         "--audio-fixtures",
         type=Path,
         help="Optional synthetic WAV directory for offline voice processing",
     )
     args = parser.parse_args()
-    report = probe(args.runtime, args.executable, args.modules, args.output, args.audio_fixtures)
+    report = probe(
+        args.runtime,
+        args.executable,
+        args.modules,
+        args.output,
+        args.audio_fixtures,
+        presentation=args.presentation,
+    )
     print(f"Native fixture passed: {report['passed']}; real call/audio validation remains separate")
     if not report["passed"]:
         raise SystemExit(1)

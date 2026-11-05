@@ -26,7 +26,8 @@ from pathlib import Path
 
 
 def system_tool(name):
-    return str(Path(os.environ.get("DPE_TOOLS_DIR", "/usr/bin")) / name)
+    # PipeWire/PulseAudio clients must match the host plugins and configuration.
+    return str(Path("/usr/bin") / name)
 
 
 def child_guard(parent):

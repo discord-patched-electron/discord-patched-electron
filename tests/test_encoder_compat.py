@@ -29,6 +29,7 @@ class EncoderCompatibilityTests(unittest.TestCase):
                 "-I" + str(node_headers()),
                 str(ROOT / "tests/screenshare/encoder-check.c"),
                 str(ROOT / "integration/video/encoder-hevc.c"),
+                str(ROOT / "integration/video/av1-software-crop.c"),
                 "-ldl",
                 "-pthread",
                 "-o",

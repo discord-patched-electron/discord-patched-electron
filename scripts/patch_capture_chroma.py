@@ -1,4 +1,4 @@
-"""Filter GPU 4:2:0 chroma in two reviewed private native modules.
+"""Filter GPU 4:2:0 chroma in reviewed private native modules.
 
 The project-owned replacement keeps the embedded SPIR-V byte length, descriptor
 bindings, push constants and one-dispatch pipeline. Full-file identities bind
@@ -10,7 +10,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import native_client_2444
 from common import ROOT
+from patch_presentation_clock import OUTPUT_BASES
 
 PATCH = "gpu-capture-chroma-box-filter-v1"
 INPUT_SHA256 = "f5dae8fc205c8123ceff2f520dfcd50d8f2357de8db221cb5215a92abbcac2e9"
@@ -23,6 +25,9 @@ SHADER_SIZE = 9272
 BEFORE_SHADER = "aadde83936f48237cd08ba2bb781ffc576c3245a227edf50dda8fdd23f36284a"
 AFTER_SHADER = "bf4ccb07769d2ccdb179ead82ae210d7c9176452086d0d2ede1e028c0ffbc1c1"
 SCOPE_BASES = {OUTPUT_SHA256: INPUT_SHA256, PINNED_OUTPUT_SHA256: PINNED_INPUT_SHA256}
+SCOPE_BASES.update(
+    {output: SCOPE_BASES[base] for output, base in OUTPUT_BASES.items() if base in SCOPE_BASES}
+)
 
 
 def extend_reviewed(reviewed):
@@ -36,6 +41,12 @@ def extend_reviewed(reviewed):
 
 
 def reviewed(digest):
+    current = native_client_2444.reviewed("chroma", digest)
+    if current:
+        before, after, sites = current
+        return before, after, sites[0][0]
+    if digest in OUTPUT_BASES:
+        return digest, digest, 0
     for before, after, offset in (
         (INPUT_SHA256, OUTPUT_SHA256, OFFSET),
         (PINNED_INPUT_SHA256, PINNED_OUTPUT_SHA256, PINNED_OFFSET),

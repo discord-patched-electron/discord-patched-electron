@@ -8,6 +8,14 @@ automatic delivery and AUR publication.
 This page covers scheduling and durable state. See [release packaging](releases.md)
 for publication and [the updater](client-updater.md) for updates on users' machines.
 
+## Complete update review
+
+When investigating or implementing an upstream update, follow the
+[whole-diff review workflow](upstream-update-review.md). Account for every
+changed payload and diff hunk, fix all affected integration paths, and validate
+the exact candidate with the complete working tree. A passing discovery poll
+or a fix for the first failure does not establish compatibility.
+
 ## Discord updates
 
 `update.yml` polls Discord hourly at minute 22 and Electron/security every five

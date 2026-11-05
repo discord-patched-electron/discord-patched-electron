@@ -24,6 +24,12 @@ async function apply(value) {
   const { trusted } = require("./presentation.cjs");
   const bridge = require("../discord-ui/source.cjs");
   const source =
+    bridge.call(require("../video/bitrate.cjs"), {
+      platform: process.platform,
+      maxBitrate: Number(process.env.DPE_SCREENSHARE_MAX_BITRATE),
+      preserveViewerBitrate: normalize(value).preserveViewerBitrate,
+    }) +
+    ";" +
     bridge.call(require("../video/capture-policy.cjs"), policy(value)) +
     ";" +
     bridge.call(require("../video/codecs.cjs"), {
@@ -255,7 +261,8 @@ async function save(settings, patch) {
           ? !Array.isArray(value) ||
             value.some((codec) => !CODECS.includes(codec)) ||
             new Set(value).size >= CODECS.length
-          : !["capturePacing", "experimentalCapture"].includes(key) || typeof value !== "boolean",
+          : !["capturePacing", "experimentalCapture", "preserveViewerBitrate"].includes(key) ||
+            typeof value !== "boolean",
     )
   )
     throw new Error("Choose supported screensharing settings.");
@@ -275,8 +282,8 @@ async function save(settings, patch) {
   }
   global.oaConfig = { ...next, autoupdate: false };
   if (
-    ["captureMethod", "experimentalCapture", "excludedCodecs"].some((key) =>
-      Object.hasOwn(patch, key),
+    ["captureMethod", "experimentalCapture", "excludedCodecs", "preserveViewerBitrate"].some(
+      (key) => Object.hasOwn(patch, key),
     )
   ) {
     let applied = false;

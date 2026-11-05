@@ -3,10 +3,16 @@
 #include <stdbool.h>
 static bool hardware_vcn4 = true;
 #define DPE_ENCODER_VCN4() hardware_vcn4
+#define dpe_av1_create test_av1_create
+#define dpe_hevc_active test_hevc_active
 #include "../../integration/video/encoder.c"
+#undef dpe_av1_create
+#undef dpe_hevc_active
+
+static bool owned_backend_active;
+bool test_hevc_active(void) { return owned_backend_active; }
 
 static unsigned creates, updates, destroys;
-static uint32_t updated_peak;
 static unsigned vendor = 1;
 static bool create_ok = true;
 static bool emit_sequence;
@@ -14,6 +20,19 @@ static bool emit_quality;
 static void *fake_handle = (void *)0x123400;
 static struct encoder_session expected_session;
 static struct encoder_options expected_options;
+static bool available_av1_backend;
+static unsigned av1_backend_creates;
+int test_av1_create(uint32_t type, void *context, void *encoded, void *dropped, void **output,
+                    struct encoder_session session, struct encoder_options options) {
+  if (!available_av1_backend)
+    return -1;
+  assert(type == 6 && context == (void *)2 && encoded == (void *)3 && dropped == (void *)4);
+  assert(!memcmp(&session, &expected_session, sizeof(session)));
+  assert(!memcmp(&options, &expected_options, sizeof(options)));
+  av1_backend_creates++;
+  *output = (void *)0x567800;
+  return 1;
+}
 static const char *quality_vendor;
 static uint8_t expected_tunings[0x40];
 static void *tunings_stub(void *output, const void *display, const void *session,
@@ -96,12 +115,7 @@ static bool create_stub(uint32_t type, const void *frame, void *context, void *e
 }
 static bool update_stub(void *handle, struct encoder_options options) {
   assert(handle == fake_handle);
-  struct encoder_options expected = expected_options;
-  assert(options.bitrate_maximum == expected.bitrate_maximum ||
-         options.bitrate_maximum == expected.bitrate_target);
-  updated_peak = options.bitrate_maximum;
-  expected.bitrate_maximum = options.bitrate_maximum;
-  assert(!memcmp(&options, &expected, sizeof(options)));
+  assert(!memcmp(&options, &expected_options, sizeof(options)));
   updates++;
   return true;
 }
@@ -416,7 +430,8 @@ static void envelope_info_destroy(void *output) {
   assert(!memcmp(output, expected_info, sizeof(expected_info)));
   envelope_destroys++;
 }
-static void check_stream_envelope(void) {
+static void check_stream_envelope_case(bool active) {
+  owned_backend_active = active;
   uint8_t owner[0x200] = {0}, output[20], expected[20];
   uintptr_t vtable[13] = {0};
   vtable[12] = (uintptr_t)envelope_info_stub;
@@ -437,7 +452,7 @@ static void check_stream_envelope(void) {
   uint64_t pixels = UINT64_C(1) << 32 | 1920 * 1080;
   for (unsigned variant = 0; variant < 8; variant++) {
     limit_stub(expected, pixels, (void *)0x987);
-    if (variant == 0)
+    if (variant == 0 || (active && (variant == 2 || variant == 7)))
       expected[16] = 0;
     assert(stream_limit(output, pixels, (void *)0x987, owner) == output);
     assert(!memcmp(output, expected, sizeof(output)));
@@ -477,6 +492,14 @@ static void check_stream_envelope(void) {
     }
   }
   guarded = NULL;
+  owned_backend_active = false;
+}
+
+static void check_stream_envelope(void) {
+  check_stream_envelope_case(false);
+  // A concurrently active HEVC/AV1 backend must not override explicit limits
+  // or unrelated encoder capabilities when evaluating another stream.
+  check_stream_envelope_case(true);
 }
 
 static void *sequence_stub(void *output, const void *config, const void *header) {
@@ -661,23 +684,6 @@ static void check_lazy_install(char **argv) {
   dlclose(module);
 }
 
-static void check_allocation_peak(void) {
-  struct guarded_encoder entry = {.handle = fake_handle, .amd_vbaq = true, .level = 31};
-  guarded = &entry;
-  expected_options = (struct encoder_options){.fps = 60,
-                                              .dimensions = {1920, 1080},
-                                              .bitrate_target = 9000000,
-                                              .bitrate_maximum = 32000000};
-  assert(guarded_update(fake_handle, expected_options));
-  assert(updated_peak == 9000000);
-  expected_options.bitrate_target = 2000000;
-  assert(guarded_update(fake_handle, expected_options));
-  assert(updated_peak == 2000000);
-  guarded = NULL;
-  assert(guarded_update(fake_handle, expected_options));
-  assert(updated_peak == 32000000);
-}
-
 int main(int argc, char **argv) {
   if (argc == 12) {
     check_lazy_install(argv);
@@ -692,8 +698,6 @@ int main(int argc, char **argv) {
   original_update = update_stub;
   original_destroy = destroy_stub;
   original_vendor = vendor_stub;
-  check_allocation_peak();
-  creates = updates = destroys = 0;
   expected_session = (struct encoder_session){.fps = 60,
                                               .maximum = {1920, 1080},
                                               .format = 3,
@@ -729,7 +733,26 @@ int main(int argc, char **argv) {
   guarded_destroy(output);
   assert(rejected_creates == 1);
 
-  // Keep aligned AV1, and reject a later unaligned adaptive resize before it
+  // A working resizable backend must also own initially aligned VCN4 shares,
+  // so an unaligned future resize can preserve AV1. Other vendors stay native.
+  expected_options.dimensions = (struct encoder_dimensions){1280, 720};
+  available_av1_backend = true;
+  unsigned old_destroys = destroys;
+  assert(create(6, &output) && output == (void *)0x567800 && !guarded);
+  assert(av1_backend_creates == 1 && destroys == old_destroys + 1);
+  vendor = 2;
+  assert(create(6, &output) && output == fake_handle && !guarded);
+  assert(av1_backend_creates == 1);
+  guarded_destroy(output);
+  vendor = 1;
+  hardware_vcn4 = false;
+  assert(create(6, &output) && output == fake_handle && !guarded);
+  assert(av1_backend_creates == 1);
+  guarded_destroy(output);
+  hardware_vcn4 = true;
+  available_av1_backend = false;
+  // Without the optional backend, retain aligned native AV1, and reject a later
+  // unaligned adaptive resize before it
   // changes encoder state. Native Drop subsequently owns normal destruction.
   expected_options.dimensions = (struct encoder_dimensions){1280, 720};
   assert(create(6, &output) && guarded && output == fake_handle);

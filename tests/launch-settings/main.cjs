@@ -145,6 +145,24 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
+    if (process.env.DPE_SETTINGS_SCOPE === "media-controls") {
+      await open();
+      await click("t_settings");
+      await until(() => get('$("desktop-mediaControls") && !$("desktop-mediaControls").disabled'));
+      await require(path.join(root, "tests/launch-settings/media-controls.cjs"))({
+        window,
+        values,
+        click,
+        get,
+        until,
+        evaluate,
+      });
+      checks.push(
+        "Desktop media controls default off, save with keyboard focus, survive tab remounts, fit narrow zoomed windows and track restart requirements",
+      );
+      finish();
+      return;
+    }
     if (process.env.DPE_SETTINGS_SCOPE === "screensharing") {
       await open();
       await require(path.join(root, "tests/launch-settings/screensharing.cjs"))({
@@ -1291,6 +1309,17 @@ app
     );
     await click("t_settings");
     await until(() => get('$("desktop-startMinimized") && !$("desktop-startMinimized").disabled'));
+    await require(path.join(root, "tests/launch-settings/media-controls.cjs"))({
+      window,
+      values,
+      click,
+      get,
+      until,
+      evaluate,
+    });
+    checks.push(
+      "Desktop media controls default off, save with keyboard focus, survive tab remounts, fit narrow zoomed windows and track restart requirements",
+    );
     assert.equal(await get('$("desktop-webcamFlip").checked'), false);
     for (const [name, value] of [["webcamFlip", true]]) {
       const id = `desktop-${name}`;

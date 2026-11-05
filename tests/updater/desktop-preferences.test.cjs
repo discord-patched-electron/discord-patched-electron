@@ -7,6 +7,7 @@ const {
   titlebarCSS,
   webcamCSS,
   createController,
+  configureMediaControls,
 } = require("../../integration/desktop/preferences.cjs");
 const { patch } = require("../../integration/desktop/preferences-patch.cjs");
 
@@ -422,4 +423,45 @@ test("popout titlebar follows its floating preference and global controls always
   });
   await controller.apply({});
   assert.equal(controller.effectiveControls(tiled).windowControls, true);
+});
+
+test("desktop media controls default off, preserve flags and allow opting in", async () => {
+  assert.equal(normalize().mediaControls, false);
+  assert.equal(normalize({ mediaControls: "true" }).mediaControls, false);
+  const switches = {
+    "enable-features": "Other:param/value,MediaSessionService,HardwareMediaKeyHandling<Trial",
+    "disable-features": "Unrelated,MediaSessionService",
+  };
+  const commandLine = {
+    getSwitchValue: (name) => switches[name] || "",
+    appendSwitch: (name, value) => {
+      switches[name] = value;
+    },
+    removeSwitch: (name) => {
+      delete switches[name];
+    },
+  };
+  configureMediaControls(commandLine);
+  assert.equal(switches["enable-features"], "Other:param/value");
+  assert.equal(
+    switches["disable-features"],
+    "Unrelated,MediaSessionService,HardwareMediaKeyHandling",
+  );
+  configureMediaControls(commandLine);
+  assert.equal(
+    switches["disable-features"],
+    "Unrelated,MediaSessionService,HardwareMediaKeyHandling",
+  );
+  const before = { ...switches };
+  configureMediaControls(commandLine, { mediaControls: true });
+  assert.deepEqual(switches, before, "opting in leaves explicit launch flags untouched");
+  const { controller } = fixture();
+  assert.equal(controller.status().restartRequired, false);
+  await controller.apply({ mediaControls: true });
+  assert.equal(controller.status().restartRequired, true);
+  await controller.apply({ mediaControls: false });
+  assert.equal(controller.status().restartRequired, false);
+  const enabled = fixture({ mediaControls: true }).controller;
+  await enabled.apply({ mediaControls: false });
+  assert.equal(enabled.status().restartRequired, true);
 });

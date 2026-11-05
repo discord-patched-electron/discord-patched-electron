@@ -14,6 +14,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import patch_decoder_eagain as decoder
 from capstone import CS_ARCH_X86, CS_MODE_64, Cs
+from native_client_2444 import STAGES
 
 
 class DecoderBufferedOutput(unittest.TestCase):
@@ -64,7 +65,11 @@ class DecoderBufferedOutput(unittest.TestCase):
         # Rebase only external relocations to instrumented stubs. Execute each
         # original/replacement instruction, retaining internal branch bytes.
         assembly = [".text"]
-        for version, sites in (("old", decoder.SITES), ("pinned", decoder.PINNED_SITES)):
+        for version, sites in (
+            ("old", decoder.SITES),
+            ("pinned", decoder.PINNED_SITES),
+            ("current", STAGES["decoder"][2]),
+        ):
             start = sites[1][0] - 0x1A9
             original = sites[1][1]
             targets = {}
@@ -149,11 +154,11 @@ void log_stub(void *m, void *f, int line, void *message, int code) {
   assert(message == (line == 0x127b ? &send_message : &receive_message));
   logs++; saved_code=code; saved_line=line;
 }
-int old_before(int,int), old_after(int,int), pinned_before(int,int), pinned_after(int,int);
+int old_before(int,int), old_after(int,int), pinned_before(int,int), pinned_after(int,int), current_before(int,int), current_after(int,int);
 int main(void) {
-  int (*functions[])(int,int) = {old_before,old_after,pinned_before,pinned_after};
+  int (*functions[])(int,int) = {old_before,old_after,pinned_before,pinned_after,current_before,current_after};
   int values[] = {-11,-1,-22,-12,-541478725,-1094995529};
-  for(int fn=0;fn<4;fn++) for(int recv=0;recv<2;recv++) for(int q=0;q<2;q++)
+  for(int fn=0;fn<6;fn++) for(int recv=0;recv<2;recv++) for(int q=0;q<2;q++)
     for(unsigned v=0;v<sizeof(values)/sizeof(values[0]);v++) {
       errors=cleanups=logs=0; quiet=q;
       int buffered = (fn%2) && recv && values[v]==-11;

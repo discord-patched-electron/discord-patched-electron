@@ -1,5 +1,8 @@
 # Optimized screensharing
 
+See [screensharing features and quality settings](screensharing.md) for codecs,
+automatic AV1 cropping, bitrate behavior and incoming decoder diagnostics.
+
 Open **DPE Settings → Screensharing** and enable **Experimental capture methods**.
 In Discord’s screenshare picker, open **Optimized** to choose an available screen
 or game. Use the regular system picker when an optimized source is unavailable.

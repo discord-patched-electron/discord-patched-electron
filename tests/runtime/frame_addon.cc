@@ -1,6 +1,8 @@
 // Synthetic test frames only; compiled against Discord's pinned public header.
 #include "electron_video_shared.h"
 #include <atomic>
+#include <chrono>
+#include <cmath>
 #include <dlfcn.h>
 #include <node_api.h>
 #include <string>
@@ -20,18 +22,28 @@ static void Release(void *pointer) {
   released.fetch_add(1);
 }
 static napi_value Push(napi_env env, napi_callback_info info) {
-  napi_value argument, result;
-  size_t count = 1, length = 0;
-  if (napi_get_cb_info(env, info, &count, &argument, nullptr, nullptr) != napi_ok || count != 1 ||
-      napi_get_value_string_utf8(env, argument, nullptr, 0, &length) != napi_ok || length > 256) {
+  napi_value arguments[2], result;
+  size_t count = 2, length = 0;
+  if (napi_get_cb_info(env, info, &count, arguments, nullptr, nullptr) != napi_ok || count < 1 ||
+      napi_get_value_string_utf8(env, arguments[0], nullptr, 0, &length) != napi_ok ||
+      length > 256) {
     napi_throw_type_error(env, nullptr, "Expected a stream identifier");
     return nullptr;
   }
   std::vector<char> id(length + 1);
-  napi_get_value_string_utf8(env, argument, id.data(), id.size(), &length);
+  napi_get_value_string_utf8(env, arguments[0], id.data(), id.size(), &length);
+  double timestamp = 0;
+  if (count == 2 &&
+      (napi_get_value_double(env, arguments[1], &timestamp) != napi_ok ||
+       !std::isfinite(timestamp) || timestamp < 0 || timestamp > 9007199254740991.0)) {
+    napi_throw_type_error(env, nullptr, "Expected a nonnegative microsecond presentation time");
+    return nullptr;
+  }
   auto *payload = new Payload();
   DiscordFrame frame{};
-  frame.timestamp_us = static_cast<int64_t>(sent.fetch_add(1)) * 33333;
+  const uint32_t sequence = sent.fetch_add(1);
+  frame.timestamp_us =
+      count == 2 ? static_cast<int64_t>(timestamp) : static_cast<int64_t>(sequence) * 33333;
   frame.frame.yuv = {payload->y.data(), payload->u.data(), payload->v.data(), 64, 32, 32};
   frame.width = 64;
   frame.height = 48;
@@ -39,6 +51,14 @@ static napi_value Push(napi_env env, napi_callback_info info) {
   frame.rotation = discord::media::electron::kRotation0;
   deliver(id.data(), frame, Release, payload);
   napi_get_undefined(env, &result);
+  return result;
+}
+static napi_value Clock(napi_env env, napi_callback_info info) {
+  napi_value result;
+  const auto now = std::chrono::duration_cast<std::chrono::microseconds>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                       .count();
+  napi_create_double(env, static_cast<double>(now), &result);
   return result;
 }
 static napi_value Counts(napi_env env, napi_callback_info info) {
@@ -58,8 +78,9 @@ static napi_value Initialize(napi_env env, napi_value exports) {
   }
   napi_property_descriptor descriptors[] = {
       {"push", nullptr, Push, nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"clock", nullptr, Clock, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"counts", nullptr, Counts, nullptr, nullptr, nullptr, napi_default, nullptr}};
-  napi_define_properties(env, exports, 2, descriptors);
+  napi_define_properties(env, exports, 3, descriptors);
   return exports;
 }
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Initialize)

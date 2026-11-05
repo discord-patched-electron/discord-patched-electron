@@ -94,6 +94,7 @@ function createTracker({
     const width = active.length === 1 && up?.activeStreams === 1 ? up.width : 0;
     const height = active.length === 1 && up?.activeStreams === 1 ? up.height : 0;
     const key = `${width || 0}x${height || 0}`;
+    if (!active.length) pendingSource = "";
     if (key === sourceKey) return;
     if (active.length && pendingSource !== key) {
       pendingSource = key;
@@ -103,7 +104,7 @@ function createTracker({
     if (typeof window !== "undefined" && typeof CustomEvent === "function")
       window.dispatchEvent(
         new CustomEvent("dpe-video-source-size", {
-          detail: { width: width || 0, height: height || 0 },
+          detail: JSON.stringify({ width: width || 0, height: height || 0 }),
         }),
       );
   }

@@ -43,6 +43,7 @@ test("screenshare preferences default safely and reject unavailable methods", as
     captureMethod: "auto",
     capturePacing: true,
     experimentalCapture: false,
+    preserveViewerBitrate: false,
     excludedCodecs: [],
   });
   const f = fixture();
@@ -61,6 +62,10 @@ test("screenshare preferences default safely and reject unavailable methods", as
   assert.equal(state.screensharing.capturePacing, false);
   assert.equal(state.css, "keep");
   assert.equal(state.desktop.webcamFlip, true);
+  await f.api.save(store, { preserveViewerBitrate: true });
+  assert.equal(state.screensharing.preserveViewerBitrate, true);
+  await f.api.save(store, { preserveViewerBitrate: false });
+  assert.equal(state.screensharing.preserveViewerBitrate, false);
   const previous = state;
   fail = true;
   await assert.rejects(f.api.save(store, { capturePacing: true }), /disk full/);
@@ -69,6 +74,7 @@ test("screenshare preferences default safely and reject unavailable methods", as
   for (const patch of [
     { captureMethod: "invalid" },
     { capturePacing: 1 },
+    { preserveViewerBitrate: "true" },
     { experimentalCapture: "true" },
     { excludedCodecs: "AV1" },
     { excludedCodecs: ["unknown"] },

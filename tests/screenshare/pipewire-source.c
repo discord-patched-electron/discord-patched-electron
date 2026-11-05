@@ -46,7 +46,8 @@ struct source {
   unsigned sync_delay_ms;
 #ifdef DPE_SOURCE_DMABUF
   struct gpu_source *gpu;
-  struct pw_buffer *pending, *release_pending;
+  struct pw_buffer *pending, *release_pending[16];
+  unsigned release_pending_count;
   struct spa_source *sync_timer;
   int drm_fd;
   uint32_t pending_stamp, pending_sequence;
@@ -99,8 +100,11 @@ static void add_buffer(void *opaque, struct pw_buffer *pw) {
 }
 static void remove_buffer(void *opaque, struct pw_buffer *pw) {
   struct source *source = opaque;
-  if (source->release_pending == pw)
-    source->release_pending = NULL;
+  for (unsigned i = 0; i < source->release_pending_count;)
+    if (source->release_pending[i] == pw)
+      source->release_pending[i] = source->release_pending[--source->release_pending_count];
+    else
+      i++;
   if (source->pending == pw) {
     source->pending = NULL;
     if (source->sync_timer)
@@ -164,6 +168,49 @@ static void delayed_render(void *opaque, uint64_t expirations) {
                                  source->pending_sequence, completed, source) < 0)
     fail(source, "Delayed GPU rendering failed");
 }
+static bool reusable(struct source *source, struct pw_buffer *pw) {
+  struct source_buffer *owned = pw->user_data;
+  if (!source->sync_timeline || !owned || !owned->release)
+    return true;
+  int result = drmSyncobjTimelineWait(
+      source->drm_fd, &owned->timeline, &owned->release, 1, 0,
+      DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL | DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT, NULL);
+  if (!result) {
+    source->sync_released++;
+    return true;
+  }
+  if (result != -ETIME && errno != ETIME)
+    fail(source, "Release timeline check failed");
+  source->sync_waits++;
+  return false;
+}
+static struct pw_buffer *dequeue_gpu_buffer(struct source *source) {
+  // A consumer can retain its latest frame until the next frame arrives. Keep
+  // unreleased leases, but try other buffers rather than blocking production
+  // behind the first lease. Mutter likewise searches its dequeued buffer list.
+  for (unsigned i = 0; i < source->release_pending_count; i++) {
+    struct pw_buffer *pw = source->release_pending[i];
+    if (reusable(source, pw)) {
+      source->release_pending[i] = source->release_pending[--source->release_pending_count];
+      return pw;
+    }
+    if (source->failed)
+      return NULL;
+  }
+  struct pw_buffer *pw;
+  while ((pw = pw_stream_dequeue_buffer(source->stream))) {
+    if (reusable(source, pw))
+      return pw;
+    if (source->failed)
+      return NULL;
+    if (source->release_pending_count == 16) {
+      fail(source, "Release inventory exceeded negotiated buffer bound");
+      return NULL;
+    }
+    source->release_pending[source->release_pending_count++] = pw;
+  }
+  return NULL;
+}
 #endif
 static void process(void *opaque) {
   struct source *source = opaque;
@@ -173,9 +220,9 @@ static void process(void *opaque) {
 #endif
   struct pw_buffer *pw;
 #ifdef DPE_SOURCE_DMABUF
-  pw = source->release_pending;
-  source->release_pending = NULL;
-  if (!pw)
+  if (source->dmabuf)
+    pw = dequeue_gpu_buffer(source);
+  else
 #endif
     pw = pw_stream_dequeue_buffer(source->stream);
   if (!pw)
@@ -192,22 +239,6 @@ static void process(void *opaque) {
     if (!owned) {
       fail(source, "Missing DMA-BUF ownership");
       return;
-    }
-    if (source->sync_timeline && owned->release) {
-      int result = drmSyncobjTimelineWait(source->drm_fd, &owned->timeline, &owned->release, 1, 0,
-                                          DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL, NULL);
-      if (result) {
-        if (result != -ETIME && errno != ETIME) {
-          fail(source, "Release timeline check failed");
-          return;
-        }
-        source->sync_waits++;
-        // Keep ownership until release is signaled; do not depend on the newer
-        // pw_stream_return_buffer API merely to build the ordinary fixture.
-        source->release_pending = pw;
-        return;
-      }
-      source->sync_released++;
     }
     if (!source->started) {
       source->started = true;
@@ -366,6 +397,8 @@ int main(int argc, char **argv) {
         pattern = 4;
       else if (!strcmp(argv[i + 1], "framing"))
         pattern = 5;
+      else if (!strcmp(argv[i + 1], "cuts"))
+        pattern = 7;
       else if (!strcmp(argv[i + 1], "scenes"))
         pattern = 6;
       else if (!strcmp(argv[i + 1], "noise"))

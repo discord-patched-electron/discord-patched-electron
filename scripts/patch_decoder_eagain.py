@@ -1,4 +1,4 @@
-"""Treat buffered FFmpeg decoder output as NO_OUTPUT in two reviewed modules.
+"""Treat buffered FFmpeg decoder output as NO_OUTPUT in reviewed modules.
 
 Apply after the Pulse, HRD and capture-dimension patches. The complete-file
 identities bind the error block, all branch/call targets and packet cleanup.
@@ -11,6 +11,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import native_client_2444
 import patch_capture_chroma as chroma
 
 PATCH = "ffmpeg-decoder-buffered-output-v1"
@@ -58,6 +59,7 @@ SCOPE_BASES = {
 def extend_reviewed(reviewed):
     """Reuse ABI review only for exact independently reviewed final modules."""
     if isinstance(reviewed, set):
+        reviewed.update(native_client_2444.HASHES)
         reviewed.update(digest for digest, base in SCOPE_BASES.items() if base in reviewed)
     else:
         reviewed.update(
@@ -67,6 +69,10 @@ def extend_reviewed(reviewed):
 
 
 def reviewed(digest):
+    current = native_client_2444.reviewed("decoder", digest)
+    if current:
+        before, after, sites = current
+        return before, after, sites
     base = chroma.SCOPE_BASES.get(digest)
     if base in (OUTPUT_SHA256, PINNED_OUTPUT_SHA256):
         return digest, digest, SITES if base == OUTPUT_SHA256 else PINNED_SITES

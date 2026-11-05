@@ -23,7 +23,17 @@ SCOPES = (
 # First matching rule wins. Keep narrow exceptions above directory rules. Anything
 # unlisted (including new shared helpers) gets full coverage until explicitly scoped.
 RULES = (
-    (("README.md", "CONTRIBUTING.md", "AGENTS.md", "docs/*", ".github/*.md"), ()),
+    (
+        (
+            "README.md",
+            "CONTRIBUTING.md",
+            "AGENTS.md",
+            "docs/*",
+            ".github/*.md",
+            "agents/skills/*/SKILL.md",
+        ),
+        (),
+    ),
     (("tests/test_*.py", "tests/mod_fixture.py", "tests/*/*.test.cjs"), ("unit",)),
     (
         (
@@ -120,6 +130,7 @@ RULES = (
             "integration/video/capture-picker.c",
             "integration/video/capture-upstream.c",
             "integration/video/encoder.c",
+            "integration/video/av1-software-crop.c",
             "integration/video/encoder-hevc.c",
             "integration/video/hevc-backend.c",
             "scripts/build_hevc_support.py",
@@ -147,8 +158,11 @@ RULES = (
         (
             "scripts/patch_krisp.py",
             "scripts/patch_vaapi_hrd.py",
+            "scripts/native_client_2444.py",
             "scripts/patch_capture_dimensions.py",
             "scripts/patch_capture_chroma.py",
+            "scripts/patch_presentation_clock.py",
+            "scripts/patch_video_pacing.py",
             "scripts/patch_decoder_eagain.py",
             "scripts/stage_vaapi_hrd_fix.py",
             "integration/video/*",

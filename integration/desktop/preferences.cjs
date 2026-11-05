@@ -12,6 +12,7 @@ const DEFAULTS = Object.freeze({
   popoutHideMembers: true,
   tray: true,
   notificationFlash: true,
+  mediaControls: false,
   appBadge: true,
   badgeOnlyMentions: false,
   startMinimized: false,
@@ -80,8 +81,28 @@ function titlebarCSS(value, popout = false) {
   return hidden.length ? `${hidden.join(",")}{display:none!important}` : "";
 }
 
+// Applied before app readiness in both launcher stages. Keep unrelated feature
+// overrides intact; the dedicated preference owns only desktop media integration.
+function configureMediaControls(commandLine, config) {
+  if (normalize(config).mediaControls) return;
+  const features = new Set(["HardwareMediaKeyHandling", "MediaSessionService"]);
+  const key = (feature) => feature.split(/[:<]/, 1)[0];
+  const enabled = commandLine.getSwitchValue("enable-features").split(",").filter(Boolean);
+  const remaining = enabled.filter((feature) => !features.has(key(feature)));
+  if (remaining.length !== enabled.length) {
+    commandLine.removeSwitch("enable-features");
+    if (remaining.length) commandLine.appendSwitch("enable-features", remaining.join(","));
+  }
+  const disabled = commandLine.getSwitchValue("disable-features").split(",").filter(Boolean);
+  for (const feature of features) {
+    if (!disabled.some((value) => key(value) === feature)) disabled.push(feature);
+  }
+  commandLine.appendSwitch("disable-features", disabled.join(","));
+}
+
 function createController(electron, getConfig, { argv = process.argv } = {}) {
   let values = normalize(getConfig());
+  const startupMediaControls = values.mediaControls;
   const windows = new Map();
   const subscriptions = new Set();
   let tray;
@@ -97,9 +118,11 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
       ...(values.webcamFlip && cameraSupported === false
         ? { error: "Outgoing webcam mirroring is unavailable with this native camera module." }
         : {}),
-      restartRequired: [...windows.values()].some(
-        (state) => state.managed && state.nativeTitlebar !== values.nativeTitlebar,
-      ),
+      restartRequired:
+        startupMediaControls !== values.mediaControls ||
+        [...windows.values()].some(
+          (state) => state.managed && state.nativeTitlebar !== values.nativeTitlebar,
+        ),
     };
   }
   const minimum = (size) => (values.minimumWindowSize ? size : 1);
@@ -437,7 +460,15 @@ function install(electron, { getConfig = storedConfig } = {}) {
   }
   return controller;
 }
-module.exports = { DEFAULTS, normalize, titlebarCSS, webcamCSS, createController, install };
+module.exports = {
+  DEFAULTS,
+  normalize,
+  titlebarCSS,
+  webcamCSS,
+  configureMediaControls,
+  createController,
+  install,
+};
 module.exports.focusPopout = (window, key) => require("./popout.cjs").focusExisting(window, key);
 module.exports.tracePopoutRequest = (details) => require("./popout.cjs").traceRequest(details);
 for (const name of [

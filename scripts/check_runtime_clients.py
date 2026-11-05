@@ -55,7 +55,14 @@ def check_channel(
         else {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[channel]
     )
     result = probe(
-        runtime, executable, directory / "modules", directory / "probe", fixture / "input"
+        runtime,
+        executable,
+        directory / "modules",
+        directory / "probe",
+        fixture / "input",
+        presentation=bool(
+            custom_runtime and expected_version and expected_version.startswith("46.")
+        ),
     )
     if not result["passed"]:
         raise ValueError("Native runtime fixture failed; inspect runtime-report.json")

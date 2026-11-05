@@ -359,7 +359,14 @@ ws.addEventListener("error", () => process.exit(0));
             state["version"] == ".".join(map(str, pinned["full"]["host_version"]))
             and state["modules"] == expected
         )
-        report["passed"] = report["passed"] and report["client_pins_verified"]
+        report["module_api_verified"] = (
+            report.get("page", {}).get("moduleVersions")
+            == {name: item["version"] for name, item in state["modules"].items()}
+            and report.get("page", {}).get("nativeUpdater") is True
+        )
+        report["passed"] = (
+            report["passed"] and report["client_pins_verified"] and report["module_api_verified"]
+        )
     write_json(output / "launch-report.json", report)
     if report["passed"] and not read_only_app:
         manifest = read_json(app / "local-build.json")
@@ -383,6 +390,9 @@ def inspect_discord(websocket: str) -> dict:
       equicordNative:typeof VencordNative!=='undefined',
       equicordRenderer:typeof Vencord!=='undefined'&&!!Vencord.Plugins,
       discordNative:typeof DiscordNative!=='undefined',
+      moduleVersions:globalThis.DiscordNative?.app?.getModuleVersions?.(),
+      nativeUpdater:globalThis.DiscordNative?.nativeModules?.hasUpdater
+        ?? (globalThis.DiscordNative?.nativeModules?.canBootstrapNewUpdater === false),
       modSelfUpdate:globalThis.__DPE_MOD_SELF_UPDATE__
     })"""
     result = cdp(websocket, "Runtime.evaluate", {"expression": expression, "returnByValue": True})

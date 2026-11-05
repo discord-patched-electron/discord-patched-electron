@@ -5,6 +5,7 @@ const path = require("node:path");
 const { drawMarker, FrameMeasurements, distribution } = require("./frame-markers.cjs");
 const { Bottleneck } = require("./network-relay.cjs");
 const { fullPictureEdges } = require("./frame-edges.cjs");
+const { av1Padding } = require("./frame-padding.cjs");
 const root = process.env.DPE_SCREENSHARE_OUTPUT;
 const config = JSON.parse(fs.readFileSync(path.join(root, "config.json"), "utf8"));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -29,6 +30,8 @@ async function run() {
   });
   const drawDurations = [];
   const pictureEdges = { checked: 0, failed: 0 };
+  const padding = { checked: 0, failed: 0, maxValue: 0, maxInterior: 0 };
+  let paddingScope;
   const sourceIntervals = [];
   let phase = "initial";
   let previousDraw = null;
@@ -393,10 +396,35 @@ async function run() {
       stream,
       (imageData) => {
         rendered++;
-        measurements.received(imageData);
+        if (paddingScope === undefined && config.encoder === "av1-vaapi")
+          paddingScope = encoderGuard?.snapshot()?.hardwareScope || "unknown";
+        const layout =
+          config.encoder === "av1-vaapi"
+            ? av1Padding(
+                imageData,
+                config.encode_width || config.width,
+                config.encode_height || config.height,
+                paddingScope,
+              )
+            : null;
+        if (layout) {
+          padding.checked++;
+          padding.maxValue = Math.max(padding.maxValue, layout.maxValue);
+          padding.maxInterior = Math.max(padding.maxInterior, layout.maxInterior);
+          if (!layout.valid) padding.failed++;
+        }
+        const sample = layout
+          ? {
+              width: imageData.width,
+              height: imageData.height,
+              data: imageData.data,
+              contentRect: layout.rect,
+            }
+          : imageData;
+        measurements.received(sample);
         if (config.content_pattern === "framing") {
           pictureEdges.checked++;
-          if (!fullPictureEdges(imageData)) pictureEdges.failed++;
+          if (!fullPictureEdges(sample)) pictureEdges.failed++;
         }
         voice.signalVideoOutputSinkReady(stream);
       },
@@ -610,6 +638,7 @@ async function run() {
     samples,
     measurements: measurements.report(),
     pictureEdges,
+    av1Padding: padding,
     sourceTiming: {
       submittedFrames: frame,
       drawDurationMs: distribution(drawDurations),

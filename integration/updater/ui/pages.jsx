@@ -91,6 +91,17 @@ export function General({ config, desktop }) {
         </section>
       ))}
       <NotificationPreferences model={desktop} />
+      <section class="settings-group" aria-labelledby="media-controls-heading">
+        <h3 class="section-label" id="media-controls-heading">
+          Media
+        </h3>
+        <DesktopSwitch
+          model={desktop}
+          name="mediaControls"
+          label="Desktop media controls"
+          description="Show Discord audio and video in your desktop media player and let media keys control playback. Includes notification and calling sounds, videos and voice messages. Applies next launch."
+        />
+      </section>
       <section class="settings-group" aria-labelledby="webcam-heading">
         <h3 class="section-label" id="webcam-heading">
           Webcam

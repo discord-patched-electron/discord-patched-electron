@@ -1,5 +1,6 @@
 """Review the native encoder C ABI and its three writable linkage slots."""
 
+import hashlib
 import struct
 from pathlib import Path
 
@@ -450,7 +451,88 @@ def scope(module: Path) -> dict:
         result["stream_limit"] = stream_limit_scope(elf)
         result["hevc"] = hevc_scope(elf)
         result["decoder_hardware"] = decoder_scope(elf)
+        result["software_av1_crop"] = software_av1_scope(elf)
         return result
+
+
+def software_av1_scope(elf):
+    """Review both native dav1d wrappers and their public input/output C ABI.
+
+    Configure requests max_frame_delay=1. Decode leaves dav1d timestamps unused
+    and builds RTP/NTP timing separately from EncodedImage. Picture dimensions
+    and planar data use the public dav1d prefix; unref releases its stored ref,
+    whose allocator retains the original allocation, not the caller's view.
+    """
+    table = elf.get_section_by_name(".symtab")
+    prefix = "_ZN6webrtc12_GLOBAL__N_112Dav1dDecoder"
+    suffixes = (
+        "9ConfigureERKNS_12VideoDecoder8SettingsE",
+        "6DecodeERKNS_12EncodedImageEl",
+        "D2Ev",
+        "D0Ev",
+        "7ReleaseEv",
+    )
+    reviewed = (
+        (
+            "3f51ef490ed01ed1ccbb1a0457ebf13f19926b4679d1f742a8d099aafde2d3cb",
+            "50bdad263a44d4a76602d23696c74b86c97cf691122185a03ce9847d73728d53",
+            "1fe58489e3840bb4c9d92f490e978be09b6849bf7f7b21f9b017ef8d0a3427ec",
+            "6866fac36662e89a4cc0067bfd314d02f0ed359f995c1eea65f05178335dfc1d",
+            "1c7d2a2530aa685bdcbac7c9998e11450dc765f973781df78b1ea066ea74e0b3",
+        ),
+        (
+            "042674ece55b8bf08b5fcca00a41eb5c9465297407074869e8edb0ae40de9423",
+            "3cb510cc68e3b5daec3d88f6fd301df02b1d3e9234c8eceb768b6db811d26e94",
+            "6879e91c5020803d9ba0ff029ad1967b8ed408d538044a4a7f1d57d916716e0a",
+            "98ae6a14b3e09634ed190450634604f3f7a3070f630f223ca704ed6d53cf7da4",
+            "59a745f32cc580f7be5baf00d54009d9f27b0000986604d3d635ba812e0af498",
+        ),
+        (
+            "5045d62bb574cbd5a799a2e286d3003f5dce588386dafac56919e299479a3d94",
+            "8c9eeac6cfd72ead23f73b178843449a184690643e77e2e9aef756a9edf91d18",
+            "8560308e230a8b9afe61a1676cc0f113a22bc661e717b9894a0f1d2f85b4cf8f",
+            "5df060f2332ce5f0ea874856878f6b565a21d7bd5fcee7506e0db94a8236fe65",
+            "b3fb1c44a3645a0a12be51e3d0b12174e28a73e8cc4096596ba697fd4d346db7",
+        ),
+    )
+    symbols, codes = [], []
+    for suffix in suffixes:
+        matches = table.get_symbol_by_name(prefix + suffix) or []
+        if not matches and not symbols:
+            return None  # Non-dav1d test fixtures/implementations have no hook.
+        if len(matches) != 1:
+            raise ValueError("Software AV1 decoder symbols differ from review")
+        symbol = matches[0]
+        section = elf.get_section(symbol["st_shndx"])
+        offset = symbol["st_value"] - section["sh_addr"]
+        symbols.append(symbol)
+        codes.append(section.data()[offset : offset + symbol["st_size"]])
+    hashes = tuple(hashlib.sha256(code).hexdigest() for code in codes)
+    if hashes not in reviewed:
+        raise ValueError("Software AV1 decoder ABI differs from review")
+    targets = []
+    for name in ("dav1d_open", "dav1d_send_data", "dav1d_get_picture", "dav1d_close"):
+        matches = table.get_symbol_by_name(name) or []
+        if len(matches) != 1:
+            raise ValueError("Software AV1 public C entry point differs from review")
+        targets.append(matches[0]["st_value"])
+    calls = []
+    for function, offset, role, opcode in (
+        (0, 0x8B, 0, 0xE8),
+        (1, 0xC3, 1, 0xE8),
+        (1, 0x139, 2, 0xE8),
+        (2, 0x13, 3, 0xE9),
+        (3, 0x17, 3, 0xE8),
+        (4, 0xD, 3, 0xE8),
+    ):
+        call = symbols[function]["st_value"] + offset
+        code = codes[function]
+        if code[offset] != opcode or (
+            call + 5 + struct.unpack_from("<i", code, offset + 1)[0] != targets[role]
+        ):
+            raise ValueError("Software AV1 decoder call site differs from review")
+        calls.append(call)
+    return {"abi": 1, "offsets": targets + calls, "function_sha256": list(hashes)}
 
 
 def decoder_scope(elf):

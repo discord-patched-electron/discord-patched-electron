@@ -290,8 +290,9 @@ int gpu_frame_render(struct gpu_frame *frame, uint32_t stamp, uint8_t crc, uint3
   glUniform1ui(gpu->stamp_uniform, stamp);
   glUniform1ui(gpu->crc_uniform, crc);
   glUniform1ui(gpu->sequence_uniform, sequence);
-  glUniform1ui(gpu->pattern_uniform,
-               gpu->pattern == 6 ? ((sequence / 120) % 2 ? 2 : 3) : gpu->pattern);
+  glUniform1ui(gpu->pattern_uniform, gpu->pattern == 6   ? ((sequence / 120) % 2 ? 2 : 3)
+                                     : gpu->pattern == 7 ? ((sequence / 120) % 2 ? 4 : 3)
+                                                         : gpu->pattern);
   glDrawArrays(GL_TRIANGLES, 0, 3);
   if (glGetError() != GL_NO_ERROR)
     return -1;
