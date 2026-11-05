@@ -60,70 +60,13 @@ stays accessible from the taskbar. Start minimized also applies to OS autostart.
 
 ## Screensharing
 
-See the [optimized screensharing guide](optimized-screensharing.md) for game
-launch options, stock hooks and system permission management.
+See [screensharing](screensharing.md) for game setup, direct capture permissions,
+codecs and quality settings.
 
-For an experimental higher screenshare bitrate, launch with
-`DPE_SCREENSHARE_MAX_BITRATE=16000000`. This requests up to 16 Mbps for eligible
-H.264/AV1/HEVC shares that normally use Discord's higher-quality bitrate default. Lower-quality limits
-and congestion control remain active. Server/viewer limits may prevent reaching
-the requested rate. Unset the variable or set it to `0` to restore the default.
-
-HEVC encoding uses supported VA-API hardware. On affected RX 7000 hardware, AV1
-preserves the source pixels without resampling. Mesa's native 1920×1082 path
-adds two black lines below a 1920×1080 source and avoids an extra padding pass.
-Other unaligned sizes use centred padding where this fast path is unavailable.
-DPE's Electron and dav1d software AV1 decoders automatically trim this padding
-using the sender's crop metadata. Unmodified viewers retain the padding.
-
-Enable **Experimental capture methods** in **Screensharing** to add **Optimized**
-as the first tab in Discord's share picker. It lists screens as **Screen 1 (DP-2)**
-and detected Vulkan/OpenGL game-capture sources. Choose a source, then use
-Discord's existing quality, audio and share controls. **Vanilla** keeps the normal
-system picker. Turning experimental capture off restores the original picker;
-the synchronization and latency fixes remain active in both cases.
-
-Optimized application sharing requires vkcapture. Start the game with
-`~/.local/bin/dpe-game-capture -- game-command`, or use
-`~/.local/bin/dpe-game-capture -- %command%` in Steam launch options.
-The stable wrapper follows the installed DPE build. Restart already-running games
-with the wrapper so they appear in the picker.
-Stock OBS vkcapture hooks are hidden while OBS or another application owns their
-capture endpoint. DPE’s bundled hooks use a separate endpoint.
-
-**Allow direct screen capture** requests administrator authorization to enable
-DPE's bundled KMS helper; installing GPU Screen Recorder separately is unnecessary.
-Restricted Electron launches use a desktop user service when available; authorization
-still uses the same administrator prompt and system rule.
-Turning it off asks to uninstall the system rule. Turning experimental capture
-off asks to remove an installed rule too. Cancelling removal keeps capture enabled. This is less isolated than PipeWire's portal:
-other applications running as your Unix user can invoke the permitted helper.
-The installed status describes the rule’s presence. An obsolete or blocked rule
-is reported separately and does not imply direct capture is usable.
-
-DPE Settings shows live capture and outgoing sizes separately. **Preserve bitrate in
-smaller viewer windows** is off by default, keeping Discord’s normal viewer-size
-and zoom adaptation. Turn it on to base bitrate headroom on your source and selected
-quality instead; this can use more bandwidth. Applies to your next screenshare.
-The **Incoming video** section reports each active decoder and its declared
-hardware/software status; unknown decoder status appears as **Not reported**.
-
-**Match capture to the share frame rate** skips excess PipeWire frames before
-processing them. Game capture uses direct GPU buffer sharing when supported,
-with a compatibility copy when export or synchronization is unavailable.
-Screenshare audio controls and **Excluded codecs** are in this tab too. Codec
-exclusions apply to your next outgoing screenshare, leaving camera calls and
-video decoding unchanged. Keep at least one codec enabled that your system and
-viewers support; DPE never silently restores an excluded codec.
-
-During a share, this tab shows the observed capture method, codec, encoder,
-resolution, frame rate and bitrate. Expand the details for skipped frames,
-reported CPU or bandwidth limits, and quality adjustments. Unknown information is shown as
-**Not reported**. The negotiated codec can differ from the requested codec when
-the hardware or viewers require a fallback.
-With no viewers, encoding may not start: DPE shows **Not started** when the native
-statistics confirm zero encoded frames. A negotiated codec alone does not identify
-an active hardware encoder.
+For advanced tests, `DPE_SCREENSHARE_MAX_BITRATE=16000000` requests a 16 Mbps
+ceiling for eligible H.264/AV1/HEVC shares. Values must be above 9,000,000 and at
+most 32,000,000 bits per second. Lower-quality limits, viewer/server limits and
+congestion control still apply. Unset it or use `0` to restore the default.
 
 ## Spelling and tray icons
 

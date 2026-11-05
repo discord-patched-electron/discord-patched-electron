@@ -5,11 +5,21 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 
 > [!WARNING]
 > Experimental. Testing is limited, and bugs are expected.
->
-> Client modifications are against Discord’s Terms of Service.
-> This is the same warning used in [Vencord’s disclaimer](https://github.com/Vendicated/Vencord#disclaimer).
-> Your account could be suspended or terminated. Use the official client if you
-> cannot accept that risk.
+
+From [Vencord’s disclaimer](https://github.com/Vendicated/Vencord#disclaimer), verbatim:
+
+<details>
+<summary>Using Vencord violates Discord's terms of service</summary>
+
+Client modifications are against Discord’s Terms of Service.
+
+However, Discord is pretty indifferent about them and there are no known cases of users getting banned for using client mods! So you should generally be fine as long as you don’t use any plugins that implement abusive behaviour. But no worries, all inbuilt plugins are safe to use!
+
+Regardless, if your account is very important to you and it getting disabled would be a disaster for you, you should probably not use any client mods (not exclusive to Vencord), just to be safe
+
+Additionally, make sure not to post screenshots with Vencord in a server where you might get banned for it
+
+</details>
 
 <br />
 
@@ -81,11 +91,11 @@ and inspect outgoing quality and incoming hardware decoding. See the
 
 - [Appearance, startup and launcher settings](docs/linux-launcher.md)
 - [Screen-share audio and desktop support](docs/wayland-audio.md)
-- [Screensharing features and quality settings](docs/screensharing.md)
-- [Set up optimized game and monitor capture](docs/optimized-screensharing.md)
+- [Screensharing, game capture and direct capture](docs/screensharing.md)
 - [Vencord and Equicord](docs/client-mods.md)
 - [Local development and reusable dev profiles](docs/development.md)
 - [Contributing](CONTRIBUTING.md)
+- [Maintainer guide](docs/agent/README.md)
 
 ## AI usage
 
