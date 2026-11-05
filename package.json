@@ -18,7 +18,8 @@
     "format": "uv run ruff check --fix . && uv run ruff format . && oxfmt --write . && uv run python scripts/check_style.py --fix",
     "test": "bun run test:python && bun run test:js",
     "test:python": "uv run python -m unittest discover -s tests -v",
-    "test:js": "node --test tests/audio/*.test.cjs tests/updater/*.test.cjs tests/discord-ui/*.test.cjs tests/screenshare/*.test.cjs"
+    "test:js": "node --test tests/audio/*.test.cjs tests/updater/*.test.cjs tests/discord-ui/*.test.cjs tests/screenshare/*.test.cjs",
+    "dev": "uv run python scripts/dev.py"
   },
   "packageManager": "bun@1.4.4"
 }
