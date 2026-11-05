@@ -5,7 +5,7 @@
       "at": "2026-11-01T06:47:06.343948+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-05T07:01:29+00:00",
+      "provider_settled_at": "2026-11-05T08:35:34+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -13,13 +13,13 @@
       "at": "2026-11-01T06:54:02.281292+00:00",
       "conclusion": "success",
       "minutes": 960,
-      "provider_settled_at": "2026-11-05T07:01:29+00:00",
+      "provider_settled_at": "2026-11-05T08:35:34+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     }
   },
   "blacksmith_usage": {
-    "at": "2026-11-05T07:01:29+00:00",
+    "at": "2026-11-05T08:35:34+00:00",
     "limit_minutes": 3000,
     "period_start": "2026-11-01T00:00:00+00:00",
     "runner_rate": 8,
@@ -426,7 +426,7 @@
       "reference_run": "41282631878",
       "requested_at": "2026-11-05T07:01:33.998375+00:00",
       "run": "41984133829",
-      "status": "queued"
+      "status": "failure"
     },
     "4ad292f93c782306ff0a64fd894283d59fd678d9842e2365b5b8ec4f5dfa90dd": {
       "channel": "canary",
@@ -3505,5 +3505,5 @@
       "withdrawn_at": null
     }
   ],
-  "security_checked_at": "2026-11-05T07:00:06Z"
+  "security_checked_at": "2026-11-05T08:34:16Z"
 }
