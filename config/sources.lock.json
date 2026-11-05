@@ -158,9 +158,8 @@
       "version": "47.0.0-nightly.20261023"
     },
     "prerelease": {
-      "commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
-      "compatibility": "unverified",
-      "version": "46.0.0-alpha.1"
+      "commit": "c76ee1bdf7fcbe45c16344c607852164c82e2b7b",
+      "version": "46.0.0-alpha.6"
     },
     "stable": {
       "commit": "54f961b44b83e4ece81065ab60a182fd0c38c01e",
