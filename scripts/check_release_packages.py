@@ -60,6 +60,7 @@ def check_bootstrap_archive(bundle, root):
 
 
 def check_appimage(image: Path, expected: dict, channel: str):
+    from appimage import validate_dependencies
     from desktop_identity import desktop_id
 
     with tempfile.TemporaryDirectory(prefix="release-appimage-") as temporary:
@@ -70,6 +71,7 @@ def check_appimage(image: Path, expected: dict, channel: str):
             stdout=subprocess.DEVNULL,
         )
         appdir = Path(temporary) / "squashfs-root"
+        validate_dependencies(appdir)
         bootstrap = appdir / "usr/lib/dpe"
         dependencies = read_json(appdir / "usr/share/dpe-dependencies/build.json")
         if (

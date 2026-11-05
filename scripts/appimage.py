@@ -11,6 +11,37 @@ from pathlib import Path
 from common import ROOT, download, read_json, sha256, write_json
 from desktop_identity import desktop_id
 
+# Shared by dependency generation, packaging and extracted-release validation.
+# No desktop stack may enter the image, even via a transitive dependency.
+HOST_LIBRARIES = re.compile(
+    r"lib(?:pipewire|spa-|pulse|asound|gtk|gdk|glib-|gobject-|gio-|gmodule-|"
+    r"nss|nspr|smime|ssl3|softokn|freebl|notify|secret|cups|fontconfig|freetype|"
+    r"harfbuzz|fribidi|pango|cairo|gbm|drm|GL|EGL|vulkan|wayland|X11|xcb|"
+    r"c\.so|m\.so|pthread|dl\.so|stdc\+\+|gcc_s)|ld-linux"
+)
+
+
+def validate_dependencies(directory: Path):
+    metadata = read_json(directory / "usr/share/dpe-dependencies/build.json")
+    if (
+        metadata.get("schema") != 2
+        or metadata.get("recipe_sha256") != sha256(ROOT / "scripts/stage_appimage_dependencies.sh")
+        or metadata.get("container_sha256") != sha256(ROOT / "ci/appimage/Dockerfile")
+        or metadata.get("tools") != read_json(ROOT / "config/appimage-tools.json")
+    ):
+        raise ValueError("Stale AppImage dependencies; rebuild in a fresh tools directory")
+    for path in directory.rglob("*"):
+        relative = path.relative_to(directory)
+        if (
+            (".so" in path.name and HOST_LIBRARIES.match(path.name))
+            or path.name in ("pipewire-0.3", "spa-0.2", "pipewire", "desktop")
+            or (
+                relative.parent == Path("usr/bin")
+                and path.name not in ("python3", "gpg", "gpgv", "brotli")
+            )
+        ):
+            raise ValueError(f"Host-owned dependency in AppImage: {relative}")
+
 
 def install_tools(directory: Path):
     directory = directory.resolve()
@@ -57,7 +88,7 @@ def install_dependencies(tools: Path):
         write_json(
             staged / "usr/share/dpe-dependencies/build.json",
             {
-                "schema": 1,
+                "schema": 2,
                 "tools": read_json(ROOT / "config/appimage-tools.json"),
                 "recipe_sha256": sha256(ROOT / "scripts/stage_appimage_dependencies.sh"),
                 "container_sha256": sha256(ROOT / "ci/appimage/Dockerfile"),
@@ -65,6 +96,7 @@ def install_dependencies(tools: Path):
                 "bundled_discord_client": False,
             },
         )
+        validate_dependencies(staged)
         staged.rename(destination)
 
 
@@ -93,6 +125,7 @@ def build(app: Path, destination: Path, epoch: int, channel: str, tools: Path):
         or not (tools / "dependencies/usr/share/dpe-dependencies/build.json").is_file()
     ):
         raise ValueError("Install pinned AppImage tools with scripts/appimage.py first")
+    validate_dependencies(tools / "dependencies")
     with tempfile.TemporaryDirectory(prefix="dpe-appimage-") as temporary:
         appdir = Path(temporary) / "DPE.AppDir"
         shutil.copytree(tools / "dependencies", appdir, symlinks=True)

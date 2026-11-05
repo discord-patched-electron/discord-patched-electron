@@ -56,11 +56,13 @@ chmod +x discord-canary-prerelease-patched-electron-bin-x86_64.AppImage
 ./discord-canary-prerelease-patched-electron-bin-x86_64.AppImage
 ```
 
-The AppImage includes Python, GnuPG, Brotli, audio client tools and supporting
-libraries. Electron, Discord and the DPE application still download and update
-through the existing updater. It does not add itself to your app menu. Your host
-still supplies graphics drivers, display libraries, PipeWire services and desktop
-portals. Prefer the native Debian package on Ubuntu for its sandbox policy.
+The AppImage includes Python, GnuPG and Brotli with private helper libraries.
+Electron, Discord and DPE still download and update through the existing updater.
+Your host supplies Electron's desktop libraries (including GTK and NSS), graphics
+drivers, audio libraries, PipeWire client tools, `pactl` and desktop portals.
+Install those with your distribution's package manager; Zenity is optional for
+bootstrap dialogs. The AppImage does not add itself to your app menu. Prefer the
+native Debian package on Ubuntu for its sandbox policy.
 
 If FUSE is unavailable, run it in extraction mode:
 
