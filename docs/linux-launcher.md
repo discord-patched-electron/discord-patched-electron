@@ -155,6 +155,12 @@ appear as comments for the current session.
 
 ## Troubleshooting
 
+For a bug report, open **DPE Settings → Troubleshooting → Export ZIP**. Choose
+where to save available logs, crash summaries and system diagnostics. Private
+information is redacted where possible; raw memory dumps are excluded. Check
+`coverage.json` for subsystem coverage and `manifest.json` for collected files
+and unavailable evidence. Review the archive before sharing.
+
 If a flag makes Discord crash immediately, close it completely and run:
 
 ```sh

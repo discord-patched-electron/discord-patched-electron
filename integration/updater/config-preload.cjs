@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld("Native", {
   trayStatePreset: (state, preset) => ipcRenderer.invoke("dpe-tray-state-preset", state, preset),
   trayChoose: (state) => ipcRenderer.invoke("dpe-tray-choose", state),
   trayReset: (state) => ipcRenderer.invoke("dpe-tray-reset", state),
+  exportLogs: () => ipcRenderer.invoke("dpe-export-logs"),
   openDiagnostic: (name) => ipcRenderer.invoke("dpe-config-diagnostic", name),
   openLink: (name) => ipcRenderer.invoke("dpe-config-open-link", name),
   onTab: (callback) => ipcRenderer.on("dpe-config-tab", (_event, tab) => callback(tab)),

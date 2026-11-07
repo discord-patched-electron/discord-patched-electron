@@ -34,6 +34,35 @@ FAILURES = (
 )
 
 
+_diagnostic_profile = None
+
+
+def diagnostic(stage, **details):
+    if _diagnostic_profile is None:
+        return
+    try:
+        directory = _diagnostic_profile / "logs/dpe"
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        file = directory / "bootstrap-loader.log"
+        if file.exists() and file.lstat().st_size > 2 * 1024 * 1024:
+            file.replace(file.with_name(file.name + ".1"))
+        fd = os.open(
+            file, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600
+        )
+        try:
+            if stat.S_ISREG(os.fstat(fd).st_mode):
+                os.write(
+                    fd,
+                    (json.dumps({"time": time.time(), "stage": stage, **details}) + "\n").encode()[
+                        :16384
+                    ],
+                )
+        finally:
+            os.close(fd)
+    except OSError:
+        pass
+
+
 def read(path):
     value = json.loads(path.read_text())
     if not isinstance(value, dict):
@@ -486,6 +515,7 @@ def installed_launcher(package):
 
 
 def main():
+    global _diagnostic_profile
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path)
     parser.add_argument("--archive", type=Path)
@@ -507,6 +537,8 @@ def main():
             )
         )
     ).resolve()
+    _diagnostic_profile = profile
+    diagnostic("select-application")
     root = cache_root(package, profile)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (root / ".lock").open("a") as lock:
@@ -531,6 +563,7 @@ def main():
     if not args.launch:
         print(app)
         return
+    diagnostic("launch-application", application=str(app))
     environment = {
         **os.environ,
         "DPE_INSTALL_ROOT": str(package),
@@ -551,6 +584,7 @@ def main():
 
 
 def show_error(error):
+    diagnostic("bootstrap-error", error=str(error))
     print(f"Cannot start Discord Patched Electron: {error}", file=sys.stderr)
     if (
         "--launch" in sys.argv[1:]

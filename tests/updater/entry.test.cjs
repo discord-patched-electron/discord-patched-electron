@@ -20,6 +20,7 @@ function fixture({
     exit: (code) => calls.push(["exit", code]),
   });
   function requireModule(name) {
+    if (name === "./diagnostic-log.cjs") return { install() {} };
     if (name === "electron")
       return { app, dialog: { showErrorBox: (...args) => calls.push(["error", ...args]) } };
     if (name === "node:path") return path;

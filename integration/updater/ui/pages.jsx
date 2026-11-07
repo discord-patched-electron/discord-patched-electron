@@ -237,6 +237,23 @@ const diagnostics = [
 export function Diagnostics({ select, active = true }) {
   const [busy, setBusy] = useState();
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const exportLogs = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExported(false);
+    setExportError("");
+    try {
+      const result = await window.Native.exportLogs();
+      setExported(result.canceled ? false : result.filePath);
+    } catch (failure) {
+      setExportError(errorMessage(failure));
+    } finally {
+      setExporting(false);
+    }
+  };
   const open = async (name) => {
     setBusy(name);
     setError("");
@@ -272,6 +289,45 @@ export function Diagnostics({ select, active = true }) {
           to review or reset your changes.
         </p>
       </section>
+      <div class="diagnostic-row">
+        <div>
+          <h3 id="export-logs-label">Logs for bug reports</h3>
+          <p id="export-logs-help" class="hint">
+            Save available Discord, voice and renderer logs, crash summaries and system diagnostics.
+            Private information is redacted where possible; raw memory dumps are excluded. Review
+            before sharing.
+            <span
+              id="export-logs-status"
+              class="dpe-setting-feedback"
+              role="status"
+              hidden={!exporting && !exported}
+            >
+              {exporting
+                ? "Exporting and redacting logs…"
+                : exported
+                  ? `ZIP saved to ${exported}.`
+                  : ""}
+            </span>
+            <span
+              id="export-logs-error"
+              class="dpe-setting-feedback"
+              role="alert"
+              hidden={!exportError}
+            >
+              {exportError}
+            </span>
+          </p>
+        </div>
+        <Button
+          id="export-logs"
+          disabled={exporting}
+          aria-busy={exporting}
+          aria-describedby="export-logs-label export-logs-help"
+          onClick={exportLogs}
+        >
+          Export ZIP
+        </Button>
+      </div>
       <div class="diagnostics-list">
         {diagnostics.map(([name, label, description]) => (
           <div class="diagnostic-row" key={name}>

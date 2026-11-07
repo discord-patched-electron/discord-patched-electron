@@ -181,6 +181,7 @@ function open(tab = "settings", sourceContents, options = {}) {
     if (!Object.hasOwn(links, name)) throw new Error("Unknown project link");
     await shell.openExternal(links[name]);
   });
+  handle("dpe-export-logs", () => require("./export-logs.cjs").exportLogs(window));
   handle("dpe-config-diagnostic", (name) => require("./diagnostics.cjs").open(name));
   handle("dpe-screenshare-load", () => require("./screensharing.cjs").load(settings));
   handle("dpe-screenshare-save", (patch) => require("./screensharing.cjs").save(settings, patch));

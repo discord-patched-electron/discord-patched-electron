@@ -17,6 +17,12 @@ def check(runtime, output, media_cache=None):
         raise ValueError("Choose a fresh output outside the input distribution")
     output.mkdir(parents=True)
     run("cp", "-a", "--reflink=auto", runtime.parent, output / "runtime")
+    resources = output / "runtime/resources"
+    if resources.is_symlink():
+        resources.unlink()
+    elif resources.exists():
+        shutil.rmtree(resources)
+    resources.mkdir()
     fixture = output / "fixture"
     shutil.copytree(ROOT / "tests/launch-settings", fixture)
     run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")

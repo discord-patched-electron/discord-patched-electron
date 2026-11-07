@@ -15,10 +15,13 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from diagnostic_log import event as diagnostic_event
+
 _progress_lock = threading.Lock()
 
 
 def progress(stage: str, label: str, **details):
+    diagnostic_event(stage, label=label, **details)
     if os.environ.get("DPE_UPDATE_PROGRESS") == "1":
         with _progress_lock:
             print(

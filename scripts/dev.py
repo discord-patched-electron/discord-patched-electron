@@ -18,6 +18,15 @@ from pathlib import Path
 from common import ROOT, read_json, sha256, write_json
 
 DEFAULT_HOME = ROOT / "out/dev"
+# Spawned diagnostic workers are editable; updater transaction code stays frozen.
+EDITABLE_DIAGNOSTICS = frozenset(
+    {
+        "integration/updater/export_logs.py",
+        "integration/updater/log_redaction.py",
+        "integration/updater/diagnostic_log.py",
+        "integration/updater/diagnostic_inventory.py",
+    }
+)
 
 
 def name(value: str) -> str:
@@ -58,7 +67,8 @@ def size(root: Path) -> str:
 def editable(path: Path) -> bool:
     relative = path.relative_to(ROOT)
     return relative.parts[0] == "integration" and (
-        path.suffix in (".cjs", ".js", ".jsx", ".css", ".svg", ".html")
+        relative.as_posix() in EDITABLE_DIAGNOSTICS
+        or path.suffix in (".cjs", ".js", ".jsx", ".css", ".svg", ".html")
         or (path.suffix == ".py" and relative.parts[1] in ("audio", "video", "camera", "desktop"))
     )
 
@@ -243,7 +253,7 @@ class Manager:
         print(f"Imported {label}. Original files are unchanged.")
 
     def sync(self, app: Path):
-        """Refresh owned JS/CSS only, without repatching native binaries."""
+        """Refresh supported UI and diagnostic helpers without repatching native binaries."""
         from build_ui import build as build_ui
         from patch_app_audio import SIDECARS
 

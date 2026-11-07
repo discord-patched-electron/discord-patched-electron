@@ -58,6 +58,7 @@ function remember(state) {
 }
 
 function progress(state) {
+  require("./diagnostic-log.cjs").record("mod-progress", state);
   if (!state || typeof state.label !== "string" || state.label.length > 500) return;
   latestProgress = {
     stage: typeof state.stage === "string" ? state.stage.slice(0, 40) : "install",
@@ -84,6 +85,7 @@ function run(action, choice, progress = () => {}) {
       channel,
     ];
     if (choice !== undefined) args.push(choice);
+    require("./diagnostic-log.cjs").record("mod-start", { action, choice });
     const child = spawn("python3", args, {
       env: {
         ...process.env,
@@ -95,8 +97,9 @@ function run(action, choice, progress = () => {}) {
         DPE_UPDATE_PROGRESS: "1",
       },
       detached: true,
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
+    require("./diagnostic-log.cjs").capture(child.stderr, "mod-helper-stderr", { action });
     let pending = "";
     let result;
     const stop = () => {
@@ -136,6 +139,7 @@ function run(action, choice, progress = () => {}) {
       reject(new Error("Could not start mod setup. Check that Python 3 is installed."));
     });
     child.once("close", (code) => {
+      require("./diagnostic-log.cjs").record("mod-finish", { action, code, error: result?.error });
       cleanup();
       if (code !== 0 || !result)
         reject(new Error("Mod setup stopped before finishing. Reopen Mods and try again."));

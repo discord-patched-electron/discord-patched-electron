@@ -61,6 +61,7 @@ function fixture({ installed = "none", probe } = {}) {
   const window = makeWindow();
   const context = {
     require(name) {
+      if (name === "./diagnostic-log.cjs") return { record() {}, install() {}, capture() {} };
       if (name === "node:path") return path;
       if (name === "node:fs")
         return {

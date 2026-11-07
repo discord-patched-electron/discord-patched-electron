@@ -3,6 +3,7 @@ const { app, dialog } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const Module = require("node:module");
+require("./diagnostic-log.cjs").install(app);
 const patches = require("./patches.cjs");
 
 function start() {

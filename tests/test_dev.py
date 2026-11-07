@@ -1,11 +1,15 @@
 """Development storage and profile isolation contracts."""
 
+import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import read_json, write_json
@@ -86,6 +90,71 @@ class DevTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.manager.remove("profiles", "external")
         self.assertTrue(outside.exists())
+
+    def test_sync_stages_export_worker_and_redactor_without_updater_transactions(self):
+        root = Path(self.temporary.name)
+        repository = Path(__file__).resolve().parents[1]
+        source = root / "source"
+        helpers = (
+            "export-logs.cjs",
+            "export_logs.py",
+            "log_redaction.py",
+            "diagnostic_log.py",
+            "diagnostic_inventory.py",
+        )
+        for filename in helpers:
+            target = source / "integration/updater" / filename
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(repository / "integration/updater" / filename, target)
+        (source / "integration/updater/client.py").write_text("must not sync")
+        (source / "integration/updater/future_worker.py").write_text("must not sync")
+        app = self.manager.path("versions", "fixture")
+        app.mkdir()
+        (app / "integration/updater").mkdir(parents=True)
+        (app / "integration/updater/client.py").write_text("frozen")
+        bundle = root / "bundle"
+        bundle.mkdir()
+        for filename in ("config-app.js", "ui-runtime.cjs", "PREACT-LICENSE.txt"):
+            (bundle / filename).write_text("fixture")
+        with (
+            patch("dev.ROOT", source),
+            patch("build_ui.build", return_value=bundle),
+            patch("patch_app_audio.SIDECARS", {}),
+        ):
+            self.manager.sync(app)
+        for filename in helpers:
+            self.assertEqual(
+                (app / "integration/updater" / filename).read_bytes(),
+                (source / "integration/updater" / filename).read_bytes(),
+            )
+        self.assertEqual((app / "integration/updater/client.py").read_text(), "frozen")
+        self.assertFalse((app / "integration/updater/future_worker.py").exists())
+        profile = root / "profile"
+        (profile / "logs").mkdir(parents=True)
+        (profile / "logs/renderer.log").write_text(
+            "renderer error\nAuthorization: Bearer PRIVATE_FIXTURE"
+        )
+        output = root / "export.zip"
+        subprocess.run(
+            [sys.executable, str(app / "integration/updater/export_logs.py"), str(output)],
+            input=json.dumps(
+                {
+                    "profile": str(profile),
+                    "crashPaths": [],
+                    "metadata": {},
+                    "executable": sys.executable,
+                }
+            ),
+            text=True,
+            env={**os.environ, "PATH": ""},
+            check=True,
+            capture_output=True,
+        )
+
+        with zipfile.ZipFile(output) as archive:
+            text = archive.read("profile/logs/renderer.log").decode()
+            self.assertIn("renderer error", text)
+            self.assertNotIn("PRIVATE_FIXTURE", text)
 
     def test_sync_replaces_links_without_mutating_shared_source(self):
         root = Path(self.temporary.name)

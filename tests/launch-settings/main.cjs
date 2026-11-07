@@ -10,6 +10,7 @@ const output = process.env.DPE_SETTINGS_OUTPUT;
 if (!output) throw new Error("A private output directory is required");
 const root = process.env.DPE_APP_ROOT;
 const profile = process.env.DPE_PROFILE_DIR;
+require(path.join(root, "integration/updater/diagnostic-log.cjs")).install(app);
 // Give Mods a real, disposable installation and keep all downloads disabled in this UI probe.
 const fixtureRoot = path.join(output, "app-root");
 fs.mkdirSync(path.join(fixtureRoot, "resources"), { recursive: true });
@@ -130,6 +131,49 @@ async function save() {
   );
 }
 
+async function checkLogExport() {
+  assert.equal(await get('$("export-logs").textContent.trim()'), "Export ZIP");
+  const originalSaveDialog = dialog.showSaveDialog;
+  try {
+    let cancelDialog;
+    dialog.showSaveDialog = () =>
+      new Promise((resolve) => {
+        cancelDialog = resolve;
+      });
+    await click("export-logs");
+    await until(() => get('$("export-logs").disabled'));
+    await assert.rejects(evaluate("window.Native.exportLogs()"), /already running/);
+    cancelDialog({ canceled: true });
+    await until(() => get('!$("export-logs").disabled'));
+    const logDirectory = path.join(profile, "logs");
+    fs.mkdirSync(logDirectory, { recursive: true });
+    fs.writeFileSync(path.join(logDirectory, "renderer.log"), "Synthetic renderer log");
+    await evaluate('console.warn("Synthetic DPE renderer diagnostic")');
+    const exportedZip = path.join(output, "bug-report.zip");
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath: exportedZip });
+    await click("export-logs");
+    await until(() => get('!$("export-logs").disabled'));
+    await evaluate(
+      'document.getElementById("export-logs-status").scrollIntoView({block:"center", behavior:"instant"})',
+    );
+    await capture("troubleshooting-exported");
+    assert.ok(fs.statSync(exportedZip).size > 0);
+    assert.equal(fs.statSync(exportedZip).mode & 0o777, 0o600);
+    assert.equal(await get('$("export-logs-error").hidden'), true);
+    assert.match(await get('$("export-logs-status").textContent'), /ZIP saved to/);
+    dialog.showSaveDialog = async () => {
+      throw new Error("Synthetic export failure");
+    };
+    await click("export-logs");
+    await until(() => get('!$("export-logs").disabled'));
+    assert.match(await get('$("export-logs-error").textContent'), /Synthetic export failure/);
+  } finally {
+    dialog.showSaveDialog = originalSaveDialog;
+  }
+  checks.push(
+    "Bug report export cancels, saves a private ZIP through the real preload and worker, and reports errors",
+  );
+}
 function finish(error) {
   process.env.PATH = originalPath;
   fs.writeFileSync(
@@ -145,6 +189,28 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
+    if (process.env.DPE_SETTINGS_SCOPE === "troubleshooting") {
+      await open();
+      await click("t_troubleshooting");
+      await capture("troubleshooting");
+      window.setSize(480, 720);
+      window.webContents.setZoomFactor(1.5);
+      await until(() => evaluate("innerWidth <= 330"));
+      await evaluate(
+        'document.getElementById("export-logs").focus(); document.getElementById("export-logs").scrollIntoView({block:"center", behavior:"instant"})',
+      );
+      assert.equal(await evaluate("document.activeElement.id"), "export-logs");
+      assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+      await until(() =>
+        evaluate(
+          'document.getElementById("export-logs").getBoundingClientRect().top >= 0 && document.getElementById("export-logs").getBoundingClientRect().bottom <= innerHeight',
+        ),
+      );
+      await capture("troubleshooting-narrow");
+      await checkLogExport();
+      finish();
+      return;
+    }
     if (process.env.DPE_SETTINGS_SCOPE === "capture-picker") {
       await require(path.join(root, "tests/launch-settings/capture-picker.cjs"))({ root, output });
       checks.push(
@@ -1512,6 +1578,7 @@ app
     );
     await click("t_troubleshooting");
     assert.equal(await get('$("troubleshooting-panel").hidden'), false);
+    await checkLogExport();
     await capture("troubleshooting");
     assert.equal(await get('$("flags-panel").hidden'), true);
     assert.equal(await get('$("container").hidden'), true);

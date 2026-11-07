@@ -40,11 +40,12 @@ and shutdown cleanup remain effective.
 - `run VERSION` preserves staged helper sources.
 - `--sync` refreshes once; `--watch` refreshes and restarts after supported edits.
   Supported sources include integration JavaScript/JSX, CSS, SVG, HTML and Python
-  helpers in audio, video, camera and desktop. Check `editable()` and `sync()`
+  helpers in audio, video, camera and desktop, plus the explicitly allowlisted
+  diagnostic collector, redactor, inventory and event logger in updater. Check `editable()` and `sync()`
   for the exact coverage; launcher changes require a new version.
 - Restart ends active calls/streams. Describe it as watch/restart, not in-place
   hot replacement of loaded voice hooks or native modules.
-- Removed sources, updater Python, patch scripts, locks, shaders and native code
+- Removed sources, updater transaction Python, patch scripts, locks, shaders and native code
   require a new version. Do not copy native binaries into a running app or assume
   that a helper restart applies changed native inputs.
 

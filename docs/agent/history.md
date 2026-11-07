@@ -6,6 +6,8 @@ current workflows.
 
 ## Start here
 
+- [Bug report ZIP export and validation](log-export-20261105.md).
+- [Subsystem diagnostic coverage audit](diagnostic-coverage-20261105.md).
 - [Repository skills](../../AGENTS.md#repository-skills): focused implementation
   and validation workflows under `agents/skills/`.
 - [Complete screensharing review and regression fixes](screenshare-review-20261105.md).

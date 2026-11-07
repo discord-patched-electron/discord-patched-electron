@@ -22,9 +22,11 @@ Managed runs use pinned inputs and disable automatic DPE updates.
 | `--sync`  | Refresh helpers once before launch.                                          |
 | Neither   | Run staged helpers unchanged.                                                |
 
-JavaScript/JSX, CSS, SVG, HTML and audio/video/camera/desktop Python helpers can
-refresh. Native code, shaders, patch scripts, updater Python, launcher changes,
-changed locks and removed sources require a new version.
+JavaScript/JSX, CSS, SVG, HTML, audio/video/camera/desktop Python helpers and the
+diagnostic Python helpers (collector, redactor, inventory and event logger) can
+refresh. Native code, shaders, patch scripts,
+other updater Python, launcher changes, changed locks and removed sources require
+a new version. Restart an already-running manager after changing its sync rules.
 
 Pass Electron arguments after `--`, for example:
 `bun run dev run current --profile x11-test -- --ozone-platform=x11`.
