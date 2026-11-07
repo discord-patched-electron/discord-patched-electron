@@ -41,8 +41,8 @@ Controls also apply to DPE and auxiliary windows, including client-mod windows.
 Native auxiliary windows use a GTK titlebar while individual controls are hidden.
 
 **General → Media → Desktop media controls** lets Discord appear in the desktop
-media player and respond to media keys. It is off by default for all Discord
-media, including notification and calling sounds, videos and voice messages.
+media player and respond to media keys for videos, voice messages and embedded
+players. It is off by default. Notification and calling sounds are excluded.
 Changes apply after restarting Discord; playback inside Discord is unaffected.
 
 **Appearance → Video popouts** controls floating windows, their titlebar, and

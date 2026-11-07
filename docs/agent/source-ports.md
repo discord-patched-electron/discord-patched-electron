@@ -121,3 +121,11 @@ All 16 remaining Discord-modified Electron C++ translation units pass a syntax
 preflight with the generated build's real flags and headers. This check writes
 separate diagnostics; it neither replaces objects nor establishes successful
 linking. See [the preflight evidence](../evidence/remaining-port-preflight.json).
+
+## Electron 46 content-only media controls
+
+The `media-content-only.patch` follow-up filters Discord application sound assets
+from Chromium's desktop media sessions while keeping uploaded and embedded media
+controllable. This follow-up changes the native runtime identity and is currently
+source-only; prior runtime results above do not qualify it. See the
+[policy and validation limits](media-controls-content-20261105.md).

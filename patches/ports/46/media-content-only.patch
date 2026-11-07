@@ -1,0 +1,117 @@
+diff --git a/patches/chromium/.patches b/patches/chromium/.patches
+--- a/patches/chromium/.patches
++++ b/patches/chromium/.patches
+@@ -176,3 +176,4 @@
+ keep_primary_paste_command_line_override.patch
+ allow_per_window_frame_button_visibility.patch
+ check_discord_prefilled_editors.patch
++dpe_media_content_only.patch
+diff --git a/patches/chromium/dpe_media_content_only.patch b/patches/chromium/dpe_media_content_only.patch
+new file mode 100644
+--- /dev/null
++++ b/patches/chromium/dpe_media_content_only.patch
+@@ -0,0 +1,104 @@
++From: DPE maintainers
++Subject: Exclude Discord application sounds from desktop media sessions
++
++diff --git a/third_party/blink/renderer/platform/media/dpe_media_session_policy.h b/third_party/blink/renderer/platform/media/dpe_media_session_policy.h
++new file mode 100644
++--- /dev/null
+++++ b/third_party/blink/renderer/platform/media/dpe_media_session_policy.h
++@@ -0,0 +1,24 @@
+++// Discord UI sounds are static application assets. Uploaded media and embeds
+++// retain Chromium's normal media sessions, regardless of their duration.
+++#ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_MEDIA_DPE_MEDIA_SESSION_POLICY_H_
+++#define THIRD_PARTY_BLINK_RENDERER_PLATFORM_MEDIA_DPE_MEDIA_SESSION_POLICY_H_
+++
+++#include <string_view>
+++
+++namespace blink {
+++constexpr bool DpeIsApplicationSound(std::string_view scheme,
+++                                     std::string_view host,
+++                                     std::string_view path,
+++                                     bool has_video) {
+++  if (has_video || scheme != "https")
+++    return false;
+++  const bool discord_host =
+++      host == "discord.com" || host == "canary.discord.com" ||
+++      host == "ptb.discord.com" || host == "cdn.discordapp.com" ||
+++      host == "cdn.discordapp.net" || host == "static.discord.com";
+++  return discord_host && (path.starts_with("/assets/") ||
+++                          path.starts_with("/sounds/"));
+++}
+++}  // namespace blink
+++
+++#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_MEDIA_DPE_MEDIA_SESSION_POLICY_H_
++diff --git a/third_party/blink/renderer/platform/media/BUILD.gn b/third_party/blink/renderer/platform/media/BUILD.gn
++--- a/third_party/blink/renderer/platform/media/BUILD.gn
+++++ b/third_party/blink/renderer/platform/media/BUILD.gn
++@@ -77,6 +77,7 @@
++     "web_encrypted_media_client_impl.cc",
++     "web_media_player_builder.cc",
++     "web_media_player_impl.cc",
+++    "dpe_media_session_policy.h",
++     "web_media_player_impl.h",
++     "web_media_source_impl.cc",
++     "web_media_source_impl.h",
++diff --git a/third_party/blink/renderer/platform/media/web_media_player_impl.cc b/third_party/blink/renderer/platform/media/web_media_player_impl.cc
++--- a/third_party/blink/renderer/platform/media/web_media_player_impl.cc
+++++ b/third_party/blink/renderer/platform/media/web_media_player_impl.cc
++@@ -12,6 +12,8 @@
++ #include <string>
++ #include <string_view>
++ #include <utility>
+++
+++#include "third_party/blink/renderer/platform/media/dpe_media_session_policy.h"
++ 
++ #include "base/check.h"
++ #include "base/command_line.h"
++@@ -3225,8 +3227,8 @@
++     case DelegateState::PLAYING: {
++       // When delegate get PlayerGone it removes all state, need to make sure
++       // it is up-to-date before calling DidPlay.
++-      delegate_->DidMediaMetadataChange(delegate_id_, delegate_has_audio_,
++-                                        HasVideo(), GetMediaContentType());
+++      delegate_->DidMediaMetadataChange(delegate_id_, HasMediaSessionAudio(),
+++                                        HasVideo(), media::MediaContentType::kPersistent);
++       if (HasVideo())
++         client_->DidPlayerSizeChange(NaturalSize());
++       client_->DidPlayerStartPlaying();
++@@ -4128,6 +4130,15 @@
++   return demuxer_manager_->GetDataSourceUrlAfterRedirects().value_or(GURL());
++ }
++ 
+++bool WebMediaPlayerImpl::HasMediaSessionAudio() {
+++  // Only the browser delegate loses audio metadata. The renderer and audio
+++  // pipeline retain the real tracks, volume, routing and background playback.
+++  const GURL source = GetSrcAfterRedirects();
+++  return delegate_has_audio_ &&
+++         !DpeIsApplicationSound(source.scheme(), source.host(), source.path(),
+++                                HasVideo());
+++}
+++
++ bool WebMediaPlayerImpl::HasUnmutedAudio() const {
++   // Pretend that the media has no audio if it never played unmuted. This is to
++   // avoid any action related to audible media such as taking audio focus or
++@@ -4240,8 +4251,8 @@
++       pipeline_metadata_.video_decoder_config.codec(), content_type,
++       is_encrypted_media);
++ 
++-  delegate_->DidMediaMetadataChange(delegate_id_, delegate_has_audio_,
++-                                    HasVideo(), content_type);
+++  delegate_->DidMediaMetadataChange(delegate_id_, HasMediaSessionAudio(),
+++                                    HasVideo(), media::MediaContentType::kPersistent);
++ }
++ 
++ }  // namespace blink
++diff --git a/third_party/blink/renderer/platform/media/web_media_player_impl.h b/third_party/blink/renderer/platform/media/web_media_player_impl.h
++--- a/third_party/blink/renderer/platform/media/web_media_player_impl.h
+++++ b/third_party/blink/renderer/platform/media/web_media_player_impl.h
++@@ -727,6 +727,7 @@
++ 
++   // Returns whether the player has an audio track and whether it should be
++   // allowed to play it.
+++  bool HasMediaSessionAudio();
++   bool HasUnmutedAudio() const;
++ 
++ 

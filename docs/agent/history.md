@@ -42,6 +42,7 @@ current workflows.
 
 - [Native AMD AV1 two-row padding and the 1082 fast path](native-av1-two-row-padding-20261105.md)
 
+- [Content-only desktop media controls](media-controls-content-20261105.md)
 - [Default-off desktop media controls](desktop-media-controls-20261105.md)
 
 - [Automatic AV1 source-rectangle cropping and compatibility checks](automatic-av1-crop-20261105.md)

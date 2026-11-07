@@ -99,7 +99,7 @@ export function General({ config, desktop }) {
           model={desktop}
           name="mediaControls"
           label="Desktop media controls"
-          description="Show Discord audio and video in your desktop media player and let media keys control playback. Includes notification and calling sounds, videos and voice messages. Applies next launch."
+          description="Show videos, voice messages and embedded players in your desktop media player and control playback with media keys. Notification and calling sounds are excluded. Applies next launch."
         />
       </section>
       <section class="settings-group" aria-labelledby="webcam-heading">
