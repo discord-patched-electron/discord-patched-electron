@@ -90,7 +90,7 @@ class CapturePicker(unittest.TestCase):
                     "-Werror",
                     "-fsanitize=address,undefined",
                     "-fno-omit-frame-pointer",
-                    "-I/usr/include/node",
+                    "-I" + str(node_headers()),
                     str(ROOT / "tests/screenshare" / source),
                     str(rust),
                     "-Wl,--gc-sections",

@@ -14,9 +14,25 @@ use std::{
     ffi::{CStr, c_char, c_void},
     ptr::{self, NonNull},
     rc::Rc,
-    sync::Once,
+    sync::{Once, OnceLock},
 };
 type Result<T> = std::result::Result<T, &'static str>;
+type ReturnBuffer = unsafe extern "C" fn(*mut f::pw_stream, *mut f::pw_buffer) -> i32;
+fn return_buffer() -> Option<ReturnBuffer> {
+    static FUNCTION: OnceLock<Option<ReturnBuffer>> = OnceLock::new();
+    *FUNCTION.get_or_init(|| {
+        // SAFETY: this optional public function has a stable stream/buffer ABI.
+        // The linked PipeWire library stays loaded for the life of the process.
+        let symbol =
+            unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"pw_stream_return_buffer".as_ptr()) };
+        if symbol.is_null() {
+            None
+        } else {
+            // SAFETY: the exact public symbol above has this documented signature.
+            Some(unsafe { std::mem::transmute::<*mut c_void, ReturnBuffer>(symbol) })
+        }
+    })
+}
 type Iterate = unsafe extern "C" fn(*mut c_void, i32) -> i32;
 type GetFd = unsafe extern "C" fn(*mut c_void) -> i32;
 type Enter = unsafe extern "C" fn(*mut c_void);
@@ -285,6 +301,7 @@ struct Events<T> {
     core_listener: UnsafeCell<f::spa_hook>,
     values: RefCell<VecDeque<Event<T>>>,
     buffers: RefCell<HashMap<usize, Buffer<T>>>,
+    unused: RefCell<Vec<Buffer<T>>>,
     maximum: usize,
     serial: Cell<u64>,
     process: Cell<bool>,
@@ -302,6 +319,7 @@ impl<T> Events<T> {
             core_listener: UnsafeCell::new(f::spa_hook::default()),
             values: RefCell::new(VecDeque::with_capacity(32)),
             buffers: RefCell::new(HashMap::with_capacity(maximum)),
+            unused: RefCell::new(Vec::with_capacity(maximum)),
             maximum,
             serial: Cell::new(0),
             process: Cell::new(false),
@@ -329,6 +347,7 @@ impl<T> Events<T> {
         for buffer in self.buffers.borrow_mut().drain().map(|(_, buffer)| buffer) {
             buffer.0.native.set(ptr::null_mut());
         }
+        self.unused.borrow_mut().clear();
     }
     fn pop(&self) -> Option<Event<T>> {
         if let Some(failure) = self.failure.get()
@@ -370,6 +389,31 @@ impl<T> Events<T> {
             return Err("PipeWire buffer was not dequeued");
         }
         Ok(pointer)
+    }
+    fn owns(&self, buffer: &Buffer<T>) -> bool {
+        let pointer = buffer.0.native.get();
+        !pointer.is_null()
+            && self
+                .buffers
+                .borrow()
+                .get(&(pointer as usize))
+                .is_some_and(|owned| Rc::ptr_eq(&owned.0, &buffer.0))
+    }
+    fn recycle_unused(&self, buffer: &Buffer<T>) -> Result<()> {
+        self.returning(buffer)?;
+        let mut unused = self.unused.borrow_mut();
+        unused.retain(|buffer| self.owns(buffer));
+        // Every retained token is unique and belongs to the bounded live registry.
+        unused.push(buffer.clone());
+        Ok(())
+    }
+    fn checkout_unused(&self) -> Result<Option<Buffer<T>>> {
+        while let Some(buffer) = self.unused.borrow_mut().pop() {
+            if self.owns(&buffer) {
+                return self.checkout(buffer.0.native.get()).map(Some);
+            }
+        }
+        Ok(None)
     }
 }
 unsafe extern "C" fn state_changed<T: 'static>(
@@ -516,6 +560,10 @@ unsafe extern "C" fn removed<T: 'static>(data: *mut c_void, native: *mut f::pw_b
     let buffer = state.buffers.borrow_mut().remove(&(native as usize));
     if let Some(buffer) = buffer {
         buffer.0.native.set(ptr::null_mut());
+        state
+            .unused
+            .borrow_mut()
+            .retain(|cached| !Rc::ptr_eq(&cached.0, &buffer.0));
         state.push(Event::Removed(buffer.serial()));
     }
 }
@@ -786,11 +834,10 @@ impl<T: 'static> Driver<T> {
         // SAFETY: scalar query on this retained thread-confined stream.
         unsafe { f::pw_stream_is_driving(self.stream()) }
     }
-    pub fn lazy(&self) -> bool {
-        // SAFETY: scalar query on this retained thread-confined stream.
-        unsafe { f::pw_stream_is_lazy(self.stream()) }
-    }
     pub fn dequeue(&self) -> Result<Option<Buffer<T>>> {
+        if let Some(buffer) = self.events.checkout_unused()? {
+            return Ok(Some(buffer));
+        }
         // SAFETY: no RT_PROCESS flag; dequeue/queue is serialized on this loop.
         let pointer = unsafe { f::pw_stream_dequeue_buffer(self.stream()) };
         if pointer.is_null() {
@@ -802,6 +849,11 @@ impl<T: 'static> Driver<T> {
         self.return_or_queue(buffer, false)
     }
     pub fn return_unused(&self, buffer: &Buffer<T>) -> Result<()> {
+        if return_buffer().is_none() {
+            // Older PipeWire cannot return an unused producer buffer. Retain its
+            // Rust token for the next dequeue; never publish an empty/stale frame.
+            return self.events.recycle_unused(buffer);
+        }
         self.return_or_queue(buffer, true)
     }
     fn return_or_queue(&self, buffer: &Buffer<T>, unused: bool) -> Result<()> {
@@ -810,7 +862,7 @@ impl<T: 'static> Driver<T> {
         // borrow remains during the native call or its synchronous callbacks.
         let result = unsafe {
             if unused {
-                f::pw_stream_return_buffer(self.stream(), pointer)
+                return_buffer().ok_or("PipeWire buffer return unavailable")?(self.stream(), pointer)
             } else {
                 f::pw_stream_queue_buffer(self.stream(), pointer)
             }
@@ -1077,6 +1129,41 @@ mod tests {
             assert!(state.buffers.borrow().is_empty());
             assert!(state.pop().is_none());
         }
+    }
+    #[test]
+    fn legacy_unused_buffers_are_reused_once_and_retired_before_new_admission() {
+        let state = Events::new(1, Box::new(|_, _| Ok(())));
+        let mut spa = f::spa_buffer::default();
+        let mut native = f::pw_buffer {
+            buffer: &mut spa,
+            ..Default::default()
+        };
+        // SAFETY: complete synthetic storage outlives the owner and all callbacks.
+        unsafe {
+            added::<()>((&raw const state).cast_mut().cast(), &mut native);
+        }
+        drop(state.pop());
+        let buffer = state.checkout(&mut native).unwrap();
+        state.recycle_unused(&buffer).unwrap();
+        assert!(state.recycle_unused(&buffer).is_err());
+        let reused = state.checkout_unused().unwrap().unwrap();
+        assert_eq!(buffer.serial(), reused.serial());
+        assert!(state.checkout_unused().unwrap().is_none());
+        state.recycle_unused(&reused).unwrap();
+        drop((buffer, reused));
+        // SAFETY: removal invalidates the same registered synthetic allocation.
+        unsafe {
+            removed::<()>((&raw const state).cast_mut().cast(), &mut native);
+        }
+        assert!(state.unused.borrow().is_empty());
+        assert_eq!(state.resident.get(), 0);
+        // SAFETY: its storage is still valid and may be registered with a fresh serial.
+        unsafe {
+            added::<()>((&raw const state).cast_mut().cast(), &mut native);
+        }
+        assert!(state.failure.get().is_none());
+        state.invalidate();
+        assert!(state.checkout_unused().unwrap().is_none());
     }
     #[test]
     fn checkout_and_return_reject_duplicate_foreign_and_retired_buffer_tokens() {

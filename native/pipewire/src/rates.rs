@@ -427,14 +427,20 @@ mod tests {
     #[test]
     fn initial_mode_never_renegotiates_and_error_streams_are_not_restarted() {
         let mut initial = state(Mode::Initial);
-        let offers = initial.initial(60).unwrap();
-        assert_eq!(initial.preferred, 60);
-        initial.observe(Some(offers[0].format()));
-        assert_eq!(initial.applied, 60);
+        let supported = crate::ffi::DPE_POD_DROP != 0;
+        let offers = initial.initial(60);
+        assert_eq!(offers.is_some(), supported);
+        if let Some(offers) = offers {
+            assert_eq!(initial.preferred, 60);
+            initial.observe(Some(offers[0].format()));
+            assert_eq!(initial.applied, 60);
+        } else {
+            assert_eq!(initial.preferred, 0);
+        }
         assert!(initial.tick(30, 0, false).is_none());
         assert_eq!(
             (initial.totals.changes, initial.totals.initial_preferences),
-            (0, 1)
+            (0, u64::from(supported))
         );
         let mut fixed = State::new(Mode::Initial, vec![offer(0, 60, 1920)]).unwrap();
         assert!(fixed.initial(60).is_none());

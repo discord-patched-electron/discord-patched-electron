@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "../../integration/video/encoder-abi.h"
 #include "../../integration/video/encoder-import-cache.h"
+#include <va/va.h>
 #include <va/va_drmcommon.h>
 #include <va/va_vpp.h>
 #include <libavcodec/avcodec.h>

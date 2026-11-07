@@ -14,6 +14,7 @@ import {
   DesktopError,
   DesktopSwitch,
   NotificationPreferences,
+  LinkPreferences,
   WindowPreferences,
   PopoutPreferences,
 } from "./desktop-preferences.jsx";
@@ -90,6 +91,7 @@ export function General({ config, desktop }) {
           )}
         </section>
       ))}
+      <LinkPreferences model={desktop} />
       <NotificationPreferences model={desktop} />
       <section class="settings-group" aria-labelledby="media-controls-heading">
         <h3 class="section-label" id="media-controls-heading">

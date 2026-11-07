@@ -3,6 +3,7 @@ const { app, dialog } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const Module = require("node:module");
+const links = require("../desktop/links.cjs");
 require("./diagnostic-log.cjs").install(app);
 const patches = require("./patches.cjs");
 
@@ -47,7 +48,8 @@ function start() {
       app.exit(0);
       return;
     }
-    app.on("second-instance", () => {
+    app.on("second-instance", (_event, args) => {
+      links.receive(args);
       const current = mods.activeWindow();
       if (current?.isVisible()) {
         current.show();

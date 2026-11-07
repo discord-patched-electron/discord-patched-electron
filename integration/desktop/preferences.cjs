@@ -1,5 +1,6 @@
 // Native desktop behavior. The paired source transform calls these helpers at
 // Discord's existing integration points; no Electron prototypes are replaced.
+const { execFile } = require("node:child_process");
 const DEFAULTS = Object.freeze({
   nativeTitlebar: false,
   windowControls: true,
@@ -326,6 +327,30 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
     window.setMinimumSize(minimum(width), minimum(height));
   }
 
+  function claimLinks() {
+    if (
+      !electron.app.isDefaultProtocolClient("discord") &&
+      !electron.app.setAsDefaultProtocolClient("discord")
+    )
+      throw new Error("Could not make this app open Discord links.");
+    if (!electron.app.isDefaultProtocolClient("discord"))
+      throw new Error(
+        "Discord link registration did not take effect. Check your default applications.",
+      );
+  }
+
+  function linksElsewhere() {
+    if (electron.app.isDefaultProtocolClient("discord")) return Promise.resolve(false);
+    return new Promise((resolve) =>
+      execFile(
+        "xdg-mime",
+        ["query", "default", "x-scheme-handler/discord"],
+        { timeout: 5000 },
+        (error, stdout) => resolve(Boolean(error) || stdout.trim() !== ""),
+      ),
+    );
+  }
+
   async function apply(next) {
     values = normalize(next);
     const updates = [];
@@ -361,6 +386,9 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
   return {
     status,
     apply,
+    claimLinks,
+    linksDefault: () => electron.app.isDefaultProtocolClient("discord"),
+    linksElsewhere,
     cameraStatus: async (web, value) => {
       if (![...windows.keys()].some((window) => window.webContents === web)) return;
       if (typeof value?.supported !== "boolean" || typeof value?.active !== "boolean") return;
@@ -474,6 +502,9 @@ module.exports.tracePopoutRequest = (details) => require("./popout.cjs").traceRe
 for (const name of [
   "status",
   "apply",
+  "claimLinks",
+  "linksDefault",
+  "linksElsewhere",
   "effectiveControls",
   "subscribeControls",
   "minimum",

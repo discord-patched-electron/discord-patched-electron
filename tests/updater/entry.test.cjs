@@ -20,6 +20,8 @@ function fixture({
     exit: (code) => calls.push(["exit", code]),
   });
   function requireModule(name) {
+    if (name === "../desktop/links.cjs")
+      return { receive: (args) => calls.push(["discord-links", args]) };
     if (name === "./capture-permission.cjs")
       return { maintain: async () => calls.push(["capture-maintain"]) };
     if (name === "./diagnostic-log.cjs") return { install() {} };

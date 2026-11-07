@@ -33,7 +33,12 @@ static const uint32_t DPE_POD_RAW = SPA_MEDIA_SUBTYPE_raw;
 static const uint32_t DPE_POD_SIZE = SPA_FORMAT_VIDEO_size;
 static const uint32_t DPE_POD_RATE = SPA_FORMAT_VIDEO_framerate;
 static const uint32_t DPE_POD_MAX_RATE = SPA_FORMAT_VIDEO_maxFramerate;
+#ifdef SPA_POD_PROP_FLAG_DROP
 static const uint32_t DPE_POD_DROP = SPA_POD_PROP_FLAG_DROP;
+#else
+// Older SPA filters cannot express a preference that disappears when absent.
+static const uint32_t DPE_POD_DROP = 0;
+#endif
 static const uint32_t DPE_POD_RANGE = SPA_CHOICE_Range;
 static const uint32_t DPE_POD_NONE = SPA_CHOICE_None;
 static const uint32_t DPE_POD_ENUM = SPA_CHOICE_Enum;

@@ -6,6 +6,7 @@ hooks, with one build job and no graphics device probe or application launch.
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import tarfile
@@ -16,6 +17,24 @@ from common import ROOT, sha256, write_json
 COMMIT = "8a2c43295fae2ede8ffd382a1581281ceb6153c0"
 ARCHIVE_SHA256 = "7eb948216cef18993b8d7abcd3087a45175e2cdb9255e48e1c6d40e762e3bbd8"
 URL = f"https://codeload.github.com/nowrep/obs-vkcapture/tar.gz/{COMMIT}"
+
+
+def apply_source_patch(directory, patch):
+    # Extracted upstream trees have no index. A parent checkout can otherwise
+    # make git apply silently skip their paths, or resolve a host-only worktree.
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX"}
+    }
+    environment["GIT_CEILING_DIRECTORIES"] = str(directory.resolve().parent)
+    for flags in (["--check"], []):
+        subprocess.run(
+            ["git", "apply", *flags, str(patch.resolve())],
+            cwd=directory,
+            env=environment,
+            check=True,
+        )
 
 
 def check_policy(directory, output):
@@ -56,8 +75,7 @@ def stage(archive, output, *, build=False):
         source.extractall(output, filter="data")
     directory = output / prefix
     patch = ROOT / "patches/capture/vkcapture-copy-rate.patch"
-    subprocess.run(["git", "apply", "--check", str(patch)], cwd=directory, check=True)
-    subprocess.run(["git", "apply", str(patch)], cwd=directory, check=True)
+    apply_source_patch(directory, patch)
     shutil.copy2(ROOT / "integration/video/capture-rate.h", directory / "src/capture-rate.h")
     shutil.copy2(ROOT / "LICENSE", directory / "DPE-RATE-LICENSE")
     report = dict(

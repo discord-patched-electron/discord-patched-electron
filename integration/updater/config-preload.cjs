@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("Native", {
   get: () => ipcRenderer.sendSync("cg"),
   desktopLoad: () => ipcRenderer.invoke("dpe-desktop-load"),
   desktopSave: (patch) => ipcRenderer.invoke("dpe-desktop-save", patch),
+  desktopClaimLinks: () => ipcRenderer.invoke("dpe-desktop-claim-links"),
   screenshareLoad: () => ipcRenderer.invoke("dpe-screenshare-load"),
   screenshareSave: (patch) => ipcRenderer.invoke("dpe-screenshare-save", patch),
   screenshareStatus: () => ipcRenderer.invoke("dpe-screenshare-status"),

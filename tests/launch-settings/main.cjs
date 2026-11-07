@@ -55,8 +55,24 @@ global.settings.save();
 const checks = [];
 // Exercise the IPC and a real opener child process without launching the user's browser.
 const openerDir = path.join(output, "desktop-opener");
+// Never let a settings probe change the user's real protocol associations.
+const protocolState = path.join(output, "discord-protocol.json");
+fs.writeFileSync(protocolState, JSON.stringify({ handler: "other-discord.desktop", fail: false }));
+const protocol = () => JSON.parse(fs.readFileSync(protocolState, "utf8"));
+app.isDefaultProtocolClient = () => protocol().handler === "discord-canary.desktop";
+app.setAsDefaultProtocolClient = () => {
+  const value = protocol();
+  if (value.fail) return false;
+  fs.writeFileSync(protocolState, JSON.stringify({ ...value, handler: "discord-canary.desktop" }));
+  return true;
+};
 const openerLog = path.join(output, "external-links.jsonl");
 fs.mkdirSync(openerDir);
+fs.writeFileSync(
+  path.join(openerDir, "xdg-mime"),
+  `#!/usr/bin/node\nconst fs=require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync(${JSON.stringify(protocolState)},"utf8")).handler);\n`,
+  { mode: 0o755 },
+);
 fs.writeFileSync(
   path.join(openerDir, "xdg-open"),
   `#!/usr/bin/node
@@ -189,6 +205,32 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
+    if (process.env.DPE_SETTINGS_SCOPE === "discord-links") {
+      await open();
+      await click("t_settings");
+      await require(path.join(root, "tests/launch-settings/discord-links.cjs"))({
+        get,
+        click,
+        until,
+        evaluate,
+        capture,
+        window,
+        protocolState,
+        protocol,
+        values,
+        settingsPage,
+        profile,
+        root,
+        setWindow: (value) => {
+          window = value;
+        },
+      });
+      checks.push(
+        "Discord link action, failure, external default changes, narrow layout and Welcome opt-in",
+      );
+      finish();
+      return;
+    }
     if (process.env.DPE_SETTINGS_SCOPE === "troubleshooting") {
       await open();
       await click("t_troubleshooting");

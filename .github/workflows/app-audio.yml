@@ -97,7 +97,7 @@ jobs:
           cp out/app-audio/"${channels[0]}"/*.tar.br "out/wayland-audio/${channels[0]}/manual/"
       - name: Build disposable audio environment
         run: |
-          docker build -t discord-electron-arch-packaging ci/arch
+          docker build -t discord-electron-arch-packaging -f ci/arch/Dockerfile .
           docker build -t discord-electron-audio-fixture ci/audio
       - name: Verify XWayland owner resolution on a private X server
         run: |

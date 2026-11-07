@@ -10,7 +10,7 @@ fn main() {
         .clang_arg("-I/usr/include/libdrm")
         .allowlist_type("dpe_vk_packet|dpe_relay_timeline|spa_buffer|spa_data|spa_data_type|spa_data_flags|spa_video_format|spa_meta|spa_meta_header|spa_chunk|spa_pod|spa_hook|pw_stream|pw_stream_events|pw_core|pw_core_events|pw_core_methods|spa_interface|pw_context|pw_loop|spa_loop_utils_methods|spa_loop_control_methods|sync_file_info")
         .allowlist_function("drm(GetCap|Ioctl|Syncobj.*)")
-        .allowlist_function("pw_(init|main_loop_(new|get_loop|destroy)|context_(new|connect|destroy)|core_disconnect|stream_(new|destroy|add_listener|connect|update_params|get_node_id|get_state|dequeue_buffer|queue_buffer|return_buffer|trigger_process|is_driving|is_lazy)|properties_(new_string|free))")
+        .allowlist_function("pw_(init|main_loop_(new|get_loop|destroy)|context_(new|connect|destroy)|core_disconnect|stream_(new|destroy|add_listener|connect|update_params|get_node_id|get_state|dequeue_buffer|queue_buffer|trigger_process|is_driving)|properties_(new_string|free))")
         .allowlist_var("DRM_.*|SPA_(IO|DATA|VIDEO_FORMAT)_.*|DPE_RELAY_.*|DPE_POD_.*|DPE_STREAM_.*|DPE_PARAM_.*")
         .derive_default(true)
         .generate_comments(false)

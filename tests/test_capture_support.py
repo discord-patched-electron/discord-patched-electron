@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -119,19 +120,45 @@ class CaptureSupport(unittest.TestCase):
                 ],
                 check=True,
             )
-            for mode in ("observe", "latest", "paced"):
-                result = subprocess.run(
+            for supports_return in (False, True):
+                library = directory / ("modern" if supports_return else "legacy")
+                library.mkdir()
+                subprocess.run(
                     [
-                        "node",
-                        str(ROOT / "tests/screenshare/capture-native-check.cjs"),
-                        str(directory),
-                        str(directory / "helper/libdpe-camera-probe.so"),
-                        mode,
+                        "cc",
+                        "-std=c11",
+                        "-fPIC",
+                        "-shared",
+                        "-Wall",
+                        "-Wextra",
+                        "-Werror",
+                        *(["-DDPE_RETURN_BUFFER"] if supports_return else []),
+                        *flags,
+                        str(ROOT / "tests/screenshare/capture-pipewire-fixture.c"),
+                        "-o",
+                        str(library / "libpipewire-0.3.so.0"),
                     ],
-                    capture_output=True,
-                    text=True,
+                    check=True,
                 )
-                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                environment = {
+                    **os.environ,
+                    "LD_LIBRARY_PATH": str(library),
+                }
+                for mode in ("observe", "latest", "paced"):
+                    result = subprocess.run(
+                        [
+                            "node",
+                            str(ROOT / "tests/screenshare/capture-native-check.cjs"),
+                            str(directory),
+                            str(directory / "helper/libdpe-camera-probe.so"),
+                            mode,
+                            "yes" if supports_return else "no",
+                        ],
+                        env=environment,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             delay = directory / "capture-delay.so"
             build_delay_fixture(delay)
             result = subprocess.run(
@@ -141,7 +168,9 @@ class CaptureSupport(unittest.TestCase):
                     str(directory),
                     str(delay),
                     "paced",
+                    "yes",
                 ],
+                env=environment,
                 capture_output=True,
                 text=True,
             )
