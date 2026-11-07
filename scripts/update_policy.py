@@ -72,6 +72,7 @@ def plan(state: dict, policy: dict, sources: dict, now: str) -> dict:
     last_attempt = max(
         [
             good["completed_at"],
+            state.get("last_compiler_attempt_at", good["completed_at"]),
             *[r["at"] for r in state.get("blacksmith_reservations", {}).values()],
         ],
         key=date,
