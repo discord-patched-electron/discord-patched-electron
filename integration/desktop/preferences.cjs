@@ -1,5 +1,6 @@
 // Native desktop behavior. The paired source transform calls these helpers at
 // Discord's existing integration points; no Electron prototypes are replaced.
+const { execFile } = require("node:child_process");
 const DEFAULTS = Object.freeze({
   nativeTitlebar: false,
   windowControls: true,
@@ -12,6 +13,7 @@ const DEFAULTS = Object.freeze({
   appBadge: true,
   badgeOnlyMentions: false,
   startMinimized: false,
+  discordLinks: false,
 });
 
 function normalize(value = {}) {
@@ -239,6 +241,27 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
     window.setMinimumSize(minimum(width), minimum(height));
   }
 
+  function claimLinks() {
+    if (
+      values.discordLinks &&
+      !electron.app.isDefaultProtocolClient("discord") &&
+      !electron.app.setAsDefaultProtocolClient("discord")
+    )
+      throw new Error("Could not make this app open Discord links.");
+  }
+
+  function linksElsewhere() {
+    if (electron.app.isDefaultProtocolClient("discord")) return Promise.resolve(false);
+    return new Promise((resolve) =>
+      execFile(
+        "xdg-mime",
+        ["query", "default", "x-scheme-handler/discord"],
+        { timeout: 5000 },
+        (error, stdout) => resolve(Boolean(error) || stdout.trim() !== ""),
+      ),
+    );
+  }
+
   async function apply(next) {
     values = normalize(next);
     const updates = [];
@@ -271,6 +294,8 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
   return {
     status,
     apply,
+    claimLinks,
+    linksElsewhere,
     effectiveControls,
     subscribeControls,
     observeWindow,
@@ -335,6 +360,8 @@ module.exports = { DEFAULTS, normalize, titlebarCSS, createController, install }
 for (const name of [
   "status",
   "apply",
+  "claimLinks",
+  "linksElsewhere",
   "effectiveControls",
   "subscribeControls",
   "minimum",

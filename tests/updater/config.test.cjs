@@ -109,6 +109,7 @@ function fixture({ wayland = false, ozonePlatform = "", platform = "linux" } = {
           createAuxiliaryWindow: (Window, options) => new Window(options),
           status: () => ({ restartRequired: false }),
           apply: (value) => desktopCalls.push(value),
+          linksElsewhere: async () => false,
         };
       }
       if (name === "./tray.cjs")

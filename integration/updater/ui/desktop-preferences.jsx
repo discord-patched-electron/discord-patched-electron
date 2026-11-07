@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from "preact/hooks";
-import { Button, Switch, errorMessage } from "./primitives.jsx";
+import { Button, InlineBullet, Switch, errorMessage } from "./primitives.jsx";
 
 export function useDesktopPreferences() {
   const [state, setState] = useState();
@@ -26,7 +26,7 @@ export function useDesktopPreferences() {
       current.current = false;
     };
   }, []);
-  const save = async (patch) => {
+  const run = async (request, patch = {}) => {
     if (changing.current || !state) return;
     changing.current = true;
     const previous = state;
@@ -34,7 +34,7 @@ export function useDesktopPreferences() {
     setBusy(true);
     setError("");
     try {
-      const next = await window.Native.desktopSave(patch);
+      const next = await request();
       if (current.current) {
         setState(next);
         setError(next.error || "");
@@ -49,7 +49,50 @@ export function useDesktopPreferences() {
       if (current.current) setBusy(false);
     }
   };
-  return { state, busy, error, load, save };
+  const save = (patch) => run(() => window.Native.desktopSave(patch), patch);
+  const claimLinks = () => run(window.Native.desktopClaimLinks);
+  return { state, busy, error, load, save, claimLinks };
+}
+
+export const discordLinkSwitch = {
+  label: "Open Discord links",
+  description: "Use this app for discord:// links from your browser and other apps.",
+  elsewhere: "Another app opens Discord links right now.",
+};
+
+export function LinkPreferences({ model }) {
+  return (
+    <section class="settings-group" aria-labelledby="desktop-links-heading">
+      <h3 class="section-label" id="desktop-links-heading">
+        Links
+      </h3>
+      <DesktopSwitch
+        model={model}
+        name="discordLinks"
+        {...discordLinkSwitch}
+        description={
+          !model.state?.linksElsewhere ? (
+            discordLinkSwitch.description
+          ) : !model.state.values.discordLinks ? (
+            discordLinkSwitch.elsewhere
+          ) : (
+            <>
+              {discordLinkSwitch.elsewhere}
+              <InlineBullet />
+              <button
+                type="button"
+                class="inline-link"
+                disabled={model.busy}
+                onClick={model.claimLinks}
+              >
+                Use this app
+              </button>
+            </>
+          )
+        }
+      />
+    </section>
+  );
 }
 
 export function DesktopSwitch({ model, name, label, description, disabled = false, checked }) {

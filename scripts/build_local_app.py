@@ -181,7 +181,7 @@ def build(
     desktop_exec = f"/usr/bin/{name}" if portable else f'"{entry}"'
     (output / (desktop_id(channel) + ".desktop")).write_text(
         f"[Desktop Entry]\nType=Application\nName={display_name(channel)}\n"
-        f"Exec={desktop_exec} %U\nIcon={desktop_id(channel)}\nTerminal=false\nCategories=Network;InstantMessaging;\nStartupWMClass={desktop_id(channel)}\n"
+        f"Exec={desktop_exec} %U\nIcon={desktop_id(channel)}\nTerminal=false\nCategories=Network;InstantMessaging;\nMimeType=x-scheme-handler/discord;\nStartupWMClass={desktop_id(channel)}\n"
     )
     (output / "licenses").mkdir()
     for filename in ("LICENSE", "THIRD_PARTY.md"):
