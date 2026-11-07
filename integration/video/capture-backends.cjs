@@ -142,7 +142,11 @@ function install(directory, voice) {
           }
           selections.set(id, { pending: true });
           try {
-            const result = await ipc.invoke("dpe-capture-inline-request", { ...event, fps });
+            const result = await ipc.invoke("dpe-capture-inline-request", {
+              ...event,
+              fps,
+              ...(adapter.directGpu ? { directGpu: true } : {}),
+            });
             if (!selections.has(id)) {
               ipc.send("dpe-capture-event", { ...event, event: "cancelled" });
               return;
@@ -151,6 +155,8 @@ function install(directory, voice) {
               requestId: id,
               method: result.method,
               sourceType: result.sourceType,
+              processIdentity: result.processIdentity,
+              transport: result.transport,
               handoff: result.handoff,
               handoffFallback: result.handoffFallback,
               active: false,
@@ -220,6 +226,7 @@ module.exports = {
     return adapter ? [...available] : [];
   },
   reasons: () => (adapter ? { ...methodReasons } : {}),
+  directSnapshot: () => adapter?.directStats() ?? null,
   snapshot() {
     const active = [...selections.values()].filter((selection) => selection.active);
     return active.length === 1
@@ -227,6 +234,8 @@ module.exports = {
           requestId: active[0].requestId,
           method: active[0].method,
           sourceType: active[0].sourceType,
+          processIdentity: active[0].processIdentity,
+          transport: active[0].transport,
           handoff: active[0].handoff,
           handoffFallback: active[0].handoffFallback,
         }

@@ -264,7 +264,7 @@ module.exports = async function check({
     );
     assert.match(
       await get('$("screenshare-permission-status").textContent'),
-      /Removing system permission, waiting for authentication/,
+      /Removing system permission/,
     );
     permission = { ...permission, reason: "authorization-cancelled" };
     finishRevoke(permission);
@@ -297,6 +297,31 @@ module.exports = async function check({
     assert.equal(await get('$("screenshare-permission-allow").checked'), true);
     assert.match(await get('$("screenshare-permission-status").textContent'), /needs an update/);
     assert.equal(await get('$("screenshare-permission-update").disabled'), false);
+    const allowBeforeUpdate = permissions.allow;
+    let helperUpdates = 0;
+    permission = { ...permission, allowed: true, reason: null };
+    permissions.allow = async () => {
+      helperUpdates++;
+      permission = { ...permission, needsUpdate: false };
+      return permission;
+    };
+    await reload();
+    assert.equal(await get('$("screenshare-permission-update").textContent'), "Update helper");
+    assert.equal(await get('$("screenshare-permission-allow").checked'), true);
+    window.focus();
+    window.webContents.focus();
+    await evaluate('document.getElementById("screenshare-permission-update").focus()');
+    assert.equal(await get('$("screenshare-permission-update").disabled'), false);
+    assert.equal(await get("document.activeElement?.id"), "screenshare-permission-update");
+    for (const type of ["keyDown", "keyUp"])
+      window.webContents.sendInputEvent({ type, keyCode: "Space" });
+    await until(() => helperUpdates === 1);
+    await until(() => get('$("screenshare-permission-update") === null'));
+    await until(() => get('document.activeElement?.id === "screenshare-permission-allow"'));
+    assert.equal(await get('$("screenshare-permission-allow").checked'), true);
+    assert.equal(revokeCalls, 1, "updating a helper preserves the existing permission");
+    await capture("screensharing-helper-updated");
+    permissions.allow = allowBeforeUpdate;
     permission = {
       configured: true,
       allowed: false,
@@ -343,7 +368,8 @@ module.exports = async function check({
       /^'\/.*\/\.local\/bin\/dpe-game-capture' -- %command%$/,
     );
     await click("screenshare-codecs");
-    for (const codec of ["AV1", "H265", "H264", "VP9"]) {
+    assert.equal(await get('$("screenshare-codecs-VP9")'), null);
+    for (const codec of ["AV1", "H265", "H264"]) {
       await click(`screenshare-codecs-${codec}`);
       await until(() => values.openasar.screensharing.excludedCodecs?.includes(codec));
       await until(() => get(`!$("screenshare-codecs-${codec}").disabled`));
@@ -351,7 +377,7 @@ module.exports = async function check({
     assert.equal(await get('$("screenshare-codecs-VP8").disabled'), true);
     assert.equal(await get('$("screenshare-codecs-menu").matches(":popover-open")'), true);
     await capture("screensharing-codec-exclusions");
-    for (const codec of ["AV1", "H265", "H264", "VP9"]) {
+    for (const codec of ["AV1", "H265", "H264"]) {
       await click(`screenshare-codecs-${codec}`);
       await until(() => !values.openasar.screensharing.excludedCodecs?.includes(codec));
       await until(() => get(`!$("screenshare-codecs-${codec}").disabled`));

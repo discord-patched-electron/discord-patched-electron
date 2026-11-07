@@ -1,0 +1,19 @@
+[package]
+name = "dpe-x11"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+dpe-core = { path = "../media-core" }
+libc = "=0.2.191"
+
+[build-dependencies]
+bindgen = "=0.73.2"
+
+[lints]
+workspace = true

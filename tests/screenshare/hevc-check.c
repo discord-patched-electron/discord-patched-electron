@@ -1,215 +1,211 @@
-// Exercise adapter ownership and the reviewed by-value ABI without GPU access.
-#include "../../integration/video/encoder-hevc.c"
+// Exercise the Rust adapter through real ELF linkage and the by-value C ABI.
+#define _GNU_SOURCE
+#include "../../integration/video/encoder-hevc.h"
 #include "../../integration/video/hevc-level.h"
+#include "hevc-fixture.h"
 #include <assert.h>
-
-static unsigned created, destroyed, submitted, leases, linux_drops, cpu_drops, forwarded;
-static bool fail_import, update_entered, finish_update, update_active;
-static pthread_mutex_t test_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t test_condition = PTHREAD_COND_INITIALIZER;
-static uint8_t pixels[384];
-static uint64_t descriptor[13], planes[6];
-static int dma_fd = 123;
-static int fake_handle;
-
-static void encoded(void *context, const struct encoder_frame_meta *meta, uint64_t info,
+#include <dlfcn.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+static int direct_frame, direct_lease;
+static unsigned direct_releases;
+bool dpe_direct_frame_owned(const void *frame) { return frame == &direct_frame; }
+bool dpe_direct_frame_view(void *frame, struct encoder_nv12 *view, void **lease,
+                           const char **node) {
+  if (!dpe_direct_frame_owned(frame))
+    return false;
+  *view = (struct encoder_nv12){
+      .width = 16, .height = 16, .fd = 123, .size = 384, .stride = {16, 16}, .offset = {0, 256}};
+  *lease = &direct_lease;
+  if (node)
+    *node = "/test/renderD128";
+  return true;
+}
+void dpe_direct_frame_release(void *lease) {
+  assert(lease == &direct_lease);
+  direct_releases++;
+}
+static void encoded(void *opaque, const struct encoder_frame_meta *meta, uint64_t info,
                     const uint8_t *data, size_t size, const void *recon) {
-  (void)context;
   (void)meta;
   (void)info;
   (void)data;
   (void)size;
   (void)recon;
+  struct fixture_context *context = opaque;
+  assert(context->reenter && dpe_hevc_owned(context->wrapper));
+  assert(dpe_hevc_update(context->wrapper, (struct encoder_options){.fps = 30}));
+  assert(dpe_hevc_destroy(context->wrapper));
+  assert(!dpe_hevc_owned(context->wrapper));
 }
 static void dropped(void *context, const struct encoder_frame_meta *meta) {
   (void)context;
   (void)meta;
 }
-static void *create(const char *node, struct encoder_session session,
-                    struct encoder_options options, void *context, encoder_encoded_fn callback,
-                    encoder_dropped_fn drop) {
-  assert(!strcmp(node, "/test/renderD128") && (session.codec == 1 || session.codec == 2) &&
-         options.fps == 60);
-  assert(options.dimensions.width == 16 && options.dimensions.height == 16);
-  assert(context == &created && callback == encoded && drop == dropped);
-  created++;
-  return &fake_handle;
-}
-static bool update(void *handle, struct encoder_options options) {
-  assert(handle == &fake_handle && options.fps == 30);
-  pthread_mutex_lock(&test_mutex);
-  update_entered = update_active = true;
-  pthread_cond_broadcast(&test_condition);
-  while (!finish_update)
-    pthread_cond_wait(&test_condition, &test_mutex);
-  update_active = false;
-  pthread_mutex_unlock(&test_mutex);
-  return true;
-}
-static bool i420(void *handle, const struct encoder_frame_meta *meta,
-                 struct encoder_frame_info info, const struct encoder_plane input[3]) {
-  assert(handle == &fake_handle && meta->timestamp == 123456 && info.timestamp_ms == 789);
-  assert(info.idr && info.want_recon && !info.eos && input[0].data == pixels);
-  assert(input[0].stride == 16 && input[0].width == 16 && input[0].height == 16);
-  assert(input[1].stride == 8 && input[1].data == pixels + 256);
-  assert(input[2].stride == 8 && input[2].data == pixels + 320);
-  assert(input[1].width == 8 && input[2].height == 8);
-  submitted++;
-  return true;
-}
-static bool nv12(void *handle, const struct encoder_frame_meta *meta,
-                 struct encoder_frame_info info, const struct encoder_nv12 *view, void *lease,
-                 void (*release_lease)(void *)) {
-  assert(handle == &fake_handle && meta->timestamp == 123456 && info.timestamp_ms == 789);
-  assert(view->width == 16 && view->height == 16 && view->fd == dma_fd && view->size == 384);
-  assert(view->stride[0] == 16 && view->stride[1] == 16 && view->offset[1] == 256);
-  assert(view->modifier == 0);
-  leases++;
-  release_lease(lease);
-  return !fail_import;
-}
-static void destroy(void *handle) {
-  assert(handle == &fake_handle && !update_active);
-  destroyed++;
-}
-static uint32_t vendor(void *handle) {
-  assert(handle == &fake_handle);
-  return 1;
-}
-static void no_probe(void) {}
-static const void *describe(const void *surface) {
-  assert(surface);
-  return descriptor;
-}
-static void drop_linux(void *reference) {
-  assert(*(void **)reference);
-  linux_drops++;
-}
-static void *clone_cpu(void *frame, const uint8_t **data, size_t *size, size_t *sy, size_t *suv,
-                       size_t *u, size_t *v) {
-  assert(frame);
-  *data = pixels;
-  *size = sizeof(pixels);
-  *sy = 16;
-  *suv = 8;
-  *u = 256;
-  *v = 320;
-  return pixels;
-}
-static void drop_cpu(void *lease) {
-  assert(lease == pixels);
-  cpu_drops++;
-}
-static bool native_forward(void *handle, const void *meta, void *frame,
-                           struct encoder_frame_info info) {
-  (void)meta;
-  (void)frame;
-  (void)info;
-  assert(handle != &fake_handle);
-  forwarded++;
-  return true;
-}
-static void *updating(void *unused) {
-  (void)unused;
-  assert(dpe_hevc_update(&fake_handle, (struct encoder_options){.fps = 30}));
+static void *updating(void *opaque) {
+  struct fixture_context *context = opaque;
+  assert(dpe_hevc_update(context->wrapper, (struct encoder_options){.fps = 30}));
   return NULL;
 }
-static void *destroying(void *unused) {
-  (void)unused;
-  assert(dpe_hevc_destroy(&fake_handle));
+static void *destroying(void *opaque) {
+  struct fixture_context *context = opaque;
+  atomic_store(&context->destroy_started, true);
+  assert(dpe_hevc_destroy(context->wrapper));
+  atomic_store(&context->destroy_finished, true);
   return NULL;
 }
-
-int main(void) {
-  assert(dpe_hevc_level(1920, 1080, 30, 9000000) == 120);
-  assert(dpe_hevc_level(1920, 1080, 60, 9000000) == 123);
-  assert(dpe_hevc_level(1920, 1080, 120, 9000000) == 150);
-  assert(dpe_hevc_level(3840, 2160, 60, 9000000) == 153);
-  assert(dpe_hevc_level(3840, 2160, 120, 9000000) == 156);
-  assert(dpe_hevc_level(1920, 1080, 60, 32000000) == 153);
-  assert(!dpe_hevc_level(1920, 1080, 0, 9000000));
-  assert(!dpe_hevc_level(UINT32_MAX, UINT32_MAX, UINT32_MAX, 9000000));
-  static const struct dpe_hevc_api api = {.create = create,
-                                          .update = update,
-                                          .i420 = i420,
-                                          .nv12 = nv12,
-                                          .destroy = destroy,
-                                          .vendor = vendor};
-  backend = &api;
-  installed = 1;
-  strcpy(devices[0], "/test/renderD128");
-  pthread_once(&probe_once, no_probe);
-  surface_descriptor = describe;
-  drop_linux_frame = drop_linux;
-  clone_i420 = clone_cpu;
-  drop_i420 = drop_cpu;
-  original_native = native_forward;
+#define SYMBOL(name, type)                                                                         \
+  type name = (type)dlsym(module, "fixture_" #name);                                               \
+  assert(name)
+int main(int argc, char **argv) {
+  alarm(10);
+  assert(argc == 21);
+  void *module = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
+  assert(module);
+  uint32_t offsets[19];
+  for (unsigned i = 0; i < 19; i++)
+    offsets[i] = strtoul(argv[i + 2], NULL, 10);
+  // All preflight errors must leave every original slot untouched.
+  uint32_t bad[19];
+  memcpy(bad, offsets, sizeof(bad));
+  bad[0] = UINT32_MAX;
+  assert(!dpe_hevc_install(argv[1], bad, NULL, 0));
+  memcpy(bad, offsets, sizeof(bad));
+  bad[15]++;
+  assert(!dpe_hevc_install(argv[1], bad, NULL, 0));
+  assert(dpe_hevc_install(argv[1], offsets, NULL, 0));
+  assert(dpe_hevc_install(argv[1], offsets, NULL, 0));
+  typedef bool (*native_fn)(void *, const void *, void *, struct encoder_frame_info);
+  typedef bool (*cpu_fn)(void *, const void *, struct encoder_frame_info, struct encoder_plane,
+                         struct encoder_plane, struct encoder_plane);
+  typedef uint32_t (*vendor_fn)(void *);
+  typedef bool (*recon_fn)(void *);
+  typedef uint8_t *(*pixels_fn)(void);
+  typedef unsigned *(*counts_fn)(void);
+  typedef void (*descriptor_fn)(const uint64_t *);
+  SYMBOL(native, native_fn);
+  SYMBOL(cpu, cpu_fn);
+  SYMBOL(vendor, vendor_fn);
+  SYMBOL(recon, recon_fn);
+  SYMBOL(pixels, pixels_fn);
+  SYMBOL(counts, counts_fn);
+  SYMBOL(descriptor, descriptor_fn);
+  if (getenv("DPE_FIXTURE_UNAVAILABLE")) {
+    uint64_t stats[6];
+    dpe_hevc_stats(stats);
+    assert(!stats[0] && !dpe_hevc_active());
+    assert(vendor((void *)42) == 2 && recon((void *)42));
+    dlclose(module);
+    return 0;
+  }
+  struct fixture_context context = {.pixels = pixels(),
+                                    .mutex = PTHREAD_MUTEX_INITIALIZER,
+                                    .condition = PTHREAD_COND_INITIALIZER};
   struct encoder_session session = {.codec = 1};
   struct encoder_options options = {.fps = 60, .dimensions = {16, 16}};
   void *handle = NULL;
-  assert(dpe_hevc_create(0, &created, encoded, dropped, &handle, session, options) == -1);
-  assert(!dpe_hevc_create(5, &created, encoded, dropped, NULL, session, options));
-  assert(dpe_hevc_create(5, &created, encoded, dropped, &handle, session, options) == 1);
-  assert(created == 1 && dpe_hevc_owned(handle) && dpe_hevc_active());
-  assert(encoder_vendor(handle) == 1 && !supports_recon(handle));
+  assert(dpe_direct_encoder_create(0, &direct_frame, &context, encoded, dropped, &handle, session,
+                                   options) == 0);
+  assert(dpe_direct_encoder_create(5, &direct_frame, &context, encoded, dropped, &handle, session,
+                                   options) == 1);
+  context.wrapper = handle;
+  assert(dpe_hevc_owned(handle) && dpe_hevc_active() && vendor(handle) == 1 && !recon(handle));
   struct encoder_frame_meta meta = {.width = 16, .height = 16, .timestamp = 123456};
   struct encoder_frame_info info = {.idr = 1, .timestamp_ms = 789, .want_recon = 1};
-  struct encoder_plane y = {pixels, 16, 16, 16}, u = {pixels + 256, 8, 8, 8},
-                       v = {pixels + 320, 8, 8, 8};
-  assert(cpu_frame(handle, &meta, info, y, u, v));
-  uint64_t frame[4] = {0};
-  assert(native_frame(handle, &meta, frame, info));
-  assert(cpu_drops == 1 && submitted == 2);
-  uint64_t arc[4] = {1, 1, 0, 0}, pooled[32] = {0};
+  struct encoder_plane y = {context.pixels, 16, 16, 16}, u = {context.pixels + 256, 8, 8, 8},
+                       v = {context.pixels + 320, 8, 8, 8};
+  assert(cpu(handle, &meta, info, y, u, v));
+  uint64_t frame[4] = {0}, arc[4] = {1, 1, 0, 0}, pooled[32] = {0},
+           planes[6] = {0, 0, 16, 0, 256, 16}, desc[13] = {0};
+  assert(native(handle, &meta, frame, info));
+  assert(counts()[5] == 1 && context.submitted == 2);
   frame[0] = 1;
   frame[1] = (uintptr_t)arc;
   arc[2] = (uintptr_t)pooled;
-  planes[2] = planes[5] = 16;
-  planes[4] = 256;
-  descriptor[1] = (uintptr_t)planes;
-  descriptor[2] = 2;
-  descriptor[3] = 0x3231564e;
-  descriptor[6] = descriptor[7] = 16;
-  descriptor[8] = 384;
-  descriptor[10] = descriptor[12] = 1;
-  descriptor[11] = (uintptr_t)&dma_fd;
-  assert(native_frame(handle, &meta, frame, info));
-  assert(arc[0] == 1 && leases == 1 && linux_drops == 0);
-  fail_import = true;
-  assert(!native_frame(handle, &meta, frame, info));
-  assert(arc[0] == 1 && leases == 2);
-  // Descriptor None must use the native CPU lease, not call a panicking Rust accessor.
+  int fd = 123;
+  desc[1] = (uintptr_t)planes;
+  desc[2] = 2;
+  desc[3] = 0x3231564e;
+  desc[6] = desc[7] = 16;
+  desc[8] = 384;
+  desc[10] = desc[12] = 1;
+  desc[11] = (uintptr_t)&fd;
+  descriptor(desc);
+  assert(native(handle, &meta, frame, info) && arc[0] == 1 && context.leases == 1);
+  context.fail_import = true;
+  assert(!native(handle, &meta, frame, info) && arc[0] == 1 && context.leases == 2);
   pooled[(16 + 0xb0) / 8] = 2;
-  assert(native_frame(handle, &meta, frame, info));
-  assert(cpu_drops == 2 && submitted == 3);
-  release_gpu_frame(arc);
-  assert(arc[0] == 0 && linux_drops == 1);
-  assert(native_frame(&created, &meta, frame, info) && forwarded == 1);
+  assert(native(handle, &meta, frame, info) && counts()[5] == 2 && context.submitted == 3);
+  assert(native((void *)42, &meta, frame, info) && counts()[0] == 1);
+  assert(cpu((void *)42, &meta, info, y, u, v) && counts()[1] == 1);
+  assert(vendor((void *)42) == 2 && recon((void *)42));
   pthread_t first, second;
-  assert(!pthread_create(&first, NULL, updating, NULL));
-  pthread_mutex_lock(&test_mutex);
-  while (!update_entered)
-    pthread_cond_wait(&test_condition, &test_mutex);
-  assert(!pthread_create(&second, NULL, destroying, NULL));
-  finish_update = true;
-  pthread_cond_broadcast(&test_condition);
-  pthread_mutex_unlock(&test_mutex);
+  assert(!pthread_create(&first, NULL, updating, &context));
+  pthread_mutex_lock(&context.mutex);
+  while (!context.update_entered)
+    pthread_cond_wait(&context.condition, &context.mutex);
+  assert(!pthread_create(&second, NULL, destroying, &context));
+  while (!atomic_load(&context.destroy_started)) {
+    struct timespec tick = {.tv_nsec = 1000000};
+    nanosleep(&tick, NULL);
+  }
+  struct timespec pause = {.tv_nsec = 20000000};
+  nanosleep(&pause, NULL);
+  assert(!atomic_load(&context.destroy_finished) && !atomic_load(&context.destroyed));
+  context.finish_update = true;
+  pthread_cond_broadcast(&context.condition);
+  pthread_mutex_unlock(&context.mutex);
   assert(!pthread_join(first, NULL) && !pthread_join(second, NULL));
-  assert(destroyed == 1 && !dpe_hevc_owned(handle) && !dpe_hevc_active());
+  assert(context.destroyed == 1 && !dpe_hevc_owned(handle) && !dpe_hevc_active());
   assert(!dpe_hevc_destroy(handle) && !dpe_hevc_update(handle, options));
+  assert(!native(handle, &meta, frame, info) && !cpu(handle, &meta, info, y, u, v));
+  assert(vendor(handle) == 4 && !recon(handle));
   uint64_t stats[6];
   dpe_hevc_stats(stats);
   assert(stats[0] == 1 && stats[2] == 2 && stats[3] == 3 && stats[4] == 2 && stats[5] == 1);
-  // A distribution may disable patented HEVC while still supporting AV1.
-  // AV1 must not depend on a successful HEVC capability probe.
-  devices[0][0] = 0;
-  strcpy(av1_device, "/test/renderD128");
+  context.fail_import = false;
   session.codec = 2;
-  assert(dpe_hevc_create(5, &created, encoded, dropped, &handle, session, options) == -1);
-  assert(dpe_av1_create(5, &created, encoded, dropped, &handle, session, options) == 1);
-  assert(cpu_frame(handle, &meta, info, y, u, v));
+  assert(dpe_direct_encoder_create(6, &direct_frame, &context, encoded, dropped, &handle, session,
+                                   options) == 1);
+  assert(native(handle, &meta, &direct_frame, info) && direct_releases == 3 &&
+         dpe_direct_encoded_inputs() == 1);
+  assert(!native((void *)42, &meta, &direct_frame, info) && counts()[0] == 1);
+  assert(dpe_hevc_destroy(handle));
   dpe_av1_stats(stats);
-  assert(stats[3] == 1 && stats[2] == 0 && stats[5] == 0);
-  assert(dpe_hevc_destroy(handle) && destroyed == 2 && created == 2);
+  assert(stats[1] == 1 && stats[2] == 1);
+  // Same-thread update and destruction from an encoded callback must finish.
+  session.codec = 1;
+  context.reenter = true;
+  assert(dpe_direct_encoder_create(5, &direct_frame, &context, encoded, dropped, &handle, session,
+                                   options) == 1);
+  context.wrapper = handle;
+  assert(cpu(handle, &meta, info, y, u, v));
+  assert(context.created == 3 && context.destroyed == 3 && !dpe_hevc_active());
+  assert(!dpe_hevc_destroy(handle));
+  void *retired = (void *)(uintptr_t)UINT64_C(0x50e1000000000011);
+  assert(!native((void *)42, &meta, retired, info) && counts()[0] == 1);
+  assert(vendor(retired) == 4 && !recon(retired));
+  // Registry capacity is hard-bounded and rejected creation releases its backend.
+  context.reenter = false;
+  void *bounded[128];
+  for (unsigned i = 0; i < 128; i++) {
+    assert(dpe_direct_encoder_create(5, &direct_frame, &context, encoded, dropped, &bounded[i],
+                                     session, options) == 1);
+    assert(bounded[i] != handle);
+  }
+  void *overflow = (void *)1;
+  assert(!dpe_direct_encoder_create(5, &direct_frame, &context, encoded, dropped, &overflow,
+                                    session, options));
+  assert(!overflow && context.destroyed == 4);
+  for (unsigned i = 0; i < 128; i++)
+    assert(dpe_hevc_destroy(bounded[i]));
+  assert(context.created == 132 && context.destroyed == 132 && !dpe_hevc_active());
+  assert(dpe_hevc_level(1920, 1080, 60, 9000000) == 123);
+  assert(!dpe_hevc_level(UINT32_MAX, UINT32_MAX, UINT32_MAX, 9000000));
+  pthread_cond_destroy(&context.condition);
+  pthread_mutex_destroy(&context.mutex);
+  dlclose(module);
   return 0;
 }

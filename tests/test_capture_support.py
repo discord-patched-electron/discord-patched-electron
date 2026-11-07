@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build_camera_support import build, node_headers
+from build_capture_fixture import build as build_delay_fixture
 from capture_scope import scope
 from common import ROOT
 
@@ -41,38 +42,6 @@ class CaptureSupport(unittest.TestCase):
             module.write_bytes(b"unknown upstream native module")
             self.assertFalse(scope(module)["supported"])
             self.assertEqual(module.read_bytes(), b"unknown upstream native module")
-
-    @unittest.skipUnless(shutil.which("cc") and shutil.which("pkg-config"), "C toolchain required")
-    def test_buffer_ownership_without_device_or_daemon(self):
-        flags = subprocess.check_output(
-            ["pkg-config", "--cflags", "libpipewire-0.3"], text=True
-        ).split()
-        with tempfile.TemporaryDirectory() as temporary:
-            binary = Path(temporary) / "capture-check"
-            subprocess.run(
-                [
-                    "cc",
-                    "-std=c11",
-                    "-O1",
-                    "-Wall",
-                    "-Wextra",
-                    "-Werror",
-                    "-fsanitize=address,undefined",
-                    "-fno-omit-frame-pointer",
-                    "-I" + str(node_headers()),
-                    *flags,
-                    str(ROOT / "tests/screenshare/capture-check.c"),
-                    "-ldl",
-                    "-pthread",
-                    "-o",
-                    str(binary),
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
-            self.assertIn("FIFO restoration", result.stdout)
 
     def test_fixture_markers_are_staged_with_native_receiver(self):
         package = json.loads((ROOT / "package.json").read_text())
@@ -163,6 +132,20 @@ class CaptureSupport(unittest.TestCase):
                     text=True,
                 )
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            delay = directory / "capture-delay.so"
+            build_delay_fixture(delay)
+            result = subprocess.run(
+                [
+                    "node",
+                    str(ROOT / "tests/screenshare/capture-native-check.cjs"),
+                    str(directory),
+                    str(delay),
+                    "paced",
+                ],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 """Content identities shared across Discord clients; packaging changes avoid rebuilds."""
 
+from build_rust_support import inputs as rust_inputs
 from common import ROOT, digest, hash_files, package_name
 from runtime_fingerprints import runtime_key
 
@@ -15,6 +16,7 @@ def integration_key(
             "package": package_name(client["channel"], electron_channel),
             "inputs": hash_files(
                 [
+                    *rust_inputs(),
                     "scripts/prepare_app.py",
                     "scripts/stage_updater.py",
                     "scripts/stage_capture_backends.py",
@@ -23,6 +25,7 @@ def integration_key(
                     "scripts/build_wayland_capture.py",
                     "scripts/build_wayland_source.py",
                     "scripts/build_kms_source.py",
+                    "scripts/build_direct_capture.py",
                     "scripts/build_screen_preview.py",
                     "patches/capture/vkcapture-copy-rate.patch",
                     "patches/capture/vkcapture-dpe-handoff.patch",
@@ -58,6 +61,7 @@ def integration_key(
                     "integration/updater/diagnostic_log.py",
                     "integration/updater/diagnostic_inventory.py",
                     "integration/updater/flags.cjs",
+                    "integration/launcher/discord-launcher.sh",
                     "integration/launcher/flags.py",
                     "integration/launcher/presets.json",
                     "integration/launcher/codec-preload.sh",
@@ -72,6 +76,7 @@ def integration_key(
                     "integration/updater/renderer.cjs",
                     "integration/updater/capture-permission.cjs",
                     "integration/updater/capture-host.cjs",
+                    "integration/updater/capture-kms-authorizer.cjs",
                     "integration/updater/capture-preview.cjs",
                     "integration/discord-ui/capture-picker.cjs",
                     "integration/discord-ui/capture-picker-view.cjs",
@@ -134,25 +139,20 @@ def integration_key(
                     "integration/updater/screensharing.cjs",
                     "integration/video/capture.cjs",
                     "integration/video/capture-scale.cjs",
-                    "integration/video/capture-scale.c",
+                    "integration/video/dpe-native-identity.cjs",
+                    "integration/camera/dpe-native-identity.cjs",
                     "scripts/capture_scale_scope.py",
                     "integration/video/capture-upstream.cjs",
-                    "integration/video/capture-upstream.c",
                     "scripts/capture_upstream_scope.py",
                     "scripts/capture_sync_scope.py",
                     "scripts/capture_picker_scope.py",
-                    "integration/video/capture-sync.c",
+                    "scripts/capture_direct_scope.py",
                     "integration/video/capture-sync.cjs",
-                    "integration/video/capture-picker.c",
                     "integration/video/capture-picker.cjs",
                     "integration/video/capture-backends.cjs",
                     "integration/updater/capture-backends.cjs",
-                    "integration/video/capture.c",
-                    "integration/video/encoder.c",
-                    "integration/video/av1-level.h",
                     "integration/video/av1-crop.h",
                     "integration/video/av1-software-crop.h",
-                    "integration/video/av1-software-crop.c",
                     "integration/video/encoder.cjs",
                     "scripts/encoder_scope.py",
                     "integration/video/capture-rate.h",
@@ -187,8 +187,7 @@ def integration_key(
                     "integration/audio/portal-monitor.py",
                     "integration/audio/wayland-audio.cjs",
                     "integration/audio/pipewire_audio.py",
-                    "integration/camera/v4l2-probe.c",
-                    "integration/camera/flip.c",
+                    "integration/audio/audio_graph.py",
                     "integration/camera/flip.cjs",
                     "scripts/camera_scope.py",
                     "scripts/build_camera_support.py",

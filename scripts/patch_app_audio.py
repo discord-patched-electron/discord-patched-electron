@@ -18,7 +18,9 @@ VIDEO_INSERT = "    instance = require('./dpe-video.cjs').wrap(instance);\n"
 EXPORT = "module.exports = VoiceEngine;"
 INSTALL = "require('./dpe-app-audio.cjs').installVoice(VoiceEngine);\n"
 SIDECARS = {
+    "audio_graph.py": "audio_graph.py",
     "../video/transport.cjs": "dpe-video.cjs",
+    "../video/dpe-native-identity.cjs": "dpe-native-identity.cjs",
     "../video/capture.cjs": "dpe-capture.cjs",
     "../video/capture-upstream.cjs": "dpe-capture-upstream.cjs",
     "../video/capture-scale.cjs": "dpe-capture-scale.cjs",

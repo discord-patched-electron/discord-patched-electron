@@ -33,7 +33,7 @@ no software HEVC codec. FFmpeg retains its **LGPL-2.1-or-later** license; the
 [complete license](integration/video/HEVC-FFMPEG-LICENSE.txt) ships with the adapter
 source. [The build script](scripts/build_hevc_support.py) pins the official source
 archive by SHA-256 and contains the rate-update patch, full configuration and
-link commands. It and `integration/video/hevc-backend.c` ship in the application
+link commands. It and the Rust adapter in `native/encoder/` ship in the application
 payload with the complete upstream archive under `sources/`, allowing the
 isolated library to be rebuilt. Set `DPE_HEVC_BACKEND` to
 the absolute path of a rebuilt `libdpe-hevc.so` to replace the embedded library.
@@ -45,6 +45,39 @@ profile. Its version and SHA-256 checksums are pinned in
 The codec binary and compressed download are excluded from release packages.
 The [complete Cisco binary license](integration/updater/OPENH264-BINARY-LICENSE.txt)
 is also available beside the OpenH264 controls in Settings.
+
+## Rust native support
+
+Project-owned Rust helpers in `native/` use this project's MIT license except
+`native/kms/`, `native/producer/`, `native/graphics/` and `native/source/`,
+which use GPL-3.0-only for KMS, GPU rendering and combined capture executables. The
+pinned Rust standard library is MIT OR Apache-2.0, with its component notices
+and exceptions retained under [`native/licenses/`](native/licenses/). That
+directory also retains libc's MIT and Apache-2.0 licenses and a checksum manifest.
+Packages include these files beside the complete helper source and Cargo lockfile.
+Bindgen and its dependencies run at build time; generated system-API bindings
+stay in `out/`. Host libraries retain their own licenses.
+
+The Rust X11 cursor helper in `native/x11/` dynamically uses the host's optional
+XCB and XFixes libraries. It ships no copied XCB implementation or additional
+registry runtime dependency.
+
+The Rust Wayland cursor and output-capture paths pin `wayland-client` 0.31.15 and
+`wayland-protocols` 0.32.13 in `Cargo.lock`. Their MIT notices, protocol
+copyrights and normal dependency notices ship under `native/licenses/`.
+[`wayland-dependencies.json`](native/licenses/wayland-dependencies.json) records
+their source versions, registry archive checksums, license expressions and
+notice hashes, including target-specific dependencies.
+
+The preview frame descriptor follows the checksum-pinned public Electron video
+SDK ABI used by the native frame fixture. DPE supplies its own layout declaration
+and does not construct private Discord Rust objects.
+
+GPU Screen Recorder's VAAPI surface reuse and capture paths were studied at
+[revision f97d1e3](https://repo.dec05eba.com/gpu-screen-recorder/commit/?id=f97d1e392816503282d20a0804c3ce3fd2943767)
+as architecture references. The new Rust preview, camera, worker and descriptor
+transport contain no copied GSR implementation. The existing GPL KMS protocol
+and server attribution below still applies.
 
 ## Wayland capture protocols
 
@@ -67,20 +100,33 @@ Its upstream revision and archive checksum are pinned in
 keeps upstream copyright/license files and supplies this project's MIT notice
 for `capture-rate.h`. Capture bundles include the hook binaries, their complete
 patched corresponding source, build instructions and licenses. The hooks load
-only in applications explicitly launched for game capture.
+only in applications explicitly launched for game capture. DPE's MIT Rust
+producer control and GL/Vulkan synchronization are in `native/game/`, with pacing in `native/media-core/`;
+its Cargo inputs, runtime notices and source ship in each hook's `dpe-rust/`
+directory. The included CMake recipe rebuilds that archive before linking the
+GPL hooks.
+
+The standalone game source and preview binaries also link the GPL-3.0-only
+Rust graphics owners in `native/graphics/`. Capture bundles include that
+library's source, Cargo inputs and `GRAPHICS-GPL-3.0.txt`; the combined binaries
+are supplied under GPL-3.0-only. The broker and shared transport/control crates
+retain their MIT notices; `native/source/` and `native/graphics/` use GPL-3.0-only.
+The bundled `dpe-source/rebuild-game-consumers.py` rebuilds both consumers from
+that source without the original checkout or a new upstream download.
 
 ## KMS monitor capture
 
-The standalone `dpe-kms-source` helper and `integration/video/kms-*` sources are
+The standalone `dpe-kms-source` helper, `native/kms/`, `native/graphics/` and `integration/video/kms-*` sources are
 GPL-3.0-only. Its [protocol header](integration/video/kms-protocol.h) retains GPU
 Screen Recorder's protocol 6 declarations, reviewed at revision `099a55b`, with
 upstream attribution and the [complete license](integration/video/protocols/GSR-GPL-3.0.txt).
 Capture bundles include its corresponding source; the build recipe is
-[`build_kms_source.py`](scripts/build_kms_source.py). DPE also bundles a small
-`dpe-kms-server`, retaining the pinned GSR DRM exporter source unchanged in
-`integration/video/vendor/gsr-kms-server.inc` with provenance and its GPL license.
-DPE's own entry point restricts arguments, peers, requests and revocation; it does
-not call the upstream server entry point. No separate GSR installation is needed.
+[`build_kms_source.py`](scripts/build_kms_source.py). DPE also bundles the Rust `dpe-kms-server` from `native/kms/`. The pinned GSR
+DRM exporter remains unchanged in `integration/video/vendor/gsr-kms-server.inc`
+with provenance and its GPL license as the implementation reference; it is no
+longer compiled into the server. The Rust replacement retains protocol 6 and
+GPL-3.0-only, caches immutable property descriptions, and restricts arguments,
+peers, requests and revocation. No separate GSR installation is needed.
 The privileged copy is installed only by the explicit Screensharing permission action.
 
 ## Discord client files
@@ -174,7 +220,7 @@ fixture artifacts. The distro supplies PipeWire, PulseAudio and Zenity tools.
 Vesktop/venmic served as routing and source-selection references; their code or
 native addons are not bundled by this audio adapter.
 
-`integration/camera/v4l2-probe.c` is project-owned MIT-licensed compatibility
+`native/bridge/src/camera_probe.rs` is project-owned MIT-licensed compatibility
 code, using Linux's public V4L2 userspace API. It does not include WebRTC source
 or modify Discord's proprietary camera binary. See [camera startup](https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/agent/camera-startup.md)
 for the upstream algorithm and kernel API references.

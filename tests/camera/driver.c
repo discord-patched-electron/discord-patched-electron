@@ -12,9 +12,18 @@ int ioctl(int fd, unsigned long request, ...) {
   va_start(args, request);
   void *arg = va_arg(args, void *);
   va_end(args);
+  const char *mode = getenv("DPE_TEST_ENUM");
+  if (mode && !strcmp(mode, "unplugged")) {
+    errno = ENODEV;
+    return -1;
+  }
   if (request == VIDIOC_ENUM_FMT) {
     struct v4l2_fmtdesc *d = arg;
-    const char *mode = getenv("DPE_TEST_ENUM");
+    if (mode && !strcmp(mode, "unplug-during-enum") && d->index > 0) {
+      setenv("DPE_TEST_ENUM", "unplugged", 1);
+      errno = ENODEV;
+      return -1;
+    }
     if (mode && !strcmp(mode, "failed")) {
       errno = EIO;
       return -1;
@@ -28,6 +37,8 @@ int ioctl(int fd, unsigned long request, ...) {
       return -1;
     }
     d->pixelformat = mode && !strcmp(mode, "changed") ? V4L2_PIX_FMT_NV12 : V4L2_PIX_FMT_MJPEG;
+    if (mode && !strcmp(mode, "unplug-before-try"))
+      setenv("DPE_TEST_ENUM", "unplugged", 1);
     return 0;
   }
   calls++;

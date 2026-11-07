@@ -18,6 +18,8 @@ const VARIABLES = [
   "DISPLAY",
   "XAUTHORITY",
   "DRI_PRIME",
+  "DPE_KMS_AUTH_SOCKET",
+  "DPE_KMS_AUTH_TOKEN",
 ];
 let probe,
   expires = 0;

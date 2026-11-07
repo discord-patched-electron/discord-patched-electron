@@ -174,8 +174,16 @@ test("native connection arguments, identity, errors and unknown future layouts s
   assert.equal(run("new Engine().connect().experimentFlags"), null);
 });
 
-test("all five exclusion names preserve native encode eligibility and decoder capabilities", () => {
-  for (const excluded of ["AV1", "H265", "H264", "VP9", "VP8"]) {
+test("obsolete VP9 preferences are ignored without disabling other encoders", () => {
+  const { run } = fixture({ excludedCodecs: ["VP9"] });
+  assert.equal(
+    run('JSON.stringify(globalThis[Symbol.for("dpe.videoCodecs")].excludedCodecs)'),
+    "[]",
+  );
+});
+
+test("all four exclusion names preserve native encode eligibility and decoder capabilities", () => {
+  for (const excluded of ["AV1", "H265", "H264", "VP8"]) {
     const { run } = fixture({ excludedCodecs: [excluded] });
     run(`nativeCapabilities.push(
       {type:'video', name:'H265', encode:true, decode:true, payloadType:107},

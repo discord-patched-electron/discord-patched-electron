@@ -471,6 +471,39 @@ test("direct selection passes only the chosen source and cleans ownership on sto
   }
 });
 
+test("monitor unplug ends one session once and replug allows a fresh explicit selection", async () => {
+  for (const method of ["wayland-direct", "kms"]) {
+    const r = rig(method === "kms" ? { platform: "linux", list: async () => kmsListing } : {});
+    const who = owner();
+    try {
+      for (let id = 1; id <= 3; id++) {
+        const pending = await request(r, who, method, id);
+        const choosing = r.controller.choose(
+          pending.state.id,
+          method === "kms" ? "kms-monitor-token" : "output-1",
+        );
+        await turn();
+        const source = r.runs.at(-1).helper;
+        source.events.emit("message", { event: "ready", nodeId: 40 + id });
+        await choosing;
+        assert.equal((await pending.response).nodeId, 40 + id);
+        r.controller.event(who, { requestId: id, event: "started" });
+        source.events.emit("message", { event: "ended", failed: true, errorCode: "source-lost" });
+        source.events.emit("failure", new Error("monitor disconnected"));
+        source.events.emit("message", { event: "ready", nodeId: 999 });
+        r.controller.event(who, { requestId: id, event: "stopped" });
+        assert.equal(source.stops, 1);
+        assert.equal(source.events.listenerCount("message"), 0);
+        assert.equal(who.messages.length, id);
+        assert.equal(who.messages.at(-1)[1].requestId, id);
+        assert.equal(r.controller.state(), null);
+      }
+    } finally {
+      r.controller.close();
+    }
+  }
+});
+
 test("cancelling during ready wait stops the producer and ignores its late ready event", async () => {
   const r = rig(),
     who = owner();
@@ -1202,6 +1235,113 @@ test("ordinary picker close disarms a previously selected source", async () => {
     assert.deepEqual(await r.controller.requestArmed(who, { requestId: 78, sourceType: 0 }), {
       action: "native",
     });
+  } finally {
+    r.controller.close();
+  }
+});
+
+test("game start reply carries authenticated process identity into selection", async () => {
+  const r = rig();
+  const who = owner();
+  try {
+    const pending = await request(r, who, "vkcapture");
+    const broker = r.runs[0].helper;
+    const command = broker.command.bind(broker);
+    const identity = { pid: 200, start: "2000" };
+    broker.command = async (value) => ({ ...(await command(value)), processIdentity: identity });
+    const choosing = r.controller.choose(pending.state.id, "game");
+    await turn();
+    broker.events.emit("message", { event: "ready", token: "game", nodeId: 12 });
+    await choosing;
+    const selected = await pending.response;
+    assert.equal(selected.processIdentity, identity);
+  } finally {
+    r.controller.close();
+  }
+});
+
+test("reviewed KMS direct capture selects the descriptor endpoint and closes its helper", async () => {
+  const r = rig({ platform: "linux", list: async () => kmsListing }),
+    who = owner();
+  try {
+    const response = r.controller.request(who, {
+      requestId: 1,
+      sourceType: 0,
+      method: "kms",
+      fps: 60,
+      directGpu: true,
+    });
+    await turn();
+    const choosing = r.controller.choose(r.controller.state().id, "kms-monitor-token");
+    const source = r.runs[0];
+    assert.equal(source.file, "/test/app/capture/dpe-direct-source");
+    source.helper.events.emit("message", {
+      event: "ready",
+      nodeId: 0xfffffffe,
+      transport: "direct-gpu",
+      handoff: "direct-gpu",
+      socketPath: "/run/user/test/dpe-direct-private/frames",
+    });
+    await choosing;
+    const selected = await response;
+    assert.equal(selected.transport, "direct-gpu");
+    assert.equal(selected.handoff, "direct-gpu");
+    assert.equal(selected.socketPath, "/run/user/test/dpe-direct-private/frames");
+    assert.equal(selected.nodeId, 0xfffffffe);
+    r.controller.event(who, { event: "cancelled", requestId: 1 });
+    assert.equal(source.helper.stops, 1);
+  } finally {
+    r.controller.close();
+  }
+});
+
+test("a direct GPU request rejects an unexpected PipeWire producer result", async () => {
+  const r = rig({ platform: "linux", list: async () => kmsListing }),
+    who = owner();
+  try {
+    void r.controller.request(who, {
+      requestId: 1,
+      sourceType: 0,
+      method: "kms",
+      fps: 60,
+      directGpu: true,
+    });
+    await turn();
+    const choosing = r.controller.choose(r.controller.state().id, "kms-monitor-token");
+    r.runs[0].helper.events.emit("message", { event: "ready", nodeId: 42 });
+    await choosing;
+    assert.match(r.controller.state().error, /did not establish direct GPU transport/);
+    assert.equal(r.runs[0].helper.stops, 1);
+  } finally {
+    r.controller.close();
+  }
+});
+
+test("stock OBS compatibility keeps its explicit PipeWire path with a direct-capable consumer", async () => {
+  const broker = helper(),
+    original = broker.command;
+  broker.command = async function (value) {
+    if (value.op === "list")
+      return { sources: [{ token: "game", name: "Stock hook", protocol: "obs", available: true }] };
+    return original.call(this, value);
+  };
+  const r = rig({ run: () => broker }),
+    who = owner();
+  try {
+    const response = r.controller.request(who, {
+      requestId: 1,
+      sourceType: 0,
+      method: "vkcapture",
+      fps: 60,
+      directGpu: true,
+    });
+    await turn();
+    const choosing = r.controller.choose(r.controller.state().id, "game");
+    await turn();
+    assert.equal(broker.commands.find((value) => value.op === "start").transport, undefined);
+    broker.events.emit("message", { event: "ready", token: "game", nodeId: 42 });
+    await choosing;
+    assert.equal((await response).transport, undefined);
   } finally {
     r.controller.close();
   }

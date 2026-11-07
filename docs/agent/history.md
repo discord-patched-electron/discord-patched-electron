@@ -6,6 +6,20 @@ current workflows.
 
 ## Start here
 
+- [KMS maintenance after one setup approval](kms-silent-maintenance-20261107.md).
+- [Automatic KMS helper maintenance and executable grants](kms-updater-binding-20261107.md).
+
+- [Current direct capture versus PipeWire and remaining gaps](current-pipewire-comparison-20261105.md).
+
+- [Game capture pacing, delivered FPS and remaining CPU](game-capture-pacing-20261105.md).
+
+- [VAAPI encoder import reuse and measurements](encoder-import-reuse-20261105.md).
+
+- [PipeWire-free game and KMS capture](direct-gpu-capture-20261105.md).
+
+- [Vkcapture cursor feasibility, protocol implementation and validation](vkcapture-cursor-20261105.md).
+
+- [Codec exclusions and camera/monitor hotplug checks](codec-exclusions-hotplug-20261105.md).
 - [Bug report ZIP export and validation](log-export-20261105.md).
 - [Subsystem diagnostic coverage audit](diagnostic-coverage-20261105.md).
 - [Repository skills](../../AGENTS.md#repository-skills): focused implementation

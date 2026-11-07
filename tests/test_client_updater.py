@@ -68,6 +68,7 @@ class ModuleUpdates(unittest.TestCase):
             "integration/video/transport.cjs",
             "integration/video/encoder.cjs",
             "integration/video/capture-scale.cjs",
+            "integration/video/dpe-native-identity.cjs",
             "integration/video/capture-upstream.cjs",
             "integration/video/capture-sync.cjs",
             "integration/video/capture-picker.cjs",

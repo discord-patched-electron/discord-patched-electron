@@ -72,7 +72,12 @@ test("host probe requires trusted tools and an unrestricted user service and cac
 test("restricted workers preserve literal arguments, forward session variables and stop only their own unit", () => {
   const f = fixture();
   const child = f.api.spawn("/app/dpe-kms-source", ["literal$VALUE"], {
-    env: { WAYLAND_DISPLAY: "wayland-2", LD_PRELOAD: "unsafe" },
+    env: {
+      WAYLAND_DISPLAY: "wayland-2",
+      LD_PRELOAD: "unsafe",
+      DPE_KMS_AUTH_SOCKET: "/private/socket",
+      DPE_KMS_AUTH_TOKEN: "capability",
+    },
     stdio: ["pipe", "pipe", "ignore"],
     detached: true,
   });
@@ -83,6 +88,8 @@ test("restricted workers preserve literal arguments, forward session variables a
     f.calls[0].args.some((value) => value.includes("LD_PRELOAD")),
     false,
   );
+  assert.equal(f.calls[0].args.includes("--setenv=DPE_KMS_AUTH_SOCKET=/private/socket"), true);
+  assert.equal(f.calls[0].args.includes("--setenv=DPE_KMS_AUTH_TOKEN=capability"), true);
   assert.equal(f.calls[0].args.at(-1), "literal$VALUE");
   child.stopHostCapture();
   child.stopHostCapture();

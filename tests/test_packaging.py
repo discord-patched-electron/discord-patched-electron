@@ -107,7 +107,7 @@ class Recipes(unittest.TestCase):
                 "scripts/patch_decoder_eagain.py",
                 "scripts/encoder_scope.py",
                 "scripts/build_hevc_support.py",
-                "integration/video/hevc-backend.c",
+                "native/encoder/src/runtime.rs",
                 "integration/video/HEVC-FFMPEG-LICENSE.txt",
                 "integration/video/transport.cjs",
                 "integration/video/encoder.cjs",

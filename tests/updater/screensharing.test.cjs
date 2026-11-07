@@ -78,6 +78,8 @@ test("screenshare preferences default safely and reject unavailable methods", as
     { experimentalCapture: "true" },
     { excludedCodecs: "AV1" },
     { excludedCodecs: ["unknown"] },
+    { excludedCodecs: ["VP9"] },
+    { excludedCodecs: ["AV1", "H265", "H264", "VP8"] },
     { excludedCodecs: ["AV1", "H265", "H264", "VP9", "VP8"] },
     { foo: true },
   ])
@@ -101,6 +103,15 @@ test("screenshare preferences default safely and reject unavailable methods", as
 });
 
 test("codec preferences are bounded and do not permit an empty allowed set", () => {
+  assert.deepEqual(nativeSettings.CODECS, ["AV1", "H265", "H264", "VP8"]);
+  assert.deepEqual(nativeSettings.normalize({ excludedCodecs: ["VP9", "H264"] }).excludedCodecs, [
+    "H264",
+  ]);
+  // Old profiles could leave only the nonexistent VP9 encoder allowed.
+  assert.deepEqual(
+    nativeSettings.normalize({ excludedCodecs: ["AV1", "H265", "H264", "VP8"] }).excludedCodecs,
+    [],
+  );
   assert.deepEqual(nativeSettings.normalize({ excludedCodecs: "AV1" }).excludedCodecs, []);
   assert.deepEqual(
     nativeSettings.normalize({ excludedCodecs: ["AV1X", "AV1", "private"] }).excludedCodecs,

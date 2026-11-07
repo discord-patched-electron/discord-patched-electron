@@ -6,7 +6,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from build_direct_capture import build as build_direct
 from build_kms_source import build as build_kms
+from build_rust_support import stage_source as stage_rust_source
 from build_screen_preview import build as build_preview
 from build_vkcapture_backend import build as build_game
 from build_wayland_source import build as build_wayland
@@ -14,18 +16,53 @@ from common import ROOT, download, read_json, sha256, write_json
 from stage_vkcapture import ARCHIVE_SHA256, COMMIT, URL
 
 REQUIRED = {
+    "dpe-direct-source",
+    "direct-source.json",
+    "dpe-source/rust/native/producer/src/main.rs",
+    "dpe-source/rust/native/producer/src/game.rs",
+    "dpe-source/rust/native/producer/src/system.rs",
+    "dpe-source/rust/native/producer/src/cursor.rs",
+    "dpe-source/rust/native/game/src/gl_sync.rs",
+    "dpe-source/rust/native/game/src/vulkan_format.rs",
+    "dpe-source/rust/native/pipewire/src/relay.rs",
+    "dpe-source/rust/native/pipewire/src/source_pods.rs",
+    "dpe-source/source-pods.h",
+    "dpe-source/rust/native/graphics/src/context.rs",
+    "dpe-source/rust/native/graphics/src/target.rs",
+    "dpe-source/rust/native/graphics/src/kms.rs",
+    "dpe-source/rust/native/graphics/src/game.rs",
+    "dpe-source/rust/native/graphics/src/game_render.rs",
+    "dpe-source/rust/native/graphics/src/game_preview.rs",
+    "dpe-source/rust/native/graphics/src/bin/game-preview.rs",
+    "dpe-source/rebuild-game-consumers.py",
+    "dpe-source/direct-capture-wire.h",
     "dpe-wayland-source",
+    "dpe-source/rust/native/source/src/bin/wayland.rs",
+    "dpe-source/rust/native/source/src/bin/game.rs",
+    "dpe-source/rust/native/source/src/hook_input.rs",
+    "dpe-source/rust/native/graphics/src/game_capture.rs",
+    "dpe-source/rust/native/pipewire/src/source_dmabuf.rs",
     "dpe-kms-source",
     "dpe-kms-server",
     "kms-server.json",
     "dpe-screen-preview",
     "screen-preview.json",
+    "dpe-source/rust/native/source/src/bin/preview.rs",
+    "dpe-source/rust/native/wayland/src/capture.rs",
+    "dpe-source/rust/native/graphics/src/dmabuf.rs",
     "kms-source.json",
-    "dpe-source/kms-source.c",
+    "dpe-source/rust/native/source/src/bin/kms.rs",
+    "dpe-source/rust/native/source/src/lib.rs",
+    "dpe-source/rust/native/pipewire/src/source.rs",
+    "dpe-source/rust/native/pipewire/src/publish.rs",
+    "dpe-source/rust/native/graphics/src/kms_capture.rs",
     "dpe-source/kms-protocol.h",
     "dpe-source/kms-README.md",
     "dpe-source/kms-permission-setup.py",
-    "dpe-source/kms-server.c",
+    "dpe-source/kms-maintenance.py",
+    "dpe-source/rust/native/kms/src/server.rs",
+    "dpe-source/rust/native/kms/src/permission.rs",
+    "dpe-source/rust/native/kms/src/export.rs",
     "dpe-source/vendor/gsr-kms-server.inc",
     "dpe-source/vendor/gsr-kms-server.json",
     "dpe-source/protocols/GSR-GPL-3.0.txt",
@@ -37,6 +74,7 @@ REQUIRED = {
     "vkcapture/libVkLayer_obs_vkcapture.so",
     "vkcapture/layers/dpe_vkcapture.json",
     "vkcapture/backend.json",
+    "vkcapture/GRAPHICS-GPL-3.0.txt",
 }
 
 
@@ -68,7 +106,7 @@ def validate(directory):
     hook_source = directory / f"vkcapture/source/obs-vkcapture-{COMMIT}"
     if (
         not (hook_source / "LICENSE").is_file()
-        or not (hook_source / "src/vkcapture-hook.c").is_file()
+        or not (hook_source / "dpe-rust/native/game/src/hook.rs").is_file()
     ):
         raise ValueError("Capture hook corresponding source is missing")
     return report
@@ -95,7 +133,10 @@ def stage(output, *, archive=None, prebuilt=None):
         build_kms(work / "kms")
         build_preview(work / "preview")
         build_game(work / "game", Path(archive))
+        build_direct(work / "direct")
         output.mkdir()
+        for name in ("dpe-direct-source", "direct-source.json"):
+            shutil.copy2(work / "direct" / name, output / name)
         for name in ("dpe-wayland-source", "wayland-source.json"):
             shutil.copy2(work / "wayland" / name, output / name)
         for name in ("dpe-kms-source", "kms-source.json", "dpe-kms-server", "kms-server.json"):
@@ -110,6 +151,7 @@ def stage(output, *, archive=None, prebuilt=None):
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
         shutil.copy2(ROOT / "LICENSE", source / "LICENSE")
+        stage_rust_source(source / "rust")
     report = {
         "schema": 1,
         "architecture": "x86_64",

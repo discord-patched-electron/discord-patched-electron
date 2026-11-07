@@ -1,7 +1,7 @@
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
-const { createHash } = require("node:crypto");
+const nativeIdentity = require("./dpe-native-identity.cjs");
 
 function load(directory, helper, onEvent) {
   const metadata = JSON.parse(
@@ -21,7 +21,7 @@ function load(directory, helper, onEvent) {
     metadata.abi !== 3 ||
     metadata.supported !== true ||
     offsets.some((value) => !Number.isSafeInteger(value) || value <= 0 || value > 0xffffffff) ||
-    createHash("sha256").update(fs.readFileSync(filename)).digest("hex") !== metadata.voice_sha256
+    !nativeIdentity.matches(filename, metadata.voice_sha256)
   )
     throw new Error("The native module does not match the reviewed external capture bridge.");
   const addon = { exports: {} };
@@ -63,6 +63,40 @@ function load(directory, helper, onEvent) {
       }
     }
   }
+  let directGpu = false;
+  if (
+    metadata.direct?.abi === 1 &&
+    metadata.direct.supported === true &&
+    typeof api.installCaptureDirect === "function" &&
+    metadata.direct.exports?.length === 10
+  ) {
+    const directOffsets = metadata.direct.exports.flatMap((entry) => [entry.slot, entry.target]);
+    if (
+      directOffsets.every(
+        (value) => Number.isSafeInteger(value) && value > 0 && value <= 0xffffffff,
+      )
+    ) {
+      try {
+        directGpu = api.installCaptureDirect(filename, ...directOffsets) === true;
+        const preview = metadata.direct.preview;
+        if (directGpu && preview?.abi === 1 && typeof api.installCapturePreview === "function") {
+          const offsets = [
+            preview.slot,
+            preview.target,
+            preview.bufferVtable,
+            preview.handle,
+            preview.getter,
+          ];
+          directGpu =
+            offsets.every(
+              (value) => Number.isSafeInteger(value) && value > 0 && value <= 0xffffffff,
+            ) && api.installCapturePreview(filename, ...offsets) === true;
+        }
+      } catch (error) {
+        console.error("DPE direct capture:", error.message);
+      }
+    }
+  }
   function requestId(value) {
     if (!Number.isInteger(value) || value <= 0 || value > 0xffffffff)
       throw new Error("Invalid capture request.");
@@ -70,6 +104,12 @@ function load(directory, helper, onEvent) {
   }
   return {
     eventDelivery,
+    directGpu,
+    directStats() {
+      return typeof api.getCaptureDirectStats === "function"
+        ? JSON.parse(api.getCaptureDirectStats())
+        : null;
+    },
     finish(id, action, socketPath = "", nodeId = 0) {
       requestId(id);
       if (!["native", "selected", "cancel", "error"].includes(action))
@@ -85,6 +125,8 @@ function load(directory, helper, onEvent) {
           nodeId >= 0xffffffff)
       )
         throw new Error("Invalid external capture endpoint.");
+      if (action === "selected" && nodeId === 0xfffffffe && !directGpu)
+        throw new Error("Direct GPU capture is unavailable in this native module.");
       return api.finishCapturePicker(id, action, action === "selected" ? socketPath : "", nodeId);
     },
     cancel: (id) => api.cancelCapturePicker(requestId(id)),

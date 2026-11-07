@@ -37,9 +37,26 @@ function kmsError(value) {
 }
 
 function worker(file, args, env = process.env) {
-  const launch =
-    path.basename(file) === "dpe-kms-source" ? require("./capture-host.cjs").spawn : spawn;
-  const child = launch(file, args, { env, stdio: ["pipe", "pipe", "ignore"], detached: true });
+  const launch = ["dpe-kms-source", "dpe-direct-source"].includes(path.basename(file))
+    ? require("./capture-host.cjs").spawn
+    : spawn;
+  const authorization = ["dpe-kms-source", "dpe-direct-source"].includes(path.basename(file))
+    ? require("./capture-kms-authorizer.cjs").createLease(file)
+    : undefined;
+  let child;
+  try {
+    child = launch(file, args, {
+      env: { ...env, ...authorization?.env },
+      stdio: ["pipe", "pipe", "pipe"],
+      detached: true,
+    });
+  } catch (error) {
+    authorization?.close();
+    throw error;
+  }
+  require("./diagnostic-log.cjs").capture(child.stderr, "capture-helper", {
+    helper: path.basename(file),
+  });
   const events = new EventEmitter();
   let buffer = "",
     stopped = false,
@@ -67,7 +84,31 @@ function worker(file, args, env = process.env) {
       const line = buffer.slice(0, end);
       buffer = buffer.slice(end + 1);
       try {
-        events.emit("message", JSON.parse(line));
+        const value = JSON.parse(line);
+        if (["ready", "ended", "stopped", "error"].includes(value?.event)) {
+          const fields = [
+            "event",
+            "backend",
+            "reason",
+            "errorCode",
+            "width",
+            "height",
+            "frames",
+            "releases",
+            "skipped",
+            "handoff",
+            "handoffFallback",
+          ];
+          require("./diagnostic-log.cjs").record(
+            "capture-lifecycle",
+            Object.fromEntries(
+              fields
+                .filter((key) => ["string", "number", "boolean"].includes(typeof value[key]))
+                .map((key) => [key, value[key]]),
+            ),
+          );
+        }
+        events.emit("message", value);
       } catch {
         fail();
         return;
@@ -77,6 +118,7 @@ function worker(file, args, env = process.env) {
   function stop() {
     if (stopped) return;
     stopped = true;
+    authorization?.close();
     child.stdin.end();
     child.stopHostCapture?.();
     const kill = (signal) => {
@@ -162,6 +204,7 @@ function createController({
 } = {}) {
   const direct = path.join(root || "", "capture/dpe-wayland-source");
   const kms = path.join(root || "", "capture/dpe-kms-source");
+  const gpu = path.join(root || "", "capture/dpe-direct-source");
   const bundle = path.join(root || "", "capture/vkcapture");
   const socketPath = path.isAbsolute(env.PIPEWIRE_REMOTE || "")
     ? env.PIPEWIRE_REMOTE
@@ -655,6 +698,7 @@ function createController({
         );
         sources = (result.sources || []).slice(0, 32).map((source) => ({
           id: source.token,
+          directGpu: source.protocol !== "obs",
           name: source.name,
           available: source.available === true,
         }));
@@ -720,6 +764,7 @@ function createController({
       owner,
       requestId: value.requestId,
       method: value.method,
+      directGpu: value.directGpu === true && exists(gpu),
       fps: Number.isInteger(value.fps) && value.fps > 0 && value.fps <= 240 ? value.fps : 60,
       phase: "choosing",
       sources: [],
@@ -786,6 +831,9 @@ function createController({
       throw new Error("This source selection has ended.");
     if (!session.sources.some((source) => source.id === sourceId && source.available))
       throw new Error("Choose an available source.");
+    const selected = session.sources.find((source) => source.id === sourceId);
+    const useDirectGpu =
+      session.directGpu && session.method !== "wayland-direct" && selected.directGpu !== false;
     const authorization =
       session.method === "kms" && session.authorizationRequired === true && authorize === true;
     if (session.method === "kms" && session.authorizationRequired && !authorization)
@@ -810,7 +858,7 @@ function createController({
       let ready;
       if (monitorMethod(session.method)) {
         session.helper = run(
-          session.method === "kms" ? kms : direct,
+          session.method === "kms" ? (session.directGpu ? gpu : kms) : direct,
           [
             "--output",
             sourceId,
@@ -877,12 +925,18 @@ function createController({
         // Observe the start reply even after UI cancellation. A rejected start
         // has no producer and may never emit stopped; it must release ownership.
         const command = session.helper
-          .command({ op: "start", token: sourceId, fps: session.fps })
+          .command({
+            op: "start",
+            token: sourceId,
+            fps: session.fps,
+            ...(useDirectGpu ? { transport: "direct-gpu" } : {}),
+          })
           .catch((error) => {
             if (session.closed && gameOwner === session) gameOwner = undefined;
             throw error;
           });
         const result = await Promise.all([command, readyPromise]);
+        session.processIdentity = result[0].processIdentity;
         ready = result[1];
         if (ready.event !== "ready") throw gameStartError(ready);
       }
@@ -890,15 +944,34 @@ function createController({
       if (session.startFailure) throw session.startFailure;
       if (!Number.isInteger(ready.nodeId) || ready.nodeId < 0 || ready.nodeId >= 0xffffffff)
         throw new Error("Capture helper returned an invalid stream.");
+      const directGpu = ready.transport === "direct-gpu";
+      if (useDirectGpu && !directGpu)
+        throw new Error("Capture helper did not establish direct GPU transport.");
+      if (
+        directGpu &&
+        (!session.directGpu ||
+          ready.nodeId !== 0xfffffffe ||
+          typeof ready.socketPath !== "string" ||
+          !path.isAbsolute(ready.socketPath) ||
+          Buffer.byteLength(ready.socketPath) >= 108 ||
+          ready.socketPath.includes("\0"))
+      )
+        throw new Error("Capture helper returned an invalid direct stream.");
+      if (!directGpu && ready.nodeId === 0xfffffffe)
+        throw new Error("Capture helper returned an invalid stream.");
       pending = undefined;
       session.phase = "selected";
       session.resolve({
         action: "selected",
-        socketPath,
+        socketPath: directGpu ? ready.socketPath : socketPath,
+        ...(directGpu ? { transport: "direct-gpu" } : {}),
         nodeId: ready.nodeId,
         method: session.method,
         sourceType: monitorMethod(session.method) ? "screen" : "window",
-        ...(["relay", "copy"].includes(ready.handoff)
+        ...(session.method === "vkcapture" && session.processIdentity
+          ? { processIdentity: session.processIdentity }
+          : {}),
+        ...(["relay", "copy", "direct-gpu"].includes(ready.handoff)
           ? {
               handoff: ready.handoff,
               handoffFallback: [

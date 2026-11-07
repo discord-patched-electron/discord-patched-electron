@@ -10,7 +10,13 @@ const root = process.env.DPE_SCREENSHARE_OUTPUT;
 const config = JSON.parse(fs.readFileSync(path.join(root, "config.json"), "utf8"));
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const stats = (connection) =>
-  new Promise((resolve) => connection.getFilteredStats(-1, (value) => resolve(JSON.parse(value))));
+  new Promise((resolve, reject) =>
+    connection.getFilteredStats(-1, (value) => {
+      const parsed = JSON.parse(value);
+      if (parsed.__fixtureError) reject(Error(parsed.__fixtureError));
+      else resolve(parsed);
+    }),
+  );
 window.addEventListener(
   "DOMContentLoaded",
   () => {
@@ -257,17 +263,29 @@ async function run() {
     capture: captureAdapter,
     encoder: encoderGuard,
     settings: { read: () => ({ capturePacing: true }) },
+    ...(config.capture_transport === "direct-gpu"
+      ? {
+          backends: {
+            snapshot: () => ({
+              method: "direct-gpu",
+              transport: "direct-gpu",
+              sourceType: "screen",
+              handoff: "direct-gpu",
+            }),
+            directSnapshot: () => capturePicker?.directStats(),
+            setRate() {},
+          },
+        }
+      : {}),
     portal: () => config.backend === "pipewire",
     x11: config.backend === "x11",
   });
   const sender = transportModule
     ? transportModule.wrap(senderNative, { tracker: transportTracker })
     : senderNative;
-  const receiverNative = new voice.VoiceConnection(
-    "2000",
-    { ...endpoint, ssrc: 52, streamParameters: [] },
-    () => {},
-  );
+  const receiverNative = config.split_peers
+    ? await require("./receiver-client.cjs").create(endpoint)
+    : new voice.VoiceConnection("2000", { ...endpoint, ssrc: 52, streamParameters: [] }, () => {});
   const receiver = transportModule
     ? transportModule.wrap(receiverNative, { tracker: transportTracker })
     : receiverNative;
@@ -391,47 +409,53 @@ async function run() {
     connection.setVideoCodecErrorCallback?.((error) => codecErrors.push({ kind, error }));
   }
   voice.setImageDataAllocator((width, height) => new window.ImageData(width, height));
-  receiver.setOnVideoCallback((_, __, stream) => {
-    voice.setVideoOutputSink(
-      stream,
-      (imageData) => {
-        rendered++;
-        if (paddingScope === undefined && config.encoder === "av1-vaapi")
-          paddingScope = encoderGuard?.snapshot()?.hardwareScope || "unknown";
-        const layout =
-          config.encoder === "av1-vaapi"
-            ? av1Padding(
-                imageData,
-                config.encode_width || config.width,
-                config.encode_height || config.height,
-                paddingScope,
-              )
-            : null;
-        if (layout) {
-          padding.checked++;
-          padding.maxValue = Math.max(padding.maxValue, layout.maxValue);
-          padding.maxInterior = Math.max(padding.maxInterior, layout.maxInterior);
-          if (!layout.valid) padding.failed++;
-        }
-        const sample = layout
-          ? {
-              width: imageData.width,
-              height: imageData.height,
-              data: imageData.data,
-              contentRect: layout.rect,
-            }
-          : imageData;
-        measurements.received(sample);
-        if (config.content_pattern === "framing") {
-          pictureEdges.checked++;
-          if (!fullPictureEdges(sample)) pictureEdges.failed++;
-        }
-        voice.signalVideoOutputSinkReady(stream);
-      },
-      true,
-    );
-    voice.signalVideoOutputSinkReady(stream);
-  });
+  if (!config.split_peers)
+    receiver.setOnVideoCallback((_, __, stream) => {
+      voice.setVideoOutputSink(
+        stream,
+        (imageData) => {
+          rendered++;
+          if (paddingScope === undefined && config.encoder === "av1-vaapi") {
+            const snapshot = encoderGuard?.snapshot();
+            paddingScope =
+              snapshot?.av1Alignment?.hardwareScope === "amd-vcn4"
+                ? "amd-vcn4"
+                : snapshot?.hardwareScope || "unknown";
+          }
+          const layout =
+            config.encoder === "av1-vaapi"
+              ? av1Padding(
+                  imageData,
+                  config.encode_width || config.width,
+                  config.encode_height || config.height,
+                  paddingScope,
+                )
+              : null;
+          if (layout) {
+            padding.checked++;
+            padding.maxValue = Math.max(padding.maxValue, layout.maxValue);
+            padding.maxInterior = Math.max(padding.maxInterior, layout.maxInterior);
+            if (!layout.valid) padding.failed++;
+          }
+          const sample = layout
+            ? {
+                width: imageData.width,
+                height: imageData.height,
+                data: imageData.data,
+                contentRect: layout.rect,
+              }
+            : imageData;
+          measurements.received(sample);
+          if (config.content_pattern === "framing") {
+            pictureEdges.checked++;
+            if (!fullPictureEdges(sample)) pictureEdges.failed++;
+          }
+          voice.signalVideoOutputSinkReady(stream);
+        },
+        true,
+      );
+      voice.signalVideoOutputSinkReady(stream);
+    });
   receiver.mergeUsers([
     { id: "1000", audioSsrc: 42, videoSsrc: 44, rtxSsrc: 45, mute: false, volume: 0 },
   ]);
@@ -444,6 +468,10 @@ async function run() {
     await new Promise((resolve) => connection.prepareSecureFramesTransition(0, 0, resolve));
     connection.executeSecureFramesTransition(0);
     connection.setSelfMute(true);
+  }
+  if (config.baseline_seconds) {
+    fs.writeFileSync(path.join(root, "baseline-started"), "ready\n");
+    await wait(config.baseline_seconds * 1000);
   }
   const capture = [];
   sender.setDesktopSourceStatusCallback((value) => capture.push(value));
@@ -567,7 +595,9 @@ async function run() {
     }
     await wait(1000);
     const sent = await stats(sender);
+    if (config.split_peers) receiverNative.setPhase(bottleneck?.phase() ?? phase);
     const received = await stats(receiver);
+    if (config.split_peers) rendered = await receiverNative.progress();
     samples.push({
       elapsedMs: performance.now() - started,
       phase: bottleneck?.phase() ?? phase,
@@ -584,8 +614,14 @@ async function run() {
   sender.setVideoBroadcast(false);
   sender.clearDesktopSource();
   if (config.backend === "pipewire") voice.releaseNativeDesktopVideoSourcePickerStream();
+  let remoteOutput;
+  if (config.split_peers) {
+    remoteOutput = await receiverNative.output();
+    rendered = remoteOutput.rendered;
+    Object.assign(pictureEdges, remoteOutput.pictureEdges);
+  }
   sender.destroy();
-  receiver.destroy();
+  await receiver.destroy();
   if (capturePicker) {
     const deadline = performance.now() + 2000;
     while (!pickerEvents.some((event) => event.event === "stopped") && performance.now() < deadline)
@@ -609,7 +645,7 @@ async function run() {
     feedbackPackets > 0;
   ipcRenderer.send("report", {
     passed,
-    scope: `synthetic ${config.backend} native loopback; pass verifies delivery/backend, not a performance improvement`,
+    scope: `synthetic ${config.capture_transport === "direct-gpu" ? "direct GPU" : config.backend} native loopback; pass verifies delivery/backend, not a performance improvement`,
     config,
     codecSurvey,
     codecCapabilities,
@@ -621,6 +657,8 @@ async function run() {
     captureScale: captureScale?.snapshot() ?? null,
     captureSync: captureSync?.snapshot() ?? null,
     capturePicker: config.capture_picker ? pickerEvents : null,
+    captureEventDelivery: capturePicker?.eventDelivery ?? null,
+    captureDirect: capturePicker?.directStats() ?? null,
     mediaPackets,
     feedbackPackets,
     discardedPackets,
@@ -636,7 +674,7 @@ async function run() {
     capture,
     transitions,
     samples,
-    measurements: measurements.report(),
+    measurements: remoteOutput?.measurements ?? measurements.report(),
     pictureEdges,
     av1Padding: padding,
     sourceTiming: {

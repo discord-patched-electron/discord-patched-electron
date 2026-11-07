@@ -1,5 +1,6 @@
-"""Exercise the real C guard, by-value ABI forwarding and hardware scope."""
+"""Exercise Rust encoder ownership, native ELF installation and hardware scope."""
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -8,7 +9,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build_camera_support import node_headers
 from common import ROOT, sha256
 from encoder_scope import scope
 
@@ -18,24 +18,12 @@ class EncoderCompatibilityTests(unittest.TestCase):
     def setUpClass(cls):
         cls.temporary = tempfile.TemporaryDirectory()
         cls.root = Path(cls.temporary.name)
-        cls.binary = cls.root / "encoder-check"
         subprocess.run(
-            [
-                "cc",
-                "-std=c11",
-                "-Wall",
-                "-Wextra",
-                "-Werror",
-                "-I" + str(node_headers()),
-                str(ROOT / "tests/screenshare/encoder-check.c"),
-                str(ROOT / "integration/video/encoder-hevc.c"),
-                str(ROOT / "integration/video/av1-software-crop.c"),
-                "-ldl",
-                "-pthread",
-                "-o",
-                str(cls.binary),
-            ],
+            ["cargo", "test", "--locked", "-p", "dpe-native", "--lib", "--no-run"],
+            cwd=ROOT,
             check=True,
+            capture_output=True,
+            timeout=180,
         )
 
     @classmethod
@@ -43,7 +31,13 @@ class EncoderCompatibilityTests(unittest.TestCase):
         cls.temporary.cleanup()
 
     def test_native_create_resize_failure_and_abi(self):
-        subprocess.run([str(self.binary)], check=True, capture_output=True)
+        subprocess.run(
+            ["cargo", "test", "--locked", "-p", "dpe-native", "encoder_guard::tests::"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            timeout=180,
+        )
 
     def test_sysfs_generation_scope(self):
         for index, (devices, expected) in enumerate(
@@ -71,7 +65,28 @@ class EncoderCompatibilityTests(unittest.TestCase):
                         major = path / f"ip_discovery/die/0/UVD/{instance}/major"
                         major.parent.mkdir(parents=True)
                         major.write_text(str(version))
-                subprocess.run([str(self.binary), str(root), str(int(expected))], check=True)
+                subprocess.run(
+                    [
+                        "cargo",
+                        "test",
+                        "--locked",
+                        "-p",
+                        "dpe-native",
+                        "encoder_guard::tests::hardware_scope_uses_every_amd_render_device",
+                        "--",
+                        "--ignored",
+                        "--exact",
+                    ],
+                    cwd=ROOT,
+                    check=True,
+                    capture_output=True,
+                    timeout=60,
+                    env={
+                        **os.environ,
+                        "DPE_TEST_DRM_ROOT": str(root),
+                        "DPE_TEST_EXPECT_VCN4": str(int(expected)),
+                    },
+                )
 
     def test_unknown_native_module_is_not_patched(self):
         module = self.root / "unknown.node"
@@ -107,7 +122,28 @@ class EncoderCompatibilityTests(unittest.TestCase):
         for name in ("create", "update", "destroy"):
             arguments.extend(str(metadata[name][field]) for field in ("slot", "target", "lazy"))
         arguments.append(str(metadata["vendor"]["target"]))
-        subprocess.run([str(self.binary), str(module), *arguments], check=True)
+        subprocess.run(
+            [
+                "cargo",
+                "test",
+                "--locked",
+                "-p",
+                "dpe-native",
+                "encoder_install::tests::lazy_installer_checks_actual_slots_and_idempotence",
+                "--",
+                "--ignored",
+                "--exact",
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            timeout=60,
+            env={
+                **os.environ,
+                "DPE_TEST_ENCODER_MODULE": str(module),
+                "DPE_TEST_ENCODER_SCOPE": ",".join(arguments),
+            },
+        )
 
 
 if __name__ == "__main__":

@@ -33,7 +33,7 @@ targets only the two reviewed VAAPI constructor calls, not NVENC's headers.
 Do not apply the AMD 64×16 restriction or software-generated AV1 level policy
 to NVENC.
 
-The expanded [C regression](../../tests/screenshare/encoder-check.c) now covers
+The expanded [Rust regression](../../native/bridge/src/encoder_guard_tests.rs) now covers
 NVENC types 0 and 10 with AV1, the VAAPI hook installed and AMD VCN4 present.
 The focused checks passed: creation does not require a VAAPI header, and native
 arguments, rate updates and creation failures pass through unchanged. This

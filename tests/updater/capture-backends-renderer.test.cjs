@@ -202,3 +202,17 @@ test("experimental off ignores legacy custom defaults and preserves native captu
     ["finish", 1, "native"],
   );
 });
+
+test("game process identity reaches audio only while native capture is active", async () => {
+  const r = rig({ method: "vkcapture" });
+  await turn();
+  const pending = r.request(1);
+  const identity = { pid: 200, start: "2000" };
+  r.choose(1, { sourceType: "window", processIdentity: identity });
+  await pending;
+  assert.equal(r.api.snapshot(), null);
+  await r.event("started", 1);
+  assert.equal(r.api.snapshot().processIdentity, identity);
+  await r.event("stopped", 1);
+  assert.equal(r.api.snapshot(), null);
+});

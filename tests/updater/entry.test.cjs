@@ -20,6 +20,8 @@ function fixture({
     exit: (code) => calls.push(["exit", code]),
   });
   function requireModule(name) {
+    if (name === "./capture-permission.cjs")
+      return { maintain: async () => calls.push(["capture-maintain"]) };
     if (name === "./diagnostic-log.cjs") return { install() {} };
     if (name === "electron")
       return { app, dialog: { showErrorBox: (...args) => calls.push(["error", ...args]) } };
@@ -151,4 +153,15 @@ test("second launch focuses the live onboarding owner after Welcome is replaced"
   active = undefined;
   calls.app.emit("second-instance");
   assert.deepEqual(focused, ["welcome", "settings"]);
+});
+
+test("activated Discord maintains capture permission after readiness; onboarding does not", async () => {
+  const active = fixture({ pending: false, existingProfile: true });
+  const onboarding = fixture({ pending: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(active.filter(([name]) => name === "capture-maintain").length, 1);
+  assert.equal(
+    onboarding.some(([name]) => name === "capture-maintain"),
+    false,
+  );
 });

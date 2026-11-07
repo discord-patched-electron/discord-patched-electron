@@ -16,6 +16,21 @@ def check(backend, node, output):
     if output.exists():
         raise ValueError("Choose a new validation directory")
     output.mkdir(parents=True)
+    symbols = {
+        line.split()[-1]
+        for line in subprocess.check_output(
+            ["nm", "-D", "--defined-only", str(backend)], text=True
+        ).splitlines()
+        if line.split()
+    }
+    expected_symbols = {
+        "dpe_hevc_api",
+        "dpe_encoder_hardware_scope",
+        "dpe_encoder_import_stats",
+        "dpe_encoder_profile_stage",
+    }
+    if symbols != expected_symbols:
+        raise ValueError("Private encoder exported an unexpected ABI or codec symbol")
     binary = output / "backend-check"
     subprocess.run(
         [
@@ -25,6 +40,7 @@ def check(backend, node, output):
             "-Wall",
             "-Wextra",
             "-Werror",
+            "-pthread",
             "-I" + str(ROOT / "integration/video"),
             str(ROOT / "tests/screenshare/vaapi-backend-check.c"),
             "-ldl",
@@ -79,8 +95,9 @@ def check(backend, node, output):
         "passed": True,
         "backend_sha256": sha256(backend),
         "render_node": str(node),
+        "exported_symbols": sorted(symbols),
         "decoded": decoded,
-        "scope": "Generated CPU pixels, encode, suspend, resize, resume, rejected-update recovery; no network",
+        "scope": "Generated pixels, callback reentry/concurrent destroy, exact lease release, suspend/resize/resume and rejected-update recovery; no network",
     }
     write_json(output / "report.json", report)
     return report

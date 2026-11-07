@@ -1,56 +1,25 @@
 """Build bounded GPU monitor thumbnails without capturing a screen."""
 
 import argparse
-import subprocess
+import shutil
 from pathlib import Path
 
-from build_wayland_capture import protocols
-from common import ROOT, sha256, write_json
+from build_rust_support import build as build_rust
+from common import sha256, write_json
 
 
-def build(output, compiler="cc"):
-    generated = protocols(output / "protocols")
-    flags = subprocess.check_output(
-        [
-            "pkg-config",
-            "--cflags",
-            "--libs",
-            "wayland-client",
-            "gbm",
-            "egl",
-            "glesv2",
-            "libdrm",
-            "libcap",
-        ],
-        text=True,
-    ).split()
+def build(output):
+    output.mkdir(parents=True, exist_ok=True)
+    binary, rust = build_rust("dpe-source", binary="dpe-screen-preview")
     target = output / "dpe-screen-preview"
-    subprocess.run(
-        [
-            compiler,
-            "-std=c11",
-            "-O2",
-            "-Wall",
-            "-Wextra",
-            "-Werror",
-            "-Wl,-z,relro,-z,now",
-            "-I" + str(output / "protocols"),
-            *(
-                str(ROOT / "integration/video" / name)
-                for name in ("screen-preview.c", "wayland-capture.c", "kms-client.c", "kms-gpu.c")
-            ),
-            *map(str, generated),
-            *flags,
-            "-o",
-            str(target),
-        ],
-        check=True,
-    )
+    shutil.copy2(binary, target)
     report = {
         "sha256": sha256(target),
         "executable": target.name,
         "license": "GPL-3.0-only",
         "hardwareValidated": False,
+        "rust": rust,
+        "implementation": "rust",
     }
     write_json(output / "screen-preview.json", report)
     return report

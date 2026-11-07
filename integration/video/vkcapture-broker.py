@@ -24,6 +24,91 @@ OBS_ENDPOINT = "\0/com/obsproject/vkcapture"
 PREVIEW_LIMIT = 750000
 
 
+def compositor_peer_pid(path):
+    """Verify IPC and Wayland sockets belong to the same compositor process."""
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+            connection.settimeout(0.25)
+            connection.connect(str(path))
+            pid, uid, _ = struct.unpack(
+                "3i", connection.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+            )
+            return pid if uid == os.geteuid() and pid > 1 else None
+    except OSError:
+        return None
+
+
+def sway_cursor_toplevel(peer):
+    """Resolve one mapped Sway toplevel for the authenticated game process.
+
+    Foreign titles/app IDs are not identities. Multiple windows, PID reuse,
+    missing IPC fields and nested/unrelated compositors all fail closed.
+    """
+    pid = peer.get("pid")
+    identity = peer.get("processIdentity")
+    if (
+        not os.environ.get("SWAYSOCK")
+        or not os.environ.get("WAYLAND_DISPLAY")
+        or identity is None
+        or process_identity(pid) != identity
+    ):
+        return None
+    display_path = Path(os.environ["WAYLAND_DISPLAY"])
+    if not display_path.is_absolute():
+        runtime = os.environ.get("XDG_RUNTIME_DIR")
+        if not runtime:
+            return None
+        display_path = Path(runtime) / display_path
+    sway_pid = compositor_peer_pid(os.environ["SWAYSOCK"])
+    if sway_pid is None or sway_pid != compositor_peer_pid(display_path):
+        return None
+    try:
+        result = subprocess.run(
+            ["swaymsg", "-r", "-t", "get_tree"],
+            capture_output=True,
+            timeout=1,
+            check=True,
+        )
+        if len(result.stdout) > 4 * 1024 * 1024:
+            return None
+        tree = json.loads(result.stdout)
+        stack, matches = [tree], []
+        while stack:
+            node = stack.pop()
+            if not isinstance(node, dict):
+                return None
+            stack.extend(node.get("nodes", []))
+            stack.extend(node.get("floating_nodes", []))
+            if node.get("pid") == pid:
+                matches.append(node.get("foreign_toplevel_identifier"))
+        if len(matches) != 1 or process_identity(pid) != identity:
+            return None
+        identifier = matches[0]
+        if (
+            isinstance(identifier, str)
+            and 1 <= len(identifier) <= 32
+            and all(32 <= ord(c) < 127 for c in identifier)
+        ):
+            return identifier
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError):
+        pass
+    return None
+
+
+def process_identity(pid):
+    """Host identity for the authenticated socket peer, including PID reuse guard."""
+    try:
+        root = Path(f"/proc/{pid}")
+        if pid <= 1 or root.stat().st_uid != os.geteuid():
+            return None
+        fields = (root / "stat").read_text().rsplit(")", 1)[1].split()
+        if fields[0] == "Z":
+            return None
+        return {"pid": pid, "start": fields[19]}
+    except (OSError, ValueError, IndexError):
+        return None
+
+
 def hello(sock):
     data, ancillary, flags, _ = sock.recvmsg(
         PACKET_SIZE, socket.CMSG_SPACE(64), socket.MSG_CMSG_CLOEXEC
@@ -53,6 +138,7 @@ def hello(sock):
         "name": name,
         "uuid": data[96:112].hex(),
         "direct": bool(struct.unpack_from("=I", data, 44)[0] & 8),
+        "pause": bool(struct.unpack_from("=I", data, 44)[0] & 16),
     }
 
 
@@ -179,6 +265,7 @@ class Broker:
         self.peers[token] = {
             "socket": sock,
             "pid": pid,
+            "processIdentity": process_identity(pid),
             "name": None,
             "created": time.monotonic(),
             "protocol": protocol,
@@ -197,10 +284,15 @@ class Broker:
                 "LANG",
                 "DISPLAY",
                 "XAUTHORITY",
+                "WAYLAND_DISPLAY",
                 "DPE_GAME_CAPTURE_HANDOFF",
+                "DPE_CAPTURE_PROFILE",
             )
             if key in os.environ
         }
+        identifier = sway_cursor_toplevel(peer)
+        if identifier:
+            environment["DPE_GAME_CURSOR_TOPLEVEL"] = identifier
         handoff = environment.get("DPE_GAME_CAPTURE_HANDOFF", "auto")
         if handoff not in ("auto", "copy", "relay"):
             raise ValueError("Invalid game capture handoff")
@@ -215,6 +307,8 @@ class Broker:
         args = ["--hook-fd", str(peer["socket"].fileno()), "--render-node", self.render_node]
         if peer.get("protocol") == "obs":
             return args + ["--hook-protocol", "obs"]
+        if peer.get("pause"):
+            args += ["--hook-pause", "yes"]
         return args + ["--device-uuid", peer["uuid"]]
 
     def cancel_preview(self, token=None):
@@ -397,10 +491,20 @@ class Broker:
                     raise ValueError("Another game capture is starting")
                 self.pending_start = {"request": dict(request), "deadline": time.monotonic() + 3}
                 return
+            transport = request.get("transport", "pipewire")
+            if transport not in ("pipewire", "direct-gpu"):
+                raise ValueError("Invalid capture transport")
+            producer = self.producer
+            if transport == "direct-gpu":
+                if peer.get("protocol") == "obs":
+                    raise ValueError("Direct capture requires the bundled game hook")
+                producer = self.producer.parent.parent / "dpe-direct-source"
+                if not producer.is_file():
+                    raise ValueError("Direct GPU capture helper is unavailable")
             fd = peer["socket"].fileno()
             self.child = subprocess.Popen(
                 [
-                    str(self.producer),
+                    str(producer),
                     *self.child_arguments(peer),
                     "--fps",
                     str(fps),
@@ -416,6 +520,9 @@ class Broker:
             os.set_blocking(self.child.stdout.fileno(), False)
             self.selector.register(self.child.stdout, selectors.EVENT_READ, "producer")
             result["starting"] = True
+            identity = peer.get("processIdentity")
+            if identity is not None and process_identity(peer["pid"]) == identity:
+                result["processIdentity"] = identity
         elif op == "rate":
             fps = request.get("fps")
             if (
@@ -464,6 +571,8 @@ class Broker:
                             "event",
                             "backend",
                             "nodeId",
+                            "transport",
+                            "socketPath",
                             "width",
                             "height",
                             "generation",
@@ -477,6 +586,7 @@ class Broker:
                             "handoffFallback",
                             "relayFrames",
                             "relayReleases",
+                            "relayRetries",
                             "failed",
                             "errorCode",
                         )

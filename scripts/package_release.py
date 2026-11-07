@@ -372,6 +372,15 @@ def package(
             "client_version": build["client_version"],
             "client": client_pins,
             "application": application,
+            "capture_maintenance": {
+                "schema": 1,
+                "components": {
+                    "runtime": build["executable_sha256"],
+                    "server": sha256(source / "capture/dpe-kms-server"),
+                    "maintainer": sha256(source / "integration/video/kms-maintenance.py"),
+                    "installer": sha256(source / "integration/video/kms-permission-setup.py"),
+                },
+            },
             "package_distribution": "bootstrap-only",
             "appimage_dependencies": read_json(
                 appimage_tools / "dependencies/usr/share/dpe-dependencies/build.json"

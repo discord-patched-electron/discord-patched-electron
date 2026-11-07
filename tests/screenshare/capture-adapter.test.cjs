@@ -31,6 +31,7 @@ function fixture(failure, upstreamEnabled, env = {}) {
   const context = {
     module: { exports: {} },
     require(name) {
+      if (name === "./dpe-native-identity.cjs") return { matches: () => true };
       if (name === "node:fs")
         return {
           readFileSync: (file) => (file.endsWith(".json") ? JSON.stringify(metadata) : native),

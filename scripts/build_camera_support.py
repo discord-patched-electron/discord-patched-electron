@@ -5,7 +5,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from common import ROOT, digest, hash_files, sha256, write_json
+from build_rust_support import build as build_rust
+from common import digest, hash_files, sha256, write_json
 
 ASSET = "libdpe-camera-probe.so"
 FLAGS = [
@@ -34,75 +35,57 @@ def node_headers() -> Path:
 
 def build(output: Path, compiler="cc", *, hevc=False) -> dict:
     output.mkdir(parents=True, exist_ok=True)
-    include = node_headers()
-    extra = []
+    export_map = output / "native.exports"
+    export_map.write_text("{ global: ioctl; napi_register_module_v1; local: *; };\n")
+    environment = {}
     hevc_report = None
     if hevc:
         from build_hevc_support import build as build_hevc
 
         hevc_report = build_hevc(output / "hevc", compiler)
-        image = (output / "hevc/libdpe-hevc.so").resolve().as_posix()
-        if "\n" in image or "\r" in image:
-            raise ValueError("Encoder image path contains a newline")
-        image = image.replace("\\", "\\\\").replace('"', '\\"')
-        assembly = output / "hevc-image.S"
-        assembly.write_text(
-            '.section .dpe.hevc,"a",@progbits\n.balign 16\n.global dpe_hevc_image_start\n'
-            ".hidden dpe_hevc_image_start\ndpe_hevc_image_start:\n"
-            f'.incbin "{image}"\n'
-            ".global dpe_hevc_image_end\n.hidden dpe_hevc_image_end\ndpe_hevc_image_end:\n"
-            '.section .note.GNU-stack,"",@progbits\n'
-        )
-        extra.append(str(assembly.resolve()))
+        environment["DPE_BUNDLED_ENCODER_IMAGE"] = str((output / "hevc/libdpe-hevc.so").resolve())
+    rust_archive, rust_report = build_rust(environment=environment)
     source_key = digest(
         {
             "sources": hash_files(
                 [
-                    "integration/camera/v4l2-probe.c",
-                    "integration/camera/flip.c",
-                    "integration/video/capture.c",
-                    "integration/video/capture-upstream.c",
-                    "integration/video/capture-scale.c",
-                    "integration/video/capture-sync.c",
-                    "integration/video/capture-picker.c",
-                    "integration/video/encoder.c",
-                    "integration/video/encoder-hevc.c",
+                    "integration/video/capture-abi.h",
+                    "integration/video/capture-delivery.h",
+                    "integration/video/capture-picker.h",
+                    "integration/video/direct-capture.h",
+                    "integration/video/direct-capture-gpu.h",
+                    "integration/video/capture-profile.h",
+                    "integration/video/direct-capture-wire.h",
                     "integration/video/encoder-hevc.h",
                     "integration/video/encoder-abi.h",
-                    "integration/video/av1-level.h",
                     "integration/video/av1-crop.h",
                     "integration/video/av1-software-crop.h",
-                    "integration/video/av1-software-crop.c",
                     "integration/video/capture-rate.h",
                     "scripts/build_camera_support.py",
                 ]
             ),
             "hevc": hevc_report,
+            "rust": rust_report,
         }
     )
     subprocess.run(
         [
             compiler,
             *FLAGS,
-            str(ROOT / "integration/camera/v4l2-probe.c"),
-            str(ROOT / "integration/camera/flip.c"),
-            str(ROOT / "integration/video/capture.c"),
-            str(ROOT / "integration/video/capture-upstream.c"),
-            str(ROOT / "integration/video/capture-scale.c"),
-            str(ROOT / "integration/video/capture-sync.c"),
-            str(ROOT / "integration/video/capture-picker.c"),
-            str(ROOT / "integration/video/encoder.c"),
-            str(ROOT / "integration/video/encoder-hevc.c"),
-            str(ROOT / "integration/video/av1-software-crop.c"),
-            *extra,
+            "-Wl,--undefined=napi_register_module_v1",
+            "-Wl,--undefined=ioctl",
+            "-Wl,--undefined=dpe_native_pointer_reserved",
+            "-Wl,--version-script=" + str(export_map),
+            "-Wl,--gc-sections",
+            str(rust_archive),
             *subprocess.check_output(
-                ["pkg-config", "--cflags", "libpipewire-0.3"], text=True
+                ["pkg-config", "--cflags", "libpipewire-0.3", "libva-drm", "libdrm"], text=True
             ).split(),
-            "-I" + str(include),
             "-o",
             str(output / ASSET),
             "-ldl",
             "-pthread",
+            *subprocess.check_output(["pkg-config", "--libs", "libva-drm"], text=True).split(),
         ],
         check=True,
     )
@@ -116,6 +99,7 @@ def build(output: Path, compiler="cc", *, hevc=False) -> dict:
         "flags": FLAGS,
         "minimum_cpu": "x86-64-v3",
         "hevc": hevc_report,
+        "rust": rust_report,
     }
     write_json(output / "camera-support.json", report)
     return report

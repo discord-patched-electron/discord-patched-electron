@@ -3,6 +3,7 @@
 import struct
 from pathlib import Path
 
+from capture_direct_scope import direct_scope
 from common import sha256, write_json
 from elftools.elf.elffile import ELFFile
 from native_client_2444 import HASHES as CLIENT_2444_HASHES
@@ -124,6 +125,7 @@ def scope(module: Path) -> dict:
         if elf["e_machine"] != "EM_X86_64" or not table:
             raise ValueError("Reviewed picker linkage requires x86-64 symbols")
         symbols = list(table.iter_symbols())
+        result["direct"] = direct_scope(elf, symbols, digest)
         for label, name, size in (
             ("show", "cc_linux_show_picker", 217),
             ("new", "cc_linux_capture_new", 127),

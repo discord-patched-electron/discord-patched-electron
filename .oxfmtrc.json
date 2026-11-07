@@ -8,6 +8,7 @@
     "packaging/upstream/**",
     "integration/updater/openasar/**",
     "integration/video/vendor/**",
+    "native/licenses/**",
     "patches/**",
     "docs/evidence/**",
     "bun.lock",

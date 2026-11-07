@@ -12,6 +12,8 @@ import {
 } from "./primitives.jsx";
 
 const permissionReasons = {
+  "update-not-approved":
+    "The capture helper update could not be verified. Connect to the internet and restart DPE, or update permission manually.",
   "helper-missing": "Direct capture setup is unavailable in this build.",
   "authorization-unavailable":
     "Desktop authorization is unavailable. Check that polkit and an authentication agent are running.",
@@ -383,7 +385,9 @@ export function Screensharing({ active, config }) {
         ? window.Native.capturePermissionAllow()
         : window.Native.capturePermissionRevoke());
       setPermission(result);
-      const complete = enabled ? result.allowed === true : result.configured === false;
+      const complete = enabled
+        ? result.allowed === true && !result.needsUpdate
+        : result.configured === false;
       if (!complete)
         setPermissionError(permissionReasons[result.reason] || permissionReasons["setup-failed"]);
       return complete;
@@ -398,8 +402,13 @@ export function Screensharing({ active, config }) {
       setPermissionBusy(false);
       setPermissionTarget(null);
       requestAnimationFrame(() => {
-        if (document.activeElement === document.body && focused?.isConnected && !focused.disabled)
-          focused.focus({ preventScroll: true });
+        const target = focused?.isConnected
+          ? focused
+          : focused?.id === "screenshare-permission-update"
+            ? document.getElementById("screenshare-permission-allow")
+            : null;
+        if (document.activeElement === document.body && target && !target.disabled)
+          target.focus({ preventScroll: true });
       });
     }
   };
@@ -495,8 +504,10 @@ export function Screensharing({ active, config }) {
             description={
               <>
                 Direct capture is insecure compared to PipeWire because it bypasses the desktop
-                permission picker. Permission applies to DPE’s helper, which other apps running as
-                your user may also invoke.
+                permission picker. Permission is limited to the currently authorized Discord
+                executable and its capture workers. Initial approval enables verified helper updates
+                without further authentication. Other apps running as your user may still control
+                Discord.
                 <span
                   id="screenshare-permission-status"
                   class="dpe-setting-feedback"
@@ -512,7 +523,7 @@ export function Screensharing({ active, config }) {
                 >
                   {permissionBusy
                     ? permissionTarget === false || experimentalTarget === false
-                      ? "Removing system permission, waiting for authentication…"
+                      ? "Removing system permission…"
                       : "Waiting for authentication…"
                     : permissionMessage ||
                       (permission
@@ -538,14 +549,14 @@ export function Screensharing({ active, config }) {
           />
           {values?.experimentalCapture &&
             permission?.configured &&
-            !permission.allowed &&
+            (!permission.allowed || permission.needsUpdate) &&
             permission.available && (
               <Button
                 id="screenshare-permission-update"
                 disabled={busy || permissionBusy}
                 onClick={() => allowCapture(true)}
               >
-                Update permission
+                {permission.allowed ? "Update helper" : "Update permission"}
               </Button>
             )}
           <Switch
@@ -632,13 +643,13 @@ export function Screensharing({ active, config }) {
                 : "None excluded"
             }
             disabled={!values}
-            options={["AV1", "H265", "H264", "VP9", "VP8"].map((codec) => ({
+            options={["AV1", "H265", "H264", "VP8"].map((codec) => ({
               id: codec,
               label: { H265: "H.265 / HEVC", H264: "H.264" }[codec] || codec,
               checked: values?.excludedCodecs?.includes(codec) || false,
               disabled:
                 busy ||
-                (values?.excludedCodecs?.length === 4 && !values.excludedCodecs.includes(codec)),
+                (values?.excludedCodecs?.length === 3 && !values.excludedCodecs.includes(codec)),
             }))}
             onChange={(codec, checked) =>
               save({

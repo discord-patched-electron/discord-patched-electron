@@ -1,7 +1,7 @@
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
-const { createHash } = require("node:crypto");
+const nativeIdentity = require("./dpe-native-identity.cjs");
 
 function load(directory, helper) {
   const metadata = JSON.parse(fs.readFileSync(path.join(directory, "encoder-scope.json"), "utf8"));
@@ -64,7 +64,7 @@ function load(directory, helper) {
     quality.some((value) => !Number.isSafeInteger(value) || value <= 0 || value > 0xffffffff) ||
     qpTrust.some((value) => !Number.isSafeInteger(value) || value <= 0 || value > 0xffffffff) ||
     offsets.some((value) => !Number.isSafeInteger(value) || value <= 0 || value > 0xffffffff) ||
-    createHash("sha256").update(fs.readFileSync(filename)).digest("hex") !== metadata.voice_sha256
+    !nativeIdentity.matches(filename, metadata.voice_sha256)
   )
     throw new Error("The native encoder does not match the reviewed compatibility guard.");
   const addon = { exports: {} };

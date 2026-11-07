@@ -10,6 +10,9 @@ struct dpe_relay_timeline {
   uint64_t acquire_point, release_point;
 };
 struct dpe_vk_relay;
+// Opaque Rust handle. Calls and event-loop callbacks use the creating thread;
+// the loop outlives the relay. Buffer metadata lasts through submit, while
+// completion can outlive PipeWire's buffer storage. Destroy accepts stale handles.
 // Probe synchronization UAPI without GPU work or importing game storage.
 bool dpe_vk_relay_supported(int drm);
 struct dpe_vk_relay *dpe_vk_relay_create(int, struct pw_loop *, struct spa_buffer *,

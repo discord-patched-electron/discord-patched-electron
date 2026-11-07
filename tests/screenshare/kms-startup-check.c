@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +20,17 @@
 #include <unistd.h>
 
 static bool blocked, authorized, pkexec_missing, scoped, grant_valid = true, unsafe_ancestor;
-static enum { GOOD, DENIED, CANCELLED, UNAVAILABLE, INTERRUPTED, BAD_UID, BAD_PID } mode;
+static enum {
+  GOOD,
+  DENIED,
+  CANCELLED,
+  UNAVAILABLE,
+  INTERRUPTED,
+  BAD_UID,
+  BAD_PID,
+  SCOPED,
+  BAD_CAPABILITY
+} mode;
 static const char *helper = "/usr/local/libexec/discord-patched-electron/kms-server",
                   *pkexec = "/usr/bin/pkexec";
 static const char *scoped_root = "/usr/local/libexec/discord-patched-electron/";
@@ -55,7 +66,7 @@ int __wrap_access(const char *file, int access_mode) {
 }
 FILE *__wrap_fopen(const char *file, const char *mode) {
   assert(scoped && !strncmp(file, scoped_root, strlen(scoped_root)) && !strcmp(mode, "re"));
-  static char marker[] = "DPE-KMS-2\n";
+  static char marker[] = "DPE-KMS-3\n1\n2\n3\n4\n5\n/fixture/discord\n";
   return fmemopen(marker, strlen(marker), "r");
 }
 int __wrap_prctl(int option, ...) {
@@ -84,7 +95,7 @@ int __wrap_kill(pid_t pid, int signal) {
   }
   return __real_kill(pid, signal);
 }
-int __wrap_execve(const char *file, char *const argv[], char *const env[]) {
+static int fixture_exec(const char *file, char *const argv[], char *const env[]) {
   if (!strcmp(file, "/usr/bin/pkcheck")) {
     assert(scoped && !strcmp(argv[1], "--action-id") &&
            !strcmp(argv[2], "org.discord-patched-electron.capture") &&
@@ -103,7 +114,8 @@ int __wrap_execve(const char *file, char *const argv[], char *const env[]) {
     assert(!strcmp(argv[1], "--disable-internal-agent") &&
            !strcmp(argv[2],
                    scoped ? "/usr/local/libexec/discord-patched-electron/kms-server" : helper));
-    assert(!strcmp(argv[4], "/dev/dri/card999") && !argv[5]);
+    assert(!strcmp(argv[4], "/dev/dri/card999") && !strcmp(argv[5], "/fixture/auth") &&
+           !strcmp(argv[6], "fixture-token") && !argv[7]);
     socket_path = argv[3];
   } else {
     assert(!strcmp(file, helper) && !strcmp(argv[0], helper));
@@ -142,9 +154,13 @@ int __wrap_execve(const char *file, char *const argv[], char *const env[]) {
   memcpy(&connection, CMSG_DATA(header), sizeof(connection));
   close(fd);
   gsr_kms_response response = {.version = 6};
+  if (mode == SCOPED || mode == BAD_CAPABILITY)
+    strcpy(response.err_msg,
+           mode == SCOPED ? DPE_KMS_SCOPE_CAPABILITY : DPE_KMS_SCOPE_CAPABILITY "extra");
   assert(send(connection, &response, sizeof(response), MSG_NOSIGNAL) == sizeof(response));
   assert(recv(connection, &request, sizeof(request), 0) == sizeof(request));
-  assert(request.type == KMS_REQUEST_TYPE_GET_KMS); // Access checked before readiness.
+  assert(request.type == (mode == SCOPED ? (int)DPE_KMS_SCOPE_REQUEST : KMS_REQUEST_TYPE_GET_KMS));
+  assert(request.new_connection_fd == (mode == SCOPED ? 432 : -1)); // Access checked before ready.
   if (mode == DENIED) {
     response.result = KMS_RESULT_FAILED_TO_GET_PLANE;
     strcpy(response.err_msg, "drmfb handle is NULL");
@@ -154,15 +170,52 @@ int __wrap_execve(const char *file, char *const argv[], char *const env[]) {
   close(connection);
   _exit(0);
 }
+int __real_posix_spawn(pid_t *, const char *, const posix_spawn_file_actions_t *,
+                       const posix_spawnattr_t *, char *const[], char *const[]);
+int __wrap_posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *actions,
+                       const posix_spawnattr_t *attributes, char *const argv[], char *const env[]) {
+  assert(actions && !strcmp(env[0], "PATH=/usr/bin") && !strcmp(env[1], "LANG=C") && !env[2]);
+  assert(!strcmp(path, pkexec) || !strcmp(path, "/usr/bin/pkcheck"));
+  char state[96];
+  snprintf(state, sizeof(state), "DPE_KMS_FIXTURE=%d,%d,%d,%d", mode, authorized, scoped,
+           grant_valid);
+  char *environment[] = {env[0], env[1], state, NULL};
+  return __real_posix_spawn(pid, "/proc/self/exe", actions, attributes, argv, environment);
+}
 static void attempt(bool success, const char *error) {
   struct dpe_kms_client client;
   assert(dpe_kms_client_open(&client, "/dev/dri/card999", authorized) == success);
   assert(error ? client.error && !strcmp(client.error, error) : !client.error);
   dpe_kms_client_close(&client);
-  assert(client.pid == -1 && client.fd == -1);
+  assert(client.pid == -1 && client.fd == -1 && !client.owner);
+  dpe_kms_client_close(&client); // Clearing the opaque owner makes repeated cleanup harmless.
   assert(waitpid(-1, NULL, WNOHANG) == -1 && errno == ECHILD);
 }
-int main(void) {
+static void attempt_output(bool scoped_expected) {
+  struct dpe_kms_client client;
+  struct dpe_kms_output output = {.connector = 432};
+  strcpy(output.card, "/dev/dri/card999");
+  assert(dpe_kms_client_open_output(&client, &output, false));
+  assert(client.connector == (scoped_expected ? 432u : 0u));
+  dpe_kms_client_close(&client);
+  assert(client.fd == -1 && !client.owner && !client.connector);
+}
+int main(int argc, char **argv) {
+  (void)argc;
+  const char *state = getenv("DPE_KMS_FIXTURE");
+  if (state) {
+    int saved_mode, saved_authorized, saved_scoped, saved_valid;
+    assert(sscanf(state, "%d,%d,%d,%d", &saved_mode, &saved_authorized, &saved_scoped,
+                  &saved_valid) == 4);
+    mode = saved_mode;
+    authorized = saved_authorized;
+    scoped = saved_scoped;
+    grant_valid = saved_valid;
+    char *environment[] = {"PATH=/usr/bin", "LANG=C", NULL};
+    return fixture_exec(argv[0], argv, environment);
+  }
+  setenv("DPE_KMS_AUTH_SOCKET", "/fixture/auth", 1);
+  setenv("DPE_KMS_AUTH_TOKEN", "fixture-token", 1);
   assert(dpe_kms_authorization_required() && !dpe_kms_helper_status());
   attempt(false, "permission-required");
   authorized = true;
@@ -171,6 +224,11 @@ int main(void) {
   scoped = true;
   assert(!dpe_kms_authorization_required());
   attempt(true, NULL);
+  attempt_output(false); // Old helper: no extension without an exact advertisement.
+  mode = SCOPED;
+  attempt_output(true);
+  mode = BAD_CAPABILITY;
+  attempt_output(false);
   mode = DENIED;
   attempt(false, "permission-blocked");
   mode = CANCELLED;

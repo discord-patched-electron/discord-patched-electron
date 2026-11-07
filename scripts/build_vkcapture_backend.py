@@ -6,54 +6,29 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from build_rust_support import build as build_rust
+from build_rust_support import stage_source as stage_rust_source
 from common import ROOT, sha256, write_json
 from stage_vkcapture import COMMIT, URL, stage
 
 
 def build(output, archive=None):
     output.mkdir(parents=True, exist_ok=True)
+    producer, source_rust = build_rust("dpe-source", binary="dpe-vkcapture-source")
     target = output / "dpe-vkcapture-source"
-    flags = subprocess.check_output(
-        ["pkg-config", "--cflags", "--libs", "libpipewire-0.3", "gbm", "egl", "glesv2", "libdrm"],
-        text=True,
-    ).split()
-    subprocess.run(
-        [
-            "cc",
-            "-std=gnu11",
-            "-O2",
-            "-Wall",
-            "-Wextra",
-            "-Werror",
-            "-Wl,-z,relro,-z,now",
-            str(ROOT / "integration/video/vkcapture-source.c"),
-            str(ROOT / "integration/video/vkcapture-gpu.c"),
-            str(ROOT / "integration/video/vkcapture-relay.c"),
-            *flags,
-            "-o",
-            str(target),
-        ],
-        check=True,
+    shutil.copy2(producer, target)
+    preview, preview_rust = build_rust(
+        "dpe-graphics", features=("preview",), binary="dpe-vkcapture-preview"
     )
-    subprocess.run(
-        [
-            "cc",
-            "-std=gnu11",
-            "-O2",
-            "-Wall",
-            "-Wextra",
-            "-Werror",
-            "-Wl,-z,relro,-z,now",
-            str(ROOT / "integration/video/vkcapture-preview.c"),
-            str(ROOT / "integration/video/vkcapture-gpu.c"),
-            *flags,
-            "-o",
-            str(output / "dpe-vkcapture-preview"),
-        ],
-        check=True,
-    )
+    shutil.copy2(preview, output / "dpe-vkcapture-preview")
     if archive is None:
-        return {"producer": sha256(target), "hooksBuilt": False, "hardwareValidated": False}
+        return {
+            "producer": sha256(target),
+            "hooksBuilt": False,
+            "hardwareValidated": False,
+            "source_rust": source_rust,
+            "preview_rust": preview_rust,
+        }
     source_output = output / "source"
     stage(archive, source_output)
     source = source_output / f"obs-vkcapture-{COMMIT}"
@@ -63,11 +38,14 @@ def build(output, archive=None):
     for name in (
         "vkcapture-wire.h",
         "vkcapture-hook.h",
-        "vkcapture-hook.c",
         "vkcapture-gl-sync.h",
-        "vkcapture-gl-sync.c",
+        "vkcapture-rust.cmake",
     ):
         shutil.copy2(ROOT / "integration/video" / name, source / "src" / name)
+    rust_archive, rust = build_rust("dpe-game")
+    stage_rust_source(source / "dpe-rust")
+    with (source / "CMakeLists.txt").open("a") as cmake:
+        cmake.write('\ninclude("${CMAKE_CURRENT_SOURCE_DIR}/src/vkcapture-rust.cmake")\n')
     subprocess.run(
         [
             "cmake",
@@ -79,6 +57,7 @@ def build(output, archive=None):
             "Ninja",
             "-DBUILD_PLUGIN=OFF",
             "-DCMAKE_BUILD_TYPE=Release",
+            "-DDPE_GAME_ARCHIVE=" + str(rust_archive),
         ],
         check=True,
     )
@@ -96,15 +75,22 @@ def build(output, archive=None):
         shutil.copy2(ROOT / "integration/video" / name, output / name)
         (output / name).chmod(0o755)
     # Corresponding patched hook source and both license notices ship together.
-    # Consumer/broker source remains MIT and is supplied in the DPE application.
+    # The broker remains MIT; source and preview consumers use GPL-3.0-only Rust
+    # graphics. Combined binaries ship that license and corresponding source.
     license_files = [
         p for p in source.iterdir() if p.name.lower().startswith(("license", "copying"))
     ]
     for file in license_files:
         shutil.copy2(file, output / ("HOOK-" + file.name))
     shutil.copy2(ROOT / "LICENSE", output / "DPE-LICENSE")
+    shutil.copy2(
+        ROOT / "integration/video/protocols/GSR-GPL-3.0.txt", output / "GRAPHICS-GPL-3.0.txt"
+    )
     report = {
         "protocol": 1,
+        "rust": rust,
+        "source_rust": source_rust,
+        "preview_rust": preview_rust,
         "upstreamCommit": COMMIT,
         "upstreamUrl": URL,
         "hookLicense": "GPL-2.0-or-later",

@@ -1,15 +1,25 @@
 // SPDX-License-Identifier: MIT
 // Driver-independent semaphore ownership/order regression; never opens a GPU.
-#include "../../integration/video/vkcapture-gl-sync.c"
+#define _GNU_SOURCE
+#include "../../integration/video/vkcapture-gl-sync.h"
+#include <GL/glcorearb.h>
+#include <GL/glext.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define HANDLE(type, n) ((type)(uintptr_t)(n))
 static bool missing_extension, mismatch_uuid, no_export, fail_import;
 static bool no_sync_export, fail_egl_create;
 static bool fail_submit, fail_export, completed = true, device_lost;
-static unsigned sem_count, fence_count, gl_count, destroyed, submissions;
+static bool reenter_submit;
+static bool signaled_export;
+static unsigned sem_count, fence_count, gl_count, destroyed, submissions, live_semaphores;
+static VkSemaphore expected_acquire, expected_output;
+#define MAX_RETIRED 4
 static unsigned import_count, order_count;
 static char order[128];
 static int last_fd = -1;
@@ -168,19 +178,31 @@ static VkResult fake_create_sem(VkDevice device, const VkSemaphoreCreateInfo *in
   assert(export->handleTypes == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT ||
          export->handleTypes == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT);
   *out = HANDLE(VkSemaphore, ++sem_count);
+  ++live_semaphores;
+  if (!expected_acquire)
+    expected_acquire = *out;
+  if (export->handleTypes == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT)
+    expected_output = *out;
   return VK_SUCCESS;
 }
 static void fake_destroy_sem(VkDevice device, VkSemaphore semaphore,
                              const VkAllocationCallbacks *allocator) {
   assert(device && semaphore && !allocator);
+  assert(live_semaphores);
+  --live_semaphores;
   ++destroyed;
 }
 static VkResult fake_export(VkDevice device, const VkSemaphoreGetFdInfoKHR *info, int *fd) {
   assert(device && info->semaphore);
   if (fail_export)
     return VK_ERROR_OUT_OF_HOST_MEMORY;
-  if (info->handleType == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT)
+  if (info->handleType == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT) {
     record('E');
+    if (signaled_export) {
+      *fd = -1;
+      return VK_SUCCESS;
+    }
+  }
   *fd = last_fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
   assert(*fd >= 0);
   return VK_SUCCESS;
@@ -209,13 +231,18 @@ static VkResult fake_submit(VkQueue queue, uint32_t count, const VkSubmitInfo *i
   assert(queue && count == 1 && fence && !info->commandBufferCount);
   assert(*info->pSignalSemaphores);
   ++submissions;
+  if (reenter_submit) {
+    reenter_submit = false;
+    assert(dpe_gl_sync_begin(99) == -1);
+    dpe_gl_sync_collect();
+  }
   if (fail_submit)
     return VK_ERROR_OUT_OF_HOST_MEMORY;
   if (info->waitSemaphoreCount) {
     assert(info->waitSemaphoreCount == 1 && *info->pWaitSemaphores);
     assert(*info->pWaitDstStageMask == VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-    assert(info->signalSemaphoreCount == 2 && info->pSignalSemaphores[0] == current->output &&
-           info->pSignalSemaphores[1] == current->acquire);
+    assert(info->signalSemaphoreCount == 2 && info->pSignalSemaphores[0] == expected_output &&
+           info->pSignalSemaphores[1] == expected_acquire);
     record('S');
   } else {
     assert(info->signalSemaphoreCount == 1);
@@ -225,6 +252,7 @@ static VkResult fake_submit(VkQueue queue, uint32_t count, const VkSubmitInfo *i
 }
 static void fake_queue(VkDevice device, uint32_t family, uint32_t index, VkQueue *queue) {
   assert(device && family == 1 && !index);
+  expected_acquire = expected_output = VK_NULL_HANDLE;
   *queue = HANDLE(VkQueue, 1);
 }
 static PFN_vkVoidFunction get_device(VkDevice device, const char *name) {
@@ -321,11 +349,13 @@ int main(void) {
   no_sync_export = false;
 
   fail_import = true;
-  assert(!create() && !current);
+  assert(!create() && !dpe_gl_sync_active());
   assert(fcntl(last_fd, F_GETFD) == -1); // Failed import keeps ownership in the hook.
   fail_import = false;
   assert(create() && import_count == 3);
+  reenter_submit = true;
   frame();
+  assert(!reenter_submit);
   assert(!strcmp(order, "AWGSE"));
   unsigned first_submissions = submissions;
   frame();
@@ -335,12 +365,12 @@ int main(void) {
   assert(dpe_gl_sync_begin(99) == 0 && submissions == submitted);
   // Even an early consumer ACK cannot recycle semaphore payloads still in use.
   dpe_gl_sync_retire();
-  assert(!current && retired_count == 1 && destroyed == freed);
+  assert(!dpe_gl_sync_active() && live_semaphores == 3 && destroyed == freed);
   dpe_gl_sync_collect();
-  assert(retired_count == 1 && destroyed == freed);
+  assert(live_semaphores == 3 && destroyed == freed);
   completed = true;
   dpe_gl_sync_collect();
-  assert(!retired && !retired_count && destroyed == freed + 5);
+  assert(!live_semaphores && destroyed == freed + 5);
 
   for (unsigned i = 0; i < MAX_RETIRED; ++i) {
     assert(create());
@@ -348,23 +378,23 @@ int main(void) {
     completed = false;
     dpe_gl_sync_retire();
   }
-  assert(retired_count == MAX_RETIRED && !create());
+  assert(live_semaphores == 3 * MAX_RETIRED && !create());
   device_lost = true;
   completed = true;
   dpe_gl_sync_collect();
-  assert(retired_count == MAX_RETIRED); // Device loss cannot pretend completion.
+  assert(live_semaphores == 3 * MAX_RETIRED); // Device loss cannot pretend completion.
   device_lost = false;
   dpe_gl_sync_collect();
-  assert(!retired_count);
+  assert(!live_semaphores);
 
   assert(create());
   context = (void *)2;
   unsigned deleted = gl_deleted;
   dpe_gl_sync_retire();
-  assert(retired_count == 1 && gl_deleted == deleted);
+  assert(live_semaphores == 3 && gl_deleted == deleted);
   context = (void *)1;
   dpe_gl_sync_collect();
-  assert(!retired_count && gl_deleted == deleted + 2);
+  assert(!live_semaphores && gl_deleted == deleted + 2);
 
   assert(create());
   frame();
@@ -373,11 +403,11 @@ int main(void) {
   deleted = gl_deleted;
   dpe_gl_sync_retire();
   dpe_gl_sync_context_destroyed((void *)1);
-  assert(retired_count == 1 && gl_deleted == deleted);
+  assert(live_semaphores == 3 && gl_deleted == deleted);
   context = (void *)1; // The new unrelated context reuses the old pointer.
   completed = true;
   dpe_gl_sync_collect();
-  assert(!retired_count && gl_deleted == deleted);
+  assert(!live_semaphores && gl_deleted == deleted);
 
   assert(create());
   fail_submit = true;
@@ -385,7 +415,7 @@ int main(void) {
   assert(dpe_gl_sync_begin(99) == -1 && submissions == submitted + 1);
   fail_submit = false;
   dpe_gl_sync_retire();
-  assert(!retired_count); // No successful submit: immediately reclaimable.
+  assert(!live_semaphores); // No successful submit: immediately reclaimable.
 
   assert(create());
   assert(dpe_gl_sync_begin(99) == 1);
@@ -394,10 +424,48 @@ int main(void) {
   fail_export = false;
   completed = false;
   dpe_gl_sync_retire();
-  assert(retired_count == 1); // Export failed after submission; must keep objects alive.
+  assert(live_semaphores == 3); // Export failed after submission; must keep objects alive.
   completed = true;
   dpe_gl_sync_collect();
-  assert(!current && !retired);
+  assert(!dpe_gl_sync_active() && !live_semaphores);
+
+  // A failed final Vulkan submission leaves GL work without a completion
+  // fence. A signaled earlier fence does not cover the queued GL copy/signal.
+  assert(create());
+  assert(dpe_gl_sync_begin(99) == 1);
+  fail_submit = true;
+  assert(dpe_gl_sync_end(99) == -2);
+  fail_submit = false;
+  completed = true;
+  freed = destroyed;
+  deleted = gl_deleted;
+  dpe_gl_sync_retire();
+  dpe_gl_sync_collect();
+  assert(live_semaphores == 3 && destroyed == freed && gl_deleted == deleted);
+  dpe_gl_sync_context_destroyed(context);
+  assert(!live_semaphores && destroyed == freed + 5 && gl_deleted == deleted);
+
+  // A missing exported descriptor is compatible with the legacy -1 completion
+  // result only if the actual submission fence independently proves completion.
+  assert(create());
+  assert(dpe_gl_sync_begin(99) == 1);
+  signaled_export = true;
+  assert(dpe_gl_sync_end(99) == -1);
+  signaled_export = false;
+  dpe_gl_sync_retire();
+  assert(!live_semaphores);
+
+  assert(create());
+  assert(dpe_gl_sync_begin(99) == 1);
+  signaled_export = true;
+  completed = false;
+  assert(dpe_gl_sync_end(99) == -2);
+  signaled_export = false;
+  dpe_gl_sync_retire();
+  assert(live_semaphores == 3);
+  completed = true;
+  dpe_gl_sync_collect();
+  assert(!live_semaphores);
 
   order_count = 0;
   order[0] = 0;
@@ -410,14 +478,14 @@ int main(void) {
   assert(dpe_gl_sync_begin(99) == 0);
   freed = destroyed;
   dpe_gl_sync_retire();
-  assert(retired_count == 1 && destroyed == freed);
+  assert(live_semaphores == 1 && destroyed == freed);
   device_lost = true;
   completed = true;
   dpe_gl_sync_collect();
-  assert(retired_count == 1);
+  assert(live_semaphores == 1);
   device_lost = false;
   dpe_gl_sync_collect();
-  assert(!retired_count && destroyed == freed + 1);
+  assert(!live_semaphores && destroyed == freed + 1);
 
   assert(create_egl());
   assert(dpe_gl_sync_begin(99) == 1);
@@ -426,10 +494,10 @@ int main(void) {
   fail_export = false;
   completed = false;
   dpe_gl_sync_retire();
-  assert(retired_count == 1);
+  assert(live_semaphores == 1);
   completed = true;
   dpe_gl_sync_collect();
-  assert(!retired_count);
+  assert(!live_semaphores);
 
   assert(create_egl());
   assert(dpe_gl_sync_begin(99) == 1);
@@ -437,9 +505,9 @@ int main(void) {
   assert(dpe_gl_sync_end(99) == -2);
   fail_egl_create = false;
   dpe_gl_sync_retire();
-  assert(retired_count == 1); // No fence exists: cannot invent GPU completion.
+  assert(live_semaphores == 1); // No fence exists: cannot invent GPU completion.
   dpe_gl_sync_context_destroyed(context);
-  assert(!retired_count);
+  assert(!live_semaphores);
   puts("GL semaphore order, real completion backpressure, fd ownership, bounded retirement passed");
   return 0;
 }

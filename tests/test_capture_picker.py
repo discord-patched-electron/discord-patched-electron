@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from build_camera_support import build, node_headers
+from build_rust_support import build as build_rust
 from capture_picker_scope import scope
 from common import ROOT
 
@@ -32,7 +34,49 @@ class CapturePicker(unittest.TestCase):
     def test_native_publication_wake_races_and_shutdown(self):
         self.run_fixture("capture-wake-check.c", "publication wake races")
 
+    def test_reviewed_elf_linkage_and_node_dispatch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            build(directory / "helper")
+            for lazy in (False, True):
+                subprocess.run(
+                    [
+                        "cc",
+                        "-std=gnu11",
+                        "-O1",
+                        "-fPIC",
+                        "-shared",
+                        "-Wall",
+                        "-Wextra",
+                        "-Werror",
+                        "-Wl,--section-start=.dpe_show=0xe5fe50",
+                        "-Wl,--section-start=.dpe_selection=0x22ecb40",
+                        *(["-DLAZY_PICKER"] if lazy else []),
+                        "-I" + str(node_headers()),
+                        str(ROOT / "tests/screenshare/capture-picker-module.c"),
+                        "-ldl",
+                        "-pthread",
+                        "-o",
+                        str(directory / "discord_voice.node"),
+                    ],
+                    check=True,
+                )
+                result = subprocess.run(
+                    [
+                        "node",
+                        str(ROOT / "tests/screenshare/capture-picker-native-check.cjs"),
+                        str(directory),
+                        str(directory / "helper/libdpe-camera-probe.so"),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("real TSFN events", result.stdout)
+
     def run_fixture(self, source, expected):
+        rust, _ = build_rust(features=("picker-dispatch-fixture",))
         with tempfile.TemporaryDirectory() as temporary:
             binary = Path(temporary) / "check"
             subprocess.run(
@@ -48,6 +92,11 @@ class CapturePicker(unittest.TestCase):
                     "-fno-omit-frame-pointer",
                     "-I/usr/include/node",
                     str(ROOT / "tests/screenshare" / source),
+                    str(rust),
+                    "-Wl,--gc-sections",
+                    "-lva",
+                    "-lva-drm",
+                    "-lm",
                     "-pthread",
                     "-ldl",
                     "-o",

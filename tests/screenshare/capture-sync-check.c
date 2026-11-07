@@ -1,84 +1,63 @@
+// Exercise the installed Rust redirect through the real native scalar ABI.
 #define _GNU_SOURCE
 #include <assert.h>
+#include <dlfcn.h>
 #include <errno.h>
+#include <limits.h>
+#include <node_api.h>
+#include <stdint.h>
 #include <time.h>
-
-static struct timespec clock_value;
-static int clock_result, clock_calls;
-static int test_clock(struct timespec *value) {
-  clock_calls++;
-  *value = clock_value;
-  errno = EIO;
-  return clock_result;
-}
-#define DPE_SYNC_CLOCK(value) test_clock(value)
-#include "../../integration/video/capture-sync.c"
-
-static int expected_errno;
 static int64_t observed_timeout;
 static uintptr_t native_error;
-static uintptr_t native_wait(int drm, int sync, uint64_t point, int64_t timeout) {
+__attribute__((used, noinline)) static uintptr_t native_wait(int drm, int sync, uint64_t point,
+                                                             int64_t timeout) {
   assert(drm == 19 && sync == 37 && point == UINT64_C(0x123456789abcdef));
-  assert(errno == expected_errno);
+  assert(errno == EAGAIN);
   observed_timeout = timeout;
   errno = ENOSPC;
   return native_error;
 }
-static void check(wait_fn function, int64_t input, int64_t expected) {
-  errno = expected_errno = EAGAIN;
-  assert(function(19, 37, UINT64_C(0x123456789abcdef), input) == native_error);
-  assert(observed_timeout == expected);
-  assert(errno == ENOSPC); // Preserve the native helper's errno and opaque return.
+extern uintptr_t fixture_sync_invoke(int, int, uint64_t, int64_t);
+extern const uint8_t fixture_sync_site[];
+__asm__(
+    ".text\n.balign 4096\n"
+    ".byte "
+    "0x48,0xb9,0x00,0xf2,0x05,0x2a,0x01,0x00,0x00,0x00,0x89,0xef,0x44,0x89,0xf6,0x4c,0x89,0xfa\n"
+    ".global fixture_sync_site\nfixture_sync_site:\ncall native_wait\nret\n"
+    ".global fixture_sync_invoke\nfixture_sync_invoke:\ncall fixture_sync_site\nret\n.balign "
+    "4096\n");
+static void check(int64_t timeout) {
+  errno = EAGAIN;
+  assert(fixture_sync_invoke(19, 37, UINT64_C(0x123456789abcdef), timeout) == native_error);
+  assert(errno == ENOSPC);
 }
-int main(void) {
-  original_wait = native_wait;
-  clock_value = (struct timespec){123456, 987654321};
-  check(wait_available, INT64_C(5000000000), INT64_C(123461987654321));
-  assert(atomic_load(&counts.corrected) == 1 && clock_calls == 1);
-  clock_value = (struct timespec){0, 0};
-  check(wait_available, INT64_C(5000000000), INT64_C(5000000000));
-
-  // The largest representable deadline and a nanosecond beyond it saturate.
-  const int64_t maximum_start = INT64_MAX - INT64_C(5000000000);
-  clock_value = (struct timespec){maximum_start / 1000000000, maximum_start % 1000000000};
-  check(wait_available, INT64_C(5000000000), INT64_MAX);
-  clock_value.tv_nsec++;
-  check(wait_available, INT64_C(5000000000), INT64_MAX);
-  clock_value = (struct timespec){INT64_MAX, 0};
-  check(wait_available, INT64_C(5000000000), INT64_MAX);
-
-  int before = clock_calls;
-  check(wait_available, 0, 0);
-  check(wait_available, -1, -1);
-  check(wait_available, INT64_MAX, INT64_MAX);
-  check(wait_available, 123, 123);
-  assert(clock_calls == before);
-
-  clock_result = -1;
-  native_error = UINT64_C(0xfedcba987654321); // Opaque anyhow pointer: never dereference/free it.
-  check(wait_available, INT64_C(5000000000), INT64_C(5000000000));
-  assert(atomic_load(&counts.clock_failures) == 1 && atomic_load(&counts.errors) == 1);
-  clock_result = 0;
-  clock_value = (struct timespec){-1, 0};
-  check(wait_available, INT64_C(5000000000), INT64_C(5000000000));
-  clock_value = (struct timespec){1, 1000000000};
-  check(wait_available, INT64_C(5000000000), INT64_C(5000000000));
-  clock_value = (struct timespec){1, -1};
-  check(wait_available, INT64_C(5000000000), INT64_C(5000000000));
-  assert(atomic_load(&counts.clock_failures) == 4);
-
-  // Exercise the actual emitted tail jump with all four scalar arguments.
-  uint8_t *trampoline =
-      mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  assert(trampoline != MAP_FAILED);
-  const uint8_t dispatch[] = {0xff, 0x25, 0, 0, 0, 0};
-  uintptr_t function = (uintptr_t)wait_available;
-  memcpy(trampoline, dispatch, sizeof(dispatch));
-  memcpy(trampoline + sizeof(dispatch), &function, sizeof(function));
-  assert(!mprotect(trampoline, 4096, PROT_READ | PROT_EXEC));
-  clock_value = (struct timespec){123, 456};
-  check((wait_fn)trampoline, INT64_C(5000000000), INT64_C(128000000456));
-  assert(!munmap(trampoline, 4096));
-  puts("Explicit-sync deadline, overflow, errno, opaque return and dispatch passed");
-  return 0;
+static napi_value run(napi_env env, napi_callback_info info) {
+  (void)info;
+  struct timespec before, after;
+  assert(!clock_gettime(CLOCK_MONOTONIC, &before));
+  check(INT64_C(5000000000));
+  assert(!clock_gettime(CLOCK_MONOTONIC, &after));
+  assert(observed_timeout >= before.tv_sec * INT64_C(1000000000) + before.tv_nsec + 5000000000);
+  assert(observed_timeout <= after.tv_sec * INT64_C(1000000000) + after.tv_nsec + 5000000000);
+  const int64_t unchanged[] = {0, -1, INT64_MAX, 123};
+  native_error = UINT64_C(0xfedcba987654321);
+  for (unsigned i = 0; i < sizeof(unchanged) / sizeof(unchanged[0]); i++) {
+    check(unchanged[i]);
+    assert(observed_timeout == unchanged[i]);
+  }
+  napi_value result;
+  napi_get_undefined(env, &result);
+  return result;
+}
+napi_value napi_register_module_v1(napi_env env, napi_value exports) {
+  Dl_info module;
+  assert(dladdr((void *)fixture_sync_site, &module));
+  napi_value value;
+  napi_create_uint32(env, (uintptr_t)fixture_sync_site - (uintptr_t)module.dli_fbase, &value);
+  napi_set_named_property(env, exports, "site", value);
+  napi_create_uint32(env, (uintptr_t)native_wait - (uintptr_t)module.dli_fbase, &value);
+  napi_set_named_property(env, exports, "target", value);
+  napi_create_function(env, "run", NAPI_AUTO_LENGTH, run, NULL, &value);
+  napi_set_named_property(env, exports, "run", value);
+  return exports;
 }

@@ -188,7 +188,7 @@ class FrameMeasurements {
     }
     return {
       scope: this.sourceClock
-        ? "synthetic PipeWire generation to native receiver callback; shared CLOCK_MONOTONIC millisecond markers; phase at receipt; includes CPU output conversion, excludes physical display"
+        ? "synthetic source generation to native receiver callback; shared CLOCK_MONOTONIC millisecond markers; phase at receipt; includes CPU output conversion, excludes physical display"
         : "synthetic canvas update to native receiver callback; same monotonic clock, includes CPU output conversion, excludes physical viewer display",
       invalidMarkers: this.invalidMarkers,
       unknownMarkers: this.unknownMarkers,

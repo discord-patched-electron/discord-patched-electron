@@ -94,7 +94,14 @@ def analyze(output):
     }
 
 
-def session(output, pulse, selection, voice_startup=False):
+def session(
+    output,
+    pulse,
+    selection,
+    voice_startup=False,
+    pulse_root=Path("/opt/dpe-pulse"),
+    wtype=Path("/usr/bin/wtype"),
+):
     if {name for _, name in socket.if_nameindex()} != {"lo"}:
         raise ValueError("Wayland fixture must have a private network namespace")
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -122,6 +129,7 @@ def session(output, pulse, selection, voice_startup=False):
             "DISPLAY": os.environ["DISPLAY"],
             "XAUTHORITY": os.environ.get("XAUTHORITY", ""),
             "LIBGL_ALWAYS_SOFTWARE": "1",
+            "GSK_RENDERER": "cairo",
             "DPE_AUDIO_OUTPUT": str(output),
             "DPE_APP_AUDIO_TRACE": "1",
             "CHROME_DESKTOP": identity + ".desktop",
@@ -204,9 +212,11 @@ def session(output, pulse, selection, voice_startup=False):
                             ]
                         )
                         time.sleep(0.2)
-                        keys = ["wtype", "-k", "Home"] + ["-k", "Down"] * index + ["-k", "Return"]
+                        keys = (
+                            [str(wtype), "-k", "Home"] + ["-k", "Down"] * index + ["-k", "Return"]
+                        )
                         if selected.get("no_audio"):
-                            keys = ["wtype", "-k", "Escape"]
+                            keys = [str(wtype), "-k", "Escape"]
                         command(keys)
                         # Recording waits for the actual audio selection, not
                         # just the earlier video-portal callback.
@@ -244,7 +254,7 @@ def session(output, pulse, selection, voice_startup=False):
                 )
                 spawn(
                     [
-                        "/opt/dpe-pulse/usr/bin/pulseaudio",
+                        str(pulse_root / "usr/bin/pulseaudio"),
                         "-nF",
                         str(pa),
                         "--daemonize=no",
@@ -253,12 +263,15 @@ def session(output, pulse, selection, voice_startup=False):
                         "--log-target=stderr",
                         "--log-level=debug",
                         "--disable-shm=yes",
-                        "--dl-search-path=/opt/dpe-pulse/usr/lib/pulseaudio/modules",
+                        "--dl-search-path=" + str(pulse_root / "usr/lib/pulseaudio/modules"),
                     ],
                     "pulseaudio",
                     {
                         **env,
-                        "LD_LIBRARY_PATH": "/opt/dpe-pulse/usr/lib/pulseaudio:/opt/dpe-pulse/usr/lib/pulseaudio/modules",
+                        "LD_LIBRARY_PATH": ":".join(
+                            str(pulse_root / "usr/lib/pulseaudio" / suffix)
+                            for suffix in ("", "modules")
+                        ),
                     },
                 )
             ready(lambda: (run / "pulse/native").exists())
@@ -468,6 +481,8 @@ def check(
     provenance=None,
     selection="auto",
     voice_startup=False,
+    pulse_root=Path("/opt/dpe-pulse"),
+    wtype=Path("/usr/bin/wtype"),
 ):
     if bool(runtime) != bool(provenance):
         raise ValueError("Custom runtime requires verified compiler provenance")
@@ -574,6 +589,10 @@ def check(
             "--session",
             "--pulse",
             pulse,
+            "--pulse-root",
+            str(pulse_root.resolve()),
+            "--wtype",
+            str(wtype.resolve()),
             "--selection",
             selection,
             "--output",
@@ -629,6 +648,12 @@ if __name__ == "__main__":
     parser.add_argument("--clients", type=Path, default=ROOT / "config/clients.lock.json")
     parser.add_argument("--discord", choices=enabled_discord_channels(), default="canary")
     parser.add_argument("--pulse", choices=["pipewire", "pulseaudio"], default="pipewire")
+    parser.add_argument(
+        "--pulse-root",
+        type=Path,
+        default=Path("/opt/dpe-pulse"),
+        help="Extracted PulseAudio package root for the private compatibility server",
+    )
     parser.add_argument("--download-only", action="store_true")
     parser.add_argument("--selection", choices=["auto", "manual", "interactive"], default="auto")
     parser.add_argument(
@@ -636,12 +661,25 @@ if __name__ == "__main__":
         action="store_true",
         help="Stress native audio startup before screen sharing",
     )
+    parser.add_argument(
+        "--wtype",
+        type=Path,
+        default=Path("/usr/bin/wtype"),
+        help="Keyboard tool for the private manual-picker fixture",
+    )
     parser.add_argument("--runtime", type=Path)
     parser.add_argument("--provenance", type=Path)
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.session:
-        session(args.output.resolve(), args.pulse, args.selection, args.voice_startup)
+        session(
+            args.output.resolve(),
+            args.pulse,
+            args.selection,
+            args.voice_startup,
+            args.pulse_root.resolve(),
+            args.wtype.resolve(),
+        )
     else:
         check(
             args.output,
@@ -653,4 +691,6 @@ if __name__ == "__main__":
             args.provenance,
             args.selection,
             args.voice_startup,
+            args.pulse_root,
+            args.wtype,
         )

@@ -1,7 +1,7 @@
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
-const { createHash } = require("node:crypto");
+const nativeIdentity = require("./dpe-native-identity.cjs");
 
 function load(directory, helper, { mode = "initial" } = {}) {
   if (mode !== "initial" && mode !== "runtime") throw new Error("Unknown upstream capture mode.");
@@ -18,7 +18,7 @@ function load(directory, helper, { mode = "initial" } = {}) {
     metadata.schema !== 1 ||
     metadata.supported !== true ||
     offsets.some((value) => !Number.isSafeInteger(value) || value <= 0 || value > 0xffffffff) ||
-    createHash("sha256").update(fs.readFileSync(filename)).digest("hex") !== metadata.voice_sha256
+    !nativeIdentity.matches(filename, metadata.voice_sha256)
   )
     throw new Error("The native module does not match the reviewed upstream capture adapter.");
   const addon = { exports: {} };

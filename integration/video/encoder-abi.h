@@ -54,7 +54,12 @@ _Static_assert(sizeof(struct encoder_frame_meta) == 48, "Reviewed FrameMeta ABI"
 
 // The isolated encoder library exports only this versioned C table. FFmpeg's
 // symbols stay private so they cannot bind to Discord/Electron's FFmpeg copy.
-#define DPE_HEVC_ABI 1
+// Callers keep callback context alive until destroy returns. Encoded/dropped
+// callbacks run outside the codec lock and may update or destroy their session.
+// Reentrant destroy cancels subsequent notifications. Input release callbacks
+// are leaf cleanup functions and may run on the final FFmpeg release thread.
+// ABI 2 also guarantees concurrent calls and reentrant callback destruction.
+#define DPE_HEVC_ABI 2
 struct dpe_hevc_api {
   uint32_t abi, size;
   uint32_t (*probe)(const char *node);

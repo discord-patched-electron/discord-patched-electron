@@ -231,6 +231,7 @@ function createTracker({
           state.portal = portal();
           state.pacing = prefs.capturePacing !== false;
           state.baseline = capture?.snapshot();
+          state.directBaseline = backends?.directSnapshot?.();
           state.guardBaseline = guardBaseline;
           state.countersReliable = true;
           state.generation++;
@@ -281,6 +282,7 @@ function createTracker({
       return { active: false };
     const stats = report?.video;
     const counters = capture?.snapshot();
+    const directCounters = backends?.directSnapshot?.();
     const backend = backends?.snapshot();
     const synchronization = sync?.snapshot();
     const guard = encoderGuard?.snapshot();
@@ -299,6 +301,15 @@ function createTracker({
       state.countersReliable &&
       [...shares].filter((share) => share.source && share.broadcast !== false).length === 1;
     const observedPipeWire = attributable && counters?.installed && delta("frames") > 0;
+    const directDelta = (key) =>
+      directCounters
+        ? Math.max(0, (directCounters[key] || 0) - (state.directBaseline?.[key] || 0))
+        : null;
+    const observedDirect =
+      attributable &&
+      directCounters?.transport === "direct-gpu" &&
+      directCounters.activeCaptures === 1 &&
+      directDelta("convertedFrames") > 0;
     const upstream = counters?.upstream;
     const upstreamApplied =
       upstream?.installed && upstream.activeStreams === 1 && upstream.appliedFps > 0
@@ -358,7 +369,7 @@ function createTracker({
       active: true,
       // Native portal routing uses "screen" IDs for both windows and monitors.
       sourceType:
-        observedPipeWire && backend
+        (observedPipeWire || observedDirect) && backend
           ? backend.sourceType
           : state.portal || state.source === "unknown"
             ? null
@@ -369,12 +380,18 @@ function createTracker({
       encoder,
       hardware,
       // Portal selection alone isn't proof that PipeWire produced a frame.
-      captureMethod: observedPipeWire
-        ? backend?.method || "pipewire"
-        : x11 && state.portal === false && stats?.framesEncoded > 0
-          ? "x11"
+      captureMethod: observedDirect
+        ? backend?.method || "direct-gpu"
+        : observedPipeWire
+          ? backend?.method || "pipewire"
+          : x11 && state.portal === false && stats?.framesEncoded > 0
+            ? "x11"
+            : null,
+      captureHandoff: observedDirect
+        ? "direct-gpu"
+        : observedPipeWire
+          ? backend?.handoff || null
           : null,
-      captureHandoff: observedPipeWire ? backend?.handoff || null : null,
       captureHandoffFallback: observedPipeWire ? backend?.handoffFallback || null : null,
       inputFps: number(stats?.inputFrameRate),
       outputFps: number(stats?.encodeFrameRate),
@@ -428,25 +445,34 @@ function createTracker({
         cpuChanges: number(stats?.numberOfCPUAdaptChanges),
         qualityChanges: number(stats?.numberOfQualityAdaptChanges),
       },
-      captureCounters: observedPipeWire
+      captureCounters: observedDirect
         ? {
-            frames: delta("frames") + delta("skippedFrames") + delta("pacedFrames"),
-            dropped: delta("skippedFrames"),
-            paced: delta("pacedFrames"),
-            targetFps: counters.pacingFps,
-            upstreamAppliedFps: upstreamApplied,
-            upstreamFps: upstreamFps || null,
-            syncTimelineFrames: delta("syncTimelineFrames"),
-            syncTimelineInvalidFrames: delta("syncTimelineInvalidFrames"),
-            noSyncTimelineFrames: delta("noSyncTimelineFrames"),
-            syncDeadlineCorrection: synchronization?.installed === true,
-            mode: counters.pacingFps
-              ? "Paced"
-              : counters.latestEnabled
-                ? "Latest frame"
-                : "Observed",
+            frames: directDelta("convertedFrames"),
+            dropped: directDelta("droppedFrames"),
+            targetFps: state.fps,
+            cpuReadbacks: directDelta("cpuReadbacks"),
+            gpuEncoderInputs: directDelta("gpuEncoderInputs"),
+            mode: "Direct GPU",
           }
-        : null,
+        : observedPipeWire
+          ? {
+              frames: delta("frames") + delta("skippedFrames") + delta("pacedFrames"),
+              dropped: delta("skippedFrames"),
+              paced: delta("pacedFrames"),
+              targetFps: counters.pacingFps,
+              upstreamAppliedFps: upstreamApplied,
+              upstreamFps: upstreamFps || null,
+              syncTimelineFrames: delta("syncTimelineFrames"),
+              syncTimelineInvalidFrames: delta("syncTimelineInvalidFrames"),
+              noSyncTimelineFrames: delta("noSyncTimelineFrames"),
+              syncDeadlineCorrection: synchronization?.installed === true,
+              mode: counters.pacingFps
+                ? "Paced"
+                : counters.latestEnabled
+                  ? "Latest frame"
+                  : "Observed",
+            }
+          : null,
     };
   }
   async function snapshot() {

@@ -1,46 +1,29 @@
-"""Build the optional direct Wayland GPU/PipeWire producer; no capture is started."""
+"""Build the Rust direct-output GPU/PipeWire producer without starting capture."""
 
 import argparse
 import json
-import subprocess
+import shutil
 from pathlib import Path
 
-from build_wayland_capture import protocols
-from common import ROOT, sha256, write_json
+from build_rust_support import build as build_rust
+from common import sha256, write_json
 
 
-def build(output, compiler="cc"):
-    generated = protocols(output / "protocols")
-    flags = subprocess.check_output(
-        ["pkg-config", "--cflags", "--libs", "wayland-client", "libpipewire-0.3", "gbm", "libdrm"],
-        text=True,
-    ).split()
+def build(output):
+    output.mkdir(parents=True, exist_ok=True)
+    binary, rust = build_rust("dpe-source", binary="dpe-wayland-source")
     target = output / "dpe-wayland-source"
-    subprocess.run(
-        [
-            compiler,
-            "-std=c11",
-            "-O2",
-            "-Wall",
-            "-Wextra",
-            "-Werror",
-            "-Wl,-z,relro,-z,now",
-            "-I" + str(output / "protocols"),
-            str(ROOT / "integration/video/wayland-source.c"),
-            str(ROOT / "integration/video/wayland-capture.c"),
-            *map(str, generated),
-            *flags,
-            "-o",
-            str(target),
-        ],
-        check=True,
-    )
+    shutil.copy2(binary, target)
     report = dict(
         sha256=sha256(target),
         scope="direct output GPU producer; build does not open a compositor or GPU",
         backend="wayland-direct",
         executable=target.name,
         installed=False,
+        implementation="rust",
+        license="GPL-3.0-only",
+        hardwareValidated=False,
+        rust=rust,
     )
     write_json(output / "wayland-source.json", report)
     return report
@@ -49,5 +32,4 @@ def build(output, compiler="cc"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    print(json.dumps(build(args.output)))
+    print(json.dumps(build(parser.parse_args().output)))

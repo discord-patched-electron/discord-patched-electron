@@ -13,6 +13,8 @@ import tarfile
 import urllib.request
 from pathlib import Path
 
+from build_rust_support import build as build_rust
+from build_rust_support import inputs as rust_inputs
 from common import ROOT, digest, download, hash_files, read_json, sha256, write_json
 
 VERSION = "9.0.2"
@@ -30,7 +32,7 @@ CONFIGURE = [
     "--enable-pic",
     "--enable-vaapi",
     "--enable-libdrm",
-    "--enable-encoder=hevc_vaapi,av1_vaapi",
+    "--enable-encoder=h264_vaapi,hevc_vaapi,av1_vaapi",
     "--disable-avdevice",
     "--disable-avformat",
     "--disable-avfilter",
@@ -38,7 +40,7 @@ CONFIGURE = [
     "--disable-swresample",
     "--extra-cflags=-fvisibility=hidden",
 ]
-SOURCE = "integration/video/hevc-backend.c"
+SOURCE = "native/encoder/src/runtime.rs"
 HEADER = "integration/video/encoder-abi.h"
 ASSET = "libdpe-hevc.so"
 SOURCE_ARCHIVE = f"ffmpeg-{VERSION}.tar.xz"
@@ -133,10 +135,12 @@ def build(output, compiler="cc", cache=None):
                 [
                     SOURCE,
                     HEADER,
-                    "integration/video/av1-level.h",
                     "integration/video/av1-crop.h",
                     "integration/video/hevc-level.h",
+                    "integration/video/encoder-import-cache.h",
+                    "integration/video/capture-profile.h",
                     "scripts/build_hevc_support.py",
+                    *rust_inputs(),
                 ]
             ),
         }
@@ -178,20 +182,42 @@ def build(output, compiler="cc", cache=None):
             )
             subprocess.run(
                 [
+                    "cargo",
+                    "clippy",
+                    "--locked",
+                    "-p",
+                    "dpe-encoder",
+                    "--features",
+                    "ffmpeg",
+                    "--lib",
+                    "--",
+                    "-D",
+                    "warnings",
+                ],
+                cwd=ROOT,
+                env={**os.environ, "DPE_FFMPEG_SOURCE": str(source)},
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                check=True,
+            )
+            rust_archive, rust = build_rust(
+                "dpe-encoder", features=("ffmpeg",), environment={"DPE_FFMPEG_SOURCE": str(source)}
+            )
+            subprocess.run(
+                [
                     compiler,
-                    "-std=c11",
-                    "-O2",
                     "-fPIC",
-                    "-fvisibility=hidden",
-                    "-Wall",
-                    "-Wextra",
-                    "-Werror",
                     "-shared",
                     "-Wl,-z,relro,-z,now",
-                    "-Wl,--exclude-libs,ALL",
+                    "-Wl,--strip-debug",
                     "-Wl,-Bsymbolic",
-                    "-I" + str(source),
-                    str(ROOT / SOURCE),
+                    "-Wl,--version-script=" + str(ROOT / "native/encoder/native.exports"),
+                    "-Wl,--undefined=dpe_hevc_api",
+                    "-Wl,--undefined=dpe_encoder_hardware_scope",
+                    "-Wl,--undefined=dpe_encoder_import_stats",
+                    "-Wl,--undefined=dpe_encoder_profile_stage",
+                    str(rust_archive),
+                    "-Wl,--gc-sections",
                     str(source / "libavcodec/libavcodec.a"),
                     str(source / "libavutil/libavutil.a"),
                     "-o",
@@ -200,6 +226,7 @@ def build(output, compiler="cc", cache=None):
                     "-lva-drm",
                     "-ldrm",
                     "-lm",
+                    "-ldl",
                     "-pthread",
                 ],
                 stdout=log,
@@ -213,6 +240,7 @@ def build(output, compiler="cc", cache=None):
             "ffmpeg": {"version": VERSION, "source_url": URL, "source_sha256": ARCHIVE_SHA256},
             "configure": CONFIGURE,
             "license": "LGPL-2.1-or-later",
+            "rust": rust,
         }
         write_json(manifest, report)
         shutil.copy2(asset, output / ASSET)

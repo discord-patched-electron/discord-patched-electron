@@ -107,6 +107,12 @@ function start() {
   require("../desktop/spellcheck.cjs").install(require("electron"));
   require("./application-ready.cjs")(app, process.env.DPE_APPLICATION_READY, info.releaseChannel);
   require(bootstrap);
+  app
+    .whenReady()
+    .then(() => require("./capture-permission.cjs").maintain())
+    .catch((error) => {
+      console.warn("DPE capture helper maintenance failed:", error.message);
+    });
   if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)
     app.whenReady().then(() => setTimeout(() => updater.requestCheck(), 1000).unref());
 }

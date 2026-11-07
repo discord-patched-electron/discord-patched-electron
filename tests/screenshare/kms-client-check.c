@@ -138,7 +138,7 @@ int main(void) {
   assert(fcntl(decoded.items[1].dma_buf[0].fd, F_GETFD) & FD_CLOEXEC);
   dpe_kms_response_close(&decoded);
   assert(descriptors() == initial);
-  for (int kind = 0; kind < 7; kind++) {
+  for (int kind = 0; kind < 9; kind++) {
     response = scene();
     int sent = 2;
     size_t size = sizeof(response);
@@ -156,6 +156,10 @@ int main(void) {
       size = 12;
     if (kind == 6)
       response.result = KMS_RESULT_FAILED_TO_GET_PLANES;
+    if (kind == 7)
+      *(unsigned char *)&response.items[0].has_hdr_metadata = 2;
+    if (kind == 8)
+      response.items[0].num_dma_bufs = -1;
     send_response(sockets[0], &response, size, sent);
     assert(dpe_kms_receive(sockets[1], &decoded) == -1);
     assert(!decoded.num_items && descriptors() == initial);

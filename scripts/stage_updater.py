@@ -6,6 +6,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+from build_rust_support import stage_source as stage_rust_source
 from build_ui import build as build_ui
 from common import ROOT, download, read_json, sha256, write_json
 from desktop_identity import desktop_id
@@ -115,7 +116,8 @@ def stage(
             shutil.copy2(bundled / "ui-runtime.cjs", output / directory / "ui-runtime.cjs")
             shutil.copy2(bundled / "PREACT-LICENSE.txt", output / directory / "PREACT-LICENSE.txt")
     scripts = output / "scripts"
-    scripts.mkdir()
+    stage_rust_source(output)
+    scripts.mkdir(exist_ok=True)
     for name in (
         "client_native.py",
         "camera_scope.py",
@@ -124,6 +126,7 @@ def stage(
         "capture_upstream_scope.py",
         "capture_sync_scope.py",
         "capture_picker_scope.py",
+        "capture_direct_scope.py",
         "encoder_scope.py",
         "build_hevc_support.py",
         "build_capture_shader.py",

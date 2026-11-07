@@ -13,6 +13,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+from build_rust_support import build as build_rust
 from build_vkcapture_backend import build
 
 
@@ -144,6 +145,23 @@ class GameCapture(unittest.TestCase):
                     instance.child_environment(peer)["DPE_GAME_CAPTURE_HANDOFF"], "copy"
                 )
 
+    def test_pause_is_negotiated_only_with_advertising_dpe_hooks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            instance = broker.Broker(Path(directory) / "dpe.sock", "/bin/true", "auto")
+            self.addCleanup(instance.close)
+            left, right = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+            self.addCleanup(left.close)
+            self.addCleanup(right.close)
+            for flags, supported in ((8, False), (24, True)):
+                packet = bytearray(128)
+                struct.pack_into("=IHH", packet, 0, broker.MAGIC, broker.VERSION, 1)
+                struct.pack_into("=I", packet, 44, flags)
+                packet[96:112] = bytes([7]) * 16
+                left.send(packet)
+                peer = {**broker.hello(right), "socket": right, "protocol": "dpe"}
+                self.assertEqual(peer["pause"], supported)
+                self.assertEqual("--hook-pause" in instance.child_arguments(peer), supported)
+
     def test_producer_keeps_cursor_display_credentials_without_inheriting_hooks(self):
         with tempfile.TemporaryDirectory() as directory:
             instance = broker.Broker(Path(directory) / "dpe.sock", "/bin/true", "auto")
@@ -153,12 +171,14 @@ class GameCapture(unittest.TestCase):
                 "XAUTHORITY": "/private/display-authority",
                 "LD_PRELOAD": "/untrusted/game-hook.so",
                 "VK_INSTANCE_LAYERS": "game-layer",
+                "DPE_CAPTURE_PROFILE": "1",
             }
             with mock.patch.dict(os.environ, values, clear=True):
                 env = instance.child_environment({"protocol": "dpe", "direct": True})
             self.assertEqual(env["DISPLAY"], values["DISPLAY"])
             self.assertEqual(env["XAUTHORITY"], values["XAUTHORITY"])
             self.assertEqual(env["DPE_GAME_CAPTURE_HANDOFF"], "auto")
+            self.assertEqual(env["DPE_CAPTURE_PROFILE"], "1")
             self.assertNotIn("LD_PRELOAD", env)
             self.assertNotIn("VK_INSTANCE_LAYERS", env)
 
@@ -283,6 +303,7 @@ class GameCapture(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("cc"), "native development tools")
     def test_gl_semaphore_visibility_and_lifetime_without_gpu(self):
+        rust, _ = build_rust("dpe-game")
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / "gl-sync"
             subprocess.run(
@@ -297,6 +318,11 @@ class GameCapture(unittest.TestCase):
                     "-fsanitize=address,undefined",
                     "-fno-omit-frame-pointer",
                     str(ROOT / "tests/screenshare/vkcapture-gl-sync-check.c"),
+                    str(rust),
+                    "-Wl,--gc-sections",
+                    "-ldl",
+                    "-lpthread",
+                    "-lm",
                     "-o",
                     str(executable),
                 ],
@@ -314,6 +340,7 @@ class GameCapture(unittest.TestCase):
             output = Path(directory)
             build(output)
             executable = output / "handoff"
+            rust, _ = build_rust("dpe-game")
             subprocess.run(
                 [
                     "cc",
@@ -325,9 +352,13 @@ class GameCapture(unittest.TestCase):
                     "-g",
                     "-fsanitize=address,undefined",
                     "-fno-omit-frame-pointer",
-                    "-Dclock_gettime=fixture_clock_gettime",
+                    "-Wl,--wrap=clock_gettime",
                     str(ROOT / "tests/screenshare/vkcapture-handoff-check.c"),
-                    str(ROOT / "integration/video/vkcapture-hook.c"),
+                    str(rust),
+                    "-ldl",
+                    "-lpthread",
+                    "-lm",
+                    "-Wl,--gc-sections",
                     "-o",
                     str(executable),
                 ],
@@ -337,44 +368,48 @@ class GameCapture(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("stale ACK rejection", result.stdout)
 
-    @unittest.skipUnless(
-        shutil.which("cc") and shutil.which("pkg-config"), "native development tools"
-    )
-    def test_source_reconfiguration_keeps_gpu_lifetimes(self):
-        flags = subprocess.check_output(
-            ["pkg-config", "--cflags", "--libs", "libpipewire-0.3", "libdrm"], text=True
-        ).split()
-        with tempfile.TemporaryDirectory() as directory:
-            executable = Path(directory) / "source-state"
-            subprocess.run(
+    def test_rust_source_owners_and_invalid_startup(self):
+        source, _ = build_rust("dpe-source", binary="dpe-vkcapture-source")
+        subprocess.run(
+            ["cargo", "test", "--locked", "-p", "dpe-source", "--bin", "dpe-vkcapture-source"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            timeout=180,
+        )
+        result = subprocess.run([str(source)], text=True, capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 2)
+        self.assertNotIn("ready", result.stdout)
+        left, right = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            result = subprocess.run(
                 [
-                    "cc",
-                    "-std=gnu11",
-                    "-O1",
-                    "-g",
-                    "-Wall",
-                    "-Wextra",
-                    "-Werror",
-                    "-ffunction-sections",
-                    "-Wl,--gc-sections",
-                    "-fsanitize=address,undefined",
-                    "-fno-omit-frame-pointer",
-                    str(ROOT / "tests/screenshare/vkcapture-source-check.c"),
-                    str(ROOT / "integration/video/vkcapture-relay.c"),
-                    *flags,
-                    "-o",
-                    str(executable),
+                    str(source),
+                    "--hook-fd",
+                    str(right.fileno()),
+                    "--fps",
+                    "60",
+                    "--render-node",
+                    "auto",
+                    "--device-uuid",
+                    "00" * 16,
                 ],
-                check=True,
+                pass_fds=(right.fileno(),),
+                text=True,
+                capture_output=True,
+                timeout=5,
             )
-            result = subprocess.run([str(executable)], text=True, capture_output=True, timeout=10)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn("retired GPU allocation", result.stdout)
+            self.assertEqual(result.returncode, 3)
+            self.assertEqual(json.loads(result.stdout)["errorCode"], "invalid-hook-socket")
+        finally:
+            left.close()
+            right.close()
 
     @unittest.skipUnless(
         shutil.which("cc") and shutil.which("pkg-config"), "native development tools"
     )
     def test_relay_ack_waits_for_consumer_gpu_release(self):
+        relay, _ = build_rust("dpe-pipewire")
         flags = subprocess.check_output(
             ["pkg-config", "--cflags", "--libs", "libpipewire-0.3", "libdrm"], text=True
         ).split()
@@ -394,6 +429,26 @@ class GameCapture(unittest.TestCase):
                     "-fsanitize=address,undefined",
                     "-fno-omit-frame-pointer",
                     str(ROOT / "tests/screenshare/vkcapture-relay-check.c"),
+                    str(relay),
+                    *[
+                        "-Wl,--wrap=" + name
+                        for name in (
+                            "drmSyncobjCreate",
+                            "drmSyncobjDestroy",
+                            "drmSyncobjHandleToFD",
+                            "drmSyncobjTimelineSignal",
+                            "drmSyncobjTimelineWait",
+                            "drmSyncobjImportSyncFile",
+                            "drmSyncobjTransfer",
+                            "drmSyncobjExportSyncFile",
+                            "drmGetCap",
+                            "drmIoctl",
+                            "ioctl",
+                        )
+                    ],
+                    "-ldl",
+                    "-lpthread",
+                    "-lm",
                     *flags,
                     "-o",
                     str(executable),
@@ -402,7 +457,7 @@ class GameCapture(unittest.TestCase):
             )
             result = subprocess.run([str(executable)], text=True, capture_output=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn("GPU release gates ACK", result.stdout)
+            self.assertIn("GPU release gates completion", result.stdout)
 
     def test_hello_rejects_truncation_and_descriptors(self):
         import array
@@ -511,6 +566,8 @@ class GameCapture(unittest.TestCase):
             self.assertNotIn("pid", events[-1]["sources"][0])
             b.command({"id": 2, "op": "start", "token": token, "fps": 30})
             child = b.child
+            self.assertEqual(events[-1]["processIdentity"], broker.process_identity(os.getpid()))
+            self.assertEqual(events[-1]["processIdentity"]["pid"], os.getpid())
             with self.assertRaises(ValueError):
                 b.command({"op": "rate", "fps": True})
             b.command({"id": 3, "op": "rate", "fps": 15})

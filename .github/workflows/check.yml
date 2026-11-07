@@ -54,8 +54,8 @@ jobs:
           key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'package.json') }}
       - run: uv sync --locked
       - run: bun install --frozen-lockfile --ignore-scripts
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv libpipewire-0.3-dev libgbm-dev libegl-dev libgles-dev libdrm-dev libva-dev nasm libcap-dev libwayland-dev libwayland-bin libvulkan-dev libgl-dev libx11-dev libxcb1-dev libxcb-xfixes0-dev cmake ninja-build
-        if: needs.changes.outputs.unit == 'true'
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv libclang-dev libpipewire-0.3-dev libgbm-dev libegl-dev libgles-dev libdrm-dev libva-dev nasm libcap-dev libwayland-dev libwayland-bin libvulkan-dev libgl-dev libx11-dev libxcb1-dev libxcb-xfixes0-dev cmake ninja-build
+      - run: rustup show
       - run: bun run lint
       - run: bun run test
         if: needs.changes.outputs.unit == 'true'
@@ -70,7 +70,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: out/hevc-build
-          key: hevc-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build_hevc_support.py', 'integration/video/hevc-backend.c', 'integration/video/encoder-abi.h') }}
+          key: hevc-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build_hevc_support.py', 'native/**', 'Cargo.lock', 'rust-toolchain.toml', 'integration/video/encoder-abi.h') }}
           restore-keys: hevc-${{ runner.os }}-${{ runner.arch }}-
       - name: Compile the independent camera support binary
         if: needs.changes.outputs.camera == 'true'

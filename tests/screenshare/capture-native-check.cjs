@@ -14,6 +14,21 @@ const metadata = {
   ...JSON.parse(fixture.describe()),
 };
 fs.writeFileSync(path.join(directory, "capture-scope.json"), JSON.stringify(metadata));
+const probe = { exports: {} };
+process.dlopen(probe, helper);
+for (const mutate of [
+  (value) => value.dequeue.call++,
+  (value) => value.dequeue.target++,
+  (value) => (value.release.call = value.dequeue.call),
+  (value) => (value.dequeue.call = 0xfffffff0),
+]) {
+  const invalid = structuredClone(metadata);
+  mutate(invalid);
+  fs.writeFileSync(path.join(directory, "capture-scope.json"), JSON.stringify(invalid));
+  assert.throws(() => load(directory, helper, { mode }), /capture|branch|bounded/i);
+  assert.equal(JSON.parse(probe.exports.captureStats()).installed, false);
+}
+fs.writeFileSync(path.join(directory, "capture-scope.json"), JSON.stringify(metadata));
 const adapter = load(directory, helper, { mode });
 adapter.setRate(60);
 if (mode === "paced") {
@@ -21,7 +36,11 @@ if (mode === "paced") {
   for (const value of [-1, 241, 1.5, NaN, Infinity, "30"])
     assert.throws(() => adapter.setRate(value), /integer/);
 }
+const delayed = typeof probe.exports.testCaptureDelay === "function";
+if (delayed) probe.exports.testCaptureDelay(30);
+const began = performance.now();
 const result = JSON.parse(fixture.run());
+if (delayed) assert.ok(performance.now() - began >= 20);
 const counters = adapter.snapshot();
 assert.equal(counters.installed, true);
 assert.equal(counters.frames, 1);

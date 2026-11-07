@@ -2,9 +2,11 @@
 
 import argparse
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
+from build_rust_support import build as build_rust
 from common import ROOT, sha256, write_json
 
 
@@ -31,37 +33,17 @@ def protocols(output):
     return sources
 
 
-def build(output, compiler="cc"):
-    generated = protocols(output / "protocols")
-    flags = subprocess.check_output(
-        ["pkg-config", "--cflags", "--libs", "wayland-client"], text=True
-    ).split()
-    target = output / "libdpe-wayland-capture.so"
-    subprocess.run(
-        [
-            compiler,
-            "-std=c11",
-            "-O2",
-            "-Wall",
-            "-Wextra",
-            "-Werror",
-            "-fPIC",
-            "-shared",
-            "-Wl,-z,relro,-z,now",
-            "-Wl,--no-undefined",
-            "-I" + str(output / "protocols"),
-            str(ROOT / "integration/video/wayland-capture.c"),
-            *map(str, generated),
-            *flags,
-            "-o",
-            str(target),
-        ],
-        check=True,
-    )
+def build(output):
+    output.mkdir(parents=True, exist_ok=True)
+    archive, rust = build_rust("dpe-wayland")
+    target = output / "libdpe-wayland.a"
+    shutil.copy2(archive, target)
     report = dict(
         sha256=sha256(target),
-        scope="protocol adapter only; no compositor/GPU opened",
+        scope="Rust protocol adapters only; no compositor/GPU opened",
         installed=False,
+        implementation="rust",
+        rust=rust,
     )
     write_json(output / "wayland-capture.json", report)
     return report

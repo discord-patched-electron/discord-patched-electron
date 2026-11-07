@@ -17,7 +17,13 @@ enum dpe_vk_type {
   DPE_VK_RELEASE,
   DPE_VK_UNSUPPORTED
 };
-enum { DPE_VK_FLIP = 1, DPE_VK_CAPTURE = 2, DPE_VK_SYNC_FD = 4, DPE_VK_DIRECT = 8 };
+enum {
+  DPE_VK_FLIP = 1,
+  DPE_VK_CAPTURE = 2,
+  DPE_VK_SYNC_FD = 4,
+  DPE_VK_DIRECT = 8,
+  DPE_VK_PAUSE = 16
+}; // HELLO capability, not a CONTROL flag.
 struct dpe_vk_packet {
   uint32_t magic;
   uint16_t version, type;

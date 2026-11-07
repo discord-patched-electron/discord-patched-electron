@@ -5,6 +5,9 @@
 bool dpe_hook_enabled(void);
 // The selected consumer requests an explicitly described direct-import texture.
 bool dpe_hook_direct(void);
+// Initialization-only SDR format selection and exact-tiling blit validation.
+uint32_t dpe_vk_export_format(uint32_t format, uint32_t color_space);
+bool dpe_vk_blit_supported(uint32_t source_features, uint32_t destination_features);
 bool dpe_hook_enter(void);
 void dpe_hook_leave(void);
 void dpe_hook_init(void);

@@ -28,7 +28,9 @@ class CaptureBundle(unittest.TestCase):
             source = output / f"source/obs-vkcapture-{COMMIT}"
             (source / "src").mkdir(parents=True)
             (source / "LICENSE").write_text("GPL fixture")
-            (source / "src/vkcapture-hook.c").write_text("corresponding source fixture")
+            rust = source / "dpe-rust/native/game/src/hook.rs"
+            rust.parent.mkdir(parents=True)
+            rust.write_text("corresponding Rust source fixture")
             (output / "build").mkdir()
             (output / "build/private-object").touch()
 

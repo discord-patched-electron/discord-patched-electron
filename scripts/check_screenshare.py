@@ -24,7 +24,7 @@ from pathlib import Path
 
 from analyze_screenshare import analyze, read_logs
 from build_camera_support import build as build_capture_helper
-from build_camera_support import node_headers
+from build_capture_fixture import build as build_capture_delay_fixture
 from capture_picker_scope import write_scope as write_capture_picker_scope
 from capture_scale_scope import write_scope as write_capture_scale_scope
 from capture_scope import write_scope as write_capture_scope
@@ -144,9 +144,28 @@ def validate_report(report, observations):
         30, max(5, math.ceil(config.get("fps", 30) * (config.get("seconds", 6) - 2) / 2))
     )
     capture_verified = True
-    if config.get("backend") == "pipewire":
+    direct = config.get("capture_transport") == "direct-gpu"
+    if config.get("backend") == "pipewire" and not direct:
         capture_verified = report.get("pipewire_streaming_observed") is True
-    if config.get("capture_mode", "off") != "off":
+    if direct:
+        counters = report.get("captureDirect") or {}
+        capture_verified = (
+            counters.get("transport") == "direct-gpu"
+            and counters.get("convertedFrames", 0) >= minimum_frames
+            and counters.get("receivedFrames", 0) >= counters.get("convertedFrames", 0)
+            and counters.get("failures") == 0
+            and counters.get("activeCaptures") == 0
+            and not adapter.get("frames", 0)
+            and report.get("pipewire_streaming_observed") is False
+            and (
+                config["encoder"] == "vp8"
+                or (
+                    counters.get("cpuReadbacks") == 0
+                    and counters.get("gpuEncoderInputs", 0) >= minimum_frames
+                )
+            )
+        )
+    if config.get("capture_mode", "off") != "off" and not direct:
         memory = "dmabufFrames" if config.get("memory") == "dmabuf" else "memfdFrames"
         capture_verified = (
             capture_verified
@@ -171,6 +190,8 @@ def validate_report(report, observations):
             and marker_coverage >= 0.95
         ),
     }
+    padded = False
+    padded_sizes = set()
     maximum_width = config.get("encode_width", config.get("width", 0))
     maximum_height = config.get("encode_height", config.get("height", 0))
     if maximum_width and maximum_height:
@@ -184,9 +205,13 @@ def validate_report(report, observations):
         # Smaller dimensions remain valid for explicit adaptation experiments;
         # --expect-resolution separately requires an exact, stable rendition.
         padding = report.get("av1Padding") or {}
+        guard = report.get("encoderGuard") or {}
         padded = (
             config["encoder"] == "av1-vaapi"
-            and (report.get("encoderGuard") or {}).get("hardwareScope") == "amd-vcn4"
+            and (
+                guard.get("hardwareScope") == "amd-vcn4"
+                or (guard.get("av1Alignment") or {}).get("hardwareScope") == "amd-vcn4"
+            )
             and padding.get("checked", 0) >= minimum_frames
             and padding.get("failed", 0) == 0
         )
@@ -236,7 +261,12 @@ def validate_report(report, observations):
             for phase in measurements.get("phases", {}).values()
             for dimension in phase.get("dimensions", [])
         }
-        validation["dimensions_verified"] = dimensions == {config["expect_resolution"]}
+        validation["dimensions_verified"] = dimensions == {config["expect_resolution"]} or (
+            padded
+            and config["expect_resolution"] == f"{maximum_width}x{maximum_height}"
+            and len(dimensions) == 1
+            and all(tuple(map(int, size.split("x"))) in padded_sizes for size in dimensions)
+        )
     if config.get("content_pattern") == "framing":
         edges = report.get("pictureEdges") or {}
         validation["full_picture_edges_verified"] = (
@@ -311,12 +341,14 @@ def validate_report(report, observations):
             and (active.get("inputFps") or 0) > 0
             and (active.get("outputFps") or 0) > 0
             and (active.get("bitrate") or 0) > 0
-            and active.get("captureMethod") == config["backend"]
+            and active.get("captureMethod") == ("direct-gpu" if direct else config["backend"])
             and transport.get("idle") == {"active": False}
             and (
-                config["backend"] != "pipewire"
+                (direct and counters.get("frames", 0) > 0 and counters.get("mode") == "Direct GPU")
+                or config["backend"] != "pipewire"
                 or (
-                    counters.get("frames", 0) > 0
+                    not direct
+                    and counters.get("frames", 0) > 0
                     and counters.get("targetFps") == config["fps"]
                     and adapter.get("pacingFps") == 0
                     and (
@@ -413,11 +445,52 @@ def check(
     capture_sync=False,
     capture_picker=False,
     capture_delivery="normal",
+    capture_transport="pipewire",
     pipewire_socket=None,
     pipewire_node=None,
     receiver_bitrate=None,
+    profile_pipeline=False,
+    capture_priority="inherit",
+    split_peers=False,
+    baseline_seconds=0,
 ):
     runtime, voice, output = runtime.resolve(), voice.resolve(), output.resolve()
+    if capture_priority not in ("inherit", "balanced"):
+        raise ValueError("Unknown capture thread priority")
+    if (
+        type(baseline_seconds) is not int
+        or not 0 <= baseline_seconds <= 10
+        or (baseline_seconds and not split_peers)
+    ):
+        raise ValueError("Idle baseline requires split peers and 0–10 seconds")
+    if split_peers and (
+        backend != "pipewire"
+        or network_profile != "none"
+        or (
+            encoder == "av1-vaapi"
+            and any(
+                n % align
+                for n, align in zip(
+                    map(int, (encode_resolution or resolution).split("x")), (64, 16), strict=True
+                )
+            )
+        )
+    ):
+        raise ValueError(
+            "Split peers require shared-clock GPU input, no network transitions and aligned AV1 output"
+        )
+    if capture_transport not in ("pipewire", "direct-gpu") or (
+        capture_transport == "direct-gpu"
+        and (
+            backend != "pipewire"
+            or not capture_picker
+            or pipewire_node != 0xFFFFFFFE
+            or capture_delivery != "normal"
+        )
+    ):
+        raise ValueError(
+            "Direct capture requires its selected descriptor endpoint and callback adapter"
+        )
     if receiver_bitrate is not None and (
         type(receiver_bitrate) is not int or not 16000 <= receiver_bitrate <= bitrate
     ):
@@ -539,7 +612,13 @@ def check(
     if openh264:
         shutil.copy2(openh264, output / "voice/libopenh264.so")
     if capture_mode != "off" or encoder_guard or capture_scale or capture_sync or capture_picker:
-        build_capture_helper(output / "helper-build", hevc=encoder in ("h265-vaapi", "av1-vaapi"))
+        shutil.copy2(
+            ROOT / "integration/video/dpe-native-identity.cjs", fixture / "dpe-native-identity.cjs"
+        )
+        build_capture_helper(
+            output / "helper-build",
+            hevc=capture_transport == "direct-gpu" or encoder in ("h265-vaapi", "av1-vaapi"),
+        )
         shutil.copy2(
             output / "helper-build/libdpe-camera-probe.so", output / "libdpe-camera-probe.so"
         )
@@ -569,29 +648,7 @@ def check(
             write_encoder_scope(output / "voice/discord_voice.node", output / "voice")
             shutil.copy2(ROOT / "integration/video/encoder.cjs", fixture / "encoder-adapter.cjs")
         if stall_ms and stall_target == "capture":
-            flags = subprocess.check_output(
-                ["pkg-config", "--cflags", "libpipewire-0.3"], text=True
-            ).split()
-            subprocess.run(
-                [
-                    "cc",
-                    "-std=c11",
-                    "-O2",
-                    "-fPIC",
-                    "-shared",
-                    "-Wall",
-                    "-Wextra",
-                    "-Werror",
-                    "-I" + str(node_headers()),
-                    *flags,
-                    str(ROOT / "tests/screenshare/capture-delay.c"),
-                    "-ldl",
-                    "-pthread",
-                    "-o",
-                    str(output / "libdpe-camera-probe.so"),
-                ],
-                check=True,
-            )
+            build_capture_delay_fixture(output / "libdpe-camera-probe.so")
     for name in ("libmediapipe.so", "gpu_encoder_helper"):
         dependency = voice.with_name(name)
         if dependency.exists():
@@ -651,6 +708,11 @@ def check(
         capture_sync=capture_sync,
         capture_picker=capture_picker,
         capture_delivery=capture_delivery,
+        capture_transport=capture_transport,
+        profile_pipeline=profile_pipeline,
+        capture_priority=capture_priority,
+        split_peers=split_peers,
+        baseline_seconds=baseline_seconds,
         external_pipewire_node=pipewire_node,
     )
     write_json(output / "config.json", config)
@@ -676,6 +738,9 @@ def check(
         "DBUS_SESSION_BUS_ADDRESS": f"unix:path={output}/run/no-bus",
         "DBUS_SYSTEM_BUS_ADDRESS": f"unix:path={output}/run/no-system-bus",
     }
+    if profile_pipeline:
+        env["DPE_CAPTURE_PROFILE"] = "1"
+    env["DPE_CAPTURE_PRIORITY"] = capture_priority
     if not render_node:
         env["LIBGL_ALWAYS_SOFTWARE"] = "1"
     if capture_delivery != "normal":
@@ -831,6 +896,10 @@ def check(
     lines = list(read_logs([path for path in logs if path.exists()]))
     observations = analyze(lines)["observations"]
     report["pipeline"] = pipeline_evidence(lines)
+    if capture_transport == "direct-gpu":
+        report["pipeline"]["direct_gpu_import_observed"] = (report.get("captureDirect") or {}).get(
+            "convertedFrames", 0
+        ) > 0
     report["pipewire_streaming_observed"] = any(
         "[capture_linux] State changed: Paused -> Streaming" in line for line in lines
     )
@@ -925,7 +994,7 @@ def main():
         default=0,
         help="Reapply identical transport settings after encoder metadata becomes available",
     )
-    parser.add_argument("--fps", type=int, choices=(5, 15, 30, 60), default=30)
+    parser.add_argument("--fps", type=int, choices=(5, 15, 30, 60, 120, 240), default=30)
     parser.add_argument(
         "--source-fps",
         type=int,
@@ -940,7 +1009,19 @@ def main():
     parser.add_argument("--capture-scale", action="store_true")
     parser.add_argument("--capture-sync", action="store_true")
     parser.add_argument("--capture-picker", action="store_true")
+    parser.add_argument(
+        "--profile-pipeline", action="store_true", help="Opt-in native stage CPU/wall counters"
+    )
+    parser.add_argument(
+        "--capture-priority",
+        choices=("inherit", "balanced"),
+        default="inherit",
+        help="Experimental capture-thread preference within existing user limits",
+    )
     parser.add_argument("--capture-delivery", choices=("normal", "probe", "fast"), default="normal")
+    parser.add_argument(
+        "--capture-transport", choices=("pipewire", "direct-gpu"), default="pipewire"
+    )
     parser.add_argument("--pipewire-socket", type=Path, help="Explicit owned test producer remote")
     parser.add_argument("--pipewire-node", type=int, help="Owned synthetic workload's node ID")
     parser.add_argument(
@@ -1003,7 +1084,12 @@ def main():
         type=int,
         help="Synthetic receiver allowance, bounded by the stream ceiling",
     )
-    parser.add_argument("--bitrate", type=int, choices=(1000000, 4000000, 6000000), default=1000000)
+    parser.add_argument(
+        "--bitrate",
+        type=int,
+        choices=(1000000, 4000000, 6000000, 12000000, 24000000),
+        default=1000000,
+    )
     parser.add_argument(
         "--render-node", type=Path, help="Explicitly expose this GPU render device to the test"
     )
@@ -1019,6 +1105,17 @@ def main():
     )
     parser.add_argument(
         "--drop-video", action="store_true", help="Negative control: discard video; expect failure"
+    )
+    parser.add_argument(
+        "--split-peers",
+        action="store_true",
+        help="Separate sender and receiver renderer processes for resource accounting",
+    )
+    parser.add_argument(
+        "--baseline-seconds",
+        type=int,
+        default=0,
+        help="Idle peer baseline before sharing (0–10 seconds, split peers only)",
     )
     args = parser.parse_args()
     print(check(**vars(args)))

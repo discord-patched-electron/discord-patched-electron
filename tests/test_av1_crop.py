@@ -2,18 +2,23 @@
 
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from build_rust_support import build as build_rust
 
 
 @unittest.skipUnless(shutil.which("cc") and shutil.which("c++"), "C/C++ compilers required")
 class Av1Crop(unittest.TestCase):
     def test_software_decoder_views_reordering_retry_and_lifecycle(self):
+        archive, _ = build_rust()
         with tempfile.TemporaryDirectory() as temporary:
             binary = Path(temporary) / "software-crop-check"
+            module = Path(temporary) / "native-decoder.so"
             subprocess.run(
                 [
                     "cc",
@@ -22,16 +27,39 @@ class Av1Crop(unittest.TestCase):
                     "-Wextra",
                     "-Werror",
                     "-fsanitize=undefined",
+                    "-fPIC",
+                    "-shared",
                     str(ROOT / "tests/screenshare/av1-software-crop-check.c"),
                     "-ldl",
+                    "-o",
+                    str(module),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                [
+                    "cc",
+                    "-std=c11",
+                    "-Wall",
+                    "-Wextra",
+                    "-Werror",
+                    "-fsanitize=address,undefined",
+                    str(ROOT / "tests/screenshare/av1-software-crop-driver.c"),
+                    str(archive),
+                    "-Wl,--gc-sections",
+                    "-ldl",
                     "-pthread",
+                    "-lm",
                     "-o",
                     str(binary),
                 ],
                 check=True,
                 capture_output=True,
             )
-            result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
+            result = subprocess.run(
+                [str(binary), str(module)], check=True, capture_output=True, text=True
+            )
             self.assertIn("isolation and teardown passed", result.stdout)
 
     def test_metadata_bounds_keyframe_reset_and_malformed_inputs(self):

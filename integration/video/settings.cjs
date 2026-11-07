@@ -10,7 +10,7 @@ const DEFAULTS = Object.freeze({
   excludedCodecs: Object.freeze([]),
 });
 const METHODS = ["auto", "portal", "x11", "wayland-direct", "vkcapture", "kms"];
-const CODECS = ["AV1", "H265", "H264", "VP9", "VP8"];
+const CODECS = ["AV1", "H265", "H264", "VP8"];
 function normalize(value) {
   const excludedCodecs = CODECS.filter(
     (codec) => Array.isArray(value?.excludedCodecs) && value.excludedCodecs.includes(codec),

@@ -119,6 +119,14 @@ class PortableReleases(unittest.TestCase):
                 write_json(
                     tools / "dependencies/usr/share/dpe-dependencies/build.json", {"schema": 1}
                 )
+                for relative in (
+                    "capture/dpe-kms-server",
+                    "integration/video/kms-maintenance.py",
+                    "integration/video/kms-permission-setup.py",
+                ):
+                    component = app / relative
+                    component.parent.mkdir(parents=True, exist_ok=True)
+                    component.write_bytes(b"fixture component")
                 package(app, output, "20261026.120000", 1234567890, "nfpm", tools)
             self.assertEqual(packager.call_count, 3)
             with tarfile.open(next(output.glob("*.tar.gz"))) as archive:

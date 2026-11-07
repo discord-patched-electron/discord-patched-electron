@@ -1,6 +1,7 @@
 """Check private codec builds and adapter ownership without starting a GPU."""
 
 import io
+import os
 import subprocess
 import sys
 import tarfile
@@ -11,7 +12,9 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import build_hevc_support as hevc
+from build_rust_support import build as build_rust
 from common import ROOT, digest, hash_files, sha256, write_json
+from elftools.elf.elffile import ELFFile
 from extract_screenshare_hevc import frame_nalus
 
 
@@ -56,8 +59,60 @@ class HevcSupport(unittest.TestCase):
                 frame_nalus(payloads)
 
     def test_native_frame_abi_leases_and_destroy_during_update(self):
+        archive, _ = build_rust(capture_gpu=False)
         with tempfile.TemporaryDirectory() as temporary:
-            binary = Path(temporary) / "hevc-check"
+            root = Path(temporary)
+            binary, module, backend = (
+                root / name for name in ("hevc-check", "module.so", "backend.so")
+            )
+            for source, output in (("hevc-module.c", module), ("hevc-backend-fixture.c", backend)):
+                subprocess.run(
+                    [
+                        "cc",
+                        "-shared",
+                        "-fPIC",
+                        "-Wl,-z,relro,-z,now",
+                        "-Wall",
+                        "-Wextra",
+                        "-Werror",
+                        "-pthread",
+                        str(ROOT / "tests/screenshare" / source),
+                        "-o",
+                        str(output),
+                    ],
+                    check=True,
+                )
+            with module.open("rb") as stream:
+                elf = ELFFile(stream)
+                symbols = elf.get_section_by_name(".dynsym")
+                offsets = []
+                for name in (
+                    "cc_encoder_add_frame_native",
+                    "cc_encoder_add_frame_i420",
+                    "cc_encoder_supports_recon_frame",
+                    "cc_encoder_vendor",
+                    "cc_probe_gpu_encoder",
+                ):
+                    slots = []
+                    for section in elf.iter_sections():
+                        if section["sh_type"] != "SHT_RELA":
+                            continue
+                        table = elf.get_section(section["sh_link"])
+                        slots.extend(
+                            r["r_offset"]
+                            for r in section.iter_relocations()
+                            if r["r_info_type"] in (6, 7)
+                            and table.get_symbol(r["r_info_sym"]).name == name
+                        )
+                    self.assertEqual(len(slots), 1)
+                    offsets.extend((slots[0], symbols.get_symbol_by_name(name)[0]["st_value"], 0))
+                for name in (
+                    "fixture19PooledVulkanSurface10descriptor",
+                    "fixture13capture_linux10LinuxFrameE9drop_slow",
+                    "cc_video_frame_clone_i420",
+                    "cc_i420_buffer_destroy",
+                ):
+                    offsets.append(symbols.get_symbol_by_name(name)[0]["st_value"])
             subprocess.run(
                 [
                     "cc",
@@ -67,13 +122,49 @@ class HevcSupport(unittest.TestCase):
                     "-Werror",
                     "-pthread",
                     str(ROOT / "tests/screenshare/hevc-check.c"),
+                    str(archive),
+                    "-Wl,--gc-sections",
                     "-ldl",
+                    "-lm",
+                    "-lva",
+                    "-lva-drm",
                     "-o",
                     str(binary),
                 ],
                 check=True,
             )
-            subprocess.run([str(binary)], check=True, timeout=15)
+            subprocess.run(
+                [str(binary), str(module), *map(str, offsets)],
+                check=True,
+                timeout=15,
+                env={**os.environ, "DPE_HEVC_BACKEND": str(backend)},
+            )
+            old_backend = root / "old-backend.so"
+            subprocess.run(
+                [
+                    "cc",
+                    "-shared",
+                    "-fPIC",
+                    "-DDPE_FIXTURE_ABI=1",
+                    "-pthread",
+                    str(ROOT / "tests/screenshare/hevc-backend-fixture.c"),
+                    "-o",
+                    str(old_backend),
+                ],
+                check=True,
+            )
+            for replacement in (old_backend, root / "missing-backend.so", None):
+                with self.subTest(unavailable_backend=replacement):
+                    environment = {**os.environ, "DPE_FIXTURE_UNAVAILABLE": "1"}
+                    environment.pop("DPE_HEVC_BACKEND", None)
+                    if replacement:
+                        environment["DPE_HEVC_BACKEND"] = str(replacement)
+                    subprocess.run(
+                        [str(binary), str(module), *map(str, offsets)],
+                        check=True,
+                        timeout=15,
+                        env=environment,
+                    )
 
     def source_fixture(self, root, text):
         archive = root / f"ffmpeg-{hevc.VERSION}.tar.xz"
@@ -129,10 +220,12 @@ class HevcSupport(unittest.TestCase):
                         [
                             hevc.SOURCE,
                             hevc.HEADER,
-                            "integration/video/av1-level.h",
                             "integration/video/av1-crop.h",
                             "integration/video/hevc-level.h",
+                            "integration/video/encoder-import-cache.h",
+                            "integration/video/capture-profile.h",
                             "scripts/build_hevc_support.py",
+                            *hevc.rust_inputs(),
                         ]
                     ),
                 }

@@ -1,0 +1,27 @@
+[package]
+name = "dpe-native"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[features]
+default = ["capture-gpu"]
+capture-gpu = []
+capture-delay-fixture = []
+picker-dispatch-fixture = []
+
+[dependencies]
+dpe-core = { path = "../media-core" }
+dpe-os = { path = "../os" }
+dpe-pipewire = { path = "../pipewire", default-features = false }
+libc = "=0.2.191"
+
+[build-dependencies]
+bindgen = "=0.73.2"
+
+[lints]
+workspace = true

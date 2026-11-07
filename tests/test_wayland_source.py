@@ -8,9 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build_wayland_capture import protocols
 from build_wayland_source import build
-from common import ROOT
 
 
 class WaylandSource(unittest.TestCase):
@@ -48,49 +46,6 @@ class WaylandSource(unittest.TestCase):
                     outputs=[],
                 ),
             )
-            generated = protocols(root / "protocols")
-            flags = subprocess.check_output(
-                [
-                    "pkg-config",
-                    "--cflags",
-                    "--libs",
-                    "wayland-client",
-                    "libpipewire-0.3",
-                    "gbm",
-                    "libdrm",
-                ],
-                text=True,
-            ).split()
-            check = root / "check"
-            subprocess.run(
-                [
-                    "cc",
-                    "-std=c11",
-                    "-O1",
-                    "-g",
-                    "-Wall",
-                    "-Wextra",
-                    "-Werror",
-                    "-fsanitize=address,undefined",
-                    "-fno-omit-frame-pointer",
-                    "-I" + str(root / "protocols"),
-                    str(ROOT / "tests/screenshare/wayland-source-check.c"),
-                    str(ROOT / "integration/video/wayland-capture.c"),
-                    *map(str, generated),
-                    *flags,
-                    "-Wl,--wrap=pw_stream_return_buffer",
-                    "-Wl,--wrap=pw_stream_queue_buffer",
-                    "-Wl,--wrap=pw_stream_trigger_process",
-                    "-Wl,--wrap=pw_stream_dequeue_buffer",
-                    "-Wl,--wrap=dpe_wl_capture_submit",
-                    "-o",
-                    str(check),
-                ],
-                check=True,
-            )
-            result = subprocess.run([check], env=env, capture_output=True, text=True, timeout=10)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn("ownership", result.stdout)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@
 module.exports = function installCodecs(options, runtime) {
   if (options?.platform !== "linux" || !runtime?.watch) return;
   const key = Symbol.for("dpe.videoCodecs");
-  const names = ["AV1", "H265", "H264", "VP9", "VP8"];
+  const names = ["AV1", "H265", "H264", "VP8"];
   const excluded = names.filter(
     (name) => Array.isArray(options.excludedCodecs) && options.excludedCodecs.includes(name),
   );

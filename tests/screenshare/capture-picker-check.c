@@ -1,6 +1,6 @@
 // Real local Unix FD ownership with mocked reviewed C ABI endpoints. No portal,
 // display, PipeWire daemon, GPU, Discord account or capture is opened.
-#include "../../integration/video/capture-picker.c"
+#include "capture-picker-fixture.h"
 #include <assert.h>
 
 static unsigned callbacks, originals, starts, stops;
@@ -82,37 +82,11 @@ static int32_t native_new(const struct capture_options *options, void **capture)
   return 0;
 }
 static int32_t native_destroy(void *capture) {
-  assert((uintptr_t)capture >= 1001 && (uintptr_t)capture <= 1002);
+  assert((uintptr_t)capture >= 1001 && (uintptr_t)capture <= 1033);
   stops++;
   return 0;
 }
 int main(void) {
-  uint8_t *image = calloc(1, 4096);
-  assert(image);
-  ElfW(Ehdr) *eh = (void *)image;
-  eh->e_phoff = sizeof(*eh);
-  eh->e_phnum = 2;
-  ElfW(Phdr) *ph = (void *)(image + eh->e_phoff);
-  ph[0] = (ElfW(Phdr)){.p_type = PT_LOAD, .p_flags = PF_R | PF_X, .p_memsz = 2048};
-  ph[1] = (ElfW(Phdr)){.p_type = PT_LOAD, .p_flags = PF_R | PF_W, .p_vaddr = 2048, .p_memsz = 2048};
-  uintptr_t base = (uintptr_t)image, slot = base + 3072, target = base + 1500;
-  uint8_t *stub = image + 1024;
-  stub[0] = 0xff;
-  stub[1] = 0x25;
-  stub[6] = 0x68;
-  stub[11] = 0xe9;
-  int32_t displacement = slot - (uintptr_t)(stub + 6);
-  memcpy(stub + 2, &displacement, 4);
-  *(uintptr_t *)slot = (uintptr_t)(stub + 6);
-  assert(reviewed_slot(base, slot, target));
-  displacement++;
-  memcpy(stub + 2, &displacement, 4);
-  assert(!reviewed_slot(base, slot, target));
-  *(uintptr_t *)slot = base + 2500;
-  assert(!reviewed_slot(base, slot, target));
-  *(uintptr_t *)slot = target;
-  assert(reviewed_slot(base, slot, target));
-  free(image);
   original_show = native_show;
   original_new = native_new;
   original_destroy = native_destroy;
@@ -121,7 +95,7 @@ int main(void) {
   picked_present = &native_picked_present;
   api_napi_call_threadsafe_function = enqueue;
   api_napi_release_threadsafe_function = release_dispatcher;
-  dispatcher = (void *)1;
+  fixture_configure();
   struct picker_options options = {.source_type = 1, .callback = callback, .data = (void *)77};
   assert(show_picker(&options) == 0 && events == 1 && !originals);
   uint32_t first = current_request;
@@ -147,8 +121,9 @@ int main(void) {
   struct sockaddr_un address = {.sun_family = AF_UNIX};
   strcpy(address.sun_path, pathname);
   assert(!bind(server, (struct sockaddr *)&address, sizeof(address)) && !listen(server, 16));
-  assert(open_remote("relative") == -1 && open_remote(directory) == -1);
   assert(show_picker(&options) == 0);
+  assert(!finish(current_request, "selected", "relative", 42));
+  assert(!finish(current_request, "selected", directory, 42));
   assert(!finish(current_request, "selected", "/not-a-socket", 42));
   assert(find(current_request)->state == WAITING);
   assert(finish(current_request, "selected", pathname, 42));
@@ -161,6 +136,25 @@ int main(void) {
   struct capture_options capture_options = {.config = &config};
   void *capture = (void *)99;
   assert(capture_new(&capture_options, &capture) == -ECANCELED && !capture && !starts);
+
+  // A foreign close followed by descriptor reuse cannot make cancellation
+  // close an unrelated resource or permit a delayed native constructor.
+  assert(!show_picker(&options));
+  assert(finish(current_request, "selected", pathname, 42));
+  owned = result.config.fd;
+  config = result.config;
+  close(owned);
+  int unrelated[2];
+  assert(!pipe(unrelated));
+  if (unrelated[0] != owned)
+    assert(dup2(unrelated[0], owned) == owned);
+  assert(cancel(current_request));
+  assert(fcntl(owned, F_GETFD) >= 0);
+  assert(capture_new(&capture_options, &capture) == -ECANCELED && !capture && !starts);
+  close(owned);
+  if (unrelated[0] != owned)
+    close(unrelated[0]);
+  close(unrelated[1]);
 
   // Starting another picker retires a selection that never had a consumer,
   // without invoking the old callback through the replacement global handler.
@@ -216,11 +210,44 @@ int main(void) {
   assert(find(replacement_request)->state == WAITING && strstr(last_event, "request"));
   cleanup((void *)1); // A retired context's hook cannot close the new callback.
   assert(dispatcher == (void *)2 && !closing && releases == 1);
-  assert(cleanup_token == (void *)2 && registered_cleanup == cleanup);
+  assert(cleanup_token != (void *)1 && registered_cleanup);
   registered_cleanup(cleanup_token);
   assert(!dispatcher && closing && releases == 2 && !find(replacement_request));
   registered_cleanup(cleanup_token);
   assert(releases == 2);
+  void *retired_generation = cleanup_token;
+  assert(bind_dispatcher((void *)7, (void *)4));
+  assert(dispatcher == (void *)2 && cleanup_token != retired_generation);
+  cleanup(retired_generation); // The TSFN pointer is reused, the token is not.
+  assert(dispatcher == (void *)2 && releases == 2);
+  fixture_fail_enqueue = true;
+  old_originals = originals;
+  assert(!show_picker(&options) && originals == old_originals + 1);
+  assert(!find(current_request));
+  fixture_fail_enqueue = false;
+
+  // The bounded registry falls back intact when all slots have native owners.
+  assert(!fcntl(server, F_SETFL, O_NONBLOCK));
+  void *active[32];
+  for (unsigned i = 0; i < 32; i++) {
+    int peer;
+    while ((peer = accept(server, NULL, NULL)) >= 0)
+      close(peer);
+    assert(errno == EAGAIN || errno == EWOULDBLOCK);
+    assert(!show_picker(&options));
+    assert(finish(current_request, "selected", pathname, 100 + i));
+    config = result.config;
+    assert(!capture_new(&capture_options, &active[i]));
+    assert(find(current_request)->state == ACTIVE);
+  }
+  old_originals = originals;
+  unsigned old_events = events;
+  assert(!show_picker(&options) && originals == old_originals + 1 && events == old_events);
+  for (unsigned i = 0; i < 32; i++)
+    assert(!capture_destroy(active[i]));
+  assert(!find(0));
+  cleanup(cleanup_token);
+  assert(releases == 3);
   close(server);
   unlink(pathname);
   rmdir(directory);

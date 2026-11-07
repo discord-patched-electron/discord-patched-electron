@@ -32,18 +32,20 @@ function fixture({ supported = true, saved = false } = {}) {
     require: (name) =>
       name === "electron"
         ? { ipcRenderer }
-        : name === "node:fs"
-          ? {
-              readFileSync: (filename) =>
-                filename.endsWith("camera-flip.json")
-                  ? JSON.stringify({ supported, call: 1, converter: 2, voice_sha256: "hash" })
-                  : filename.endsWith("settings.json")
-                    ? JSON.stringify({ openasar: { desktop: { webcamFlip: saved } } })
-                    : "native",
-            }
-          : name === "node:crypto"
-            ? { createHash: () => ({ update: () => ({ digest: () => "hash" }) }) }
-            : require(name),
+        : name === "./dpe-native-identity.cjs"
+          ? { matches: () => true }
+          : name === "node:fs"
+            ? {
+                readFileSync: (filename) =>
+                  filename.endsWith("camera-flip.json")
+                    ? JSON.stringify({ supported, call: 1, converter: 2, voice_sha256: "hash" })
+                    : filename.endsWith("settings.json")
+                      ? JSON.stringify({ openasar: { desktop: { webcamFlip: saved } } })
+                      : "native",
+              }
+            : name === "node:crypto"
+              ? { createHash: () => ({ update: () => ({ digest: () => "hash" }) }) }
+              : require(name),
   });
   return { api: module.exports, callbacks, sent, changes, refresh };
 }

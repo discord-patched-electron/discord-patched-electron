@@ -1,0 +1,25 @@
+[package]
+name = "dpe-producer"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license = "GPL-3.0-only"
+
+[[bin]]
+name = "dpe-direct-source"
+path = "src/main.rs"
+
+[dependencies]
+dpe-core = { path = "../media-core" }
+dpe-os = { path = "../os" }
+dpe-kms = { path = "../kms" }
+dpe-game = { path = "../game" }
+dpe-wayland = { path = "../wayland" }
+dpe-x11 = { path = "../x11" }
+libc = "=0.2.191"
+
+[build-dependencies]
+bindgen = "=0.73.2"
+
+[lints]
+workspace = true

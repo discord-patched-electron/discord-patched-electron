@@ -1,4 +1,20 @@
-#include "../../integration/video/av1-software-crop.c"
+#define _GNU_SOURCE
+#include "../../integration/video/av1-crop.h"
+#include "../../integration/video/av1-software-crop.h"
+#include <dlfcn.h>
+#define SNAPSHOTS 128
+#define CONTEXTS 128
+static void (*query_stats)(uint64_t *);
+static uint64_t count(unsigned index) {
+  uint64_t values[6];
+  query_stats(values);
+  return values[index];
+}
+extern int opened(void **, const void *);
+extern int sent(void *, struct dpe_dav1d_data *);
+extern int received(void *, struct dpe_dav1d_picture *);
+extern void closed(void **), closed_extra1(void **), closed_extra2(void **);
+
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -7,13 +23,13 @@ static uintptr_t next_context = 1;
 static int send_error;
 static int64_t input_ticket, output_ticket;
 static uint8_t pixels[192 * 160 * 3];
-static int mock_open(void **context, const void *settings) {
+__attribute__((used, noinline)) static int mock_open(void **context, const void *settings) {
   assert(settings == (void *)42);
   *context = (void *)next_context++;
   return 0;
 }
-static void mock_close(void **context) { *context = NULL; }
-static int mock_send(void *context, struct dpe_dav1d_data *data) {
+__attribute__((used, noinline)) static void mock_close(void **context) { *context = NULL; }
+__attribute__((used, noinline)) static int mock_send(void *context, struct dpe_dav1d_data *data) {
   assert(context && data->timestamp > 0);
   input_ticket = data->timestamp;
   if (send_error)
@@ -21,7 +37,8 @@ static int mock_send(void *context, struct dpe_dav1d_data *data) {
   memset(data, 0, sizeof(*data));
   return 0;
 }
-static int mock_get(void *context, struct dpe_dav1d_picture *picture) {
+__attribute__((used, noinline)) static int mock_get(void *context,
+                                                    struct dpe_dav1d_picture *picture) {
   assert(context);
   *picture =
       (struct dpe_dav1d_picture){.sequence = (void *)123,
@@ -74,11 +91,8 @@ static void output(void *context, int64_t ticket, int64_t timestamp, bool croppe
   for (size_t i = 0; i < sizeof(pixels); i++)
     assert(pixels[i] == 0x5a); // Views move; no pixel is read, copied or changed.
 }
-int main(void) {
-  original_open = mock_open;
-  original_send = mock_send;
-  original_get = mock_get;
-  original_close = mock_close;
+void fixture_run(void (*stats)(uint64_t *)) {
+  query_stats = stats;
   memset(pixels, 0x5a, sizeof(pixels));
   void *a, *b;
   assert(!opened(&a, (void *)42) && !opened(&b, (void *)42));
@@ -88,57 +102,68 @@ int main(void) {
   // A later keyframe clears active crop, but must not affect delayed pictures.
   int64_t third = submit(a, none, true, -1);
   output(a, second, 5678, true);
+  output(a, second, 5678, true); // Multiple outputs may share one input metadata ticket.
   output(a, first, 1234, true);
   output(a, third, -1, false);
   output(b, submit(b, none, true, 1234), 1234, false);
-  assert(atomic_load(&counts.cropped) == 2);
+  assert(count(3) == 3);
   // EAGAIN does not commit metadata or leak the internal timestamp to a retry.
   send_error = EAGAIN;
   submit(a, crop, true, 999);
   send_error = 0;
   output(a, submit(a, none, false, 999), 999, false);
-  // Invalid geometry leaves every field in the output view unchanged.
-  struct dpe_dav1d_picture original, picture;
-  mock_get(a, &original);
-  const struct dpe_av1_crop invalid[] = {{100, 16, 128, 128}, {33, 16, 128, 128}, {0}};
-  for (unsigned i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
-    picture = original;
-    assert(!crop_picture(&picture, invalid[i]));
-    assert(!memcmp(&picture, &original, sizeof(picture)));
-  }
-  picture = original;
-  picture.stride[1] = 0;
-  assert(!crop_picture(&picture, crop) && picture.plane[0] == original.plane[0]);
-  picture = original;
-  picture.depth = 10;
-  assert(!crop_picture(&picture, crop));
-  picture = original;
-  picture.layout = 3;
-  assert(crop_picture(&picture, crop));
-  assert(picture.plane[1] == original.plane[1] + 16 * 192 + 32);
+  struct dpe_dav1d_picture picture;
   // Missing/evicted snapshots retain decoded geometry, never a later crop.
   first = submit(a, crop, true, 12);
   for (unsigned i = 0; i < SNAPSHOTS; i++)
     submit(a, none, false, i);
   output_ticket = first;
   assert(!received(a, &picture) && picture.width == 192 && picture.height == 160);
-  assert(atomic_load(&counts.unmatched) == 1);
+  assert(count(5) == 1);
   uintptr_t reused = (uintptr_t)a;
   closed(&a);
-  assert(!a && atomic_load(&counts.contexts) == 1);
+  assert(!a && count(1) == 1);
   next_context = reused;
   assert(!opened(&a, (void *)42));
   output(a, submit(a, none, false, 1234), 1234, false);
   closed(&a);
   closed(&b);
-  assert(!decoders && atomic_load(&counts.contexts) == 0);
+  assert(count(1) == 0);
   next_context = 100;
   void *contexts[CONTEXTS + 1];
   for (unsigned i = 0; i < CONTEXTS + 1; i++)
     assert(!opened(&contexts[i], (void *)42));
-  assert(atomic_load(&counts.contexts) == CONTEXTS);
+  assert(count(1) == CONTEXTS);
   for (unsigned i = 0; i < CONTEXTS + 1; i++)
-    closed(&contexts[i]);
-  assert(!decoders && atomic_load(&counts.contexts) == 0);
+    (i % 3 == 0 ? closed : i % 3 == 1 ? closed_extra1 : closed_extra2)(&contexts[i]);
+  assert(count(1) == 0);
   puts("Software AV1 crop views, reordering, retry, bounds, isolation and teardown passed");
 }
+
+extern const uint8_t open_site[], send_site[], get_site[], close_site[], close_extra1_site[],
+    close_extra2_site[];
+void fixture_scope(uint32_t offsets[10]) {
+  Dl_info module;
+  assert(dladdr((void *)open_site, &module));
+  const void *addresses[] = {mock_open,         mock_send,        mock_get, mock_close,
+                             open_site,         send_site,        get_site, close_site,
+                             close_extra1_site, close_extra2_site};
+  for (unsigned i = 0; i < 10; i++) {
+    uintptr_t offset = (uintptr_t)addresses[i] - (uintptr_t)module.dli_fbase;
+    assert(offset && offset <= UINT32_MAX);
+    offsets[i] = (uint32_t)offset;
+  }
+}
+__asm__(".text\n.balign 4096\n"
+        ".global opened\nopened:\nsub $8,%rsp\n.global open_site\nopen_site:\ncall mock_open\nadd "
+        "$8,%rsp\nret\n"
+        ".global sent\nsent:\nsub $8,%rsp\n.global send_site\nsend_site:\ncall mock_send\nadd "
+        "$8,%rsp\nret\n"
+        ".global received\nreceived:\nsub $8,%rsp\n.global get_site\nget_site:\ncall mock_get\nadd "
+        "$8,%rsp\nret\n"
+        ".global closed\nclosed:\n.global close_site\nclose_site:\njmp mock_close\n"
+        ".global closed_extra1\nclosed_extra1:\nsub $8,%rsp\n.global "
+        "close_extra1_site\nclose_extra1_site:\ncall mock_close\nadd $8,%rsp\nret\n"
+        ".global closed_extra2\nclosed_extra2:\nsub $8,%rsp\n.global "
+        "close_extra2_site\nclose_extra2_site:\ncall mock_close\nadd $8,%rsp\nret\n"
+        ".balign 4096\n");

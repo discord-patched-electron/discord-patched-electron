@@ -1,12 +1,13 @@
 // Real libwayland client/server wire protocol over a socketpair. The private
 // server writes only its synthetic SHM buffers. No host display/GPU is opened.
 #define _GNU_SOURCE
-#include "../../integration/video/wayland-capture.h"
 #include "ext-image-capture-source-v1-server.h"
 #include "ext-image-copy-capture-v1-server.h"
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +21,7 @@
 struct server {
   struct wl_display *display;
   struct wl_resource *session, *frame, *buffer;
-  struct wl_global *selected;
+  struct wl_global *selected, *other;
   char mode;
   unsigned captures;
   int control;
@@ -162,6 +163,12 @@ static int control(int fd, uint32_t mask, void *data) {
     ext_image_copy_capture_session_v1_send_stopped(server->session);
   else if (command == 'D')
     wl_global_remove(server->selected);
+  else if (command == '+')
+    assert(wl_global_create(server->display, &wl_output_interface, 4, "DPE-3", bind_output));
+  else if (command == '-')
+    wl_global_remove(server->other);
+  else if (command == 'L')
+    assert(wl_global_create(server->display, &wl_output_interface, 4, "DPE-1", bind_output));
   else if (command == 'B') {
     uint8_t bytes[3] = {0};
     struct wl_array array = {sizeof(bytes), sizeof(bytes), bytes};
@@ -178,7 +185,8 @@ static void server_run(int socket, int commands) {
   struct server server = {.display = wl_display_create(), .mode = 'A', .control = commands};
   assert(server.display && wl_display_init_shm(server.display) == 0);
   // Deliberately advertise the other monitor first. Selection must use its name.
-  assert(wl_global_create(server.display, &wl_output_interface, 4, "DPE-2", bind_output));
+  server.other = wl_global_create(server.display, &wl_output_interface, 4, "DPE-2", bind_output);
+  assert(server.other);
   server.selected = wl_global_create(server.display, &wl_output_interface, 4, "DPE-1", bind_output);
   assert(server.selected);
   assert(wl_global_create(server.display, &ext_output_image_capture_source_manager_v1_interface, 1,
@@ -196,234 +204,8 @@ static void server_run(int socket, int commands) {
   exit(0);
 }
 
-struct fixture {
-  struct wl_display *display;
-  struct wl_registry *registry;
-  struct wl_shm *shm;
-  struct dpe_wl_capture *capture;
-  struct dpe_wl_constraints constraints;
-  struct dpe_wl_frame frame;
-  int frames, changes, stopped, status, control;
-  pid_t child;
-};
-static void got_constraints(void *data, const struct dpe_wl_constraints *value) {
-  struct fixture *fixture = data;
-  fixture->constraints = *value;
-  fixture->changes++;
-}
-static void got_frame(void *data, const struct dpe_wl_buffer *buffer,
-                      const struct dpe_wl_frame *value, int status) {
-  struct fixture *fixture = data;
-  assert(buffer->generation == value->generation);
-  fixture->frame = *value;
-  fixture->status = status;
-  fixture->frames++;
-}
-static void got_stop(void *data, int reason) { ((struct fixture *)data)->stopped = reason; }
-static const struct dpe_wl_callbacks callbacks = {got_constraints, got_frame, got_stop};
-static void registry_global(void *data, struct wl_registry *registry, uint32_t name,
-                            const char *interface, uint32_t version) {
-  (void)version;
-  struct fixture *fixture = data;
-  if (!strcmp(interface, wl_shm_interface.name))
-    fixture->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
-}
-static void registry_remove(void *data, struct wl_registry *registry, uint32_t name) {
-  (void)data;
-  (void)registry;
-  (void)name;
-}
-static const struct wl_registry_listener registry_listener = {registry_global, registry_remove};
-static void roundtrip(struct fixture *fixture) {
-  assert(wl_display_roundtrip(fixture->display) >= 0);
-}
-static void command(struct fixture *fixture, char code) {
-  assert(write(fixture->control, &code, 1) == 1);
-  char reply;
-  assert(read(fixture->control, &reply, 1) == 1 && reply == code);
-  roundtrip(fixture);
-}
-static void setup(struct fixture *fixture, const char *name) {
-  *fixture = (struct fixture){0};
-  int wire[2], commands[2];
-  assert(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, wire) == 0);
-  assert(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, commands) == 0);
-  fixture->child = fork();
-  assert(fixture->child >= 0);
-  if (!fixture->child) {
-    close(wire[0]);
-    close(commands[0]);
-    server_run(wire[1], commands[1]);
-  }
-  close(wire[1]);
-  close(commands[1]);
-  fixture->control = commands[0];
-  fixture->display = wl_display_connect_to_fd(wire[0]);
-  assert(fixture->display);
-  fixture->registry = wl_display_get_registry(fixture->display);
-  wl_registry_add_listener(fixture->registry, &registry_listener, fixture);
-  fixture->capture = dpe_wl_capture_new(fixture->display, name, &callbacks, fixture);
-  assert(fixture->capture);
-  roundtrip(fixture);
-  roundtrip(fixture);
-}
-static void teardown(struct fixture *fixture) {
-  dpe_wl_capture_destroy(fixture->capture);
-  wl_shm_destroy(fixture->shm);
-  wl_registry_destroy(fixture->registry);
-  roundtrip(fixture);
-  wl_display_disconnect(fixture->display);
-  close(fixture->control);
-  int status;
-  assert(waitpid(fixture->child, &status, 0) == fixture->child && WIFEXITED(status) &&
-         WEXITSTATUS(status) == 0);
-}
-struct buffer {
-  struct dpe_wl_buffer descriptor;
-  uint32_t *pixels;
-  size_t bytes;
-};
-static struct buffer allocate(struct fixture *fixture) {
-  unsigned size = fixture->constraints.width;
-  struct buffer buffer = {.bytes = size * size * 4};
-  int fd = memfd_create("dpe-private-protocol-test", MFD_CLOEXEC);
-  assert(fd >= 0 && ftruncate(fd, buffer.bytes) == 0);
-  buffer.pixels = mmap(NULL, buffer.bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  assert(buffer.pixels != MAP_FAILED);
-  struct wl_shm_pool *pool = wl_shm_create_pool(fixture->shm, fd, buffer.bytes);
-  buffer.descriptor = (struct dpe_wl_buffer){
-      .handle = wl_shm_pool_create_buffer(pool, 0, size, size, size * 4, WL_SHM_FORMAT_ARGB8888),
-      .generation = fixture->constraints.generation,
-      .width = size,
-      .height = size,
-      .format = {.format = WL_SHM_FORMAT_ARGB8888}};
-  wl_shm_pool_destroy(pool);
-  close(fd);
-  return buffer;
-}
-static void destroy_buffer(struct buffer *buffer) {
-  wl_buffer_destroy(buffer->descriptor.handle);
-  munmap(buffer->pixels, buffer->bytes);
-}
-static bool shm_only(void *data, uint32_t format, bool dmabuf) {
-  (void)data;
-  return !dmabuf && format == WL_SHM_FORMAT_ARGB8888;
-}
-int main(void) {
-  struct fixture fixture;
-  setup(&fixture, "missing-monitor");
-  assert(dpe_wl_capture_start(fixture.capture, true) == -ENOENT);
-  teardown(&fixture);
-
-  // A compositor runtime error does not end the protocol session. A later
-  // paced frame can reuse the valid buffer and succeed without re-selection.
-  setup(&fixture, "DPE-1");
-  assert(dpe_wl_capture_start(fixture.capture, true) == 0);
-  roundtrip(&fixture);
-  struct buffer retry = allocate(&fixture);
-  command(&fixture, 'U');
-  assert(dpe_wl_capture_submit(fixture.capture, &retry.descriptor) == 0);
-  roundtrip(&fixture);
-  assert(fixture.frames == 1 && fixture.status == -EAGAIN && !fixture.stopped);
-  command(&fixture, 'O');
-  assert(dpe_wl_capture_submit(fixture.capture, &retry.descriptor) == 0);
-  roundtrip(&fixture);
-  assert(fixture.frames == 2 && fixture.status == 0 && !fixture.stopped);
-  // Constraint batches may span socket reads and timer callbacks.
-  command(&fixture, 'P');
-  assert(dpe_wl_capture_submit(fixture.capture, &retry.descriptor) == -EAGAIN);
-  assert(!fixture.stopped);
-  command(&fixture, 'Q');
-  retry.descriptor.generation = fixture.constraints.generation;
-  assert(dpe_wl_capture_submit(fixture.capture, &retry.descriptor) == 0);
-  roundtrip(&fixture);
-  assert(fixture.frames == 3 && fixture.status == 0 && !fixture.stopped);
-  destroy_buffer(&retry);
-  teardown(&fixture);
-
-  setup(&fixture, "DPE-1");
-  command(&fixture, 'G');
-  assert(dpe_wl_capture_set_format_filter(fixture.capture, shm_only) == 0);
-  assert(dpe_wl_capture_start(fixture.capture, true) == 0);
-  assert(dpe_wl_capture_set_format_filter(fixture.capture, NULL) == -EINVAL);
-  roundtrip(&fixture);
-  assert(fixture.changes == 1 && fixture.constraints.format_count == 1 && !fixture.stopped);
-  teardown(&fixture);
-
-  setup(&fixture, "DPE-1");
-  assert(dpe_wl_capture_start(fixture.capture, true) == 0);
-  roundtrip(&fixture);
-  assert(fixture.constraints.format_count == 3 && fixture.changes == 1);
-  struct buffer first = allocate(&fixture);
-  assert(dpe_wl_capture_submit(fixture.capture, &first.descriptor) == 0);
-  assert(dpe_wl_capture_submit(fixture.capture, &first.descriptor) == -EBUSY);
-  roundtrip(&fixture);
-  assert(fixture.frames == 1 && fixture.status == 0 && first.pixels[0] == 0xff000001);
-  assert(fixture.frame.presentation_ns == 123000000456ull &&
-         fixture.frame.transform == WL_OUTPUT_TRANSFORM_90);
-  assert(fixture.frame.width == 16 && fixture.frame.height == 16);
-  command(&fixture, 'H');
-  assert(dpe_wl_capture_submit(fixture.capture, &first.descriptor) == 0);
-  roundtrip(&fixture);
-  command(&fixture, 'C');
-  assert(fixture.changes == 2 && fixture.frames == 1 && fixture.constraints.generation == 2);
-  command(&fixture, 'R');
-  assert(fixture.frame.generation == 1 && fixture.frames == 2);
-  assert(dpe_wl_capture_submit(fixture.capture, &first.descriptor) == -ESTALE);
-  struct buffer next = allocate(&fixture);
-  command(&fixture, 'F');
-  assert(dpe_wl_capture_submit(fixture.capture, &next.descriptor) == 0);
-  roundtrip(&fixture);
-  assert(fixture.frames == 3 && fixture.status == -ESTALE && !fixture.stopped);
-  assert(dpe_wl_capture_submit(fixture.capture, &next.descriptor) == -ESTALE);
-  command(&fixture, 'C');
-  next.descriptor.generation = fixture.constraints.generation;
-  command(&fixture, 'H');
-  assert(dpe_wl_capture_submit(fixture.capture, &next.descriptor) == 0);
-  roundtrip(&fixture);
-  command(&fixture, 'S');
-  assert(fixture.stopped == -ECANCELED && fixture.frames == 3);
-  assert(dpe_wl_capture_submit(fixture.capture, &next.descriptor) == -ECANCELED);
-  command(&fixture, 'R');
-  assert(fixture.frames == 4 && fixture.status == -ECANCELED);
-  destroy_buffer(&first);
-  destroy_buffer(&next);
-  teardown(&fixture);
-
-  // Disconnecting an idle/static source must not invent a successful frame or
-  // release its borrowed storage while the compositor might still write to it.
-  setup(&fixture, "DPE-1");
-  assert(dpe_wl_capture_start(fixture.capture, true) == 0);
-  roundtrip(&fixture);
-  struct buffer cancelled = allocate(&fixture);
-  command(&fixture, 'H');
-  assert(dpe_wl_capture_submit(fixture.capture, &cancelled.descriptor) == 0);
-  roundtrip(&fixture);
-  assert(fixture.frames == 0);
-  dpe_wl_capture_destroy(fixture.capture);
-  fixture.capture = NULL;
-  wl_buffer_destroy(cancelled.descriptor.handle);
-  teardown(&fixture);
-  assert(fixture.frames == 0);
-  munmap(cancelled.pixels, cancelled.bytes);
-
-  for (const char *mode = "NTBD"; *mode; mode++) {
-    setup(&fixture, "DPE-1");
-    assert(dpe_wl_capture_start(fixture.capture, true) == 0);
-    roundtrip(&fixture);
-    struct buffer buffer = allocate(&fixture);
-    command(&fixture, *mode);
-    if (*mode == 'N' || *mode == 'T') {
-      assert(dpe_wl_capture_submit(fixture.capture, &buffer.descriptor) == 0);
-      roundtrip(&fixture);
-      assert(fixture.frames == 1 && fixture.status == -EPROTO);
-    }
-    assert(fixture.stopped == (*mode == 'D' ? -ENODEV : -EPROTO));
-    assert(dpe_wl_capture_submit(fixture.capture, &buffer.descriptor) == fixture.stopped);
-    destroy_buffer(&buffer);
-    teardown(&fixture);
-  }
-  puts("Wayland capture: exact output, SHM delivery, bounded requests, generations, transforms, "
-       "timestamps, cancellation and malformed events passed");
+int main(int argc, char **argv) {
+  assert(argc == 3);
+  server_run(atoi(argv[1]), atoi(argv[2]));
   return 0;
 }

@@ -37,10 +37,24 @@ function screen(file, args, env, signal) {
   if (signal.aborted) return Promise.resolve({});
   let session = screens.get(signal);
   if (!session) {
-    const child = spawn(file, [...args, "--persistent", "1"], {
-      env,
-      stdio: ["pipe", "pipe", "ignore"],
-    });
+    const kms = args[args.indexOf("--method") + 1] === "kms";
+    const authorization = kms
+      ? require("./capture-kms-authorizer.cjs").createLease(file)
+      : undefined;
+    let child;
+    try {
+      child = (kms ? require("./capture-host.cjs").spawn : spawn)(
+        file,
+        [...args, "--persistent", "1"],
+        {
+          env: { ...env, ...authorization?.env },
+          stdio: ["pipe", "pipe", "ignore"],
+        },
+      );
+    } catch (error) {
+      authorization?.close();
+      throw error;
+    }
     let buffer = Buffer.alloc(0),
       receive,
       timer,
@@ -54,6 +68,8 @@ function screen(file, args, env, signal) {
     const close = () => {
       if (ended) return;
       ended = true;
+      authorization?.close();
+      child.stopHostCapture?.();
       signal.removeEventListener("abort", close);
       child.kill("SIGKILL");
       buffer = Buffer.alloc(0);

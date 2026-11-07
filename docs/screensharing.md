@@ -14,6 +14,11 @@ capture, enable **Experimental capture methods** (off by default), then select
 graphics API and driver. Use the system picker if your source is missing.
 If a source disappears mid-share, capture stops instead of selecting another screen.
 
+On reviewed native versions with compatible VAAPI drivers, bundled game hooks
+and KMS pass GPU buffers directly to Discord without a PipeWire video stream.
+The system picker, compositor-protocol capture and stock OBS compatibility keep
+their existing paths. PipeWire still handles application audio.
+
 ### Game capture
 
 1. Start DPE once to register its game launcher.
@@ -34,17 +39,24 @@ Optional prefixes for the copied command:
 
 Combine them for stock Vulkan-only capture. Stock hooks share OBS’s receiver
 endpoint, so OBS and DPE cannot receive from them simultaneously. These flags do
-not establish anti-cheat compatibility. X11/XWayland game capture includes the
-OS cursor; native Wayland games may need monitor capture to include it.
+not establish anti-cheat compatibility. X11 game capture includes the OS cursor. Picker-free Wayland cursor capture is
+experimental on Sway with `foreign_toplevel_identifier` IPC support, one mapped
+window for the game process, and matching capture dimensions. Other Wayland
+desktops, ambiguous game windows and nested compositors may need monitor capture
+to include the cursor. DPE does not open a portal picker for game capture.
 
 ### Direct monitor capture
 
 Supported sources use compositor capture protocols or DRM/KMS. For paths needing
 system authorization, enable **Allow direct screen capture** and approve the
-prompt. **Update permission** replaces an older rule.
+prompt once. This installs a verifier that refreshes the helper and its rule
+without further authentication when an approved update becomes active. Modified
+or unsigned helper updates are rejected automatically; **Update permission**
+lets an administrator approve a local development build explicitly.
 
-Direct capture bypasses the desktop permission picker. Other apps running as
-your user can invoke the authorized helper. Turning off direct capture or
+Direct capture bypasses the desktop permission picker. The helper accepts only the currently
+authorized Discord executable and its capture workers. Other apps running as your
+user may still control Discord. Turning off direct capture or
 experimental capture removes its rule after authorization; cancellation or a
 removal failure restores the toggle. A status error explains obsolete permissions
 or a restricted launch environment. Restart DPE outside that restriction if needed.
@@ -61,14 +73,15 @@ Bitrate is the amount of video data sent each second.
 | H.264        | Encoder settings could waste quality, unnecessarily shrink the picture or reduce its bitrate allowance. | Corrects buffering and quality decisions, and improves compression settings on affected AMD hardware.                             |
 | HEVC / H.265 | Discord lacked the Linux AMD/Intel encoding path, even on capable cards.                                | Adds GPU encoding for supported AMD/Intel devices and keeps NVIDIA’s existing path. Viewers need HEVC support.                    |
 | AV1 / AV1X   | Discord’s Linux rollout could hide AV1, and some AMD cards mishandled 1080p.                            | Enables supported AV1 and preserves the original picture using padding where needed. DPE viewers trim that padding automatically. |
-| VP8          | Encoding uses the CPU, which can struggle at high resolutions and FPS.                                  | Keeps software encoding available; high-FPS performance still depends on the CPU.                                                 |
-| VP9          | Discord’s native module has no VP9 encoder.                                                             | Reports it as unavailable; installing a system codec cannot add it.                                                               |
 | Motion       | Scene changes could build sending queues, and viewers could display frames unevenly.                    | Improves packet pacing and DPE viewer timing to reduce judder.                                                                    |
 | Color detail | Color conversion sampled too little detail before compression.                                          | Improves GPU color filtering without adding another conversion pass.                                                              |
 | Capture      | High-refresh sources could cause excess work, repeated frames or slow adaptation.                       | Adds game/direct-monitor capture, skips excess frames safely and fixes resize and synchronization handling.                       |
 | Bitrate      | Small viewer tiles could reduce the allowance for a detailed source.                                    | Adds an option to keep more bitrate for the shared picture. It is off by default; network limits still apply.                     |
 | Viewing      | Software H.264 could fail to find its decoder; buffered frames could be mistaken for errors.            | Fixes decoder loading and buffered-output handling, and shows hardware/software decoding status.                                  |
 | Reliability  | Cancelling, resizing or changing FPS could interrupt capture incorrectly.                               | Fixes cancellation, source loss and capture restarts.                                                                             |
+
+VP8 remains a CPU encoder and can struggle at high resolutions or FPS. VP9 has
+no encoder in the reviewed Discord module, so it is absent from the exclusions.
 
 **Excluded codecs** applies to the next outgoing screenshare, leaving camera
 calls and incoming decoding unchanged. Keep at least one usable encoder enabled.

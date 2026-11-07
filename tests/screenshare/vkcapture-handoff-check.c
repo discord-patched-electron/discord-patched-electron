@@ -15,7 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 static uint64_t now = 1000000000;
-int fixture_clock_gettime(clockid_t id, struct timespec *t) {
+int __wrap_clock_gettime(clockid_t id, struct timespec *t) {
   assert(id == CLOCK_MONOTONIC);
   t->tv_sec = now / 1000000000;
   t->tv_nsec = now % 1000000000;
@@ -59,7 +59,7 @@ int main(void) {
   int peer = accept4(listener, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
   assert(peer >= 0);
   struct dpe_vk_packet hello = receive(peer, NULL);
-  assert(hello.type == DPE_VK_HELLO && hello.flags == DPE_VK_DIRECT);
+  assert(hello.type == DPE_VK_HELLO && hello.flags == (DPE_VK_DIRECT | DPE_VK_PAUSE));
   assert(!dpe_hook_starting());
   struct dpe_vk_packet control = dpe_vk_packet(DPE_VK_CONTROL);
   control.flags = DPE_VK_CAPTURE;
@@ -115,7 +115,7 @@ int main(void) {
   assert(!dpe_hook_due());
   dpe_hook_cancel();
   assert(!dpe_hook_due()); // A skipped busy GPU frame retains its deadline.
-  now += 17000000;
+  now += 16000000;         // A sub-ms early presentation must not cost a whole frame.
   assert(dpe_hook_due());
   assert(recv(peer, &byte, 1, MSG_DONTWAIT) < 0); // No readiness before GPU completion.
   dpe_hook_complete(true);
@@ -140,6 +140,26 @@ int main(void) {
   assert(fcntl(duplicate, F_GETFD) & FD_CLOEXEC);
   close(duplicate);
   assert(!dpe_hook_due());
+  control.fps = 0;
+  assert(send(peer, &control, sizeof(control), 0) == sizeof(control));
+  dpe_hook_update();
+  for (unsigned i = 0; i < 240; i++) {
+    now += 4166667;
+    assert(dpe_hook_active() && !dpe_hook_stopping() && !dpe_hook_due());
+  }
+  // Exact ACK remains valid while paused, without admitting another frame.
+  release.generation = frame.generation;
+  release.sequence = frame.sequence;
+  assert(send(peer, &release, sizeof(release), 0) == sizeof(release));
+  dpe_hook_update();
+  assert(dpe_hook_active() && !dpe_hook_stopping() && !dpe_hook_due());
+  control.fps = 60;
+  assert(send(peer, &control, sizeof(control), 0) == sizeof(control));
+  dpe_hook_update();
+  assert(dpe_hook_due()); // Same generation/allocation, no stop or re-export.
+  dpe_hook_complete(true);
+  frame = receive(peer, NULL);
+  assert(frame.generation == 1 && frame.sequence == 4);
   // A resize retires the old lease; a crossed exact ACK must not release
   // the new generation or disconnect a healthy game.
   dpe_hook_stop();

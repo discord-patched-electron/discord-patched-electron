@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 from build_hevc_support import ARCHIVE_SHA256 as HEVC_SOURCE_SHA256
 from build_hevc_support import SOURCE_ARCHIVE as HEVC_SOURCE_ARCHIVE
 from build_hevc_support import URL as HEVC_SOURCE_URL
+from build_rust_support import inputs as rust_inputs
 from build_ui import build as build_ui
 from channels import enabled_discord_channels, require_enabled_discord
 from common import (
@@ -57,6 +58,7 @@ SUPPORT = [
     "scripts/capture_upstream_scope.py",
     "scripts/capture_sync_scope.py",
     "scripts/capture_picker_scope.py",
+    "scripts/capture_direct_scope.py",
     "scripts/encoder_scope.py",
     "scripts/client_native.py",
     "scripts/stage_package.py",
@@ -69,6 +71,7 @@ SUPPORT = [
     "scripts/build_wayland_capture.py",
     "scripts/build_wayland_source.py",
     "scripts/build_kms_source.py",
+    "scripts/build_direct_capture.py",
     "scripts/build_screen_preview.py",
     "patches/capture/vkcapture-copy-rate.patch",
     "patches/capture/vkcapture-dpe-handoff.patch",
@@ -95,6 +98,7 @@ SUPPORT += [
     for path in sorted((ROOT / "integration" / name).rglob("*"))
     if path.is_file() and "__pycache__" not in path.parts
 ]
+SUPPORT += rust_inputs()
 
 
 def validate_client(client: dict):

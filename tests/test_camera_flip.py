@@ -78,24 +78,3 @@ class CameraFlip(unittest.TestCase):
                 check=True,
                 timeout=20,
             )
-
-    def test_planes_rotations_padding_and_conversion_failure(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            binary = Path(temporary) / "flip-check"
-            subprocess.run(
-                [
-                    "cc",
-                    "-std=c11",
-                    "-O2",
-                    "-Wall",
-                    "-Wextra",
-                    "-Werror",
-                    "-I" + str(node_headers()),
-                    str(ROOT / "tests/camera/flip-check.c"),
-                    "-o",
-                    str(binary),
-                    "-ldl",
-                ],
-                check=True,
-            )
-            subprocess.run([str(binary)], check=True)

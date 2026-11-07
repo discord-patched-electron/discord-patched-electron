@@ -759,3 +759,37 @@ test("source geometry follows stable PipeWire resize and clears when sharing sto
   c.adapter.clearDesktopSource();
   assert.deepEqual(sizes.at(-1), { width: 0, height: 0 });
 });
+
+test("direct GPU diagnostics require new frames from a single active capture", async () => {
+  const direct = {
+    transport: "direct-gpu",
+    activeCaptures: 1,
+    convertedFrames: 10,
+    droppedFrames: 2,
+    cpuReadbacks: 0,
+    gpuEncoderInputs: 10,
+  };
+  const f = tracked({
+    backends: {
+      snapshot: () => ({ method: "kms", transport: "direct-gpu", sourceType: "screen" }),
+      directSnapshot: () => ({ ...direct }),
+      setRate() {},
+    },
+  });
+  const c = f.connection();
+  c.adapter.setTransportOptions({ captureVideoFrameRate: 60 });
+  c.adapter.setDesktopSource("opaque", null, "screen");
+  assert.equal((await f.tracker.snapshot()).captureMethod, null);
+  direct.convertedFrames += 60;
+  direct.gpuEncoderInputs += 60;
+  const active = await f.tracker.snapshot();
+  assert.equal(active.captureMethod, "kms");
+  assert.equal(active.captureHandoff, "direct-gpu");
+  assert.equal(active.captureCounters.frames, 60);
+  assert.equal(active.captureCounters.gpuEncoderInputs, 60);
+  assert.equal(active.captureCounters.cpuReadbacks, 0);
+  assert.equal(active.captureCounters.mode, "Direct GPU");
+  direct.activeCaptures = 2;
+  assert.equal((await f.tracker.snapshot()).captureMethod, null);
+  c.adapter.destroy();
+});

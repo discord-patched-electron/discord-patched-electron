@@ -155,6 +155,32 @@ class ScreenshareFixtureValidation(unittest.TestCase):
                 validation = validate_report(report, self.observations)["validation"]
                 self.assertEqual(validation["framing_integrity_verified"], expected)
 
+    def test_selected_encoder_scope_qualifies_padding_on_mixed_gpu_systems(self):
+        report = copy.deepcopy(self.report)
+        report["config"].update(
+            encoder="av1-vaapi", width=1920, height=1080, expect_resolution="1920x1080"
+        )
+        report["measurements"]["phases"]["initial"]["dimensions"] = ["1920x1082"]
+        report["encoderGuard"] = {
+            "hardwareScope": "unverified",
+            "av1Alignment": {"hardwareScope": "amd-vcn4"},
+        }
+        report["av1Padding"] = {"checked": 90, "failed": 0}
+        validation = validate_report(report, self.observations)["validation"]
+        self.assertTrue(validation["framing_integrity_verified"])
+        self.assertTrue(validation["dimensions_verified"])
+        for scope, checked, failures in [
+            ("unverified", 90, 0),
+            ("amd-vcn4", 0, 0),
+            ("amd-vcn4", 90, 1),
+        ]:
+            with self.subTest(scope=scope, checked=checked, failures=failures):
+                report["encoderGuard"]["av1Alignment"]["hardwareScope"] = scope
+                report["av1Padding"] = {"checked": checked, "failed": failures}
+                validation = validate_report(report, self.observations)["validation"]
+                self.assertFalse(validation["framing_integrity_verified"])
+                self.assertFalse(validation["dimensions_verified"])
+
     def test_hardware_requires_codec_implementation_and_native_hardware_evidence(self):
         for change in (
             "codec",
@@ -251,6 +277,41 @@ class ScreenshareFixtureValidation(unittest.TestCase):
             self.assertFalse(validate_report(report, self.observations)["passed"])
         self.report["native_explicit_sync_observed"] = False
         self.assertFalse(validate_report(self.report, self.observations)["passed"])
+
+    def test_direct_capture_requires_delivery_without_pipewire_or_cpu_readback(self):
+        self._configure_production_transport()
+        self.report["config"]["capture_transport"] = "direct-gpu"
+        self.report["pipewire_streaming_observed"] = False
+        self.report["captureDirect"] = dict(
+            transport="direct-gpu",
+            activeCaptures=0,
+            convertedFrames=100,
+            receivedFrames=100,
+            failures=0,
+            cpuReadbacks=0,
+            gpuEncoderInputs=100,
+        )
+        active = self.report["transportAdapter"]["active"]
+        active["captureMethod"] = "direct-gpu"
+        active["captureCounters"] = dict(frames=100, mode="Direct GPU")
+        self.assertTrue(validate_report(copy.deepcopy(self.report), self.observations)["passed"])
+        for key, value in [
+            ("cpuReadbacks", 1),
+            ("failures", 1),
+            ("activeCaptures", 1),
+            ("gpuEncoderInputs", 0),
+            ("convertedFrames", 0),
+        ]:
+            report = copy.deepcopy(self.report)
+            report["captureDirect"][key] = value
+            self.assertFalse(validate_report(report, self.observations)["passed"])
+        for key, value in [
+            ("pipewire_streaming_observed", True),
+            ("captureAdapter", {"frames": 1}),
+        ]:
+            report = copy.deepcopy(self.report)
+            report[key] = value
+            self.assertFalse(validate_report(report, self.observations)["passed"])
 
     def test_software_baseline_is_valid_but_needs_screenshare_evidence(self):
         self.report["config"]["encoder"] = "vp8"

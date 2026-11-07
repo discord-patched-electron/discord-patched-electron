@@ -28,4 +28,20 @@ static inline bool dpe_capture_rate_due(struct dpe_capture_rate *rate, uint64_t 
   rate->next = UINT64_MAX - now < delay ? UINT64_MAX : now + delay;
   return true;
 }
+// Admit up to 1 ms early for frame-driven sources at the requested rate.
+// Preserve the original phase: this shifts admission, never builds credit.
+// Strict users (including stock hook compatibility) keep dpe_capture_rate_due.
+static inline bool dpe_capture_rate_due_with_slack(struct dpe_capture_rate *rate, uint64_t now) {
+  uint64_t slack = rate->interval / 8;
+  if (slack > 1000000)
+    slack = 1000000;
+  if (rate->started && rate->next != UINT64_MAX && now > rate->last && now < rate->next &&
+      rate->next - now <= slack) {
+    rate->last = now;
+    rate->next =
+        UINT64_MAX - rate->next < rate->interval ? UINT64_MAX : rate->next + rate->interval;
+    return true;
+  }
+  return dpe_capture_rate_due(rate, now);
+}
 #endif

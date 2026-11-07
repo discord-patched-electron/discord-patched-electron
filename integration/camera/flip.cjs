@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { createHash } = require("node:crypto");
+const nativeIdentity = require("./dpe-native-identity.cjs");
 
 function load(directory, helper = path.join(process.env.DPE_APP_ROOT, "libdpe-camera-probe.so")) {
   const metadata = JSON.parse(fs.readFileSync(path.join(directory, "camera-flip.json"), "utf8"));
@@ -13,7 +13,7 @@ function load(directory, helper = path.join(process.env.DPE_APP_ROOT, "libdpe-ca
     !Number.isSafeInteger(metadata.converter) ||
     metadata.converter <= 0 ||
     metadata.converter > 0xffffffff ||
-    createHash("sha256").update(fs.readFileSync(filename)).digest("hex") !== metadata.voice_sha256
+    !nativeIdentity.matches(filename, metadata.voice_sha256)
   )
     throw new Error("This native camera module does not support outgoing mirroring.");
   const addon = { exports: {} };
