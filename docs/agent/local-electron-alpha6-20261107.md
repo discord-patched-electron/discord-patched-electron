@@ -14,6 +14,15 @@ compiler finish, then migrate to the verified complete dev inputs at the same
 physical path and reuse its objects before treating the requested build as
 complete. The final assembly report is `out/local-alpha6-dev-port-source.json`.
 
+The initial compile reached 39,943 tasks before the video-sink object failed on
+the removed `cross_thread_copier_base.h` include. The sink uses the retained
+`cross_thread_functional.h` API and thread-safe refcounted receiver. The additive
+`alpha6-compile-context.patch` removes the obsolete include; the exact failed
+object then compiles (`out/alpha6-video-object.log`). Fresh final assembly passes
+in `out/local-alpha6-header-verified.json`. With the compiler stopped, all four
+dev patches were applied to the retained Electron tree and checked against that
+fresh tree before replaying hooks (`out/local-alpha6-final-hooks.log`).
+
 ## Dependency port
 
 The first hooks attempt failed before compilation. The additive, checksum-pinned
@@ -54,3 +63,11 @@ reservation or charge. Security bypass rules remain active. The complete
 upstream alpha.1-to-alpha.6 behavior review, completed compilation and runtime
 qualification are separate outstanding gates; passing hooks proves patch
 application, not runtime compatibility.
+
+The final hook replay also required refreshing the media-session declaration
+hunk in `dpe_media_content_only.patch`: alpha.6 has a UMA reporting comment
+where the old hunk expected a second blank line. The compile-context layer
+updates only that surrounding context and retains the added declaration and
+implementation. Fresh complete assembly is recorded in
+`out/local-alpha6-complete-verified.json`; exact hook replay is recorded in
+`out/local-alpha6-complete-hooks.log`.
