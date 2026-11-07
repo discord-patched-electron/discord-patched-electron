@@ -35,6 +35,14 @@ fresh profile for automated launch checks. A concurrent run needs a different
 version and profile. Launch through the manager so its locks, relaunch handling
 and shutdown cleanup remain effective.
 
+Do not duplicate profiles for each edit, rebuild, retry or native version. Reuse
+one persistent profile per manual test identity across sequential versions.
+For automated checks that require a fresh profile, create a temporary profile
+and remove it after the run, including on failure; do not retain a numbered
+series of verification profiles. Create an additional persistent profile only
+when a distinct identity or concurrent run actually requires it. Never copy
+login data into another profile just to try a new build.
+
 ## Pick the reload boundary
 
 - `run VERSION` preserves staged helper sources.
