@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 import native_client_2444
+import native_client_2472
 from common import ROOT
 from patch_presentation_clock import OUTPUT_BASES
 
@@ -41,7 +42,9 @@ def extend_reviewed(reviewed):
 
 
 def reviewed(digest):
-    current = native_client_2444.reviewed("chroma", digest)
+    current = native_client_2472.reviewed("chroma", digest) or native_client_2444.reviewed(
+        "chroma", digest
+    )
     if current:
         before, after, sites = current
         return before, after, sites[0][0]

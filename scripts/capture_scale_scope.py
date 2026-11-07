@@ -7,6 +7,7 @@ from pathlib import Path
 from common import sha256, write_json
 from elftools.elf.elffile import ELFFile
 from native_client_2444 import HASHES as CLIENT_2444_HASHES
+from native_client_2472 import HASHES as CLIENT_2472_HASHES
 from patch_capture_dimensions import OUTPUT_SHA256 as DIMENSIONS_OTHER_SHA256
 from patch_capture_dimensions import PINNED_OUTPUT_SHA256 as DIMENSIONS_SHA256
 from patch_decoder_eagain import extend_reviewed
@@ -25,6 +26,11 @@ REVIEWED = {
 REVIEWED.update(
     dict.fromkeys(
         CLIENT_2444_HASHES, "f11f842e44453c8fa8284272e80429e5465d1f131dac3885424a9dc9aa31ac47"
+    )
+)
+REVIEWED.update(
+    dict.fromkeys(
+        CLIENT_2472_HASHES, "68efbc1b179baf1402f1785b05e84cfdc700aabf75335fc82b34c8ffdd029078"
     )
 )
 extend_reviewed(REVIEWED)

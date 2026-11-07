@@ -14,7 +14,12 @@ class NativeLibraries(unittest.TestCase):
         self.assertEqual(
             missing_libraries(name, checksum, listing), ["libcrypto.so.1.1", "libssl.so.1.1"]
         )
+        latest = "fe521f1d6baff8885990860f8c7a3beea5c5feb70d75ec4a0d1e2da0a3dfa618"
+        self.assertEqual(
+            missing_libraries(name, latest, listing), ["libcrypto.so.1.1", "libssl.so.1.1"]
+        )
         for path, digest, libraries in [
+            (name, latest, listing + "\tlibpulse.so.0 => not found\n"),
             (name, "0" * 64, listing),
             ("discord_voice/discord_voice.node", checksum, listing),
             (name, checksum, listing + "\tlibpulse.so.0 => not found\n"),

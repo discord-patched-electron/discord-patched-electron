@@ -7,6 +7,7 @@ from capture_direct_scope import direct_scope
 from common import sha256, write_json
 from elftools.elf.elffile import ELFFile
 from native_client_2444 import HASHES as CLIENT_2444_HASHES
+from native_client_2472 import HASHES as CLIENT_2472_HASHES
 from patch_capture_dimensions import OUTPUT_SHA256 as DIMENSIONS_OTHER_SHA256
 from patch_capture_dimensions import PINNED_OUTPUT_SHA256 as DIMENSIONS_SHA256
 from patch_decoder_eagain import extend_reviewed
@@ -20,10 +21,18 @@ REVIEWED = {
     **dict.fromkeys((INPUT_SHA256, OUTPUT_SHA256, DIMENSIONS_OTHER_SHA256), 0x22F1B40),
 }
 REVIEWED.update(dict.fromkeys(CLIENT_2444_HASHES, 0x2311B40))
+REVIEWED.update(dict.fromkeys(CLIENT_2472_HASHES, 0x231FB90))
 extend_reviewed(REVIEWED)
 
 
 WAKE_OFFSETS = {
+    0x231FB90: (
+        (15254285, 15164144),
+        (15300694, 15164416),
+        (15294629, 15164416),
+        (14922062, 21941072),
+        (14922102, 15087280),
+    ),
     0x2311B40: (
         (0xE7FD0D, 0xE69CF0),
         (0xE8B256, 0xE69E00),

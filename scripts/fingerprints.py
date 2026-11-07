@@ -125,6 +125,7 @@ def integration_key(
                     "scripts/desktop_identity.py",
                     "scripts/patch_app_audio.py",
                     "scripts/native_client_2444.py",
+                    "scripts/native_client_2472.py",
                     "scripts/patch_pulse_audio.py",
                     "scripts/patch_vaapi_hrd.py",
                     "scripts/patch_capture_dimensions.py",

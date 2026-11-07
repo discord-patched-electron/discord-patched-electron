@@ -6,6 +6,8 @@ current workflows.
 
 ## Start here
 
+- [Canary 1.0.2472 dev update and native patch review](client-2472-compatibility.md).
+
 - [Local Electron alpha.6 build and dependency port](local-electron-alpha6-20261107.md).
 - [Discord link PR review and lifecycle checks](discord-links-review-20261107.md).
 - [Package removal and system capture cleanup](package-uninstall-20261107.md).

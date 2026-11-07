@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import patch_decoder_eagain as decoder
 from capstone import CS_ARCH_X86, CS_MODE_64, Cs
 from native_client_2444 import STAGES
+from native_client_2472 import STAGES as CLIENT_2472_STAGES
 
 
 class DecoderBufferedOutput(unittest.TestCase):
@@ -69,6 +70,7 @@ class DecoderBufferedOutput(unittest.TestCase):
             ("old", decoder.SITES),
             ("pinned", decoder.PINNED_SITES),
             ("current", STAGES["decoder"][2]),
+            ("latest", CLIENT_2472_STAGES["decoder"][2]),
         ):
             start = sites[1][0] - 0x1A9
             original = sites[1][1]

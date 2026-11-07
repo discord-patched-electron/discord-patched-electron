@@ -11,12 +11,14 @@ import tempfile
 from pathlib import Path
 
 from native_client_2444 import STAGES
+from native_client_2472 import STAGES as CLIENT_2472_STAGES
 from patch_video_pacing import OUTPUT_BASES as PACED_BASES
 
 PATCH = "direct-video-microsecond-clock-v1"
 BEFORE = bytes.fromhex("418b46104889442428")
 AFTER = bytes.fromhex("498b46204889442428")
 REVIEWED = (
+    (*CLIENT_2472_STAGES["clock"][0:2], CLIENT_2472_STAGES["clock"][2][0][0]),
     (*STAGES["clock"][0:2], STAGES["clock"][2][0][0]),
     (
         "85baa5b9c9c597abcce5182249dd7b551c60157d3061c321ad6aed3d433ed008",

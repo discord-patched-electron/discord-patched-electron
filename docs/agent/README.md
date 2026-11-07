@@ -16,6 +16,7 @@ before reusing versions or commands from a dated report.
 
 ## Implementation references
 
+- **Latest client review:** [Canary 1.0.2472 dev validation](client-2472-compatibility.md).
 - **Updates:** [client/runtime updater](client-updater.md), [mod preservation](client-mods.md).
 - **Builds:** [source ports](source-ports.md), [cache reuse](build-caching.md),
   [channel switches](channels.md).

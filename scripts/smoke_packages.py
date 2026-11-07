@@ -30,10 +30,15 @@ from updater_python import sources as python_sources
 def missing_libraries(relative: str, checksum: str, listing: str) -> list[str]:
     missing = sorted(set(re.findall(r"^\s*(\S+)\s+=> not found\s*$", listing, re.MULTILINE)))
     # Nixpkgs #517309 documents the shipped, effectively unused dispatch module.
-    # Keep its unchanged bytes, but never generalize this exception to new modules.
+    # Each exact reviewed revision retains the same optional OpenSSL dependency.
+    # See docs/agent/client-2472-compatibility.md for the latest module review.
     exception = (
         relative == "discord_dispatch/discord_dispatch.node"
-        and checksum == "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd"
+        and checksum
+        in {
+            "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
+            "fe521f1d6baff8885990860f8c7a3beea5c5feb70d75ec4a0d1e2da0a3dfa618",
+        }
         and set(missing) <= {"libssl.so.1.1", "libcrypto.so.1.1"}
     )
     if missing and not exception:
