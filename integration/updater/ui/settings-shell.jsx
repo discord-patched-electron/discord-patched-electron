@@ -6,11 +6,13 @@ import { Flags, FlagsChangeNotice } from "./flags.jsx";
 import { Mods } from "./mods.jsx";
 import { Spellcheck } from "./desktop.jsx";
 import { useDesktopPreferences } from "./desktop-preferences.jsx";
+import { Screensharing } from "./screensharing.jsx";
 
 const tabs = [
   ["settings", "General", "settings"],
   ["theming", "Appearance", "appearance"],
   ["spelling", "Spelling", "check"],
+  ["screensharing", "Screensharing", "screen"],
   ["mods", "Mods", "mods"],
   ["flags", "Flags", "flag"],
   ["troubleshooting", "Troubleshooting", "troubleshooting"],
@@ -240,7 +242,7 @@ export function SettingsShell({ model, error, onError }) {
             class="sidebar-note"
             hidden={!desktop.state?.restartRequired}
           >
-            Titlebar changes apply next launch.
+            Desktop integration changes apply next launch.
           </p>
           <FlagsChangeNotice />
           {onboarding && (
@@ -278,17 +280,20 @@ export function SettingsShell({ model, error, onError }) {
             </div>
           )}
           <Flags active={tab === "flags"} />
+          <Screensharing active={tab === "screensharing"} config={config} />
           <Mods model={model} active={tab === "mods"} />
           <Diagnostics select={select} active={tab === "troubleshooting"} />
         </main>
         <p id="settings-save-note" class="sr-only" role="status">
-          {tab === "spelling"
-            ? "Spelling changes save and apply automatically."
-            : tab === "flags"
-              ? "Flag changes save automatically and apply next launch."
-              : tab === "mods"
-                ? "Restart Discord after changing your client mod."
-                : "Changes save automatically. Restart Discord to apply startup options and custom CSS."}
+          {tab === "screensharing"
+            ? "Screensharing changes save automatically and apply to your next share."
+            : tab === "spelling"
+              ? "Spelling changes save and apply automatically."
+              : tab === "flags"
+                ? "Flag changes save automatically and apply next launch."
+                : tab === "mods"
+                  ? "Restart Discord after changing your client mod."
+                  : "Changes save automatically. Restart Discord to apply startup options and custom CSS."}
         </p>
       </div>
     </div>

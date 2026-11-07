@@ -38,5 +38,23 @@ int main(void) {
     setenv("DPE_TEST_ENUM", i == 0 ? "failed" : i == 1 ? "empty" : "changed", 1);
     assert(probe(91, VIDIOC_TRY_FMT, &f) == 17);
   }
+  // Device removal can race either enumeration or TRY_FMT. The replacement
+  // camera may reuse exactly the same descriptor with different capabilities.
+  if (!bypass)
+    for (unsigned cycle = 0; cycle < 50; cycle++) {
+      f.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
+      setenv("DPE_TEST_ENUM", "unplugged", 1);
+      assert(probe(91, VIDIOC_TRY_FMT, &f) == -1 && errno == ENODEV);
+      setenv("DPE_TEST_ENUM", "changed", 1);
+      assert(probe(91, VIDIOC_TRY_FMT, &f) == 17);
+      setenv("DPE_TEST_ENUM", "unplug-during-enum", 1);
+      assert(probe(91, VIDIOC_TRY_FMT, &f) == -1 && errno == ENODEV);
+      f.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+      setenv("DPE_TEST_ENUM", "unplug-before-try", 1);
+      assert(probe(91, VIDIOC_TRY_FMT, &f) == -1 && errno == ENODEV);
+      setenv("DPE_TEST_ENUM", "changed", 1);
+      f.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
+      assert(probe(91, VIDIOC_TRY_FMT, &f) == 17);
+    }
   return 0;
 }

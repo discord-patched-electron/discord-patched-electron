@@ -9,12 +9,24 @@ export DPE_APP_ROOT="$root"
 # shellcheck source=integration/launcher/codec-preload.sh
 source "$root/integration/launcher/codec-preload.sh"
 dpe_restore_codec_environment
+# Keep the optional per-user game command stable across application updates.
+# Registration never starts capture and must not prevent Discord from opening.
+if [[ -f "$root/integration/video/gamecapture-command.py" ]]; then
+  python3 -I "$root/integration/video/gamecapture-command.py" --register "$root" >/dev/null 2>&1 || true
+fi
 config_root=${XDG_CONFIG_HOME:-$HOME/.config}
 export DISCORD_PORTAL_APP_ID=${DISCORD_PORTAL_APP_ID:-@DESKTOP_ID@}
 export CHROME_DESKTOP=${CHROME_DESKTOP:-@DESKTOP_ID@.desktop}
 # Resolve the profile before reading its saved launch preferences.
 export DPE_PROFILE_DIR=${DPE_PROFILE_DIR:-"${DISCORD_USER_DATA_DIR:-$config_root}/@PROFILE_NAME@"}
 DPE_PROFILE_DIR=$(readlink -m -- "$DPE_PROFILE_DIR")
+# Keep early flags/runtime/updater failures and native stderr across desktop launches.
+# Process substitutions preserve this launcher's PID and activation markers.
+if [[ -f "$root/integration/updater/diagnostic_log.py" && ${DPE_DIAGNOSTIC_RELAY:-0} != 1 ]] && command -v python3 >/dev/null 2>&1; then
+  export DPE_DIAGNOSTIC_RELAY=1
+  exec > >(python3 -I "$root/integration/updater/diagnostic_log.py" "$DPE_PROFILE_DIR" stdout) \
+  2> >(python3 -I "$root/integration/updater/diagnostic_log.py" "$DPE_PROFILE_DIR" stderr >&2)
+fi
 export DPE_PACKAGE_NAME="$name"
 export DPE_DESKTOP_ID=@DESKTOP_ID@
 export DPE_FLAGS_MANAGED=1

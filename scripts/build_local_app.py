@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from build_camera_support import build as camera_build
+from build_hevc_support import stage_source as stage_hevc_source
 from camera_scope import write_scope
 from channels import enabled_discord_channels
 from client_inputs import load_clients, validate_channel
@@ -32,6 +33,7 @@ from patch_app_audio import patch as audio_patch
 from patch_desktop_core import patch as desktop_patch
 from patch_krisp import patch as krisp_patch
 from prepare_app import prepare
+from stage_capture_backends import stage as stage_capture
 from stage_updater import configure_runtime
 from stage_updater import stage as stage_updater
 
@@ -154,8 +156,26 @@ def build(
             ),
         )
         write_scope(output / "modules/discord_voice/discord_voice.node", output)
-    camera = camera_build(output / "camera-support")
+        shutil.copy2(output / "camera-flip.json", output / "modules/discord_voice/camera-flip.json")
+        shutil.copy2(
+            output / "capture-scope.json", output / "modules/discord_voice/capture-scope.json"
+        )
+        shutil.copy2(
+            output / "capture-upstream-scope.json",
+            output / "modules/discord_voice/capture-upstream-scope.json",
+        )
+        shutil.copy2(
+            output / "capture-scale-scope.json",
+            output / "modules/discord_voice/capture-scale-scope.json",
+        )
+        shutil.copy2(
+            output / "encoder-scope.json", output / "modules/discord_voice/encoder-scope.json"
+        )
+    if not portable:
+        stage_capture(output / "capture")
+    camera = camera_build(output / "camera-support", hevc=True)
     shutil.copy2(output / "camera-support/libdpe-camera-probe.so", output)
+    stage_hevc_source(output)
     name = package_name(channel, electron)
     launcher = (
         (ROOT / "integration/launcher/discord-launcher.sh")

@@ -1,0 +1,112 @@
+--- a/src/capture.h
++++ b/src/capture.h
+@@ -100,6 +100,7 @@
+ bool capture_should_stop();
+ bool capture_should_init();
+ bool capture_ready();
++bool capture_frame_due();
+ 
+ bool capture_allocate_no_modifiers();
+ bool capture_allocate_linear();
+--- a/src/capture.c
++++ b/src/capture.c
+@@ -17,6 +17,8 @@
+ */
+ 
+ #include "capture.h"
++#include "capture-rate.h"
++#include <stdatomic.h>
+ #include "utils.h"
+ 
+ #include <stdio.h>
+@@ -28,6 +30,11 @@
+ #include <libgen.h>
+ #include <sys/un.h>
+ #include <sys/socket.h>
++
++static struct dpe_capture_rate frame_rate;
++static atomic_uint frame_fps;
++static atomic_bool frame_reset;
++static atomic_flag frame_busy = ATOMIC_FLAG_INIT;
+ 
+ static struct {
+     int connfd;
+@@ -118,6 +125,17 @@
+ {
+     memset(&data, 0, sizeof(data));
+     data.connfd = -1;
++    unsigned fps = 0;
++    const char *limit = getenv("DPE_VKCAPTURE_MAX_FPS");
++    if (limit && *limit) {
++        char *end;
++        errno = 0;
++        unsigned long parsed = strtoul(limit, &end, 10);
++        if (!errno && !*end && parsed >= 1 && parsed <= 240)
++            fps = (unsigned)parsed;
++    }
++    atomic_store_explicit(&frame_fps, fps, memory_order_relaxed);
++    atomic_store_explicit(&frame_reset, true, memory_order_relaxed);
+ }
+ 
+ void capture_update_socket()
+@@ -208,11 +226,13 @@
+ 
+     data.capturing = true;
+     data.need_reinit = false;
++    atomic_store_explicit(&frame_reset, true, memory_order_relaxed);
+ }
+ 
+ void capture_stop()
+ {
+     data.capturing = false;
++    atomic_store_explicit(&frame_reset, true, memory_order_relaxed);
+ }
+ 
+ bool capture_should_stop()
+@@ -230,6 +250,22 @@
+     return data.capturing;
+ }
+ 
++bool capture_frame_due()
++{
++    unsigned fps = atomic_load_explicit(&frame_fps, memory_order_relaxed);
++    if (!fps)
++        return true;
++    /* A competing present must never wait for the pacing state. */
++    if (atomic_flag_test_and_set_explicit(&frame_busy, memory_order_acquire))
++        return false;
++    if (atomic_exchange_explicit(&frame_reset, false, memory_order_relaxed) ||
++        frame_rate.interval != 1000000000ull / fps)
++        dpe_capture_rate_configure(&frame_rate, fps);
++    bool due = dpe_capture_rate_due(&frame_rate, (uint64_t)os_time_get_nano());
++    atomic_flag_clear_explicit(&frame_busy, memory_order_release);
++    return due;
++}
++
+ bool capture_allocate_no_modifiers()
+ {
+     return data.no_modifiers;
+--- a/src/glinject.c
++++ b/src/glinject.c
+@@ -1033,7 +1033,8 @@
+             }
+             return;
+         }
+-        gl_shtex_capture();
++        if (capture_frame_due())
++            gl_shtex_capture();
+     }
+ }
+ 
+--- a/src/vklayer.c
++++ b/src/vklayer.c
+@@ -1242,7 +1242,8 @@
+             return;
+         }
+ 
+-        vk_shtex_capture(data, &data->funcs, swap, 0, queue, info);
++        if (capture_frame_due())
++            vk_shtex_capture(data, &data->funcs, swap, 0, queue, info);
+     }
+ }
+ 

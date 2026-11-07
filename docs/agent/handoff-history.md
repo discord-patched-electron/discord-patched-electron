@@ -406,7 +406,7 @@ Actual Chromium module/plugin flags bypass sccache. The verified reuse mechanism
 are completed runtime artifacts and retained Ninja objects; see
 [cache limitations](build-caching.md). The later restarts demonstrated object
 reuse while keeping the physical path stable. Live runner controls are described
-in [CI setup](ci-setup.md#changing-local-limits-while-the-build-runs).
+in [CI setup](ci-reference.md#changing-local-limits-while-the-build-runs).
 
 The older compiled Electron 44 reference test app remains available at
 `out/canary-reference-test/launch.sh` for comparison.

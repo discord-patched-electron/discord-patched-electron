@@ -7,6 +7,8 @@ import shutil
 from pathlib import Path
 
 from application_payload import bootstrap, bundle
+from build_hevc_support import SOURCE_ARCHIVE as HEVC_SOURCE_ARCHIVE
+from build_hevc_support import stage_source as stage_hevc_source
 from common import read_json, sha256
 from stage_updater import configure_runtime, validate_distribution
 from stage_updater import stage as stage_updater
@@ -44,6 +46,8 @@ def stage(inputs: dict, directory: Path, asar: str):
         runtime["url"],
     )
     shutil.copy2(directory / "libdpe-camera-probe.so", destination)
+    if inputs["camera_support"].get("hevc"):
+        stage_hevc_source(destination, directory / HEVC_SOURCE_ARCHIVE)
     launcher = (
         (directory / "discord-launcher.sh")
         .read_text()

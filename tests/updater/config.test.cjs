@@ -286,6 +286,12 @@ test("cached editable config cannot overwrite backend state or escape window IPC
   assert.equal(f.state.onboardingPending, false);
   assert.equal(f.state.clientMod, "vencord");
   assert.equal(f.state.launchFlags.version, 2);
+  const exportLogs = window.handlers.get("dpe-export-logs");
+  await assert.rejects(exportLogs({ sender: {}, senderFrame: {} }), /Invalid settings window/);
+  await assert.rejects(
+    exportLogs({ sender: window.webContents, senderFrame: {} }),
+    /Invalid settings window/,
+  );
   const link = window.handlers.get("dpe-config-open-link");
   await assert.rejects(link(f.event(window), "https://untrusted.invalid"), /Unknown project link/);
   await assert.rejects(link({ sender: {}, senderFrame: {} }, "github"), /Invalid settings window/);

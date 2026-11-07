@@ -1,0 +1,1147 @@
+--- a/src/capture.c
++++ b/src/capture.c
+@@ -17,6 +17,7 @@
+ */
+ 
+ #include "capture.h"
++#include "vkcapture-hook.h"
+ #include "capture-rate.h"
+ #include <stdatomic.h>
+ #include "utils.h"
+@@ -123,6 +124,7 @@
+ 
+ void capture_init()
+ {
++    dpe_hook_init();
+     memset(&data, 0, sizeof(data));
+     data.connfd = -1;
+     unsigned fps = 0;
+@@ -140,6 +142,7 @@
+ 
+ void capture_update_socket()
+ {
++    if (dpe_hook_enabled()) { dpe_hook_update(); return; }
+     static int64_t last_check = 0;
+     const int64_t now = os_time_get_nano();
+     if (now - last_check < 1000000000) {
+@@ -188,6 +191,10 @@
+         int offsets[4], uint64_t modifier, uint32_t winid,
+         bool flip, uint32_t color_space, int nfd, int fds[4])
+ {
++    if (dpe_hook_enabled()) {
++        dpe_hook_texture(width, height, format, strides, offsets, modifier, flip, color_space, nfd, fds, winid);
++        return;
++    }
+     struct capture_texture_data td = {0};
+     td.type = CAPTURE_TEXTURE_DATA_TYPE;
+     td.nfd = nfd;
+@@ -231,27 +238,32 @@
+ 
+ void capture_stop()
+ {
++    if (dpe_hook_enabled()) { dpe_hook_stop(); return; }
+     data.capturing = false;
+     atomic_store_explicit(&frame_reset, true, memory_order_relaxed);
+ }
+ 
+ bool capture_should_stop()
+ {
++    if (dpe_hook_enabled()) return dpe_hook_stopping();
+     return data.capturing && (data.connfd < 0 || !data.accepted || data.need_reinit);
+ }
+ 
+ bool capture_should_init()
+ {
++    if (dpe_hook_enabled()) return dpe_hook_starting();
+     return !data.capturing && data.connfd >= 0 && data.accepted;
+ }
+ 
+ bool capture_ready()
+ {
++    if (dpe_hook_enabled()) return dpe_hook_active();
+     return data.capturing;
+ }
+ 
+ bool capture_frame_due()
+ {
++    if (dpe_hook_enabled()) return dpe_hook_due();
+     unsigned fps = atomic_load_explicit(&frame_fps, memory_order_relaxed);
+     if (!fps)
+         return true;
+@@ -268,20 +280,24 @@
+ 
+ bool capture_allocate_no_modifiers()
+ {
++    if (dpe_hook_enabled()) return false;
+     return data.no_modifiers;
+ }
+ 
+ bool capture_allocate_linear()
+ {
++    if (dpe_hook_enabled()) return dpe_hook_direct();
+     return data.linear;
+ }
+ 
+ bool capture_allocate_map_host()
+ {
++    if (dpe_hook_enabled()) return false;
+     return data.map_host;
+ }
+ 
+ bool capture_compare_device_uuid(uint8_t uuid[16])
+ {
++    if (dpe_hook_enabled()) return dpe_hook_device(uuid);
+     return memcmp(data.device_uuid, uuid, 16) == 0;
+ }
+--- a/src/glinject.c
++++ b/src/glinject.c
+@@ -21,6 +21,8 @@
+ 
+ #include "glinject.h"
+ #include "capture.h"
++#include "vkcapture-hook.h"
++#include "vkcapture-gl-sync.h"
+ #include "utils.h"
+ #include "dlsym.h"
+ #include "plugin-macros.h"
+@@ -44,6 +46,8 @@
+ static bool vkcapture_glvulkan = false;
+ 
+ struct gl_data {
++    GLsync dpe_fence; bool dpe_identity_known;
++    bool dpe_sync_device; uint32_t dpe_queue_family;
+     void *display;
+     void *surface;
+     int width;
+@@ -147,6 +151,7 @@
+         GETGLXADDR(GetProcAddress);
+         GETGLXADDR(GetProcAddressARB);
+         GETGLXPROCADDR(DestroyContext);
++        GETGLXPROCADDR(GetCurrentContext);
+         GETGLXPROCADDR(CreateWindow);
+         GETGLXPROCADDR(SwapBuffers);
+         GETGLXPROCADDR(SwapBuffersMscOML);
+@@ -204,10 +209,24 @@
+         GETEGLPROCADDR(SwapBuffers);
+         GETEGLPROCADDR(ExportDMABUFImageQueryMESA);
+         GETEGLPROCADDR(ExportDMABUFImageMESA);
++        if (dpe_hook_enabled()) {
++            egl_f.QueryString = (typeof(egl_f.QueryString))egl_f.GetProcAddress("eglQueryString");
++            egl_f.CreateSyncKHR = (typeof(egl_f.CreateSyncKHR))egl_f.GetProcAddress("eglCreateSyncKHR");
++            egl_f.DestroySyncKHR = (typeof(egl_f.DestroySyncKHR))egl_f.GetProcAddress("eglDestroySyncKHR");
++            egl_f.DupNativeFenceFDANDROID = (typeof(egl_f.DupNativeFenceFDANDROID))egl_f.GetProcAddress("eglDupNativeFenceFDANDROID");
++            egl_f.GetSyncAttribKHR = (typeof(egl_f.GetSyncAttribKHR))egl_f.GetProcAddress("eglGetSyncAttribKHR");
++        }
+         gl_f.GetProcAddress = egl_f.GetProcAddress;
+         egl_f.valid = true;
+     }
+ 
++    if (dpe_hook_enabled()) {
++        GETGLPROCADDR(GetStringi);
++        GETGLPROCADDR(FenceSync);
++        GETGLPROCADDR(ClientWaitSync);
++        GETGLPROCADDR(DeleteSync);
++        GETGLPROCADDR(Flush);
++    }
+     GETGLPROCADDR(GenFramebuffers);
+     GETGLPROCADDR(GenTextures);
+     GETGLPROCADDR(TexImage2D);
+@@ -228,6 +247,7 @@
+     GETGLPROCADDR(GetString);
+     GETGLPROCADDR(GetUnsignedBytei_vEXT);
+     GETGLPROCADDR(CreateMemoryObjectsEXT);
++    GETGLPROCADDR(DeleteMemoryObjectsEXT);
+     GETGLPROCADDR(MemoryObjectParameterivEXT);
+     GETGLPROCADDR(ImportMemoryFdEXT);
+     GETGLPROCADDR(TexStorageMem2DEXT);
+@@ -281,10 +301,22 @@
+ #define GETINSTPROC(func) GETVKPROC(GetInstanceProcAddr, vkinst, func)
+ #define GETDEVPROC(func) GETVKPROC(GetDeviceProcAddr, vkdev, func)
+ 
++static bool dpe_egl_native_fence_available()
++{
++    if (data.glx || !egl_f.QueryString || !egl_f.CreateSyncKHR || !egl_f.DestroySyncKHR ||
++            !egl_f.DupNativeFenceFDANDROID || !egl_f.GetSyncAttribKHR) return false;
++    const char *extensions = egl_f.QueryString(data.display, 0x3055 /* EGL_EXTENSIONS */);
++    const char *name = "EGL_ANDROID_native_fence_sync";
++    const char *found = extensions ? strstr(extensions, name) : NULL;
++    return found && (found == extensions || found[-1] == ' ') &&
++        (found[strlen(name)] == 0 || found[strlen(name)] == ' ');
++}
++
+ static bool vulkan_init()
+ {
++    const bool semaphore_sync = dpe_hook_direct() && dpe_gl_sync_requested();
+     if (data.vkdev) {
+-        return true;
++        return !semaphore_sync || data.dpe_sync_device;
+     }
+ 
+     if (!vulkan_init_funcs()) {
+@@ -296,6 +328,7 @@
+     const char *instance_extensions[] = {
+         VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
+         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
++        VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME,
+     };
+ 
+     const char *device_extensions[] = {
+@@ -310,6 +343,8 @@
+         VK_KHR_MAINTENANCE1_EXTENSION_NAME,
+         VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
+         VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
++        VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
++        VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
+     };
+ 
+     VkApplicationInfo appInfo = {};
+@@ -320,7 +355,7 @@
+     VkInstanceCreateInfo instanceInfo = {};
+     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+     instanceInfo.pApplicationInfo = &appInfo;
+-    instanceInfo.enabledExtensionCount = sizeof(instance_extensions) / sizeof(*instance_extensions);
++    instanceInfo.enabledExtensionCount = sizeof(instance_extensions) / sizeof(*instance_extensions) - (semaphore_sync ? 0 : 1);
+     instanceInfo.ppEnabledExtensionNames = instance_extensions;
+ 
+     char *disable_vkcapture = getenv("DISABLE_OBS_VKCAPTURE");
+@@ -369,10 +404,18 @@
+         goto fail;
+     }
+ 
++    int queue_family = 0;
++    if (semaphore_sync) {
++        queue_family = dpe_gl_sync_probe(gl_f.GetProcAddress,
++                data.glx ? glx_f.GetCurrentContext : egl_f.GetCurrentContext,
++                vk_f.GetInstanceProcAddr, data.vkinst, data.vkphys_dev,
++                dpe_egl_native_fence_available());
++        if (queue_family < 0) goto fail;
++    }
+     float queuePriority = 1.0;
+     VkDeviceQueueCreateInfo queueInfo = {};
+     queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+-    queueInfo.queueFamilyIndex = 0;
++    queueInfo.queueFamilyIndex = (uint32_t)queue_family;
+     queueInfo.queueCount = 1;
+     queueInfo.pQueuePriorities = &queuePriority;
+ 
+@@ -380,10 +423,10 @@
+     deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+     deviceInfo.queueCreateInfoCount = 1;
+     deviceInfo.pQueueCreateInfos = &queueInfo;
+-    deviceInfo.enabledExtensionCount = sizeof(device_extensions) / sizeof(*device_extensions);
++    deviceInfo.enabledExtensionCount = sizeof(device_extensions) / sizeof(*device_extensions) - (semaphore_sync ? 0 : 2);
+     deviceInfo.ppEnabledExtensionNames = device_extensions;
+     res = vk_f.CreateDevice(data.vkphys_dev, &deviceInfo, NULL, &data.vkdev);
+-    if (res != VK_SUCCESS) {
++    if (res != VK_SUCCESS && !semaphore_sync) {
+         /* Try without VK_EXT_image_drm_format_modifier */
+         deviceInfo.enabledExtensionCount--;
+         res = vk_f.CreateDevice(data.vkphys_dev, &deviceInfo, NULL, &data.vkdev);
+@@ -408,6 +451,8 @@
+         hlog("DRM format modifier support not available");
+     }
+ 
++    data.dpe_sync_device = semaphore_sync;
++    data.dpe_queue_family = (uint32_t)queue_family;
+     return true;
+ 
+ fail:
+@@ -426,6 +471,35 @@
+ #undef GETINSTPROC
+ #undef GETDEVPROC
+ 
++// Own fd on all paths. The texture retains the imported storage independently
++// of the memory-object name (GL_EXT_memory_object); no object is leaked on resize.
++static bool gl_import_vulkan_memory(int fd, uint64_t size, bool linear)
++{
++    GLuint memory = 0;
++    bool success = false;
++    while (gl_f.GetError() != GL_NO_ERROR) { }
++    gl_f.CreateMemoryObjectsEXT(1, &memory);
++    if (!memory || gl_f.GetError() != GL_NO_ERROR) goto done;
++    GLint dedicated = GL_TRUE;
++    gl_f.MemoryObjectParameterivEXT(memory, GL_DEDICATED_MEMORY_OBJECT_EXT, &dedicated);
++    if (gl_f.GetError() != GL_NO_ERROR) goto done;
++    gl_f.ImportMemoryFdEXT(memory, size, GL_HANDLE_TYPE_OPAQUE_FD_EXT, fd);
++    if (gl_f.GetError() != GL_NO_ERROR) goto done;
++    fd = -1; // Only successful import transfers descriptor ownership to GL.
++
++    gl_f.GenTextures(1, &data.texture);
++    gl_f.BindTexture(GL_TEXTURE_2D, data.texture);
++    gl_f.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_TILING_EXT, linear ? GL_LINEAR_TILING_EXT : GL_OPTIMAL_TILING_EXT);
++    gl_f.TexStorageMem2DEXT(GL_TEXTURE_2D, 1, GL_RGBA8, data.width, data.height, memory, 0);
++    gl_f.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++    gl_f.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    success = gl_f.IsMemoryObjectEXT(memory) && gl_f.GetError() == GL_NO_ERROR;
++done:
++    if (memory) gl_f.DeleteMemoryObjectsEXT(1, &memory);
++    if (fd >= 0) close(fd);
++    return success;
++}
++
+ static bool vulkan_shtex_init()
+ {
+     if (!vulkan_init()) {
+@@ -442,6 +516,10 @@
+     const bool linear = capture_allocate_linear();
+     const bool map_host = capture_allocate_map_host();
+     const bool same_device = capture_compare_device_uuid(data.device_uuid);
++    if (dpe_hook_direct() && !same_device) {
++        hlog("Direct capture requires the consumer's GPU");
++        return false;
++    }
+ 
+     hlog("Texture %s %ux%u", "GL_RGBA (Vulkan)", data.width, data.height);
+ 
+@@ -482,6 +560,7 @@
+         vk_f.GetPhysicalDeviceFormatProperties2KHR(data.vkphys_dev, img_info.format, &format_props);
+ 
+         modifier_props = malloc(modifier_props_list.drmFormatModifierCount * sizeof(struct VkDrmFormatModifierPropertiesEXT));
++        if (modifier_props_list.drmFormatModifierCount && !modifier_props) goto fail;
+         modifier_props_list.pDrmFormatModifierProperties = modifier_props;
+ 
+         vk_f.GetPhysicalDeviceFormatProperties2KHR(data.vkphys_dev, img_info.format, &format_props);
+@@ -523,6 +602,7 @@
+ 
+         if (modifier_prop_count > 0) {
+             image_modifiers = malloc(sizeof(uint64_t) * modifier_prop_count);
++            if (!image_modifiers) goto fail;
+             for (uint32_t i = 0; i < modifier_prop_count; ++i) {
+                 image_modifiers[i] = modifier_props[i].drmFormatModifier;
+             }
+@@ -537,11 +617,21 @@
+         }
+     }
+ 
++    if (dpe_hook_direct() &&
++            (img_info.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT ||
++             modifier_prop_count != 1 || image_modifiers[0] != DRM_FORMAT_MOD_LINEAR ||
++             !dpe_gl_image_exportable(vk_f.GetPhysicalDeviceImageFormatProperties2KHR,
++                 data.vkphys_dev, &img_info, image_modifiers[0]))) {
++        hlog("Direct linear image cannot export compatible opaque-FD and DMA-BUF handles");
++        goto fail;
++    }
++
+     VkResult res = vk_f.CreateImage(data.vkdev, &img_info, NULL, &data.vkimage);
+     free(image_modifiers);
++    image_modifiers = NULL;
+     if (res != VK_SUCCESS) {
+         hlog("Vulkan: Failed to create image %s", result_to_str(res));
+-        return false;
++        goto fail;
+     }
+ 
+     VkImageMemoryRequirementsInfo2 memri = {};
+@@ -612,7 +702,7 @@
+ 
+     if (!allocated) {
+         hlog("Failed to allocate memory of any type");
+-        return false;
++        goto fail;
+     }
+ 
+     VkBindImageMemoryInfo bimi = {};
+@@ -623,7 +713,7 @@
+     res = vk_f.BindImageMemory2KHR(data.vkdev, 1, &bimi);
+     if (res != VK_SUCCESS) {
+         hlog("Vulkan: BindImageMemory2KHR failed %s", result_to_str(res));
+-        return false;
++        goto fail;
+     }
+ 
+     VkMemoryGetFdInfoKHR memFdInfo = {};
+@@ -634,28 +724,13 @@
+     res = vk_f.GetMemoryFdKHR(data.vkdev, &memFdInfo, &fd);
+     if (res != VK_SUCCESS) {
+         hlog("Vulkan: GetMemoryFdKHR opaque_fd failed %s", result_to_str(res));
+-        return false;
+-    }
+-
+-    // Reset error
+-    while (gl_f.GetError() != GL_NO_ERROR) { }
+-
+-    GLuint glmem;
+-    gl_f.CreateMemoryObjectsEXT(1, &glmem);
+-    GLint dedicated = GL_TRUE;
+-    gl_f.MemoryObjectParameterivEXT(glmem, GL_DEDICATED_MEMORY_OBJECT_EXT, &dedicated);
+-    gl_f.ImportMemoryFdEXT(glmem, memi.allocationSize, GL_HANDLE_TYPE_OPAQUE_FD_EXT, fd);
+-
+-    gl_f.GenTextures(1, &data.texture);
+-    gl_f.BindTexture(GL_TEXTURE_2D, data.texture);
+-    gl_f.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_TILING_EXT, img_info.tiling == VK_IMAGE_TILING_LINEAR || linear ? GL_LINEAR_TILING_EXT : GL_OPTIMAL_TILING_EXT);
+-    gl_f.TexStorageMem2DEXT(GL_TEXTURE_2D, 1, GL_RGBA8, data.width, data.height, glmem, 0);
+-    gl_f.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-    gl_f.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-
+-    if (!gl_f.IsMemoryObjectEXT(glmem) || gl_f.GetError() != GL_NO_ERROR) {
++        goto fail;
++    }
++
++    if (!gl_import_vulkan_memory(fd, memi.allocationSize,
++            img_info.tiling == VK_IMAGE_TILING_LINEAR || linear)) {
+         hlog("Vulkan: OpenGL import failed");
+-        return false;
++        goto fail;
+     }
+ 
+     memFdInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+@@ -663,7 +738,7 @@
+     res = vk_f.GetMemoryFdKHR(data.vkdev, &memFdInfo, &dmabuf_fd);
+     if (res != VK_SUCCESS) {
+         hlog("Vulkan: GetMemoryFdKHR dma_buf failed %s", result_to_str(res));
+-        return false;
++        goto fail;
+     }
+ 
+     if (!no_modifiers && vk_f.GetImageDrmFormatModifierPropertiesEXT) {
+@@ -683,8 +758,16 @@
+             }
+         }
+         free(modifier_props);
++        modifier_props = NULL;
+     } else {
+         data.buf_modifier = DRM_FORMAT_MOD_INVALID;
++    }
++
++    if (dpe_hook_direct() && (data.buf_modifier == DRM_FORMAT_MOD_INVALID ||
++            num_planes < 1 || num_planes > 4)) {
++        hlog("Direct capture needs a valid exported modifier and plane layout");
++        close(dmabuf_fd);
++        goto fail;
+     }
+ 
+     for (int i = 0; i < num_planes; i++) {
+@@ -714,6 +797,10 @@
+ #endif
+ 
+     return true;
++fail:
++    free(image_modifiers);
++    free(modifier_props);
++    return false;
+ }
+ 
+ static void querySurface(int *width, int *height)
+@@ -732,6 +819,8 @@
+ 
+ static void gl_free()
+ {
++    dpe_gl_sync_retire();
++    if (data.dpe_fence) { gl_f.DeleteSync(data.dpe_fence); data.dpe_fence = NULL; }
+     const bool was_capturing = data.nfd;
+ 
+     if (data.nfd) {
+@@ -793,11 +882,24 @@
+     gl_f.FramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst, 0);
+     gl_f.ReadBuffer(GL_BACK);
+     gl_f.DrawBuffer(GL_COLOR_ATTACHMENT0);
+-    gl_f.BlitFramebuffer(0, 0, data.width, data.height, 0, 0, data.width, data.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
++    // Normalize DPE exports in the original capture blit. Direct consumers can
++    // then sample top-down without another GPU flip/copy; OBS keeps its contract.
++    const bool top_down = dpe_hook_enabled();
++    gl_f.BlitFramebuffer(0, 0, data.width, data.height,
++            0, top_down ? data.height : 0, data.width, top_down ? 0 : data.height,
++            GL_COLOR_BUFFER_BIT, GL_LINEAR);
+ }
+ 
+ static void gl_shtex_capture()
+ {
++    if (dpe_gl_sync_active()) {
++        int ready = dpe_gl_sync_begin(data.texture);
++        if (ready <= 0) {
++            if (ready == 0) dpe_hook_cancel();
++            else dpe_hook_complete(false);
++            return;
++        }
++    }
+     bool scissorEnabled = gl_f.IsEnabled(GL_SCISSOR_TEST);
+     if (scissorEnabled) {
+         gl_f.Disable(GL_SCISSOR_TEST);
+@@ -813,6 +915,31 @@
+     gl_f.GetIntegerv(GL_TEXTURE_BINDING_2D, &last_tex);
+ 
+     gl_copy_backbuffer(data.texture);
++    if (dpe_gl_sync_active()) {
++        int fd = dpe_gl_sync_end(data.texture);
++        if (fd == -2) dpe_hook_complete(false);
++        else if (fd == -1) dpe_hook_complete(true);
++        else dpe_hook_complete_fenced(fd);
++    } else if (dpe_hook_enabled()) {
++        bool exported = false;
++        if (!data.glx && egl_f.QueryString && egl_f.CreateSyncKHR && egl_f.DestroySyncKHR && egl_f.DupNativeFenceFDANDROID) {
++            const char *extensions = egl_f.QueryString(data.display, 0x3055 /* EGL_EXTENSIONS */);
++            if (extensions && strstr(extensions, "EGL_ANDROID_native_fence_sync")) {
++                void *sync = egl_f.CreateSyncKHR(data.display, 0x3144 /* EGL_SYNC_NATIVE_FENCE_ANDROID */, NULL);
++                if (sync) {
++                    gl_f.Flush();
++                    int fd = egl_f.DupNativeFenceFDANDROID(data.display, sync);
++                    egl_f.DestroySyncKHR(data.display, sync);
++                    if (fd >= 0) { dpe_hook_complete_fenced(fd); exported = true; }
++                }
++            }
++        }
++        if (!exported) {
++            data.dpe_fence = gl_f.FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
++            gl_f.Flush();
++            if (!data.dpe_fence) dpe_hook_complete(false);
++        }
++    }
+ 
+     gl_f.BindTexture(GL_TEXTURE_2D, last_tex);
+     gl_f.BindFramebuffer(GL_DRAW_FRAMEBUFFER, last_draw_fbo);
+@@ -961,9 +1088,27 @@
+     GLint last_tex;
+     gl_f.GetIntegerv(GL_TEXTURE_BINDING_2D, &last_tex);
+ 
+-    bool init = gl_shtex_init();
+-    if (!init) {
++    // Vulkan's explicit modifier allocation describes storage to direct GPU
++    // consumers; EGL export may return DRM_FORMAT_MOD_INVALID for implicit tiling.
++    // Do not turn that unknown layout into an invented linear modifier.
++    bool init;
++    if (dpe_hook_direct()) {
+         init = vulkan_shtex_init();
++    } else {
++        init = gl_shtex_init();
++        if (!init) init = vulkan_shtex_init();
++    }
++    if (init && dpe_hook_direct() && dpe_gl_sync_requested()) {
++        struct dpe_gl_sync_egl native_fence = {
++            .display = data.display, .create = egl_f.CreateSyncKHR,
++            .destroy = egl_f.DestroySyncKHR, .dup_fd = egl_f.DupNativeFenceFDANDROID,
++            .get = egl_f.GetSyncAttribKHR, .flush = gl_f.Flush
++        };
++        init = dpe_gl_sync_create(vk_f.GetDeviceProcAddr, data.vkdev, data.dpe_queue_family,
++                dpe_egl_native_fence_available() ? &native_fence : NULL);
++        if (init) hlog("DPE GL semaphore bridge active (%s, GENERAL release, %s)",
++                data.glx ? "GLX" : "EGL", dpe_gl_sync_uses_egl() ?
++                "EGL native fence, zero Vulkan submits" : "Vulkan sync_file, one submit/frame");
+     }
+ 
+     gl_f.BindTexture(GL_TEXTURE_2D, last_tex);
+@@ -975,7 +1120,7 @@
+ 
+     capture_init_shtex(data.width, data.height, data.buf_fourcc,
+             data.buf_strides, data.buf_offsets, data.buf_modifier,
+-            data.winid, /*flip*/true, 0, data.nfd, data.buf_fds);
++            data.winid, /*flip*/!dpe_hook_enabled(), 0, data.nfd, data.buf_fds);
+ 
+     hlog("------------------ opengl capture started ------------------");
+ 
+@@ -1003,13 +1148,34 @@
+     return false;
+ }
+ 
+-static void gl_capture(void *display, void *surface, bool glx)
+-{
++static void gl_capture_inner(void *display, void *surface, bool glx)
++{
++    if (dpe_hook_enabled() && dpe_hook_active() && data.surface != surface) return;
+     if (gl_capture_disabled()) {
+         data.valid = false;
+         return;
+     }
+ 
++    if (data.dpe_fence) {
++        GLenum status = gl_f.ClientWaitSync(data.dpe_fence, 0, 0);
++        if (status != GL_TIMEOUT_EXPIRED) {
++            gl_f.DeleteSync(data.dpe_fence); data.dpe_fence = NULL;
++            dpe_hook_complete(status == GL_ALREADY_SIGNALED || status == GL_CONDITION_SATISFIED);
++        }
++    }
++    if (dpe_hook_enabled() && !data.dpe_identity_known) {
++        GLint count = 0;
++        uint8_t uuid[16] = {0};
++        gl_f.GetIntegerv(GL_NUM_EXTENSIONS, &count);
++        for (GLint i = 0; i < count; i++) {
++            const char *name = (const char *)gl_f.GetStringi(GL_EXTENSIONS, (GLuint)i);
++            if (name && !strcmp(name, "GL_EXT_memory_object")) {
++                gl_f.GetUnsignedBytei_vEXT(0x9597, 0, uuid);
++                break;
++            }
++        }
++        dpe_hook_identity(uuid); data.dpe_identity_known = true;
++    }
+     capture_update_socket();
+ 
+     if (capture_should_stop()) {
+@@ -1019,7 +1185,8 @@
+     if (capture_should_init()) {
+         if (!gl_init(display, surface, glx)) {
+             gl_free();
+-            data.valid = false;
++            if (dpe_hook_direct()) dpe_hook_unavailable();
++            else data.valid = false;
+             hlog("gl_init failed");
+         }
+     }
+@@ -1036,6 +1203,14 @@
+         if (capture_frame_due())
+             gl_shtex_capture();
+     }
++}
++
++static void gl_capture(void *display, void *surface, bool glx)
++{
++    bool exclusive = dpe_hook_enabled();
++    if (exclusive && !dpe_hook_enter()) return;
++    gl_capture_inner(display, surface, glx);
++    if (exclusive) dpe_hook_leave();
+ }
+ 
+ /* ======================================================================== */
+@@ -1084,7 +1259,9 @@
+ 
+     gl_free();
+ 
+-    return egl_f.DestroyContext(display, context);
++    unsigned result = egl_f.DestroyContext(display, context);
++    if (result) dpe_gl_sync_context_destroyed(context);
++    return result;
+ }
+ 
+ unsigned eglSwapBuffers(void *display, void *surface)
+@@ -1174,6 +1351,7 @@
+     gl_free();
+ 
+     glx_f.DestroyContext(display, context);
++    dpe_gl_sync_context_destroyed(context);
+ }
+ 
+ bool glXCreateWindow(void *display, void *config, unsigned long win, const int *attribList)
+--- a/src/glinject.h
++++ b/src/glinject.h
+@@ -26,6 +26,11 @@
+ 
+ struct gl_funcs {
+     void *(*GetProcAddress)(const char*);
++    PFNGLGETSTRINGIPROC GetStringi;
++    PFNGLFENCESYNCPROC FenceSync;
++    PFNGLCLIENTWAITSYNCPROC ClientWaitSync;
++    PFNGLDELETESYNCPROC DeleteSync;
++    PFNGLFLUSHPROC Flush;
+     PFNGLGENFRAMEBUFFERSPROC GenFramebuffers;
+     PFNGLGENTEXTURESEXTPROC GenTextures;
+     PFNGLTEXIMAGE2DPROC TexImage2D;
+@@ -46,6 +51,7 @@
+     PFNGLGETSTRINGPROC GetString;
+     PFNGLGETUNSIGNEDBYTEI_VEXTPROC GetUnsignedBytei_vEXT;
+     PFNGLCREATEMEMORYOBJECTSEXTPROC CreateMemoryObjectsEXT;
++    PFNGLDELETEMEMORYOBJECTSEXTPROC DeleteMemoryObjectsEXT;
+     PFNGLMEMORYOBJECTPARAMETERIVEXTPROC MemoryObjectParameterivEXT;
+     PFNGLIMPORTMEMORYFDEXTPROC ImportMemoryFdEXT;
+     PFNGLTEXSTORAGEMEM2DEXTPROC TexStorageMem2DEXT;
+@@ -57,6 +63,11 @@
+ #define P_EGL_GL_TEXTURE_2D 0x30B1
+ 
+ struct egl_funcs {
++    const char *(*QueryString)(void *display, int name);
++    void *(*CreateSyncKHR)(void *display, unsigned type, const int *attrs);
++    unsigned (*DestroySyncKHR)(void *display, void *sync);
++    int (*DupNativeFenceFDANDROID)(void *display, void *sync);
++    unsigned (*GetSyncAttribKHR)(void *display, void *sync, int attribute, int *value);
+     void *(*GetProcAddress)(const char*);
+     unsigned (*DestroyContext)(void *display, void *context);
+     void *(*GetCurrentContext)();
+@@ -91,6 +102,7 @@
+ #define P_GLX_MIPMAP_TEXTURE_EXT 0x20D7
+ 
+ struct glx_funcs {
++    void *(*GetCurrentContext)(void);
+     void *(*GetProcAddress)(const char*);
+     void *(*GetProcAddressARB)(const char*);
+     void (*DestroyContext)(void *display, void *context);
+--- a/src/vklayer.c
++++ b/src/vklayer.c
+@@ -18,6 +18,7 @@
+ 
+ #include "vklayer.h"
+ #include "capture.h"
++#include "vkcapture-hook.h"
+ #include "utils.h"
+ 
+ #include <stdio.h>
+@@ -94,6 +95,7 @@
+     VkCommandBuffer cmd_buffer;
+     VkFence fence;
+     VkSemaphore semaphore;
++    VkSemaphore dpe_completion;
+     bool cmd_buffer_busy;
+ };
+ 
+@@ -107,6 +109,7 @@
+     struct vk_obj_node node;
+ 
+     VkInstance instance;
++    bool dpe_sync;
+ 
+     bool valid;
+ 
+@@ -116,6 +119,8 @@
+ 
+ struct vk_data {
+     struct vk_obj_node node;
++    VkFence dpe_fence;
++    bool dpe_sync;
+ 
+     VkDevice device;
+     VkDriverId driver_id;
+@@ -422,6 +427,7 @@
+ 
+ static void vk_shtex_free(struct vk_data *data)
+ {
++    data->dpe_fence = VK_NULL_HANDLE;
+     vk_shtex_wait_until_idle(data);
+ 
+     struct vk_swap_data *swap = swap_walk_begin(data);
+@@ -600,14 +606,33 @@
+     const bool map_host = capture_allocate_map_host();
+     const bool same_device = capture_compare_device_uuid(data->device_uuid);
+ 
+     hlog("Texture %s %ux%u", vk_format_to_str(swap->format), swap->image_extent.width, swap->image_extent.height);
+ 
++    if (dpe_hook_direct()) {
++        swap->export_format = dpe_vk_export_format(swap->format, swap->color_space);
++        if (swap->export_format == VK_FORMAT_UNDEFINED) {
++            hlog("Direct capture requires a supported SDR swapchain (format=%d, colorSpace=%d)", swap->format, swap->color_space);
++            return false;
++        }
++    } else
+     if (vk_format_to_drm(swap->format) != -1) {
+         swap->export_format = swap->format;
+     } else {
+         swap->export_format = VK_FORMAT_B8G8R8A8_UNORM;
+         hlog("Converting to %s", vk_format_to_str(swap->export_format));
+     }
++
++    VkFormatFeatureFlags dpe_source_features = 0;
++    const bool dpe_blit = dpe_hook_direct() && swap->format != swap->export_format;
++    if (dpe_blit) {
++        VkFormatProperties2KHR source_props = {};
++        source_props.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2;
++        ifuncs->GetPhysicalDeviceFormatProperties2KHR(data->phy_device, swap->format, &source_props);
++        dpe_source_features = source_props.formatProperties.optimalTilingFeatures;
++        hlog("Direct SDR GPU conversion to %s", vk_format_to_str(swap->export_format));
++    }
++
++    if (dpe_hook_enabled() && !same_device) return false;
+ 
+     if (!same_device) {
+         hlog("OBS is running on different GPU");
+@@ -654,6 +679,7 @@
+             vk_alloc(data->ac, modifier_props_list.drmFormatModifierCount * sizeof(struct VkDrmFormatModifierPropertiesEXT),
+                     _Alignof(struct VkDrmFormatModifierPropertiesEXT), VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
+ 
++        if (modifier_props_list.drmFormatModifierCount && !modifier_props) return false;
+         modifier_props_list.pDrmFormatModifierProperties = modifier_props;
+ 
+         ifuncs->GetPhysicalDeviceFormatProperties2KHR(data->phy_device,
+@@ -674,6 +700,14 @@
+             mod_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT;
+             mod_info.drmFormatModifier = modifier_props[i].drmFormatModifier;
+             mod_info.sharingMode = img_info.sharingMode;
++
++            if (dpe_blit && !dpe_vk_blit_supported(dpe_source_features,
++                    modifier_props[i].drmFormatModifierTilingFeatures)) continue;
++
++            VkPhysicalDeviceExternalImageFormatInfo external_info = {};
++            external_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO;
++            external_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
++            if (dpe_hook_direct()) mod_info.pNext = &external_info;
+ 
+             VkPhysicalDeviceImageFormatInfo2 format_info = {};
+             format_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2;
+@@ -686,10 +720,22 @@
+ 
+             VkImageFormatProperties2KHR format_props = {};
+             format_props.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2;
+-            format_props.pNext = NULL;
++            VkExternalImageFormatProperties external_props = {};
++            external_props.sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES;
++            format_props.pNext = dpe_hook_direct() ? &external_props : NULL;
+ 
+             VkResult result = ifuncs->GetPhysicalDeviceImageFormatProperties2KHR(data->phy_device,
+                     &format_info, &format_props);
++            if (result == VK_SUCCESS && dpe_hook_direct()) {
++                const VkExternalMemoryProperties *external = &external_props.externalMemoryProperties;
++                const VkImageFormatProperties *limits = &format_props.imageFormatProperties;
++                if (!(external->externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT) ||
++                        !(external->compatibleHandleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) ||
++                        limits->maxExtent.width < img_info.extent.width ||
++                        limits->maxExtent.height < img_info.extent.height || limits->maxExtent.depth < 1 ||
++                        limits->maxMipLevels < 1 || limits->maxArrayLayers < 1 ||
++                        !(limits->sampleCounts & VK_SAMPLE_COUNT_1_BIT)) continue;
++            }
+             if (result == VK_SUCCESS) {
+ #ifndef NDEBUG
+                 hlog(" %d: modifier:%"PRIu64" planes:%d", i,
+@@ -705,6 +751,10 @@
+                 vk_alloc(data->ac, sizeof(uint64_t) * modifier_prop_count,
+                         _Alignof(uint64_t), VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
+ 
++            if (!image_modifiers) {
++                vk_free(data->ac, modifier_props);
++                return false;
++            }
+             for (uint32_t i = 0; i < modifier_prop_count; ++i) {
+                 image_modifiers[i] = modifier_props[i].drmFormatModifier;
+             }
+@@ -719,6 +769,15 @@
+         }
+     }
+ 
++    if (dpe_hook_direct() &&
++            (img_info.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT ||
++             modifier_prop_count != 1 || image_modifiers[0] != DRM_FORMAT_MOD_LINEAR)) {
++        hlog("Direct image cannot export an explicit linear DMA-BUF");
++        vk_free(data->ac, image_modifiers);
++        vk_free(data->ac, modifier_props);
++        return false;
++    }
++
+     VkDevice device = data->device;
+ 
+     VkResult res;
+@@ -727,6 +786,7 @@
+     if (VK_SUCCESS != res) {
+         hlog("Failed to CreateImage %s", result_to_str(res));
+         swap->export_image = VK_NULL_HANDLE;
++        vk_free(data->ac, modifier_props);
+         return false;
+     }
+ 
+@@ -800,6 +860,7 @@
+         hlog("Failed to allocate memory of any type");
+         funcs->DestroyImage(device, swap->export_image, data->ac);
+         swap->export_image = VK_NULL_HANDLE;
++        vk_free(data->ac, modifier_props);
+         return false;
+     }
+ 
+@@ -813,6 +874,7 @@
+         hlog("BindImageMemory2KHR failed %s", result_to_str(res));
+         funcs->DestroyImage(device, swap->export_image, data->ac);
+         swap->export_image = VK_NULL_HANDLE;
++        vk_free(data->ac, modifier_props);
+         return false;
+     }
+ 
+@@ -826,6 +888,7 @@
+         hlog("GetMemoryFdKHR failed %s", result_to_str(res));
+         funcs->DestroyImage(device, swap->export_image, data->ac);
+         swap->export_image = VK_NULL_HANDLE;
++        vk_free(data->ac, modifier_props);
+         return false;
+     }
+ 
+@@ -850,6 +913,13 @@
+         swap->dmabuf_modifier = DRM_FORMAT_MOD_INVALID;
+     }
+ 
++    if (dpe_hook_direct() &&
++            (swap->dmabuf_modifier != DRM_FORMAT_MOD_LINEAR || num_planes != 1)) {
++        hlog("Direct image returned an unsupported modifier or plane count");
++        close(fd);
++        return false; // Caller frees the image and its dedicated memory.
++    }
++
+     for (int i = 0; i < num_planes; i++) {
+         VkImageSubresource sbr = {};
+         if (!no_modifiers && funcs->GetImageDrmFormatModifierPropertiesEXT) {
+@@ -955,6 +1025,12 @@
+         sci.pNext = NULL;
+         sci.flags = 0;
+         res = data->funcs.CreateSemaphore(device, &sci, data->ac, &frame_data->semaphore);
++        if (data->dpe_sync) {
++            VkExportSemaphoreCreateInfo export = {.sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO, .handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT};
++            sci.pNext = &export;
++            VkResult created = data->funcs.CreateSemaphore(device, &sci, data->ac, &frame_data->dpe_completion);
++            if (created != VK_SUCCESS) frame_data->dpe_completion = VK_NULL_HANDLE;
++        }
+ 
+ #ifdef DEBUG_EXTRA
+         hlog("CreateSemaphore %s", result_to_str(res));
+@@ -991,6 +1067,8 @@
+ 
+         data->funcs.DestroySemaphore(device, frame_data->semaphore,
+                 data->ac);
++        if (frame_data->dpe_completion)
++            data->funcs.DestroySemaphore(device, frame_data->dpe_completion, data->ac);
+         data->funcs.DestroyCommandPool(device, frame_data->cmd_pool,
+                 data->ac);
+         frame_data->cmd_pool = VK_NULL_HANDLE;
+@@ -1006,6 +1084,13 @@
+         struct vk_swap_data *swap, uint32_t idx,
+         VkQueue queue, VkPresentInfoKHR *info)
+ {
++    const uint32_t original_wait_count = info->waitSemaphoreCount;
++    const VkSemaphore *original_waits = info->pWaitSemaphores;
++    if (dpe_hook_enabled() && original_wait_count > MAX_PRESENT_SWAP_SEMAPHORE_COUNT) {
++        // Never copy an image without waiting for all of the game's rendering.
++        dpe_hook_complete(false);
++        return;
++    }
+     VkResult res = VK_SUCCESS;
+ 
+     VkCommandBufferBeginInfo begin_info;
+@@ -1036,6 +1121,19 @@
+ 
+     const uint32_t frame_index = queue_data->frame_index;
+     struct vk_frame_data *frame_data = &queue_data->frames[frame_index];
++    if (dpe_hook_enabled() && frame_data->cmd_buffer_busy) {
++        // A dropped consumer lease need not mean the previous capture copy has
++        // completed. Never let capture's command-pool reuse stall game present.
++        VkResult status = funcs->GetFenceStatus(data->device, frame_data->fence);
++        if (status == VK_NOT_READY) {
++            dpe_hook_cancel();
++            return;
++        }
++        if (status != VK_SUCCESS) {
++            dpe_hook_complete(false);
++            return;
++        }
++    }
+     queue_data->frame_index = (frame_index + 1) % queue_data->frame_count;
+     vk_shtex_clear_fence(data, frame_data);
+ 
+@@ -1079,10 +1177,13 @@
+     dst_mb->pNext = NULL;
+     dst_mb->srcAccessMask = 0;
+     dst_mb->dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+-    dst_mb->oldLayout = VK_IMAGE_LAYOUT_GENERAL;
++    // DIRECT only writes after the native reader's real GPU release. A full
++    // overwrite discards old contents/layout and needs no ownership preservation,
++    // including the first use of this locally allocated UNDEFINED image.
++    dst_mb->oldLayout = dpe_hook_direct() ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL;
+     dst_mb->newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+-    dst_mb->srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+-    dst_mb->dstQueueFamilyIndex = fam_idx;
++    dst_mb->srcQueueFamilyIndex = dpe_hook_direct() ? VK_QUEUE_FAMILY_IGNORED : VK_QUEUE_FAMILY_EXTERNAL;
++    dst_mb->dstQueueFamilyIndex = dpe_hook_direct() ? VK_QUEUE_FAMILY_IGNORED : fam_idx;
+     dst_mb->image = swap->export_image;
+     dst_mb->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+     dst_mb->subresourceRange.baseMipLevel = 0;
+@@ -1199,6 +1300,14 @@
+         info->pWaitSemaphores = &frame_data->semaphore;
+     }
+ 
++    VkSemaphore signals[2];
++    if (frame_data->dpe_completion) {
++        unsigned count = 0;
++        if (submit_info.signalSemaphoreCount) signals[count++] = frame_data->semaphore;
++        signals[count++] = frame_data->dpe_completion;
++        submit_info.signalSemaphoreCount = count;
++        submit_info.pSignalSemaphores = signals;
++    }
+     const VkFence fence = frame_data->fence;
+     res = funcs->QueueSubmit(queue, 1, &submit_info, fence);
+ 
+@@ -1206,8 +1315,25 @@
+     hlog("QueueSubmit %s", result_to_str(res));
+ #endif
+ 
+-    if (res == VK_SUCCESS)
++    if (res == VK_SUCCESS) {
+         frame_data->cmd_buffer_busy = true;
++        if (dpe_hook_enabled()) {
++            if (frame_data->dpe_completion) {
++                VkSemaphoreGetFdInfoKHR export = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR, .semaphore = frame_data->dpe_completion, .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT};
++                int fd = -1;
++                VkResult result = funcs->GetSemaphoreFdKHR(data->device, &export, &fd);
++                if (result != VK_SUCCESS) dpe_hook_complete(false);
++                else if (fd < 0) dpe_hook_complete(true); // Vulkan's already-signaled SYNC_FD sentinel.
++                else dpe_hook_complete_fenced(fd);
++            } else data->dpe_fence = fence;
++        }
++    } else if (dpe_hook_enabled()) {
++        // No copy was queued, so the replacement present semaphore will never
++        // signal. Preserve the application's original rendering dependencies.
++        info->waitSemaphoreCount = original_wait_count;
++        info->pWaitSemaphores = original_waits;
++        dpe_hook_complete(false);
++    }
+ }
+ 
+ static inline bool valid_rect(struct vk_swap_data *swap)
+@@ -1222,6 +1348,14 @@
+     // Use first swapchain ??
+     struct vk_swap_data *swap = get_swap_data(data, info->pSwapchains[0]);
+ 
++    if (data->dpe_fence) {
++        VkResult status = data->funcs.GetFenceStatus(data->device, data->dpe_fence);
++        if (status != VK_NOT_READY) {
++            data->dpe_fence = VK_NULL_HANDLE;
++            dpe_hook_complete(status == VK_SUCCESS);
++        }
++    }
++    if (dpe_hook_enabled()) dpe_hook_identity(data->device_uuid);
+     capture_update_socket();
+ 
+     if (capture_should_stop()) {
+@@ -1231,7 +1365,8 @@
+     if (capture_should_init()) {
+         if (valid_rect(swap) && !vk_shtex_init(data, swap)) {
+             vk_shtex_free(data);
+-            data->valid = false;
++            if (dpe_hook_direct()) dpe_hook_unavailable();
++            else data->valid = false;
+             hlog("vk_shtex_init failed");
+         }
+     }
+@@ -1256,7 +1391,12 @@
+     struct vk_device_funcs *const funcs = &data->funcs;
+ 
+     if (data->valid) {
+-        vk_capture(data, data->graphics_queue ? data->graphics_queue : queue, &api);
++        bool exclusive = dpe_hook_enabled();
++        if (!exclusive || dpe_hook_enter()) {
++            if (!exclusive || !dpe_hook_active() || data->cur_swap)
++                vk_capture(data, data->graphics_queue ? data->graphics_queue : queue, &api);
++            if (exclusive) dpe_hook_leave();
++        }
+     }
+ 
+     return funcs->QueuePresentKHR(queue, &api);
+@@ -1285,7 +1425,7 @@
+     static uint32_t req_extensions_count = 1;
+ 
+     int new_count = info->enabledExtensionCount + req_extensions_count;
+-    const char **exts = (const char**)malloc(sizeof(char*) * new_count);
++    const char **exts = (const char**)malloc(sizeof(char*) * (new_count + 2));
+     memcpy(exts, info->ppEnabledExtensionNames, sizeof(char*) * info->enabledExtensionCount);
+     for (uint32_t i = 0; i < req_extensions_count; ++i) {
+         exts[info->enabledExtensionCount + i] = req_extensions[i];
+@@ -1310,6 +1450,26 @@
+ 
+     PFN_vkGetInstanceProcAddr gpa =
+         lici->u.pLayerInfo->pfnNextGetInstanceProcAddr;
++    bool dpe_sync = false;
++    if (dpe_hook_enabled()) {
++        PFN_vkEnumerateInstanceExtensionProperties enumerate = (PFN_vkEnumerateInstanceExtensionProperties)gpa(NULL, "vkEnumerateInstanceExtensionProperties");
++        uint32_t count = 0;
++        if (enumerate && enumerate(NULL, &count, NULL) == VK_SUCCESS && count && count <= 4096) {
++            VkExtensionProperties *properties = malloc(count * sizeof(*properties));
++            if (properties && enumerate(NULL, &count, properties) == VK_SUCCESS)
++                for (uint32_t i = 0; i < count; i++)
++                    if (!strcmp(properties[i].extensionName, VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME)) dpe_sync = true;
++            free(properties);
++        }
++        if (dpe_sync) {
++            bool present = false;
++            for (uint32_t i = 0; i < info->enabledExtensionCount; i++)
++                if (!strcmp(info->ppEnabledExtensionNames[i], VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME)) present = true;
++            if (!present) exts[new_count++] = VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME;
++            create_info.enabledExtensionCount = new_count;
++        }
++    }
++
+ 
+     /* -------------------------------------------------------- */
+     /* move chain on for next layer                             */
+@@ -1347,6 +1507,7 @@
+ 
+     VkInstance inst = *p_inst;
+     init_inst_data(idata, inst);
++    idata->dpe_sync = dpe_sync && valid;
+ 
+     /* -------------------------------------------------------- */
+     /* fetch the functions we need                              */
+@@ -1376,6 +1537,7 @@
+     GETADDR(GetPhysicalDeviceFormatProperties2KHR);
+     GETADDR(GetPhysicalDeviceImageFormatProperties2KHR);
+     GETADDR(GetPhysicalDeviceProperties2KHR);
++    GETADDR_IF_SUPPORTED(GetPhysicalDeviceExternalSemaphorePropertiesKHR);
+     GETADDR(EnumerateDeviceExtensionProperties);
+ #if HAVE_X11_XCB
+     GETADDR_IF_SUPPORTED(CreateXcbSurfaceKHR);
+@@ -1449,12 +1611,42 @@
+     static uint32_t req_extensions_count = 11;
+ 
+     int new_count = info->enabledExtensionCount + req_extensions_count;
+-    const char **exts = (const char**)malloc(sizeof(char*) * new_count);
++    const char **exts = (const char**)malloc(sizeof(char*) * (new_count + 2));
+     memcpy(exts, info->ppEnabledExtensionNames, sizeof(char*) * info->enabledExtensionCount);
+     for (uint32_t i = 0; i < req_extensions_count; ++i) {
+         exts[info->enabledExtensionCount + i] = req_extensions[i];
+     }
+ 
++    bool dpe_sync = false;
++    if (dpe_hook_enabled() && idata->dpe_sync && ifuncs->GetPhysicalDeviceExternalSemaphorePropertiesKHR) {
++        uint32_t count = 0;
++        bool external = false, fd = false;
++        if (ifuncs->EnumerateDeviceExtensionProperties(phy_device, NULL, &count, NULL) == VK_SUCCESS && count && count <= 4096) {
++            VkExtensionProperties *properties = malloc(count * sizeof(*properties));
++            if (properties && ifuncs->EnumerateDeviceExtensionProperties(phy_device, NULL, &count, properties) == VK_SUCCESS)
++                for (uint32_t i = 0; i < count; i++) {
++                    if (!strcmp(properties[i].extensionName, VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME)) external = true;
++                    if (!strcmp(properties[i].extensionName, VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME)) fd = true;
++                }
++            free(properties);
++        }
++        if (external && fd) {
++            VkPhysicalDeviceExternalSemaphoreInfo query = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO, .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT};
++            VkExternalSemaphoreProperties properties = {.sType = VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES};
++            ifuncs->GetPhysicalDeviceExternalSemaphorePropertiesKHR(phy_device, &query, &properties);
++            dpe_sync = (properties.externalSemaphoreFeatures & VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT) &&
++                       (properties.compatibleHandleTypes & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT);
++            if (dpe_sync) {
++                const char *optional[] = {VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME};
++                for (unsigned i = 0; i < 2; i++) {
++                    bool present = false;
++                    for (uint32_t j = 0; j < info->enabledExtensionCount; j++)
++                        if (!strcmp(info->ppEnabledExtensionNames[j], optional[i])) present = true;
++                    if (!present) exts[new_count++] = optional[i];
++                }
++            }
++        }
++    }
+     VkDeviceCreateInfo create_info = *info;
+     create_info.enabledExtensionCount = new_count;
+     create_info.ppEnabledExtensionNames = exts;
+@@ -1518,6 +1710,8 @@
+     init_device_data(data, device);
+ 
+     data->valid = false; /* set true below if it doesn't go to fail */
++    data->dpe_fence = VK_NULL_HANDLE;
++    data->dpe_sync = dpe_sync;
+     data->phy_device = phy_device;
+ 
+     /* -------------------------------------------------------- */
+@@ -1562,10 +1756,13 @@
+     GETADDR(CreateFence);
+     GETADDR(DestroyFence);
+     GETADDR(WaitForFences);
++    GETADDR(GetFenceStatus);
+     GETADDR(ResetFences);
+     GETADDR(GetImageSubresourceLayout);
+     GETADDR(GetMemoryFdKHR);
+     GETADDR(CreateSemaphore);
++    dfuncs->GetSemaphoreFdKHR = dpe_sync ? (PFN_vkGetSemaphoreFdKHR)gdpa(device, "vkGetSemaphoreFdKHR") : NULL;
++    data->dpe_sync = dpe_sync && dfuncs->GetSemaphoreFdKHR;
+     GETADDR(DestroySemaphore);
+ 
+     dfuncs->GetImageDrmFormatModifierPropertiesEXT = (PFN_vkGetImageDrmFormatModifierPropertiesEXT)
+--- a/src/vklayer.h
++++ b/src/vklayer.h
+@@ -94,6 +94,7 @@
+     DEF_FUNC(GetPhysicalDeviceFormatProperties2KHR);
+     DEF_FUNC(GetPhysicalDeviceImageFormatProperties2KHR);
+     DEF_FUNC(GetPhysicalDeviceProperties2KHR);
++    DEF_FUNC(GetPhysicalDeviceExternalSemaphorePropertiesKHR);
+     DEF_FUNC(EnumerateDeviceExtensionProperties);
+ #if HAVE_X11_XCB
+     DEF_FUNC(CreateXcbSurfaceKHR);
+@@ -134,11 +135,13 @@
+     DEF_FUNC(CreateFence);
+     DEF_FUNC(DestroyFence);
+     DEF_FUNC(WaitForFences);
++    DEF_FUNC(GetFenceStatus);
+     DEF_FUNC(ResetFences);
+     DEF_FUNC(GetImageSubresourceLayout);
+     DEF_FUNC(GetMemoryFdKHR);
+     DEF_FUNC(GetImageDrmFormatModifierPropertiesEXT);
+     DEF_FUNC(CreateSemaphore);
++    DEF_FUNC(GetSemaphoreFdKHR);
+     DEF_FUNC(DestroySemaphore);
+ };
+ 

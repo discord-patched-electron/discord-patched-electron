@@ -6,7 +6,9 @@ discord.install("createDiscordStream");
 const addon = require(process.env.DPE_PROBE_ADDON);
 
 contextBridge.exposeInMainWorld("fixtureAPI", {
-  push: (id) => addon.push(id),
+  presentation: process.env.DPE_PROBE_PRESENTATION === "1",
+  push: (id, timestamp) => (timestamp === undefined ? addon.push(id) : addon.push(id, timestamp)),
+  clock: () => addon.clock(),
   counts: () => addon.counts(),
   progress: (step) => ipcRenderer.send("fixture-progress", { step }),
   report: (result) => ipcRenderer.send("fixture-result", result),

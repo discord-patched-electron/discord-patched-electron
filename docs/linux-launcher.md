@@ -39,12 +39,29 @@ disables Discord's controls; switching it off restores your individual choices.
 **Enforce minimum window size** can be turned off to resize below Discord's limit.
 Controls also apply to DPE and auxiliary windows, including client-mod windows.
 Native auxiliary windows use a GTK titlebar while individual controls are hidden.
+
+**General → Media → Desktop media controls** lets Discord appear in the desktop
+media player and respond to media keys for videos, voice messages and embedded
+players. It is off by default. Notification and calling sounds are excluded.
+Changes apply after restarting Discord; playback inside Discord is unaffected.
+
+**Appearance → Video popouts** controls floating windows, their titlebar, and
+automatic member-bar collapse when expanding a screenshare. All three default
+on. Global window controls Off also hides popout controls; extra legacy titlebar
+content is preserved. New popouts fit the video and display scale, with a
+bottom-right placement request. On Wayland, placement depends on the compositor;
+niri also uses its window-specific IPC. Use **Show Members** to reopen the bar.
 The Custom CSS editor has a 480px minimum height and grows with the window.
 
 **General** includes **Start minimized**, **System tray**, notification flashing,
 app badges and mention-only badges. These save automatically. With the tray off,
 closing the main window no longer hides it in the tray, and a minimized start
 stays accessible from the taskbar. Start minimized also applies to OS autostart.
+
+## Screensharing
+
+See [screensharing](screensharing.md) for game setup, direct capture permissions,
+codecs and quality settings.
 
 ## Spelling and tray icons
 
@@ -64,6 +81,8 @@ results while refreshing in the background; the refresh button checks local
 dictionary status without downloading the whole catalog again.
 System mode disables manual language controls. Discord's existing spelling menu handles
 suggestions and adding personal words.
+Its **Languages** action opens DPE's **Spelling** settings. Existing message text
+is checked when you enter Edit, without typing an extra space.
 
 In **Appearance → Tray icons**, select **Discord**, **Vencord** or
 **Equicord**. Presets are bundled locally and apply immediately. You can also
@@ -136,6 +155,12 @@ appear as comments for the current session.
 
 ## Troubleshooting
 
+For a bug report, open **DPE Settings → Troubleshooting → Export ZIP**. Choose
+where to save available logs, crash summaries and system diagnostics. Private
+information is redacted where possible; raw memory dumps are excluded. Check
+`coverage.json` for subsystem coverage and `manifest.json` for collected files
+and unavailable evidence. Review the archive before sharing.
+
 If a flag makes Discord crash immediately, close it completely and run:
 
 ```sh
@@ -156,13 +181,14 @@ DPE_APP_AUDIO=0 discord-canary-prerelease-patched-electron-bin
 
 Other controls work the same way:
 
-| Variable                  | Effect                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `DPE_CAMERA_FAST_PROBE=0` | Disables the camera startup helper.                                                                          |
-| `DPE_DEFAULT_FLAGS=0`     | Skips application defaults and the preset section; Global file overrides and command-line flags still apply. |
-| `DPE_CLIENT_OFFLINE=1`    | Skips Discord and Electron update checks.                                                                    |
-| `DPE_RUNTIME_UPDATES=0`   | Skips Electron checks while keeping the selected runtime.                                                    |
-| `DPE_RUNTIME_BUNDLED=1`   | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use.      |
+| Variable                          | Effect                                                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `DPE_CAMERA_FAST_PROBE=0`         | Disables the camera startup helper.                                                                          |
+| `DPE_VIDEO_QUALITY_MEASUREMENT=1` | Restores optional native VMAF/PSNR diagnostics for troubleshooting; may add video copying and decoding work. |
+| `DPE_DEFAULT_FLAGS=0`             | Skips application defaults and the preset section; Global file overrides and command-line flags still apply. |
+| `DPE_CLIENT_OFFLINE=1`            | Skips Discord and Electron update checks.                                                                    |
+| `DPE_RUNTIME_UPDATES=0`           | Skips Electron checks while keeping the selected runtime.                                                    |
+| `DPE_RUNTIME_BUNDLED=1`           | Selects the package's exact Electron pins, reusing the verified cache or downloading them on first use.      |
 
 Offline mode needs an existing installation verified against the package or an
 approved release, including its OpenH264 cache when enabled. If a cache is missing

@@ -25,8 +25,11 @@ test("desktop identity is set before startup and icons cover every Electron wind
         },
       },
       require(name) {
+        if (name === "./diagnostic-log.cjs") return { record() {}, install() {}, capture() {} };
         if (name === "electron") return { app };
         if (name === "./patches.cjs") return {};
+        if (name === "../desktop/preferences.cjs") return { configureMediaControls: () => {} };
+        if (name === "./profile.cjs") return { config: () => ({}) };
         if (name === "./desktop.cjs") return install;
         if (name === "./startup.cjs") {
           assert.equal(desktopName, "discord-canary.desktop");

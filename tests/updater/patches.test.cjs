@@ -19,6 +19,7 @@ const spellcheck =
 const fixture = [
   require("./desktop-preferences-fixture.cjs"),
   spellcheck,
+  require("./spellcheck-menu-fixture.cjs"),
   tray,
   migration,
   modulePath,
@@ -31,7 +32,11 @@ const autostartSource =
 test("desktop transforms disable native migration, resolve modules and install safe storage", () => {
   const output = desktop(fixture, '/portable "app"/storage.cjs');
   assert.ok(output.includes("event.returnValue=!0"));
-  assert.ok(output.includes("injectedModuleUpdater?.getModulePath(name)??null"));
+  assert.ok(
+    output.includes(
+      'require(process.env.DPE_APP_ROOT+"/bootstrap/src/updater/moduleUpdater.js").getModulePath(name)??null',
+    ),
+  );
   assert.ok(output.includes('require("/portable \\"app\\"/storage.cjs").install(electron,'));
   assert.ok(!output.includes("electron.safeStorage.encryptString"));
 });
@@ -42,6 +47,8 @@ test("unknown or duplicated desktop patch sites fail before activation", () => {
     modulePath,
     storage,
     popout,
+    "mainWebContents.setWindowOpenHandler(details=>{",
+    'popoutWindow.webContents.setWindowOpenHandler(({url})=>((0,securityUtils_1.saferShellOpenExternal)(url),{action:"deny"}))',
     "electron.session.defaultSession.setSpellCheckerLanguages([locale])",
     "electron.session.defaultSession.setSpellCheckerLanguages([...languages])",
   ]) {
@@ -140,5 +147,29 @@ test("missing or repeated bootstrap patch sites fail closed", () => {
   ]) {
     assert.throws(() => bootstrap("unknown", filename), /Unsupported pinned OpenAsar/);
     assert.throws(() => bootstrap(source + source, filename), /Unsupported pinned OpenAsar/);
+  }
+});
+
+// Canary 1.0.2444 removed the legacy injectedModuleUpdater binding.
+test("module paths resolve with no legacy binding on first launch and relaunch", () => {
+  const output = desktop(fixture, "/adapter");
+  const expression = output.slice(
+    output.indexOf("return null!=newUpdater"),
+    output.indexOf(";", output.indexOf("return null!=newUpdater")),
+  );
+  for (const newUpdater of [
+    null,
+    { committedModulePaths: new Map([["discord_voice", "/native/voice"]]) },
+  ]) {
+    const resolve = vm.runInNewContext(`(function(name){${expression}})`, {
+      newUpdater,
+      process: { env: { DPE_APP_ROOT: "/app" } },
+      require: (filename) => {
+        assert.equal(filename, "/app/bootstrap/src/updater/moduleUpdater.js");
+        return { getModulePath: (name) => (name === "discord_voice" ? "/managed/voice" : null) };
+      },
+    });
+    assert.equal(resolve("discord_voice"), newUpdater ? "/native/voice" : "/managed/voice");
+    assert.equal(resolve("unknown"), null);
   }
 });

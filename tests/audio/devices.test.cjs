@@ -72,6 +72,41 @@ test("enumeration preserves receivers, return values, errors and extra callback 
   );
 });
 
+test("repeated camera and monitor-audio hotplug survives reused native device arrays", () => {
+  let notify;
+  const voice = {
+    setDeviceChangeCallback(callback) {
+      notify = callback;
+    },
+  };
+  install(voice);
+  const inputs = [],
+    outputs = [],
+    cameras = [];
+  const camera = { guid: "usb-camera", index: 0 };
+  const monitor = { guid: "display-audio", index: 0 };
+  let calls = 0;
+  voice.setDeviceChangeCallback((a, b, c) => {
+    calls++;
+    assert.deepEqual(a, inputs);
+    assert.deepEqual(b, outputs);
+    assert.deepEqual(c, cameras);
+  });
+  notify(inputs, outputs, cameras);
+  for (let cycle = 0; cycle < 50; cycle++) {
+    cameras.push(camera);
+    outputs.push(monitor);
+    notify(inputs, outputs, cameras);
+    camera.index++;
+    monitor.index++;
+    notify(inputs, outputs, cameras);
+    cameras.pop();
+    outputs.pop();
+    notify(inputs, outputs, cameras);
+  }
+  assert.equal(calls, 151);
+});
+
 test("private sink churn does not notify Discord or reset call devices", () => {
   let change;
   const voice = {

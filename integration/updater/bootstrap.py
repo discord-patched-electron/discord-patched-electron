@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from bootstrap_dialog import zenity_command
+from diagnostic_log import event as diagnostic_event
 from runtime import FAILURES, ensure_runtime
 
 DIALOG_DELAY_SECONDS = 2.0
@@ -36,8 +37,11 @@ def stop_helper(task):
 
 
 def prepare(app: Path, profile: Path) -> str:
+    diagnostic_event("runtime-bootstrap-start")
     try:
-        return str(ensure_runtime(app, profile, offline=True, bootstrap=True))
+        result = str(ensure_runtime(app, profile, offline=True, bootstrap=True))
+        diagnostic_event("runtime-bootstrap-ready", executable=result)
+        return result
     except FAILURES:
         if os.environ.get("DPE_CLIENT_OFFLINE") == "1":
             raise
@@ -113,6 +117,7 @@ def main():
     try:
         print(prepare(Path(sys.argv[1]), Path(sys.argv[2])))
     except (*FAILURES, RuntimeError) as error:
+        diagnostic_event("runtime-bootstrap-error", error=str(error))
         print(str(error), file=sys.stderr)
         if (
             not isinstance(error, InterruptedError)

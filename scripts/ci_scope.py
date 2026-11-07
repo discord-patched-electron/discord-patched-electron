@@ -8,12 +8,43 @@ import subprocess
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-SCOPES = ("unit", "source", "native", "audio", "packaging", "compiler", "camera", "launcher")
+SCOPES = (
+    "unit",
+    "source",
+    "native",
+    "audio",
+    "packaging",
+    "compiler",
+    "camera",
+    "capture",
+    "launcher",
+)
 
 # First matching rule wins. Keep narrow exceptions above directory rules. Anything
 # unlisted (including new shared helpers) gets full coverage until explicitly scoped.
 RULES = (
-    (("README.md", "CONTRIBUTING.md", "AGENTS.md", "docs/*", ".github/*.md"), ()),
+    (
+        (
+            "Cargo.toml",
+            "Cargo.lock",
+            "rust-toolchain.toml",
+            ".cargo/*",
+            "native/*",
+            "scripts/build_rust_support.py",
+        ),
+        ("unit", "native", "camera", "capture", "packaging", "audio"),
+    ),
+    (
+        (
+            "README.md",
+            "CONTRIBUTING.md",
+            "AGENTS.md",
+            "docs/*",
+            ".github/*.md",
+            "agents/skills/*/SKILL.md",
+        ),
+        (),
+    ),
     (("tests/test_*.py", "tests/mod_fixture.py", "tests/*/*.test.cjs"), ("unit",)),
     (
         (
@@ -81,9 +112,74 @@ RULES = (
         ("packaging", "audio"),
     ),
     (("scripts/check_app_audio.py", "scripts/check_wayland_audio.py"), ("audio",)),
+    (("integration/video/capture-rate.h",), ("packaging", "native", "camera", "capture")),
+    (
+        (
+            "integration/video/wayland-*",
+            "integration/video/vkcapture-*",
+            "integration/video/kms-*",
+            "integration/video/direct-*",
+            "integration/video/screen-preview.c",
+            "integration/video/gamecapture-launch.py",
+            "integration/video/gamecapture-command.py",
+            "integration/video/rebuild-game-consumers.py",
+            "integration/video/protocols/*",
+            "scripts/build_wayland_capture.py",
+            "scripts/build_wayland_source.py",
+            "scripts/build_vkcapture_backend.py",
+            "scripts/build_kms_source.py",
+            "scripts/build_direct_capture.py",
+            "scripts/build_screen_preview.py",
+            "scripts/stage_vkcapture.py",
+            "scripts/stage_capture_backends.py",
+            "patches/capture/*",
+        ),
+        ("packaging", "native", "capture"),
+    ),
+    (
+        (
+            "integration/video/capture.c",
+            "integration/video/capture-scale.c",
+            "integration/video/capture-sync.c",
+            "integration/video/capture-upstream.c",
+            "integration/video/encoder.c",
+            "integration/video/av1-software-crop.c",
+            "native/encoder/*",
+            "scripts/build_hevc_support.py",
+            "integration/video/*.h",
+            "scripts/encoder_scope.py",
+            "scripts/capture_scale_scope.py",
+            "scripts/capture_sync_scope.py",
+            "scripts/capture_picker_scope.py",
+            "scripts/capture_direct_scope.py",
+            "scripts/capture_upstream_scope.py",
+        ),
+        ("packaging", "camera", "native"),
+    ),
+    (
+        (
+            "tests/screenshare/*",
+            "scripts/check_screenshare.py",
+            "scripts/build_capture_fixture.py",
+            "scripts/check_vaapi_backend.py",
+            "scripts/benchmark_screenshare.py",
+            "scripts/benchmark_screenshare_load.py",
+            "scripts/analyze_screenshare.py",
+        ),
+        ("unit", "native"),
+    ),
     (
         (
             "scripts/patch_krisp.py",
+            "scripts/patch_vaapi_hrd.py",
+            "scripts/native_client_2444.py",
+            "scripts/patch_capture_dimensions.py",
+            "scripts/patch_capture_chroma.py",
+            "scripts/patch_presentation_clock.py",
+            "scripts/patch_video_pacing.py",
+            "scripts/patch_decoder_eagain.py",
+            "scripts/stage_vaapi_hrd_fix.py",
+            "integration/video/*",
             "scripts/client_native.py",
             "packaging/upstream/krisp-patcher.py",
         ),
@@ -94,6 +190,8 @@ RULES = (
             "integration/camera/*",
             "scripts/build_camera_support.py",
             "scripts/camera_scope.py",
+            "scripts/capture_scope.py",
+            "scripts/encoder_scope.py",
             "tests/camera/*",
             "scripts/check_camera_startup.py",
         ),

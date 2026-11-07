@@ -1,5 +1,6 @@
 """Metadata revisions are retryable without allowing a version's archive to change."""
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -12,6 +13,64 @@ from publish_aur import publish, stage
 
 
 class AurRevision(unittest.TestCase):
+    def test_bootstrap_release_retains_removal_hook_without_legacy_install_actions(self):
+        manifest = {
+            "version": "20261107.120000",
+            "channel": "canary",
+            "electron_version": "46.0.0-alpha.1",
+            "package_distribution": "bootstrap-only",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            with (
+                patch("publish_aur.recipe", return_value="fixture"),
+                patch("publish_aur.write_srcinfo"),
+            ):
+                stage(directory, manifest, "tag")
+            hook = (directory / "discord.install").read_text()
+            self.assertIn("pre_remove()", hook)
+            self.assertIn("/opt/discord-canary-prerelease-patched-electron-bin/uninstall.py", hook)
+            self.assertNotIn("post_install", hook)
+            self.assertNotIn("post_upgrade", hook)
+            subprocess.run(["bash", "-n", str(directory / "discord.install")], check=True)
+            # Exercise the published hook against an isolated installation,
+            # including an old immutable archive without the new uninstaller.
+            installed = directory / "installed"
+            installed.mkdir()
+            hook_path = directory / "hook.install"
+            hook_path.write_text(
+                hook.replace("/opt/discord-canary-prerelease-patched-electron-bin", str(installed))
+            )
+            fake = directory / "python3"
+            fake.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$DPE_UNINSTALL_LOG"\n')
+            fake.chmod(0o755)
+            log = directory / "called"
+            environment = {
+                **os.environ,
+                "PATH": f"{directory}:/usr/bin",
+                "DPE_UNINSTALL_LOG": str(log),
+            }
+            command = [
+                "bash",
+                "-c",
+                'source "$1"; pre_remove fixture-version',
+                "fixture",
+                str(hook_path),
+            ]
+            subprocess.run(command, env=environment, check=True)
+            self.assertFalse(log.exists())
+            (installed / "uninstall.py").touch()
+            subprocess.run(command, env=environment, check=True)
+            self.assertEqual(
+                log.read_text().splitlines(),
+                [
+                    "-I",
+                    str(installed / "uninstall.py"),
+                    "--package",
+                    "discord-canary-prerelease-patched-electron-bin",
+                ],
+            )
+
     def test_metadata_update_bumps_revision_once_and_refuses_changed_archive(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

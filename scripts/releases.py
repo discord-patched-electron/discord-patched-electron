@@ -241,6 +241,17 @@ def verify_assets(directory: Path, manifest: dict):
         or not re.fullmatch(r"[a-f0-9]{64}", application.get("index_sha256", ""))
     ):
         raise ValueError("Invalid application update asset")
+    capture = manifest.get("capture_maintenance")
+    if capture is not None and (
+        capture.get("schema") != 1
+        or not isinstance(capture.get("components"), dict)
+        or set(capture["components"]) != {"runtime", "server", "maintainer", "installer"}
+        or any(
+            not isinstance(value, str) or not re.fullmatch(r"[a-f0-9]{64}", value)
+            for value in capture["components"].values()
+        )
+    ):
+        raise ValueError("Invalid capture maintenance authority")
     for name, expected in assets.items():
         if Path(name).name != name or not re.fullmatch(r"[a-f0-9]{64}", expected):
             raise ValueError("Invalid asset name or checksum")

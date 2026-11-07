@@ -20,6 +20,9 @@ function fixture({
     exit: (code) => calls.push(["exit", code]),
   });
   function requireModule(name) {
+    if (name === "./capture-permission.cjs")
+      return { maintain: async () => calls.push(["capture-maintain"]) };
+    if (name === "./diagnostic-log.cjs") return { install() {} };
     if (name === "electron")
       return { app, dialog: { showErrorBox: (...args) => calls.push(["error", ...args]) } };
     if (name === "node:path") return path;
@@ -37,8 +40,13 @@ function fixture({
       };
     if (name === "./desktop.cjs" || name === "./application-ready.cjs") return () => {};
     if (name === "./patches.cjs") return {};
+    if (name === "./capture-backends.cjs")
+      return { register: () => calls.push(["capture-backends"]) };
     if (name === "../desktop/preferences.cjs")
-      return { install: () => calls.push(["desktop-preferences"]) };
+      return {
+        install: () => calls.push(["desktop-preferences"]),
+        configureMediaControls: () => calls.push(["media-controls"]),
+      };
     if (name === "./tray.cjs")
       return { setDefaultDirectory: (directory) => calls.push(["tray-assets", directory]) };
     if (name === "../desktop/spellcheck.cjs") return { install: () => calls.push(["spellcheck"]) };
@@ -89,6 +97,7 @@ test("pending first launch never evaluates Discord before Welcome completion", a
   for (const existingProfile of [false, true]) {
     const calls = fixture({ existingProfile });
     await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(calls[0][0], "media-controls");
     assert.ok(calls.some(([name]) => name === "welcome"));
     assert.deepEqual(
       calls.find(([name]) => name === "tray-assets"),
@@ -144,4 +153,15 @@ test("second launch focuses the live onboarding owner after Welcome is replaced"
   active = undefined;
   calls.app.emit("second-instance");
   assert.deepEqual(focused, ["welcome", "settings"]);
+});
+
+test("activated Discord maintains capture permission after readiness; onboarding does not", async () => {
+  const active = fixture({ pending: false, existingProfile: true });
+  const onboarding = fixture({ pending: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(active.filter(([name]) => name === "capture-maintain").length, 1);
+  assert.equal(
+    onboarding.some(([name]) => name === "capture-maintain"),
+    false,
+  );
 });

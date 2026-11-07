@@ -51,6 +51,41 @@ def manifest(version=123):
 
 
 class ModuleUpdates(unittest.TestCase):
+    def test_video_corrections_invalidate_prepared_module_cache(self):
+        original = client.compatibility_key()
+        checksum = client.checksum
+        for name in (
+            "scripts/patch_vaapi_hrd.py",
+            "scripts/patch_capture_dimensions.py",
+            "scripts/patch_capture_chroma.py",
+            "integration/video/shaders/chroma-420.spv",
+            "scripts/patch_decoder_eagain.py",
+            "scripts/encoder_scope.py",
+            "scripts/capture_scale_scope.py",
+            "scripts/capture_upstream_scope.py",
+            "scripts/capture_sync_scope.py",
+            "scripts/capture_picker_scope.py",
+            "integration/video/transport.cjs",
+            "integration/video/encoder.cjs",
+            "integration/video/capture-scale.cjs",
+            "integration/video/dpe-native-identity.cjs",
+            "integration/video/capture-upstream.cjs",
+            "integration/video/capture-sync.cjs",
+            "integration/video/capture-picker.cjs",
+            "integration/video/capture-backends.cjs",
+        ):
+            with (
+                self.subTest(name=name),
+                patch.object(
+                    client,
+                    "checksum",
+                    side_effect=lambda path, name=name: (
+                        "changed" if path == client.PACKAGE_ROOT / name else checksum(path)
+                    ),
+                ),
+            ):
+                self.assertNotEqual(client.compatibility_key(), original)
+
     def setUp(self):
         # These tests exercise installation after policy validation. Real signed
         # approvals and their cache are exercised in test_runtime_updater.py.
@@ -521,8 +556,10 @@ class DistributionBoundary(unittest.TestCase):
                 patch("stage_updater.read_json", return_value=lock),
                 patch("stage_updater.stage_python"),
                 patch("stage_updater.stage_editor"),
+                patch("stage_updater.stage_capture") as capture_stage,
             ):
                 stage(app, "canary", "1.0.123", asar, archive, client=locked_client)
+            capture_stage.assert_called_once_with(app / "capture")
             validate_distribution(app)
             pinned = client.normalize(
                 json.loads((app / "client-update.json").read_text()), "canary"
@@ -554,6 +591,15 @@ class DistributionBoundary(unittest.TestCase):
                 "openasar-source.json",
                 "client-distribution.json",
                 "scripts/patch_pulse_audio.py",
+                "scripts/patch_vaapi_hrd.py",
+                "scripts/patch_capture_dimensions.py",
+                "scripts/patch_capture_chroma.py",
+                "integration/video/shaders/chroma-420.spv",
+                "scripts/patch_decoder_eagain.py",
+                "scripts/encoder_scope.py",
+                "integration/video/transport.cjs",
+                "integration/video/encoder.cjs",
+                "integration/audio/dpe-video.cjs",
                 "client-update.json",
                 "integration/launcher/flags.py",
                 "integration/discord-ui/runtime.cjs",

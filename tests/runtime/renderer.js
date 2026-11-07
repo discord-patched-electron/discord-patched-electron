@@ -67,6 +67,36 @@ async function run() {
     stopped_stream_released: true,
   };
 
+  if (addon.presentation) {
+    // Native frames arrive in three-frame bursts, but carry regular future
+    // presentation deadlines. Missing reference_time collapses each burst to
+    // its newest frame instead of scheduling the frames across display ticks.
+    const scheduled = window.createDiscordStream("fixture-scheduled");
+    video.srcObject = scheduled;
+    const callbacks = [];
+    let callback;
+    const presented = (_now, metadata) => {
+      callbacks.push(metadata.mediaTime);
+      callback = video.requestVideoFrameCallback(presented);
+    };
+    callback = video.requestVideoFrameCallback(presented);
+    const first = addon.clock() + 100000;
+    const playing = video.play();
+    for (let batch = 0; batch < 15; batch++) {
+      for (let offset = 0; offset < 3; offset++)
+        addon.push("fixture-scheduled", Math.round(first + (batch * 3 + offset) * (1000000 / 60)));
+      await delay(50);
+    }
+    await playing;
+    await delay(200);
+    video.cancelVideoFrameCallback(callback);
+    scheduled.getVideoTracks()[0].stop();
+    video.srcObject = null;
+    video.load();
+    result.presentation = { sent: 45, callbacks: callbacks.length };
+    assert(callbacks.length >= 32, "Scheduled native frame bursts were collapsed at presentation");
+  }
+
   Object.assign(result, await addon.loadModules());
   if (result.audio_batches) {
     assert(result.audio_batches.errors.length === 0, "Voice processing reported errors");

@@ -13,7 +13,7 @@ export function useDesktopPreferences() {
       const next = await window.Native.desktopLoad();
       if (current.current) {
         setState(next);
-        setError("");
+        setError(next.error || "");
       }
     } catch (failure) {
       if (current.current) setError(errorMessage(failure));
@@ -195,6 +195,38 @@ export function NotificationPreferences({ model }) {
         label="Badge only for mentions"
         description="Hide the badge for unread messages without mentions."
         disabled={!model.state?.values.appBadge}
+      />
+    </section>
+  );
+}
+
+export function PopoutPreferences({ model }) {
+  const values = model.state?.values;
+  const canHide = values?.popoutFloating && values?.windowControls && !values?.nativeTitlebar;
+  return (
+    <section class="settings-group" aria-labelledby="desktop-popout-heading">
+      <h3 class="section-label" id="desktop-popout-heading">
+        Video popouts
+      </h3>
+      <DesktopSwitch
+        model={model}
+        name="popoutFloating"
+        label="Float popouts by default"
+        description="Ask tiling window managers to float new video and screenshare windows."
+      />
+      <DesktopSwitch
+        model={model}
+        name="popoutHideTitlebar"
+        label="Hide floating popout titlebar"
+        description="Discord window controls and Native titlebar take precedence."
+        disabled={!canHide}
+        checked={Boolean(canHide && values?.popoutHideTitlebar)}
+      />
+      <DesktopSwitch
+        model={model}
+        name="popoutHideMembers"
+        label="Hide members when expanding a screenshare"
+        description="Collapse the members bar for the selected stream. You can still use Show Members to reopen it."
       />
     </section>
   );

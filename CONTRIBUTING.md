@@ -7,8 +7,17 @@ starting a larger change so we can agree on its scope.
 
 Install Git, [Bun](https://bun.sh/docs/installation),
 [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 24 on Linux.
+Native helpers also need [rustup](https://rustup.rs/), the toolchain pinned in
+`rust-toolchain.toml`, and libclang development libraries for checked system-API
+bindings. Cargo installs the pinned compiler, rustfmt and Clippy when needed.
 Native tests also need a C/C++ compiler; updater tests need `brotli` and GnuPG
-(`gpg` and `gpgv`). Install those system tools through your package manager.
+(`gpg` and `gpgv`). Camera helpers also need Node.js development headers
+(`node_api.h`); capture support needs PipeWire, libva and libdrm development headers and `pkg-config`.
+GPU-source compile checks also need GBM, EGL, GLES, libdrm and libcap development headers; these
+checks compile the fixture without opening a GPU.
+Direct capture protocol tests need Wayland development headers and `wayland-scanner`;
+they use a private synthetic compositor over a socketpair.
+Install those system tools through your package manager.
 
 ```sh
 git clone https://github.com/discord-patched-electron/discord-patched-electron.git
@@ -32,30 +41,39 @@ bun run test
 `format` fixes style; `lint` checks formatting, code and workflows. Both preserve
 the pinned upstream files and patches.
 
-Use `bun run test:python` or `bun run test:js` to run one suite while iterating.
+Use `bun run test:python`, `bun run test:js` or `bun run test:rust` to run one suite while iterating.
 These tests need no Discord account or Electron build. Arch-specific assertions
 are skipped when `vercmp` is unavailable. CI also checks generated Arch packages.
 Documentation-only changes need `bun run lint` and a review of changed links and
 instructions. CI selects integration checks by affected files; see
 [check selection](docs/agent/ci-setup.md#check-selection).
 
+For reusable local app versions, independent profiles and watch/restart, see the
+[local development guide](docs/development.md).
+
 ## Repository layout
 
-| Path           | Contents                                               |
-| -------------- | ------------------------------------------------------ |
-| `integration/` | Launcher and Linux audio, camera and desktop adapters  |
-| `scripts/`     | Discovery, source assembly, packaging and verification |
-| `tests/`       | Unit tests and native/audio fixtures                   |
-| `config/`      | Pinned sources, clients and build policies             |
-| `patches/`     | Discord's Electron changes and compatibility patches   |
-| `packaging/`   | Package templates and upstream reference files         |
-| `.github/`     | CI workflows                                           |
-| `docs/`        | User guides; contributor notes live in `docs/agent/`   |
+| Path             | Contents                                               |
+| ---------------- | ------------------------------------------------------ |
+| `integration/`   | Launcher and Linux audio, camera and desktop adapters  |
+| `native/`        | Rust media ownership, operating-system and ABI support |
+| `scripts/`       | Discovery, source assembly, packaging and verification |
+| `tests/`         | Unit tests and native/audio fixtures                   |
+| `config/`        | Pinned sources, clients and build policies             |
+| `patches/`       | Discord's Electron changes and compatibility patches   |
+| `packaging/`     | Package templates and upstream reference files         |
+| `.github/`       | CI workflows                                           |
+| `agents/skills/` | Reusable repository workflows for coding agents        |
+| `docs/`          | User guides; contributor notes live in `docs/agent/`   |
 
 Generated files belong in `out/`. Don't commit downloaded clients, compiler
 workspaces or test profiles. Don't edit `packaging/upstream/` or reformat
 `patches/`: they contain pinned upstream files. Source updates need an explicit
 import with new checksums.
+
+The [repository skill catalog](AGENTS.md#repository-skills) links focused
+implementation and validation workflows. Each skill has a `SKILL.md` with its
+scope and references to the maintained guides.
 
 ## Dependencies
 

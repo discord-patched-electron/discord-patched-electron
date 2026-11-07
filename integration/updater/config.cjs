@@ -181,7 +181,27 @@ function open(tab = "settings", sourceContents, options = {}) {
     if (!Object.hasOwn(links, name)) throw new Error("Unknown project link");
     await shell.openExternal(links[name]);
   });
+  handle("dpe-export-logs", () => require("./export-logs.cjs").exportLogs(window));
   handle("dpe-config-diagnostic", (name) => require("./diagnostics.cjs").open(name));
+  handle("dpe-screenshare-load", () => require("./screensharing.cjs").load(settings));
+  handle("dpe-screenshare-save", (patch) => require("./screensharing.cjs").save(settings, patch));
+  handle("dpe-screenshare-status", () => require("./screensharing.cjs").snapshot());
+  handle("dpe-capture-permission-status", () => require("./capture-permission.cjs").status());
+  handle("dpe-capture-permission-allow", () => {
+    if (
+      !require("../video/settings.cjs").normalize(settings.get("openasar", {}).screensharing)
+        .experimentalCapture
+    )
+      throw new Error("Enable experimental capture methods first.");
+    return require("./capture-permission.cjs").allow();
+  });
+  handle("dpe-capture-permission-revoke", () => require("./capture-permission.cjs").revoke());
+  handle("dpe-capture-selection", () => require("./capture-backends.cjs").state());
+  handle("dpe-capture-refresh", () => require("./capture-backends.cjs").refresh());
+  handle("dpe-capture-choose", (id, source, authorize) =>
+    require("./capture-backends.cjs").choose(id, source, authorize === true),
+  );
+  handle("dpe-capture-cancel", (id) => require("./capture-backends.cjs").cancel(id));
   const desktopState = async () => {
     const desktop = require("../desktop/preferences.cjs");
     return {

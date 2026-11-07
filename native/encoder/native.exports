@@ -1,0 +1,8 @@
+{
+  global:
+    dpe_hevc_api;
+    dpe_encoder_hardware_scope;
+    dpe_encoder_import_stats;
+    dpe_encoder_profile_stage;
+  local: *;
+};

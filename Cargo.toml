@@ -1,0 +1,32 @@
+[workspace]
+members = [
+  "native/media-core",
+  "native/bridge",
+  "native/os",
+  "native/kms",
+  "native/game",
+  "native/encoder",
+  "native/wayland",
+  "native/x11",
+  "native/producer",
+  "native/pipewire",
+  "native/graphics",
+  "native/source",
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

@@ -42,7 +42,7 @@
     },
     "46": {
       "anchor_commit": "f7d86aa7030d1ec568fe34530deffbaaa449b717",
-      "candidate_tree": "f67eae412bc4ed3314db1880cc6e63706c29d260",
+      "candidate_tree": "f812d0617040f907a682e58639202c131885e3ad",
       "dependency_notes": {
         "chromium/add_missing_lock_annotation.patch": "Omitted from dependency series: upstream Environment::Create already has EXCLUSIVE_LOCKS_REQUIRED(GetLock()).",
         "chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch": "Preserve frame-scoped audio authorization and resolve every pending RestrictionTarget resolver with the Discord capture token.",
@@ -70,6 +70,22 @@
         {
           "patch": "patches/ports/46/window-controls.patch",
           "patch_sha256": "da5e692597cb290bd15eaaf165b2a8ae8a7a5e2280e5040dc7b271ce7a866840"
+        },
+        {
+          "patch": "patches/ports/46/prefilled-spellcheck.patch",
+          "patch_sha256": "d92f9827494e0efc5e38e4699514738e2831fb350ca5e20de148f12bb0642c80"
+        },
+        {
+          "patch": "patches/ports/46/presentation-clock.patch",
+          "patch_sha256": "0e4a19304d15098cd9c5cae3db38f5d9d44278273b308de9a4db7d3d5980279c"
+        },
+        {
+          "patch": "patches/ports/46/av1-crop-metadata.patch",
+          "patch_sha256": "dadca7ab27fe280b803d01a3f585b0556567ddb2e3f5178a48f30beb5b4d4dde"
+        },
+        {
+          "patch": "patches/ports/46/media-content-only.patch",
+          "patch_sha256": "0149499b8ec015e483ddc83e3667ec708794017bec4b9657f48cc54323091498"
         }
       ],
       "patch": "patches/ports/46/compatibility.patch",
@@ -97,7 +113,7 @@
         "shell/renderer/electron_api_service_impl.cc",
         "shell/renderer/electron_api_service_impl.h"
       ],
-      "status": "runtime-fixtures-passed",
+      "status": "source-only",
       "upstream_equivalents": {
         "build/zip.py": "Preserve upstream WER packaging and static-ANGLE stub exclusions for the Linux build.",
         "lib/browser/api/web-contents.ts": "The deviceScaleFactor property moves into the native WebContents template, matching the new upstream accessor layout.",

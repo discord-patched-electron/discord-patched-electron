@@ -23,12 +23,17 @@ class Launcher(unittest.TestCase):
         settings=None,
         broken_resolver=False,
         application_update=False,
+        diagnostics=False,
     ):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             shutil.copytree(ROOT / "integration/launcher", root / "integration/launcher")
             updater = root / "integration/updater"
             updater.mkdir(parents=True)
+            if diagnostics:
+                shutil.copy2(
+                    ROOT / "integration/updater/diagnostic_log.py", updater / "diagnostic_log.py"
+                )
             # Exercise the shell's preparation boundary without network access.
             # The downloader and real codec loading have separate test suites.
             (updater / "openh264.py").write_text(
@@ -155,7 +160,18 @@ class Launcher(unittest.TestCase):
                 result["flagsFileContent"] = (
                     root / "discord-canary-patched-electron.conf"
                 ).read_text()
+            if diagnostics:
+                result["logs"] = {
+                    file.name: file.read_text()
+                    for file in (root / "discordcanary/logs/dpe").glob("*.log")
+                }
             return result if details else result["flags"]
+
+    def test_persistent_diagnostics_preserve_the_launcher_protocol(self):
+        result = self.launch(args=("--disable-gpu",), details=True, diagnostics=True)
+        self.assertIn("--disable-gpu", result["flags"])
+        self.assertIn("launcher-stdout.log", result["logs"])
+        self.assertIn('"flags"', result["logs"]["launcher-stdout.log"])
 
     def test_standard_canary_profile_and_explicit_override(self):
         default = self.launch(details=True, env={"DISCORD_USER_DATA_DIR": "", "CHROME_DESKTOP": ""})

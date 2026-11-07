@@ -15,6 +15,10 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
+from build_hevc_support import ARCHIVE_SHA256 as HEVC_SOURCE_SHA256
+from build_hevc_support import SOURCE_ARCHIVE as HEVC_SOURCE_ARCHIVE
+from build_hevc_support import URL as HEVC_SOURCE_URL
+from build_rust_support import inputs as rust_inputs
 from build_ui import build as build_ui
 from channels import enabled_discord_channels, require_enabled_discord
 from common import (
@@ -31,6 +35,7 @@ from common import (
 from desktop_identity import arch_conflicts, desktop_id, display_name, profile_name
 from fingerprints import integration_key
 from lock_clients import normalize
+from stage_capture_backends import stage as stage_capture
 from updater_python import sources as python_sources
 
 SUPPORT = [
@@ -39,14 +44,41 @@ SUPPORT = [
     "scripts/desktop_identity.py",
     "scripts/patch_krisp.py",
     "scripts/patch_app_audio.py",
+    "scripts/native_client_2444.py",
     "scripts/patch_pulse_audio.py",
+    "scripts/patch_vaapi_hrd.py",
+    "scripts/patch_capture_dimensions.py",
+    "scripts/patch_capture_chroma.py",
+    "scripts/patch_presentation_clock.py",
+    "scripts/patch_video_pacing.py",
+    "scripts/patch_decoder_eagain.py",
     "scripts/camera_scope.py",
+    "scripts/capture_scope.py",
+    "scripts/capture_scale_scope.py",
+    "scripts/capture_upstream_scope.py",
+    "scripts/capture_sync_scope.py",
+    "scripts/capture_picker_scope.py",
+    "scripts/capture_direct_scope.py",
+    "scripts/encoder_scope.py",
     "scripts/client_native.py",
     "scripts/stage_package.py",
     "scripts/application_payload.py",
     "integration/bootstrap/loader.py",
+    "integration/bootstrap/uninstall.py",
     "scripts/stage_updater.py",
+    "scripts/stage_capture_backends.py",
+    "scripts/build_vkcapture_backend.py",
+    "scripts/stage_vkcapture.py",
+    "scripts/build_wayland_capture.py",
+    "scripts/build_wayland_source.py",
+    "scripts/build_kms_source.py",
+    "scripts/build_direct_capture.py",
+    "scripts/build_screen_preview.py",
+    "patches/capture/vkcapture-copy-rate.patch",
+    "patches/capture/vkcapture-dpe-handoff.patch",
     "scripts/build_ui.py",
+    "scripts/build_hevc_support.py",
+    "scripts/build_capture_shader.py",
     "scripts/updater_python.py",
     "scripts/stage_openasar.py",
     "uv.lock",
@@ -63,10 +95,11 @@ SUPPORT = [
 ]
 SUPPORT += [
     str(path.relative_to(ROOT))
-    for name in ("audio", "desktop", "updater", "launcher", "discord-ui")
+    for name in ("audio", "video", "camera", "desktop", "updater", "launcher", "discord-ui")
     for path in sorted((ROOT / "integration" / name).rglob("*"))
     if path.is_file() and "__pycache__" not in path.parts
 ]
+SUPPORT += rust_inputs()
 
 
 def validate_client(client: dict):
@@ -160,6 +193,19 @@ def generate(
                 member.size = len(data)
                 member.mode = 0o644
                 archive.addfile(member, io.BytesIO(data))
+        with tempfile.TemporaryDirectory(prefix="dpe-recipe-capture-") as temporary:
+            bundled = Path(temporary) / "capture"
+            stage_capture(bundled)
+            for file in sorted(bundled.rglob("*")):
+                if not file.is_file():
+                    continue
+                data = file.read_bytes()
+                member = tarfile.TarInfo(
+                    "support/prebuilt-capture/" + file.relative_to(bundled).as_posix()
+                )
+                member.size = len(data)
+                member.mode = 0o755 if file.stat().st_mode & 0o111 else 0o644
+                archive.addfile(member, io.BytesIO(data))
     write_file(output / "support.tar", buffer.getvalue())
     launcher = (
         (ROOT / "integration/launcher/discord-launcher.sh")
@@ -176,6 +222,14 @@ def generate(
         f"StartupWMClass={desktop_id(client['channel'])}\n"
     )
     write_file(output / "discord.desktop", desktop.encode())
+    write_file(
+        output / "discord.install",
+        (ROOT / "packaging/linux/discord.install.in")
+        .read_text()
+        .replace("@ROOT@", f"/usr/lib/{name}")
+        .replace("@PKGNAME@", name)
+        .encode(),
+    )
     inputs = {
         "schema": 1,
         "package": name,
@@ -187,6 +241,8 @@ def generate(
     }
     write_json(output / "package-inputs.json", inputs)
     sources = [("libdpe-camera-probe.so::" + camera["url"], checksum)]
+    if camera.get("hevc"):
+        sources += [(HEVC_SOURCE_ARCHIVE + "::" + HEVC_SOURCE_URL, HEVC_SOURCE_SHA256)]
     bootstrap = read_json(ROOT / "config/openasar.lock.json")
     sources += [("openasar.tar.gz::" + bootstrap["url"], bootstrap["sha256"])]
     editor = read_json(ROOT / "integration/updater/openasar/source.json")["archive"]

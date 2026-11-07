@@ -75,20 +75,6 @@ a,
   text-underline-offset: 3px;
   text-decoration: none;
 }
-.dpe-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-20, 20px);
-  height: var(--size-20, 20px);
-  flex: none;
-  line-height: 1;
-}
-.dpe-icon svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
 h1,
 h2,
 h3,
@@ -145,6 +131,7 @@ h3 {
   border-inline-end: 1px solid var(--dpe-border);
   background: var(--dpe-discord-sidebar, var(--dpe-sidebar));
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
@@ -536,6 +523,12 @@ main {
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-4, 4px) var(--space-8, 8px);
+}
+.diagnostic-row h3:has(> .risk-icon) {
+  align-items: center;
+}
+.diagnostic-row h3 > .risk-icon {
+  margin-inline-end: 0;
 }
 .diagnostic-address {
   color: var(--dpe-muted);
