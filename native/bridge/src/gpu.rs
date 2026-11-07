@@ -136,7 +136,7 @@ pub struct Thumbnail {
 impl Thumbnail {
     pub fn new(node: &std::ffi::CStr, width: u32, height: u32) -> Result<Self> {
         use std::os::unix::ffi::OsStrExt;
-        if width == 0 || height == 0 || width > 1024 || height > 1024 || (width | height) & 1 != 0 {
+        if width == 0 || height == 0 || width > 8192 || height > 4320 || (width | height) & 1 != 0 {
             return Err("invalid preview dimensions");
         }
         let file = OpenOptions::new()

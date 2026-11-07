@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 //! Native rendering compatibility, kept out of the encoder and capture threads.
 use crate::{ffi, gpu::Thumbnail};
-use dpe_core::{Latest, Next, preview_size};
+use dpe_core::{Latest, Next};
 use std::{
     ffi::{CStr, CString, c_void},
     os::raw::c_char,
@@ -87,8 +87,6 @@ pub struct Hook {
 }
 static HOOK: OnceLock<Hook> = OnceLock::new();
 static WORKER: OnceLock<Worker> = OnceLock::new();
-static START: OnceLock<Instant> = OnceLock::new();
-static NEXT: AtomicU64 = AtomicU64::new(0);
 static REQUESTS: AtomicU64 = AtomicU64::new(0);
 static FRAMES: AtomicU64 = AtomicU64::new(0);
 static BYTES: AtomicU64 = AtomicU64::new(0);
@@ -164,11 +162,9 @@ fn run(queue: Arc<Latest<Request>>) {
                 continue;
             }
         };
-        let Some((w, h)) = preview_size(request.source.view.width, request.source.view.height, 320)
-        else {
-            ERRORS.fetch_add(1, Ordering::Relaxed);
-            continue;
-        };
+        // DirectOutputStream also feeds the enlarged local share. Preserve the
+        // capture dimensions here; picker thumbnails have a separate path.
+        let (w, h) = (request.source.view.width, request.source.view.height);
         if gpu
             .as_ref()
             .is_none_or(|(node, g)| node != &request.source.node || g.size() != (w, h))
@@ -368,24 +364,8 @@ pub unsafe extern "C" fn on_frame(stream: *mut c_void, frame: *const c_void) {
                 },
             );
         }
-        let now = START
-            .get_or_init(Instant::now)
-            .elapsed()
-            .as_nanos()
-            .min(u128::from(u64::MAX)) as u64;
-        let next = NEXT.load(Ordering::Relaxed);
-        if now < next
-            || NEXT
-                .compare_exchange(
-                    next,
-                    now.saturating_add(100_000_000),
-                    Ordering::Relaxed,
-                    Ordering::Relaxed,
-                )
-                .is_err()
-        {
-            return;
-        }
+        // Follow capture cadence. The latest-only queue and leased pixel pool
+        // bound pending work without imposing a thumbnail frame-rate cap.
         REQUESTS.fetch_add(1, Ordering::Relaxed);
         match WORKER
             .get_or_init(Worker::new)
