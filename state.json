@@ -925,7 +925,7 @@
     "prerelease"
   ],
   "issues": {},
-  "last_compiler_attempt_at": "2026-10-28T09:52:33.843529+00:00",
+  "last_compiler_attempt_at": "2026-11-07T22:48:18.575210+00:00",
   "releases": {
     "nightly:47.0.0-nightly.20261023": {
       "channel": "nightly",
@@ -3648,5 +3648,15 @@
       "withdrawn_at": null
     }
   ],
-  "security_checked_at": "2026-11-07T22:29:23Z"
+  "security_checked_at": "2026-11-07T22:29:23Z",
+  "local_compiler_attempts": {
+    "local-alpha6-20261107": {
+      "at": "2026-11-07T22:48:18.575210+00:00",
+      "provider": "local",
+      "version": "46.0.0-alpha.6",
+      "source_commit": "c76ee1bdf7fcbe45c16344c607852164c82e2b7b",
+      "status": "building",
+      "blacksmith_minutes": 0
+    }
+  }
 }
