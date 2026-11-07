@@ -19,6 +19,8 @@ current workflows.
 
 - [Vkcapture cursor feasibility, protocol implementation and validation](vkcapture-cursor-20261105.md).
 
+- [Vkcapture automatic application audio](vkcapture-audio-20261105.md).
+
 - [Codec exclusions and camera/monitor hotplug checks](codec-exclusions-hotplug-20261105.md).
 - [Bug report ZIP export and validation](log-export-20261105.md).
 - [Subsystem diagnostic coverage audit](diagnostic-coverage-20261105.md).

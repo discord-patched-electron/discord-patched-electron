@@ -381,7 +381,8 @@ is never inferred from Discord's ambiguous screen token.
 
 Confirmed optimized monitors honor the independent skip-screen-picker setting,
 using the existing system route that excludes Discord. Turning the option off,
-explicitly re-enabling audio, and game capture retain the manual picker. Losing
+explicitly re-enabling audio, and (at that time) game capture retain the manual picker.
+Game capture now supports [authenticated process matching](vkcapture-audio-20261105.md). Losing
 or replacing the native request closes the old audio route and choice. An ended
 optimized request cannot fall through to an unrelated PipeWire video source.
 

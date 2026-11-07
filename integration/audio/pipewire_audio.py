@@ -276,7 +276,8 @@ def niri_target(sources, casts, windows):
 
 
 class Route:
-    def __init__(self):
+    def __init__(self, events=None):
+        self.events = events
         self.children = []
         self.feeds = {}
         self.module = None
@@ -479,7 +480,11 @@ class Route:
             if min(index, sink) < 0:
                 continue
             if sinks is None:
-                sinks = json.loads(command([system_tool("pactl"), "-f", "json", "list", "sinks"]))
+                sinks = (
+                    self.events.sink_snapshot()
+                    if self.events is not None
+                    else json.loads(command([system_tool("pactl"), "-f", "json", "list", "sinks"]))
+                )
             monitor = next(
                 (
                     s.get("monitor_source_name", s.get("monitor_source"))
@@ -542,7 +547,8 @@ class Route:
 
 
 class Controller:
-    def __init__(self, owner):
+    def __init__(self, owner, events=None):
+        self.events = events
         self.owner = owner
         self.owner_identity = process_identity(owner)
         self.excluded = discord_root(owner)
@@ -689,7 +695,19 @@ class Controller:
                 or (value.get("method") == "vkcapture" and value.get("sourceType") == "window")
             )
         ):
-            capture = (value["requestId"], value["method"], value["sourceType"])
+            identity = value.get("processIdentity")
+            owner = None
+            if (
+                value["method"] == "vkcapture"
+                and isinstance(identity, dict)
+                and type(identity.get("pid")) is int
+                and identity["pid"] > 1
+                and isinstance(identity.get("start"), str)
+                and identity["start"].isascii()
+                and identity["start"].isdigit()
+            ):
+                owner = (identity["pid"], identity["start"])
+            capture = (value["requestId"], value["method"], value["sourceType"], owner)
         if capture is not None:
             self.optimized_seen = True
         if capture != self.capture:
@@ -1012,12 +1030,17 @@ class Controller:
         if process_identity(self.owner) != self.owner_identity:
             raise EOFError()
         if not self.enabled:
+            if self.events is not None:
+                self.events.close()
             return
         if self.optimized_seen and self.capture is None:
             self.suspend()
             return
-        objects = graph()
-        pulse = json.loads(command([system_tool("pactl"), "-f", "json", "list", "sink-inputs"]))
+        if self.events is None:
+            objects = graph()
+            pulse = json.loads(command([system_tool("pactl"), "-f", "json", "list", "sink-inputs"]))
+        else:
+            objects, pulse = self.events.snapshot()
         # Direct GPU sources intentionally have no PipeWire video node. Bind the
         # audio choice to the native capture request instead of guessing a node.
         sources = (
@@ -1039,6 +1062,15 @@ class Controller:
         )
         if automatic and self.capture and self.capture[2] == "screen":
             target = {"kind": "system", "key": source, "backend": self.capture[1]}
+        if automatic and self.auto_detect and self.capture and self.capture[3] is not None:
+            pid, start = self.capture[3]
+            target = {
+                "kind": "application",
+                "pid": pid,
+                "identity": (pid, start),
+                "key": source,
+                "backend": self.capture[1],
+            }
         if automatic and not self.capture and niri_available:
             try:
                 target = niri_target(sources, niri_request("Casts"), niri_request("Windows"))
@@ -1133,7 +1165,7 @@ class Controller:
                 self.route.close()
             self.route = None
             self.target_key = key
-            route = Route()
+            route = Route(self.events) if self.events is not None else Route()
             route.start()
             self.route = route
         self.target = identity
@@ -1146,7 +1178,11 @@ class Controller:
         self.emit(self.route.capture_pid, "ready", target["backend"])
 
     def close(self):
-        self.reset()
+        try:
+            self.reset()
+        finally:
+            if self.events is not None:
+                self.events.close()
 
 
 def main():
@@ -1174,7 +1210,19 @@ def main():
         return
     if args.owner is None:
         parser.error("--owner is required")
-    controller = Controller(args.owner)
+    from audio_graph import AudioGraph
+
+    def monitor(args):
+        return sp.Popen(
+            args,
+            stdin=sp.DEVNULL,
+            stdout=sp.PIPE,
+            stderr=sp.DEVNULL,
+            env={**os.environ, "LC_ALL": "C"},
+            preexec_fn=partial(child_guard, os.getpid()),
+        )
+
+    controller = Controller(args.owner, AudioGraph(monitor, command))
 
     def stop(*_):
         raise EOFError()
@@ -1182,9 +1230,16 @@ def main():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     buffer = b""
+    next_tick = 0
     try:
         while True:
-            if select.select([sys.stdin], [], [], 0.4)[0]:
+            ready = select.select(
+                [sys.stdin, *controller.events.filenos()],
+                [],
+                [],
+                max(0, next_tick - time.monotonic()),
+            )[0]
+            if sys.stdin in ready:
                 data = os.read(sys.stdin.fileno(), 8192)
                 if not data:
                     break
@@ -1197,8 +1252,12 @@ def main():
                     if type(message.get("generation")) is not int:
                         raise ValueError("Invalid generation")
                     controller.update(message)
+                    next_tick = 0
             try:
-                controller.tick()
+                controller.events.pump()
+                if time.monotonic() >= next_tick:
+                    controller.tick()
+                    next_tick = time.monotonic() + 0.4
             except (OSError, ValueError, KeyError, sp.SubprocessError) as error:
                 if (
                     os.environ.get("DPE_APP_AUDIO_TRACE") == "1"
@@ -1220,6 +1279,7 @@ def main():
                         flush=True,
                     )
                 controller.suspend(state="unavailable")
+                next_tick = time.monotonic() + 0.4
     except (EOFError, BrokenPipeError):
         pass
     finally:

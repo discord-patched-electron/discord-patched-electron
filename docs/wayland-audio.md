@@ -41,6 +41,10 @@ Changes apply to your next share without restarting Discord. Re-enabling audio
 on an existing share still opens the picker. For a temporary manual override,
 launch with `DPE_AUDIO_AUTO_DETECT=0`. Routing and the picker remain enabled.
 
+Optimized game capture identifies the hooked game process directly, independent
+of compositor window detection. Automatic matching includes its playback and
+descendants.
+
 An identified application can stay paused or silent when you begin sharing.
 DPE waits for its playback and starts sharing it when you press play, without
 opening the audio picker just because no audio stream exists yet.

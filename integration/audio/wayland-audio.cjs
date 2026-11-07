@@ -151,9 +151,8 @@ function wrap(
     child.stdin.on("error", () => {});
     // The helper emits only its tiny protocol. Do not forward arbitrary stderr.
     child.stderr.on("data", (data) => {
-      if (process.env.DPE_APP_AUDIO_TRACE === "1")
-        for (const line of data.toString().split("\n"))
-          if (line.startsWith("[dpe-audio-helper-error] ")) console.warn(line.slice(0, 512));
+      for (const line of data.toString().split("\n"))
+        if (line.startsWith("[dpe-audio-helper-error] ")) console.warn(line.slice(0, 512));
     });
     child.stdout.on("data", (data) => {
       if (helper !== child || disposed) return;

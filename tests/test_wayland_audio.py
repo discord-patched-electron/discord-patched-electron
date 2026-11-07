@@ -488,6 +488,72 @@ class PlaybackDiscovery(unittest.TestCase):
 
 
 class OptimizedAudio(unittest.TestCase):
+    def test_vkcapture_uses_authenticated_game_identity_without_video_nodes(self):
+        for auto, force, live_start, expected in (
+            (True, False, "2000", "automatic"),
+            (False, False, "2000", "manual"),
+            (True, True, "2000", "manual"),
+            (True, False, "reused", "unavailable"),
+            (True, False, None, "unavailable"),
+        ):
+
+            def identity(pid, live_start=live_start):
+                if pid == 200:
+                    return (200, live_start, 1) if live_start else None
+                return (pid, "1000", 1)
+
+            with (
+                self.subTest(auto=auto, force=force, live_start=live_start),
+                patch.object(audio, "process_identity", side_effect=identity),
+                patch.object(audio, "discord_root", return_value=(100, "1000", 1)),
+                patch.object(audio, "descendant", return_value=False),
+                patch.object(audio, "capture_proxy", return_value=False),
+                patch.object(audio, "graph", return_value=[]),
+                patch.object(audio, "command", return_value="[]"),
+                patch.object(audio.Controller, "detect_portal") as portal,
+                patch.object(audio, "niri_request") as niri,
+                patch.object(audio.Controller, "emit") as emit,
+                patch.object(audio.Controller, "choose", return_value=None) as choose,
+                patch.object(audio, "Route") as route,
+            ):
+                controller = audio.Controller(100)
+                snapshot = {
+                    "requestId": 8,
+                    "method": "vkcapture",
+                    "sourceType": "window",
+                    "processIdentity": {"pid": 200, "start": "2000"},
+                }
+                controller.update(
+                    {
+                        "generation": 1,
+                        "enabled": True,
+                        "autoDetect": auto,
+                        "forcePicker": force,
+                        "capture": snapshot,
+                    }
+                )
+                controller.tick()
+                portal.assert_not_called()
+                niri.assert_not_called()
+                if expected == "manual":
+                    choose.assert_called_once()
+                    route.assert_not_called()
+                elif expected == "unavailable":
+                    choose.assert_not_called()
+                    route.assert_not_called()
+                    emit.assert_called_with(state="unavailable")
+                else:
+                    choose.assert_not_called()
+                    route.return_value.sync.assert_called_once_with(
+                        [], [], (200, "2000", 1), (100, "1000", 1)
+                    )
+                    controller.set_capture(snapshot)
+                    self.assertIsNotNone(controller.route)
+                    controller.update({"generation": 1, "capture": None})
+                    route.return_value.close.assert_called_once()
+                    controller.tick()
+                    self.assertIsNone(controller.route)
+
     def test_optimized_monitor_skip_and_manual_boundaries_without_video_nodes(self):
         for method, kind, skip, force, automatic in (
             ("kms", "screen", True, False, True),
