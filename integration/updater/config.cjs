@@ -207,6 +207,7 @@ function open(tab = "settings", sourceContents, options = {}) {
     return {
       ...desktop.status(),
       values: desktop.normalize(settings.get("openasar", {}).desktop),
+      linksDefault: desktop.linksDefault(),
       linksElsewhere: await desktop.linksElsewhere(),
     };
   };
@@ -245,12 +246,6 @@ function open(tab = "settings", sourceContents, options = {}) {
       console.error("Could not apply desktop preferences", error);
       errors.push("Settings saved. Restart Discord to finish applying these changes.");
     }
-    if (patch.discordLinks && !previous.desktop?.discordLinks)
-      try {
-        desktop.claimLinks();
-      } catch (error) {
-        errors.push(error.message);
-      }
     return { ...(await desktopState()), error: errors.join(" ") };
   });
   const spellingState = () => {

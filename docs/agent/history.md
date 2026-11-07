@@ -6,6 +6,7 @@ current workflows.
 
 ## Start here
 
+- [Discord link PR review and lifecycle checks](discord-links-review-20261107.md).
 - [Package removal and system capture cleanup](package-uninstall-20261107.md).
 - [KMS maintenance after one setup approval](kms-silent-maintenance-20261107.md).
 - [Automatic KMS helper maintenance and executable grants](kms-updater-binding-20261107.md).

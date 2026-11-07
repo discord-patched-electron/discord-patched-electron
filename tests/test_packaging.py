@@ -78,6 +78,9 @@ class Recipes(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             generate(runtime("prerelease"), client, "prerelease", 1, directory, camera=CAMERA)
+            self.assertIn(
+                "MimeType=x-scheme-handler/discord;", (directory / "discord.desktop").read_text()
+            )
             self.assertIn("install=discord.install", (directory / "PKGBUILD").read_text())
             hook = (directory / "discord.install").read_text()
             self.assertIn("pre_remove()", hook)

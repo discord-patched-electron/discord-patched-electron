@@ -92,7 +92,8 @@ test("bootstrap transforms restore settings through the renderer adapter and kee
   assert.ok(transformed.includes("renderer.cjs"));
   assert.ok(transformed.includes("preferences.cjs').startMinimized()"));
   assert.ok(transformed.includes("links.cjs').receive(a);"));
-  assert.ok(transformed.includes("if (link) desktopCore.handleOpenUrl(link);"));
+  assert.ok(transformed.includes("links.cjs').start(desktopCore);"));
+  assert.ok(transformed.includes("links.cjs').dispatch(desktopCore);"));
   assert.ok(bootstrap(entry, "index.js").includes("...settings.get('openasar', {})"));
   assert.ok(transformed.endsWith("  desktopCore = require('discord_desktop_core');\nafter"));
   assert.ok(bootstrap(entry, "index.js").includes("autoupdate: false"));

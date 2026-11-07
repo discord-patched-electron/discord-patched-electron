@@ -45,6 +45,11 @@ media player and respond to media keys for videos, voice messages and embedded
 players. It is off by default. Notification and calling sounds are excluded.
 Changes apply after restarting Discord; playback inside Discord is unaffected.
 
+**General → Links → Use this app** makes the installed DPE desktop entry handle
+`discord://` links. Welcome offers the same choice and leaves it unchecked when
+another app handles them. To choose a different handler later, use your system’s
+default applications. Opening Settings or restarting DPE does not reclaim links.
+
 **Appearance → Video popouts** controls floating windows, their titlebar, and
 automatic member-bar collapse when expanding a screenshare. All three default
 on. Global window controls Off also hides popout controls; extra legacy titlebar

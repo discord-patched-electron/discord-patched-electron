@@ -30,11 +30,11 @@ function bootstrap(source, filename, desktopExec) {
     );
     patch(
       "desktopCore.setMainWindowVisible(!startMin);",
-      "desktopCore.setMainWindowVisible(!startMin);\n    const link = require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').take();\n    if (link) desktopCore.handleOpenUrl(link);",
+      "desktopCore.setMainWindowVisible(!startMin);\n    require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').start(desktopCore);",
     );
     patch(
       "desktopCore?.handleOpenUrl?.(a.includes('--url') && a[a.indexOf('--') + 1]);",
-      "require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').receive(a);\n    if (desktopCore) desktopCore.handleOpenUrl(require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').take());",
+      "require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').receive(a);\n    require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').dispatch(desktopCore);",
     );
   } else if (filename === "index.js") {
     patch(

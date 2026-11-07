@@ -1179,10 +1179,10 @@ body[data-settings-tab="mods"] main {
   margin-block-start: var(--space-24, 24px);
 }
 .welcome-links label {
-  color: #fff;
+  color: var(--dpe-text);
 }
 .welcome-links .hint {
-  color: rgb(255 255 255 / 0.8);
+  color: var(--dpe-muted);
 }
 .onboarding-body #mods-panel {
   min-height: 250px;

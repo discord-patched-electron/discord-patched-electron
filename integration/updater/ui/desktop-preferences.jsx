@@ -1,11 +1,27 @@
 /** @jsxImportSource preact */
-import { useEffect, useRef, useState } from "preact/hooks";
-import { Button, InlineBullet, Switch, errorMessage } from "./primitives.jsx";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { Button, Switch, errorMessage } from "./primitives.jsx";
 
 export function useDesktopPreferences() {
   const [state, setState] = useState();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const focusAfterSave = useRef();
+  useLayoutEffect(() => {
+    if (busy || !focusAfterSave.current) return;
+    const focused = focusAfterSave.current;
+    focusAfterSave.current = undefined;
+    if (
+      document.activeElement !== document.body &&
+      !(document.activeElement === focused && focused.disabled)
+    )
+      return;
+    const target =
+      focused.id === "desktop-discord-links" && focused.disabled
+        ? document.getElementById("desktop-discord-links-help")
+        : focused;
+    if (target?.isConnected && !target.disabled) target.focus({ preventScroll: true });
+  });
   const changing = useRef(false);
   const current = useRef(true);
   const load = async () => {
@@ -30,6 +46,7 @@ export function useDesktopPreferences() {
     if (changing.current || !state) return;
     changing.current = true;
     const previous = state;
+    focusAfterSave.current = document.activeElement;
     setState({ ...state, values: { ...state.values, ...patch } });
     setBusy(true);
     setError("");
@@ -66,31 +83,26 @@ export function LinkPreferences({ model }) {
       <h3 class="section-label" id="desktop-links-heading">
         Links
       </h3>
-      <DesktopSwitch
-        model={model}
-        name="discordLinks"
-        {...discordLinkSwitch}
-        description={
-          !model.state?.linksElsewhere ? (
-            discordLinkSwitch.description
-          ) : !model.state.values.discordLinks ? (
-            discordLinkSwitch.elsewhere
-          ) : (
-            <>
-              {discordLinkSwitch.elsewhere}
-              <InlineBullet />
-              <button
-                type="button"
-                class="inline-link"
-                disabled={model.busy}
-                onClick={model.claimLinks}
-              >
-                Use this app
-              </button>
-            </>
-          )
-        }
-      />
+      <div class="setting-row">
+        <div>
+          <label for="desktop-discord-links">{discordLinkSwitch.label}</label>
+          <p id="desktop-discord-links-help" class="hint" tabIndex="-1">
+            {model.state?.linksDefault
+              ? "This app opens Discord links. You can change this in your system’s default applications."
+              : model.state?.linksElsewhere
+                ? discordLinkSwitch.elsewhere
+                : discordLinkSwitch.description}
+          </p>
+        </div>
+        <Button
+          id="desktop-discord-links"
+          disabled={model.busy || !model.state || model.state.linksDefault}
+          aria-describedby="desktop-discord-links-help"
+          onClick={model.claimLinks}
+        >
+          {model.state?.linksDefault ? "In use" : "Use this app"}
+        </Button>
+      </div>
     </section>
   );
 }

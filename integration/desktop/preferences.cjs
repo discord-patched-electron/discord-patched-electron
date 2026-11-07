@@ -17,7 +17,6 @@ const DEFAULTS = Object.freeze({
   appBadge: true,
   badgeOnlyMentions: false,
   startMinimized: false,
-  discordLinks: false,
   webcamFlip: false,
 });
 
@@ -330,11 +329,14 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
 
   function claimLinks() {
     if (
-      values.discordLinks &&
       !electron.app.isDefaultProtocolClient("discord") &&
       !electron.app.setAsDefaultProtocolClient("discord")
     )
       throw new Error("Could not make this app open Discord links.");
+    if (!electron.app.isDefaultProtocolClient("discord"))
+      throw new Error(
+        "Discord link registration did not take effect. Check your default applications.",
+      );
   }
 
   function linksElsewhere() {
@@ -385,6 +387,7 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
     status,
     apply,
     claimLinks,
+    linksDefault: () => electron.app.isDefaultProtocolClient("discord"),
     linksElsewhere,
     cameraStatus: async (web, value) => {
       if (![...windows.keys()].some((window) => window.webContents === web)) return;
@@ -500,6 +503,7 @@ for (const name of [
   "status",
   "apply",
   "claimLinks",
+  "linksDefault",
   "linksElsewhere",
   "effectiveControls",
   "subscribeControls",

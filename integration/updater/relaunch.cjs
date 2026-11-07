@@ -3,7 +3,9 @@
 function originalArguments(env = process.env) {
   try {
     const args = JSON.parse(env.DPE_LAUNCH_ARGS || "[]");
-    return Array.isArray(args) && args.every((arg) => typeof arg === "string") ? args : [];
+    return Array.isArray(args) && args.every((arg) => typeof arg === "string")
+      ? require("../desktop/links.cjs").relaunchArguments(args)
+      : [];
   } catch {
     return [];
   }

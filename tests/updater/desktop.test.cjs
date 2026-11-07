@@ -25,6 +25,7 @@ test("desktop identity is set before startup and icons cover every Electron wind
         },
       },
       require(name) {
+        if (name === "../desktop/links.cjs") return { receive() {} };
         if (name === "./diagnostic-log.cjs") return { record() {}, install() {}, capture() {} };
         if (name === "electron") return { app };
         if (name === "./patches.cjs") return {};

@@ -11,11 +11,22 @@ export function Onboarding({ model }) {
   const [links, setLinks] = useState();
   const operation = useRef(false);
   useEffect(() => {
+    let active = true;
     window.Native.desktopLoad()
-      .then(({ values, linksElsewhere }) =>
-        setLinks({ enabled: values.discordLinks || !linksElsewhere, elsewhere: linksElsewhere }),
-      )
-      .catch(() => setLinks({ enabled: false, elsewhere: false }));
+      .then(({ linksDefault, linksElsewhere }) => {
+        if (active)
+          setLinks({
+            enabled: linksDefault || !linksElsewhere,
+            elsewhere: linksElsewhere,
+            current: linksDefault,
+          });
+      })
+      .catch(() => {
+        if (active) setLinks({ enabled: false, elsewhere: true });
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   useLayoutEffect(() => {
     document.body.dataset.welcomePage = page === 1 ? "ready" : "mods";
@@ -54,13 +65,12 @@ export function Onboarding({ model }) {
     }
   };
   const finish = async (action) => {
-    if (operation.current || model.busy) return;
+    if (operation.current || model.busy || !links) return;
     operation.current = true;
     setWorking(true);
     setError("");
     try {
-      if (links) await window.Native.desktopSave({ discordLinks: links.enabled });
-      if (links?.enabled) await window.Native.desktopClaimLinks().catch(console.error);
+      if (links.enabled) await window.Native.desktopClaimLinks();
       const result = await window.Native.setupAction(action);
       if (result?.error) throw new Error(result.error);
     } catch (failure) {
@@ -128,10 +138,14 @@ export function WelcomeView({ model, page, working, error, links, setLinks, next
                 id="setup-discord-links"
                 label={discordLinkSwitch.label}
                 description={
-                  links?.elsewhere ? discordLinkSwitch.elsewhere : discordLinkSwitch.description
+                  links?.current
+                    ? "This app already opens Discord links."
+                    : links?.elsewhere
+                      ? discordLinkSwitch.elsewhere
+                      : discordLinkSwitch.description
                 }
                 checked={links?.enabled ?? false}
-                disabled={working || !links}
+                disabled={working || !links || links.current}
                 onChange={(enabled) => setLinks({ ...links, enabled })}
               />
             </div>
@@ -162,7 +176,7 @@ export function WelcomeView({ model, page, working, error, links, setLinks, next
             <div class="panel-actions">
               <Button
                 id="setup-configure"
-                disabled={working || model.busy}
+                disabled={working || model.busy || !links}
                 onClick={() => finish("configure")}
               >
                 Configure more
@@ -170,7 +184,7 @@ export function WelcomeView({ model, page, working, error, links, setLinks, next
               <Button
                 id="setup-done"
                 variant="primary"
-                disabled={working || model.busy}
+                disabled={working || model.busy || !links}
                 onClick={() => finish("done")}
               >
                 Restart to finish
