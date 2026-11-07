@@ -60,6 +60,13 @@ class UpdatePolicy(unittest.TestCase):
             "deferred",
         )
 
+    def test_local_compiler_attempt_resets_cooldown_without_paid_reservation(self):
+        self.state["last_compiler_attempt_at"] = "2026-10-28T03:00:00Z"
+        result = plan(self.state, self.policy, self.sources, "2026-10-28T04:00:00Z")
+        self.assertEqual(result["electron"]["action"], "deferred")
+        self.assertEqual(result["electron"]["next_routine_at"], "2026-11-01T03:00:00+00:00")
+        self.assertNotIn("blacksmith_reservations", self.state)
+
     def test_security_bypass_only_for_affected_current_and_fixed_candidate(self):
         advisory = {
             "ghsa_id": "GHSA-test",
