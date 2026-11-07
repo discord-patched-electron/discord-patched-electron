@@ -46,6 +46,14 @@ static struct spa_pod *offer(void *memory, size_t size, const char *kind) {
   return spa_pod_builder_pop(&builder, &frame);
 }
 int main(int argc, char **argv) {
+  if (argc == 2 && !strcmp(argv[1], "supports-drop")) {
+#ifdef SPA_POD_PROP_FLAG_DROP
+    puts("1");
+#else
+    puts("0");
+#endif
+    return 0;
+  }
   union {
     uint64_t align;
     unsigned char bytes[16384];
@@ -66,7 +74,10 @@ int main(int argc, char **argv) {
   memcpy(preferred.bytes, input.bytes, size);
   struct spa_pod *fixed = (void *)preferred.bytes, *result = NULL;
   struct spa_pod_builder builder = SPA_POD_BUILDER_INIT(memory.bytes, sizeof(memory.bytes));
-  int modified = spa_pod_filter_make(fixed);
+  int modified = 0;
+#ifdef SPA_POD_PROP_FLAG_DROP
+  modified = spa_pod_filter_make(fixed);
+#endif
   int status = spa_pod_filter(&builder, &result, producer, fixed);
   if (status < 0 && modified > 0) {
     spa_pod_builder_init(&builder, memory.bytes, sizeof(memory.bytes));

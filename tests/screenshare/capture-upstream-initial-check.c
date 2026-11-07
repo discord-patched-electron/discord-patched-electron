@@ -51,10 +51,15 @@ int main(void) {
   assert(fixture_initialize(&native, false)); // no core/loop functions at all
   fixture_request(60);
   uint8_t memory[512];
+#ifdef SPA_POD_PROP_FLAG_DROP
+  const unsigned preference = 60;
+#else
+  const unsigned preference = 0;
+#endif
   const struct spa_pod *pod = offer(memory, SPA_PARAM_EnumFormat, 0, 0);
   struct fixture_stream stream = {0};
-  run(&stream, pod, 60);
-  assert(metric("initial") == 1 && metric("late") == 1);
+  run(&stream, pod, preference);
+  assert(metric("initial") == (preference != 0) && metric("late") == 1);
   fixture_request(0);
   run(&stream, pod, 0);
   assert(metric("withoutRate") == 1);
@@ -68,7 +73,7 @@ int main(void) {
   run(&stream, pod, 0);
   pod = offer(memory, SPA_PARAM_EnumFormat, 0, 0);
   assert(fixture_update((void *)&stream, &pod, 1) == 0 && updates == 1);
-  expected = 60;
+  expected = preference;
   fail_connect = true;
   assert(fixture_connect((void *)&stream, PW_DIRECTION_INPUT, 7, PW_STREAM_FLAG_AUTOCONNECT, &pod,
                          1) == -EINVAL);

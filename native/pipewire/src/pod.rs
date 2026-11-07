@@ -264,7 +264,7 @@ impl<'a> Format<'a> {
         if !self.is_offer()
             || !(1..=240).contains(&fps)
             || self.property(f::DPE_POD_MAX_RATE).is_some()
-            || preference && !self.variable()
+            || preference && (f::DPE_POD_DROP == 0 || !self.variable())
         {
             return None;
         }

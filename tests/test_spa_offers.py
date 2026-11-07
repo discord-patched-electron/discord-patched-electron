@@ -50,6 +50,11 @@ class SpaOffers(unittest.TestCase):
     def test_preference_keeps_fixed_and_variable_producers_compatible(self):
         original = self.source("native")
         candidate = self.edited(original)
+        if subprocess.check_output([self.oracle, "supports-drop"]).strip() == b"0":
+            self.assertEqual(
+                candidate, original, "legacy SPA must retain compatible original offers"
+            )
+            return
         self.assertEqual(candidate[8 : len(original)], original[8:])
         self.assertEqual(len(candidate), len(original) + 56)
         for producer, maximum, rate in [
