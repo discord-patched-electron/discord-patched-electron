@@ -77,10 +77,12 @@ class ClientValidation(unittest.TestCase):
 
         with (
             patch("smoke_packages.download", side_effect=download) as downloads,
+            patch("smoke_packages.build_camera") as camera,
             patch("smoke_packages.subprocess.check_output", side_effect=command_output),
             patch("smoke_packages.package_one", side_effect=package) as recipes,
         ):
             report = smoke(output, self.lock, ["stable", "ptb", "canary"])
+        camera.assert_called_once_with(output / "downloads", hevc=True)
         self.assertFalse(report["all_selected_passed"])
         self.assertEqual(len(report["combinations"]), 3)
         self.assertEqual(recipes.call_count, 3)

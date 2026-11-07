@@ -100,6 +100,8 @@ class EncoderCompatibilityTests(unittest.TestCase):
                 "cc",
                 "-shared",
                 "-fPIC",
+                # Exercise the reviewed classic PLT even on CET-default toolchains.
+                "-fcf-protection=none",
                 "-Wl,-z,lazy",
                 "-o",
                 str(module),

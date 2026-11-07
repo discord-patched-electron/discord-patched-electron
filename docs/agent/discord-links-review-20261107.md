@@ -45,7 +45,7 @@ and confirms that the synthetic URI reaches its handler. Evidence is under
 `out/pr-11-review/os-protocol-gio/`. Bare generic `xdg-open` in Xvfb has no desktop
 browser backend; that case is not counted as a dispatch pass.
 
-Repository lint and the full suite pass: 800 Python tests, 468 JavaScript passes
+Repository lint and the full suite pass: 801 Python tests, 468 JavaScript passes
 with 3 skips, and 93 Rust passes with 6 ignored tests. The packaging regressions
 also check the generated desktop MIME declaration.
 
@@ -88,3 +88,32 @@ report checks the camera library dependencies and generated package. Evidence:
 `out/pr-11-review/arch-packages-verified/packaging-report.json`. This check uses a
 dummy Electron runtime and creates a non-publishable package; it does not qualify
 a release runtime.
+
+The next Ubuntu test run exposed fixture portability assumptions. Picker tests
+now resolve the active Node installation's development headers. The packaging
+orchestration unit test replaces the native build with a mock and asserts its
+HEVC-enabled invocation; actual builds remain separate integration checks. The
+encoder linkage fixture explicitly selects classic PLT code generation rather
+than Ubuntu's default CET layout, preserving the production ABI guards. The
+capture fixture supplies private PipeWire libraries with and without the
+optional buffer-return symbol, testing both latest-frame selection and the
+existing FIFO fallback on every host.
+
+All 18 affected tests pass in an Ubuntu 24.04 container using Node 24.22.2 and the
+pinned Rust toolchain (`out/pr-11-review/ubuntu-portability.log`). Building the
+real codec helper there also exposed the older libva headers' required include
+order: the encoder wrapper now includes `va.h` before `va_vpp.h`. The repaired
+camera/codec build passes, including FFmpeg-feature Clippy and final linking;
+evidence is in `out/pr-11-review/ubuntu-camera-build-fixed.log` and
+`out/pr-11-review/ubuntu-cache/camera-support/`.
+
+Standalone capture staging inside `out/` exposed Git's parent-repository path
+filtering: `git apply` could return success while skipping the extracted hook
+patches. Both hook patches now share an isolated application step that stops
+repository discovery at the extracted source and clears inherited Git checkout
+paths. The regression applies a real patch under both a parent checkout and an
+unavailable host worktree, verifies the changed bytes, and rejects reapplication.
+The full Ubuntu capture bundle now builds with both patched hooks and 529
+inventoried files (`out/pr-11-review/ubuntu-capture-build-verified.log` and
+`out/pr-11-review/ubuntu-cache/capture-support/capture-bundle.json`). No hook is
+installed or loaded by that check.

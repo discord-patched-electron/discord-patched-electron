@@ -9,7 +9,7 @@ from pathlib import Path
 from build_rust_support import build as build_rust
 from build_rust_support import stage_source as stage_rust_source
 from common import ROOT, sha256, write_json
-from stage_vkcapture import COMMIT, URL, stage
+from stage_vkcapture import COMMIT, URL, apply_source_patch, stage
 
 
 def build(output, archive=None):
@@ -33,8 +33,7 @@ def build(output, archive=None):
     stage(archive, source_output)
     source = source_output / f"obs-vkcapture-{COMMIT}"
     patch = ROOT / "patches/capture/vkcapture-dpe-handoff.patch"
-    subprocess.run(["git", "apply", "--check", str(patch)], cwd=source, check=True)
-    subprocess.run(["git", "apply", str(patch)], cwd=source, check=True)
+    apply_source_patch(source, patch)
     for name in (
         "vkcapture-wire.h",
         "vkcapture-hook.h",

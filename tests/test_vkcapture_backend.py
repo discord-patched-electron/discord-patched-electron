@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from build_rust_support import build as build_rust
 from build_vkcapture_backend import build
+from stage_vkcapture import apply_source_patch
 
 
 def module(name, filename):
@@ -30,6 +31,37 @@ command = module("dpe_game_command_test", "gamecapture-command.py")
 
 
 class GameCapture(unittest.TestCase):
+    def test_source_patches_apply_inside_checkouts_and_host_only_worktrees(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            patch = root / "source.patch"
+            patch.write_text(
+                "diff --git a/fixture.txt b/fixture.txt\n"
+                "--- a/fixture.txt\n+++ b/fixture.txt\n"
+                "@@ -1 +1 @@\n-before\n+after\n"
+            )
+            for layout in ("checkout", "worktree"):
+                with self.subTest(layout=layout):
+                    repo = root / layout
+                    source = repo / "out/source"
+                    source.mkdir(parents=True)
+                    if layout == "checkout":
+                        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+                    else:
+                        (repo / ".git").write_text("gitdir: /unmounted/host/worktree\n")
+                    target = source / "fixture.txt"
+                    target.write_text("before\n")
+                    with mock.patch.dict(
+                        os.environ,
+                        {"GIT_DIR": str(repo / ".git"), "GIT_WORK_TREE": str(repo)},
+                    ):
+                        apply_source_patch(source, patch)
+                    self.assertEqual(target.read_text(), "after\n")
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        apply_source_patch(source, patch)
+                    self.assertEqual(target.read_text(), "after\n")
+                    self.assertFalse((repo / "fixture.txt").exists())
+
     def test_literal_launcher_placeholders_explain_steam_substitution(self):
         for placeholder in ("game-command", "%command%"):
             with self.subTest(placeholder=placeholder):

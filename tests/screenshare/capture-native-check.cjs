@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { createHash } = require("node:crypto");
 const { load } = require("../../integration/video/capture.cjs");
-const [directory, helper, mode] = process.argv.slice(2);
+const [directory, helper, mode, supportsReturn] = process.argv.slice(2);
 const filename = path.join(directory, "discord_voice.node");
 const fixture = require(filename);
 const metadata = {
@@ -49,8 +49,9 @@ assert.equal(
   counters.processingUsLog2.reduce((sum, value) => sum + value, 0),
   1,
 );
-if (mode !== "observe") {
-  assert.equal(counters.latestEnabled, true);
+const latest = mode !== "observe" && supportsReturn === "yes";
+assert.equal(counters.latestEnabled, latest);
+if (latest) {
   assert.deepEqual(result, { selected: 3, released: 4, dequeued: 4 });
   assert.equal(counters.skippedFrames, 3);
 } else {
