@@ -60,6 +60,8 @@ user may still control Discord. Turning off direct capture or
 experimental capture removes its rule after authorization; cancellation or a
 removal failure restores the toggle. A status error explains obsolete permissions
 or a restricted launch environment. Restart DPE outside that restriction if needed.
+Package removal cleans up the associated system capture permissions; see
+[uninstalling](install.md#uninstall) for portable cleanup.
 
 ## Quality and codecs
 

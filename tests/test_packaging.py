@@ -78,6 +78,14 @@ class Recipes(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             generate(runtime("prerelease"), client, "prerelease", 1, directory, camera=CAMERA)
+            self.assertIn("install=discord.install", (directory / "PKGBUILD").read_text())
+            hook = (directory / "discord.install").read_text()
+            self.assertIn("pre_remove()", hook)
+            self.assertIn(
+                "/usr/lib/discord-canary-prerelease-patched-electron-bin/uninstall.py", hook
+            )
+            self.assertNotIn("pre_upgrade", hook)
+            subprocess.run(["bash", "-n", str(directory / "discord.install")], check=True)
             # Run the real copy step and load its Python entry point outside the
             # repository. --help stops before any archive extraction or patching.
             subprocess.run(
@@ -102,6 +110,7 @@ class Recipes(unittest.TestCase):
             # New native/video dependencies must survive standalone extraction.
             for name in (
                 "scripts/patch_vaapi_hrd.py",
+                "integration/bootstrap/uninstall.py",
                 "scripts/patch_capture_dimensions.py",
                 "scripts/patch_capture_chroma.py",
                 "scripts/patch_decoder_eagain.py",

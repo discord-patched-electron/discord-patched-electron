@@ -41,6 +41,7 @@ def bundle(app: Path, archive: Path, version: str, epoch: int) -> dict:
 def bootstrap(source: Path, output: Path, application: dict, tag: str, channel: str, track: str):
     output.mkdir()
     shutil.copy2(ROOT / "integration/bootstrap/loader.py", output / "loader.py")
+    shutil.copy2(ROOT / "integration/bootstrap/uninstall.py", output / "uninstall.py")
     shutil.copy2(ROOT / "packaging/release-signing-key.asc", output)
     for path in [source / "discord.png", *source.glob("*.desktop")]:
         shutil.copy2(path, output)
@@ -70,6 +71,7 @@ def bootstrap(source: Path, output: Path, application: dict, tag: str, channel: 
         "Run ./launch.sh. First launch downloads the verified application and Electron.\n"
         "Approved application, OpenAsar, patch and updater changes install automatically on restart.\n"
         "Your package manager maintains only this bootstrap, desktop entries and system dependencies.\n"
+        "Before deleting a portable install, remove system capture permissions: sudo python3 -I ./uninstall.py\n"
         "See https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/install.md\n"
     )
     validate_bootstrap(output)
@@ -80,6 +82,7 @@ def bootstrap(source: Path, output: Path, application: dict, tag: str, channel: 
 def validate_bootstrap(app: Path):
     allowed = {
         "loader.py",
+        "uninstall.py",
         "launch.sh",
         "bootstrap.json",
         "release-signing-key.asc",
@@ -88,9 +91,13 @@ def validate_bootstrap(app: Path):
         "SHA256SUMS",
         "licenses",
     }
-    if not {"loader.py", "launch.sh", "bootstrap.json", "release-signing-key.asc"}.issubset(
-        {p.name for p in app.iterdir()}
-    ):
+    if not {
+        "loader.py",
+        "uninstall.py",
+        "launch.sh",
+        "bootstrap.json",
+        "release-signing-key.asc",
+    }.issubset({p.name for p in app.iterdir()}):
         raise ValueError("Incomplete bootstrap package")
     for path in app.rglob("*"):
         relative = path.relative_to(app)

@@ -99,6 +99,23 @@ class PortableReleases(unittest.TestCase):
                 payload = Path(config["contents"][0]["src"])
                 self.assertFalse((payload / "runtime").exists())
                 self.assertTrue((payload / "loader.py").is_file())
+                self.assertEqual(
+                    (payload / "uninstall.py").read_bytes(),
+                    (ROOT / "integration/bootstrap/uninstall.py").read_bytes(),
+                )
+                kind = command[command.index("--packager") + 1]
+                scripts = config["overrides"][kind]["scripts"]
+                self.assertIn(
+                    f"/opt/{config['name']}/uninstall.py", Path(scripts["preremove"]).read_text()
+                )
+                if kind == "deb":
+                    self.assertIn("postinstall", scripts)
+                    profile = next(
+                        item
+                        for item in config["contents"]
+                        if item["dst"].startswith("/etc/apparmor.d/")
+                    )
+                    self.assertNotEqual(profile.get("type"), "config")
                 self.assertFalse((payload / "resources").exists())
                 self.assertFalse((payload / "integration").exists())
                 Path(command[command.index("--target") + 1]).write_bytes(b"package fixture")
@@ -137,8 +154,24 @@ class PortableReleases(unittest.TestCase):
                 checksums = archive.extractfile(names[0] + "/SHA256SUMS").read().decode()
                 self.assertNotIn("runtime/", checksums)
                 self.assertIn("bootstrap.json", checksums)
+                self.assertIn("uninstall.py", checksums)
                 self.assertNotIn("runtime-update.json", checksums)
-            self.assertFalse(read_json(output / "release.json")["bundled_electron"])
+            released = read_json(output / "release.json")
+            self.assertFalse(released["bundled_electron"])
+            self.assertEqual(
+                released["capture_maintenance"]["components"],
+                {
+                    "runtime": sha256(app / "runtime/electron"),
+                    **{
+                        role: sha256(app / relative)
+                        for role, relative in {
+                            "server": "capture/dpe-kms-server",
+                            "maintainer": "integration/video/kms-maintenance.py",
+                            "installer": "integration/video/kms-permission-setup.py",
+                        }.items()
+                    },
+                },
+            )
             self.assertEqual(read_json(app / "runtime-update.json"), policy)
             self.assertEqual(
                 (app / "runtime/electron").read_bytes(), b"large verified runtime fixture"

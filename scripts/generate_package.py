@@ -64,6 +64,7 @@ SUPPORT = [
     "scripts/stage_package.py",
     "scripts/application_payload.py",
     "integration/bootstrap/loader.py",
+    "integration/bootstrap/uninstall.py",
     "scripts/stage_updater.py",
     "scripts/stage_capture_backends.py",
     "scripts/build_vkcapture_backend.py",
@@ -222,6 +223,14 @@ def generate(
     # No shared x-scheme-handler/discord association: installing a second channel
     # must not silently change which client receives the user's Discord links.
     write_file(output / "discord.desktop", desktop.encode())
+    write_file(
+        output / "discord.install",
+        (ROOT / "packaging/linux/discord.install.in")
+        .read_text()
+        .replace("@ROOT@", f"/usr/lib/{name}")
+        .replace("@PKGNAME@", name)
+        .encode(),
+    )
     inputs = {
         "schema": 1,
         "package": name,

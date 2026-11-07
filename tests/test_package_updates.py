@@ -117,7 +117,7 @@ class PackageUpdates(unittest.TestCase):
             },
             tag,
         )
-        self.assertNotIn("install=discord.install", minimal)
+        self.assertIn("install=discord.install", minimal)
         self.assertNotIn("application.zip", minimal)
         subprocess.run(["bash", "-n"], input=text, text=True, check=True)
         with self.assertRaisesRegex(ValueError, "identity"):

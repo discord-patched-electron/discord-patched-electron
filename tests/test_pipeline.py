@@ -177,6 +177,9 @@ class VersionsAndKeys(unittest.TestCase):
                 "scripts/appimage.py",
                 "scripts/stage_appimage_dependencies.sh",
                 "packaging/linux/appimage-apprun.sh",
+                "integration/bootstrap/uninstall.py",
+                "packaging/linux/preremove.sh",
+                "packaging/linux/discord.install.in",
                 "integration/audio/system-tools.cjs",
             ):
                 with self.subTest(path=name):

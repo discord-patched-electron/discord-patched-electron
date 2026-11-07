@@ -6,6 +6,7 @@ current workflows.
 
 ## Start here
 
+- [Package removal and system capture cleanup](package-uninstall-20261107.md).
 - [KMS maintenance after one setup approval](kms-silent-maintenance-20261107.md).
 - [Automatic KMS helper maintenance and executable grants](kms-updater-binding-20261107.md).
 - [Native12 resource comparison, Native13 live capture and limits](capture-native12-comparison-20261107.md).

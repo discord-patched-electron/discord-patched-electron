@@ -152,6 +152,36 @@ Discord's hosted web interface updates independently of these desktop releases.
 To hear about new builds, select **Watch → Custom → Releases** on GitHub and
 choose your delivery method in [notification settings](https://github.com/settings/notifications).
 
+## Uninstall
+
+Remove the package with your package manager: `sudo pacman -R
+discord-canary-prerelease-patched-electron-bin`, `sudo apt remove
+discord-canary-prerelease-patched-electron-bin`, or `sudo dnf remove
+discord-canary-prerelease-patched-electron-bin`.
+Packages with capture cleanup revoke the removed channel's KMS grants. Removing
+the last DPE package also deletes its system helper, maintenance permission and
+polkit rules. Package upgrades retain these permissions. Your settings, login
+and downloads remain in your profile. Debian removal also unloads and removes
+the package's AppArmor profile.
+
+Before deleting a tarball installation, run this from its folder:
+
+```sh
+sudo python3 -I ./uninstall.py
+```
+
+For an AppImage, extract it first, then use the same cleanup with Python 3.11 or newer:
+
+```sh
+./discord-canary-prerelease-patched-electron-bin-x86_64.AppImage --appimage-extract
+sudo python3 -I squashfs-root/usr/lib/dpe/uninstall.py
+```
+
+Then delete the portable folder or AppImage and its extracted `squashfs-root`
+folder. Portable cleanup preserves permissions while a managed DPE package is
+still installed. Deleting a portable file alone cannot run cleanup. Older
+packages without `uninstall.py` need an updated bootstrap package first.
+
 ## Startup problems
 
 First launch downloads the application, then shows a setup dialog while Electron

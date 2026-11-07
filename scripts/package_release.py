@@ -38,6 +38,25 @@ from stage_updater import validate_distribution
 REPOSITORY = "https://github.com/discord-patched-electron/discord-patched-electron"
 
 
+def removal_scripts(output: Path, name: str) -> dict[str, str]:
+    scripts = {}
+    for kind, guard in {
+        "deb": '[ "${1:-}" = remove ] || exit 0',
+        "rpm": '[ "${1:-}" = 0 ] || exit 0',
+        "archlinux": "# nFPM maps this to pre_remove, separate from pre_upgrade.",
+    }.items():
+        preremove = output / f"preremove-{kind}.sh"
+        preremove.write_text(
+            (ROOT / "packaging/linux/preremove.sh")
+            .read_text()
+            .replace("@PKGNAME@", name)
+            .replace("@FORMAT@", kind)
+            .replace("@REMOVE_GUARD@", guard)
+        )
+        scripts[kind] = str(preremove)
+    return scripts
+
+
 def required_glibc(app: Path) -> str:
     versions = {(2, 35)}
 
@@ -324,9 +343,11 @@ def package(
         (ROOT / "packaging/linux/postinstall.sh").read_text().replace("@PKGNAME@", name)
     )
     config["contents"].append(
-        {"src": str(profile), "dst": f"/etc/apparmor.d/{name}", "type": "config", "packager": "deb"}
+        {"src": str(profile), "dst": f"/etc/apparmor.d/{name}", "packager": "deb"}
     )
     config["overrides"]["deb"]["scripts"] = {"postinstall": str(postinstall)}
+    for kind, script in removal_scripts(output, name).items():
+        config["overrides"][kind].setdefault("scripts", {})["preremove"] = script
     write_json(output / "nfpm.json", config)
     files = sorted(path for path in app.rglob("*") if path.is_file() and path.name != "SHA256SUMS")
     (app / "SHA256SUMS").write_text(
