@@ -8,6 +8,10 @@ current workflows.
 
 - [KMS maintenance after one setup approval](kms-silent-maintenance-20261107.md).
 - [Automatic KMS helper maintenance and executable grants](kms-updater-binding-20261107.md).
+- [Native12 resource comparison, Native13 live capture and limits](capture-native12-comparison-20261107.md).
+- [Live preview repair, Rust migration and stage profiling](capture-rust-profiling-20261106.md).
+
+- [Managed latest capture build and launch validation](dev-capture-latest-20261106.md).
 
 - [Current direct capture versus PipeWire and remaining gaps](current-pipewire-comparison-20261105.md).
 
@@ -16,6 +20,8 @@ current workflows.
 - [VAAPI encoder import reuse and measurements](encoder-import-reuse-20261105.md).
 
 - [PipeWire-free game and KMS capture](direct-gpu-capture-20261105.md).
+
+- [Optimized capture resource and throughput benchmarks](capture-efficiency-20261105.md).
 
 - [Vkcapture cursor feasibility, protocol implementation and validation](vkcapture-cursor-20261105.md).
 

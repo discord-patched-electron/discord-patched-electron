@@ -14,6 +14,7 @@ import statistics
 import subprocess
 from pathlib import Path
 
+from build_rust_support import inputs as rust_inputs
 from check_screenshare import check
 from common import ROOT, hash_files, sha256, write_json
 
@@ -158,8 +159,10 @@ def main():
                 "scripts/check_screenshare.py",
                 "scripts/benchmark_screenshare.py",
                 "scripts/capture_scope.py",
-                "integration/video/capture.c",
+                *rust_inputs(),
+                "scripts/build_capture_fixture.py",
                 "integration/video/capture.cjs",
+                "integration/video/dpe-native-identity.cjs",
                 *sorted(
                     str(path.relative_to(ROOT))
                     for path in (ROOT / "tests/screenshare").iterdir()

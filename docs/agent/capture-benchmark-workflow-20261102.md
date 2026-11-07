@@ -43,6 +43,20 @@ all other workload/encoding options identical. For the old game path, pass its
 retained bundle to the same command. Alternate case order across repeats, and
 retain failures instead of averaging only successful runs.
 
+For direct monitor capture, use `--method wayland --wayland-helper
+/path/to/capture/dpe-wayland-source` or `--method kms --kms-helper
+/path/to/capture/dpe-kms-source`. Both inventory the explicitly selected monitor
+before capture. Wayland requires a supported compositor protocol; KMS requires
+existing authorization. The runner does not install permissions. Keep helper
+and game binaries in one verified capture bundle.
+
+For PipeWire-free game/KMS qualification, add `--capture-transport direct-gpu
+--direct-helper /path/to/capture/dpe-direct-source` and keep `--delivery normal`.
+The helper must belong to the same staged bundle. The runner forces the bundled
+GL synchronization bridge for this path and requires direct transport evidence,
+zero PipeWire capture frames, zero hardware-path CPU readbacks and actual
+hardware-encoded, decoded frames. `--method portal` remains the PipeWire control.
+
 `--game-handoff copy|relay` sets the candidate producer's explicit handoff mode
 through `DPE_GAME_CAPTURE_HANDOFF`. It defaults to `copy`. Compare both modes
 using the same newly built hook bundle so hook changes are not a confounder.
@@ -50,10 +64,14 @@ using the same newly built hook bundle so hook changes are not a confounder.
 `--delivery normal|probe|fast` selects native delivery cadence explicitly. Normal
 disables the production custom-source optimization for a true baseline; probe
 keeps normal cadence and logs identities; fast logs and filters repeats at a
-higher native polling rate. Use the same mode for both methods. Runtime evidence
+higher native cadence with event-driven wakeups where supported. Use the same mode for both methods. Runtime evidence
 must match the configured experiment or validation fails. `--gl-semaphore-sync`
-enables the production GL visibility bridge in the owned game; omitting it
-explicitly disables it for a comparison. `--source-display x11` exercises GLX;
+requests the production GL visibility bridge in the owned game; omitting it
+explicitly disables it for a comparison. Direct/relay hook allocation can
+activate the bridge; forced-copy allocation retains its legacy path even with
+the flag. Confirm activation in the workload log, not from the requested flag.
+Copy-versus-relay runs therefore compare whole paths rather than isolating one
+GPU copy. `--source-display x11` exercises GLX;
 Wayland/EGL remains the default. The workload's PID-qualified title identifies
 its Xwayland window even when the compositor reports its proxy PID.
 
@@ -81,6 +99,17 @@ separate comparison and must never be counted as equal 1080p throughput.
   observed CPU and DRM engine deltas, with pressure separated from native cost.
   The sampler follows children spawned from every thread, deduplicates DRM
   client IDs within each group, and distinguishes PID reuse by process start.
+  Group summaries also report mean and peak summed process RSS when available.
+  These use simultaneous resident-page totals, not summed lifetime peaks.
+  CPU/RSS/DRM sampling runs every 0.5 seconds. PSS snapshots default to every two
+  seconds and at phase changes, because reading `smaps_rollup` walks process
+  mappings. Use `--memory-sample-seconds 0.5` for transient-memory diagnostics.
+  Unsampled PSS stays absent and is excluded from memory means; it is neither
+  zero-filled nor repeated from an older snapshot. `pssSamples` records coverage.
+  Each raw sample also records the observer thread's CPU/wall cost separately
+  from capture totals. Only that sampling thread lowers itself to nice +10
+  (or preserves a lower inherited priority); source and compositor priorities
+  remain unchanged.
 - `cleanup.json` and `result.json` retain child exits and overall outcome.
 
 The portal path currently requires niri's Mutter-compatible ScreenCast API. It
@@ -97,6 +126,12 @@ DRM engine percentages are process-client accounting, not whole-device power
 or GPU execution timestamps. Missing counters remain missing. An isolated
 high-FPS shader is not equivalent to Minecraft's game logic or GPU workload;
 pressure comparisons add contention but do not establish an internet-viewer fix.
+Summed RSS can count shared pages more than once and excludes GPU allocations;
+it is not proportional memory or total physical memory use. Include the owned
+workload's counters when assessing game capture: hook work runs inside that
+process. Compare a separate uncaptured workload before attributing its entire
+CPU cost to capture. Production custom-source delivery uses the fast cadence;
+normal-cadence results alone do not qualify its production resource cost.
 
 Offline tests cover non-main-thread descendants, duplicate DRM descriptors,
 PID reuse and coalesced protocol replies. No hardware result is implied by
