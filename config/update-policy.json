@@ -1,14 +1,14 @@
 {
   "electron_interval_hours": 96,
   "last_good_runtime": {
-    "archive_sha256": "981f5d9cfcace0b4491807c1a2e9180643ae0d59fe4589e5f513cc890990951c",
-    "cache_release": "runtime-cache-dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
-    "capacity_sha256": "37defb70f12c23fae2a25e635aab671bd87f8bbeb0ff78159f5b8d2fdcee6b72",
-    "compiler_commit": "4c8eb42c0ce0ddd38b52752572043413938b17d9",
-    "completed_at": "2026-11-01T09:21:43Z",
-    "run": "41282631878",
-    "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
-    "version": "46.0.0-alpha.1"
+    "archive_sha256": "675ab047f31ed82fa72c87b0198fbc824bab76fb02a388bedd618ec7438d812f",
+    "cache_release": "runtime-cache-9ce794464fc2288eb95783be29deb2c7fc5d0c57c2d71aa48a68bc56669d79eb",
+    "capacity_sha256": "d3d1a865ad970bfa848cfb446db30b9c16a7dbae1a73d8d33bdc70bf4e311fff",
+    "compiler_commit": "983b6fd435d0ea8c41b21a8cd1bceed8c35e018c",
+    "completed_at": "2026-11-08T02:03:39Z",
+    "run": "42436865632",
+    "runtime_key": "9ce794464fc2288eb95783be29deb2c7fc5d0c57c2d71aa48a68bc56669d79eb",
+    "version": "46.0.0-alpha.6"
   },
   "max_update_attempts": 3,
   "retry_minutes": [
