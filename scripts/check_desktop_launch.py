@@ -66,11 +66,15 @@ def check(
         port = reservation.getsockname()[1]
     profile = (profile or output / "profile").resolve()
     launcher_app = app
+    startup_timeout = 120
     launch_environment = dict(os.environ)
     if launcher and (app / "bootstrap.json").exists():
         launch_environment["APPIMAGE"] = str(launcher.resolve())
         launch_environment["APPDIR"] = str(app.parents[2])
     if (app / "bootstrap.json").exists():
+        # A fresh minimal bootstrap downloads the client modules before loading
+        # the login page. Keep that cold network path bounded separately.
+        startup_timeout = 300
         command = ["python3", "-I", str(app / "loader.py"), "--profile", str(profile), "--resolve"]
         if application_archive:
             command += ["--archive", str(application_archive.resolve())]
@@ -135,7 +139,7 @@ def check(
             start_new_session=True,
         )
         try:
-            deadline = time.monotonic() + 120
+            deadline = time.monotonic() + startup_timeout
             while time.monotonic() < deadline and (
                 process.poll() is None or report.get("setup_done_sent")
             ):
