@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "runtime_key": "9ce794464fc2288eb95783be29deb2c7fc5d0c57c2d71aa48a68bc56669d79eb",
+  "assets": {
+    "capacity.json": "e4038277ed030adfc233335abafc57f051432cf873db2b64f02e9c4fe7fd59bb",
+    "local-build-provenance.json": "9da3d728e2f08e54a6efcace85156c67652166ec657c6f9a8fe861f6eb1a69a5",
+    "runtime-dist.zip": "675ab047f31ed82fa72c87b0198fbc824bab76fb02a388bedd618ec7438d812f"
+  }
+}

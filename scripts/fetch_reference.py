@@ -142,16 +142,22 @@ def fetch(run_id: str, output: Path, *, capacity_only=False):
             ".github/workflows/capacity.yml",
             ".github/workflows/blacksmith-capacity.yml",
             ".github/workflows/build.yml",
+            ".github/workflows/import-runtime.yml",
         }
     ):
         raise ValueError("Expected a successful main-branch compiler run")
     output.mkdir(parents=True, exist_ok=True)
     attempt = metadata["run_attempt"]
-    candidate = metadata["path"] == ".github/workflows/build.yml"
+    imported = metadata["path"] == ".github/workflows/import-runtime.yml"
+    candidate = metadata["path"] in {
+        ".github/workflows/build.yml",
+        ".github/workflows/import-runtime.yml",
+    }
     report_name = {
         ".github/workflows/capacity.yml": "capacity-report",
         ".github/workflows/blacksmith-capacity.yml": "blacksmith-capacity",
         ".github/workflows/build.yml": "candidate-capacity",
+        ".github/workflows/import-runtime.yml": "candidate-capacity",
     }[metadata["path"]]
     good = read_json(ROOT / "config/update-policy.json")["last_good_runtime"]
     cached = run_id == good["run"] and metadata["head_sha"] == good["compiler_commit"]
@@ -226,6 +232,16 @@ def fetch(run_id: str, output: Path, *, capacity_only=False):
             "compiler_attempt": attempt,
             "validation_commit": os.environ.get("GITHUB_SHA"),
             "capacity": capacity,
+            **(
+                {
+                    "compiler_provider": "local",
+                    "local_build_provenance": read_json(
+                        output / "capacity/local-build-provenance.json"
+                    ),
+                }
+                if imported
+                else {}
+            ),
             "archive_sha256": sha256(archive),
             "publishable": False,
         },

@@ -6,6 +6,12 @@ Review every [upstream diff](upstream-update-review.md) before qualification.
 
 ## Create a candidate
 
+For a locally compiled runtime, pin the runtime key and cache asset checksums in
+`config/local-runtime.json`, then run **Import local Electron runtime** on `main`.
+The import checks the compiler report against current native inputs and retains
+the local build provenance. Its successful run starts the same qualification
+workflow below without allocating a compiler runner.
+
 Discovery normally starts qualification automatically. For a manual candidate,
 run [Release Linux packages](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/release.yml):
 
