@@ -431,12 +431,12 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
             [
                 "git",
                 "log",
-                "--first-parent",
+                "--no-merges",
                 "--format=%H%x09%s",
-                *([] if approved else ["--max-count=30"]),
                 f"{previous['source_commit']}..{commit}" if previous else commit,
                 "--",
                 "integration",
+                "native",
                 "scripts",
                 "packaging",
                 "patches",
@@ -446,6 +446,10 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
                 "uv.lock",
                 "package.json",
                 "bun.lock",
+                "Cargo.toml",
+                "Cargo.lock",
+                "rust-toolchain.toml",
+                ".cargo",
                 ":(exclude)config/update-proposals/**",
                 ":(exclude)config/approved*.json",
             ],
@@ -464,13 +468,10 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
         subject = re.sub(r"([\\`*_\[\]<>])", r"\\\1", subject).replace("@", "＠")
         badge = "**NEW** " if category == "New" else ""
         project_changes.append((category, f"- {badge}{subject} ([{sha[:7]}]({URL}/commit/{sha}))"))
-    visible_changes = project_changes if approved else project_changes[:5]
     for category in ("New", "Improvements", "Fixes"):
-        entries = [line for group, line in visible_changes if group == category]
+        entries = [line for group, line in project_changes if group == category]
         if entries:
             changes.extend(["", "### " + category, "", *entries])
-    if not approved and len(project_changes) > 5:
-        changes.append("- Additional project changes are in the full changelog.")
     if previous is None:
         changes.append(
             "- First stable release. Project changes include the history through this build."
@@ -522,7 +523,7 @@ def refresh_notes(tag: str | None, *, apply: bool = False):
         manifest = fetch(release)
         current = api("releases/" + str(release["id"])) if apply else release
         approved = not current["prerelease"]
-        previous = previous_release(manifest, releases, fetch, approved_only=approved)
+        previous = previous_release(manifest, releases, fetch, approved_only=True)
         body = notes(manifest, previous, approved=approved)
         (output / (release["tag_name"] + ".before.md")).write_text(current.get("body") or "")
         (output / (release["tag_name"] + ".md")).write_text(body)
@@ -613,7 +614,7 @@ def publish(directory: Path):
     if existing and not existing["draft"]:
         return
     cache_runtime(manifest)
-    previous = previous_release(manifest, published_releases())
+    previous = previous_release(manifest, published_releases(), approved_only=True)
     body = directory.parent / "release-notes.md"
     body.write_text(notes(manifest, previous))
     title = f"Discord {manifest['channel'].title()} {manifest['client_version']} / Electron {manifest['electron_version']} ({manifest['version']})"

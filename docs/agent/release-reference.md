@@ -36,13 +36,15 @@ containers don't verify a full desktop session or live call.
 
 After all checks pass, CI uploads every asset before publishing a public GitHub
 test release. Release notes include upstream versions, a distribution/package table,
-a link to check results and at most five relevant project commits, grouped into new features, improvements
-and fixes, since the
-preceding release for the same channel and Electron track. All supported tag
+a link to check results and every relevant project commit, grouped into new
+features, improvements and fixes, since the preceding approved release for the
+same channel and Electron track. Candidate notes use this same baseline, so
+intermediate test builds do not hide changes. Merged branch commits, native
+helpers and Rust dependency changes are included. All supported tag
 formats are recognized; ordering uses build versions rather than publication
 time. Notes show Discord/Electron version changes and same-version module or
 runtime changes. Approval commits, proposal records and documentation-only
-commits stay out of the short list. The full comparison remains linked.
+commits stay out of the list. The full comparison remains linked.
 
 Before packaging a public candidate, CI commits its exact client pins, runtime
 identity, source commit and discovery snapshot to

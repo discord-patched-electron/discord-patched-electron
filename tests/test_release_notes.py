@@ -161,7 +161,7 @@ class ReleaseNotes(unittest.TestCase):
         self.assertIn("Discord modules updated: `discord_voice`", body)
         self.assertIn("rebuilt; runtime archive changed", body)
 
-    def test_git_range_omits_docs_and_approval_noise_and_limits_project_changes(self):
+    def test_git_range_includes_all_changes_and_merged_native_work_without_metadata_noise(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
 
@@ -181,10 +181,14 @@ class ReleaseNotes(unittest.TestCase):
                 return git("rev-parse", "HEAD")
 
             baseline = commit("scripts/app.py", "old", "Old shipped behavior")
-            # Exceed both the five-entry display limit and the thirty-commit
-            # prerelease scan limit. Stable notes must carry all of these.
+            # Candidates and stable releases both retain the full history.
             for index in range(35):
                 commit("scripts/app.py", str(index), f"Fix behavior {index}")
+            git("checkout", "--quiet", "-b", "native-change")
+            commit("native/bridge/src/lib.rs", "fixture", "Fix native-only merged behavior")
+            commit("Cargo.toml", "fixture", "Update Rust dependency policy")
+            git("checkout", "--quiet", "-")
+            git("merge", "--quiet", "--no-ff", "native-change", "-m", "Merge native work")
             commit("docs/install.md", "docs", "Documentation only")
             commit("config/update-policy.json", "{}", "Approve tested Canary release")
             head = commit(
@@ -201,12 +205,17 @@ class ReleaseNotes(unittest.TestCase):
                     approved=True,
                 )
                 first_stable = notes(manifest(source_commit=head), None, approved=True)
-        self.assertEqual(body.count("- Fix behavior"), 5)
+        self.assertEqual(body.count("- Fix behavior"), 35)
         self.assertEqual(stable_body.count("- Fix behavior"), 35)
         self.assertEqual(first_stable.count("- Fix behavior"), 35)
         self.assertIn("Old shipped behavior", first_stable)
         self.assertIn("First stable release", first_stable)
         self.assertNotIn("Additional project changes", stable_body)
+        for changelog in (body, stable_body, first_stable):
+            self.assertIn("Fix native-only merged behavior", changelog)
+            self.assertIn("Update Rust dependency policy", changelog)
+            self.assertNotIn("Merge native work", changelog)
+            self.assertNotIn("Additional project changes", changelog)
         for excluded in (
             "Old shipped behavior",
             "Documentation only",
@@ -215,7 +224,6 @@ class ReleaseNotes(unittest.TestCase):
         ):
             self.assertNotIn(excluded, body)
             self.assertNotIn(excluded, stable_body)
-        self.assertIn("Additional project changes", body)
 
     def test_categories_reserve_new_for_explicit_features_and_escape_subjects(self):
         commits = [

@@ -5,6 +5,7 @@ import os
 import stat
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 
@@ -146,9 +147,11 @@ class KmsPermission(unittest.TestCase):
                     return_value=os.stat_result((stat.S_IFREG | 0o600, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
                 ),
                 patch.object(setup, "read_payload") as read,
+                patch.object(setup, "as_user", return_value=nullcontext()) as identity,
             ):
                 setup.change(1000, False)
                 read.assert_not_called()
+                identity.assert_called_once_with(1000)
             self.assertFalse((root / "permissions/1000").exists())
             self.assertFalse((rules / "50-discord-patched-electron-kms-1000.rules").exists())
             self.assertTrue((root / "permissions/1001").exists())
@@ -195,6 +198,7 @@ class KmsPermission(unittest.TestCase):
                     patch.object(setup, "executable_grant", return_value=binding),
                     patch.object(setup, "atomic_write", side_effect=write),
                     patch.object(setup, "bootstrap_maintenance", return_value=None),
+                    patch.object(setup, "as_user", return_value=nullcontext()) as identity,
                     patch.object(
                         setup.pwd,
                         "getpwuid",
@@ -213,6 +217,7 @@ class KmsPermission(unittest.TestCase):
                             setup.change(1000, True, 123)
                     else:
                         setup.change(1000, True, 123)
+                    identity.assert_called_once_with(1000)
                 if fail:
                     self.assertFalse(marker.exists())
                 else:
