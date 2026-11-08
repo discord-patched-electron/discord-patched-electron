@@ -3,9 +3,11 @@
 // Status queries never prompt or capture.
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 const { execFile } = require("node:child_process");
 const { createHash } = require("node:crypto");
 const { Buffer } = require("node:buffer");
+const { record } = require("./diagnostic-log.cjs");
 const ROOT = "/usr/local/libexec/discord-patched-electron";
 const SERVER = `${ROOT}/kms-server`;
 const ACTION = "org.discord-patched-electron.capture";
@@ -106,6 +108,38 @@ function authority() {
 function installer() {
   return path.join(process.env.DPE_APP_ROOT || "", "integration/video/kms-permission-setup.py");
 }
+// Root cannot read a default AppImage FUSE mount. Stage only the permission
+// installer and its bounded inputs on the host filesystem before authentication.
+function stageInstaller() {
+  if (!process.env.APPIMAGE) return { file: installer(), close() {} };
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "dpe-capture-setup-"));
+  const close = () => fs.rmSync(directory, { recursive: true, force: true });
+  try {
+    for (const [relative, maximum] of [
+      ["integration/video/kms-permission-setup.py", 128 * 1024],
+      ["integration/video/kms-maintenance.py", 128 * 1024],
+      ["integration/updater/release-signing-key.asc", 64 * 1024],
+      ["capture/dpe-kms-server", 2 * 1024 * 1024],
+      ["capture/kms-server.json", 4096],
+      ["runtime-update.json", 64 * 1024],
+    ]) {
+      const target = path.join(directory, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(
+        target,
+        boundedFile(path.join(process.env.DPE_APP_ROOT, relative), maximum),
+        {
+          mode: relative.endsWith(".py") ? 0o700 : 0o600,
+          flag: "wx",
+        },
+      );
+    }
+    return { file: path.join(directory, "integration/video/kms-permission-setup.py"), close };
+  } catch (error) {
+    close();
+    throw error;
+  }
+}
 function readable(file, mode = fs.constants.R_OK) {
   try {
     fs.accessSync(file, mode);
@@ -193,13 +227,14 @@ async function status() {
     readable(path.join(app, "capture/dpe-kms-server"), fs.constants.R_OK | fs.constants.X_OK) &&
     readable(path.join(app, "capture/kms-server.json")),
   );
-  if (current && (await granted())) return result(true, available, null, canRevoke);
+  const upToDate = current && binaryCurrent && maintenanceCurrent;
+  if (upToDate && (await granted())) return result(true, available, null, canRevoke);
   return result(
     false,
     available,
     !available
       ? "setup-unavailable"
-      : current
+      : upToDate
         ? "permission-denied"
         : configured
           ? "permission-update-required"
@@ -224,6 +259,7 @@ function setEnabled(enabled, initial = false) {
     const lease = silent
       ? require("./capture-kms-authorizer.cjs").createLease(MAINTAINER)
       : undefined;
+    const staged = silent ? undefined : stageInstaller();
     return new Promise((resolve) => {
       const host = require("./capture-host.cjs");
       const execute = host.restricted() ? host.execFile : execFile;
@@ -241,12 +277,13 @@ function setEnabled(enabled, initial = false) {
             ]
           : [
               "--disable-internal-agent",
-              installer(),
+              staged.file,
               ...(enabled ? ["--allow", String(process.pid)] : ["--revoke"]),
             ],
         { env: { PATH: "/usr/bin", LANG: "C" }, timeout: silent ? 60000 : 120000, maxBuffer: 4096 },
-        async (error) => {
+        async (error, _stdout, stderr) => {
           lease?.close();
+          staged?.close();
           let value = await status();
           // Both the new action and its per-user rule reload asynchronously.
           // Revocation is immediate at the helper's marker, even before reload.
@@ -259,7 +296,15 @@ function setEnabled(enabled, initial = false) {
             value = await status();
           }
           if (enabled ? value.allowed && !value.needsUpdate : !value.configured) resolve(value);
-          else
+          else {
+            record("capture-permission-failed", {
+              enabled,
+              silent,
+              code: error?.code,
+              signal: error?.signal,
+              stderr: typeof stderr === "string" ? stderr.slice(-4096) : "",
+              status: value,
+            });
             resolve({
               ...value,
               reason:
@@ -271,6 +316,7 @@ function setEnabled(enabled, initial = false) {
                       ? "update-not-approved"
                       : "setup-failed",
             });
+          }
         },
       );
     });

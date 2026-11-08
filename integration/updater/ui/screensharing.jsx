@@ -13,7 +13,7 @@ import {
 
 const permissionReasons = {
   "update-not-approved":
-    "The capture helper update could not be verified. Connect to the internet and restart DPE, or update permission manually.",
+    "The capture helper update could not be verified. Connect to the internet and restart DPE, or enable Allow direct screen capture again.",
   "helper-missing": "Direct capture setup is unavailable in this build.",
   "authorization-unavailable":
     "Desktop authorization is unavailable. Check that polkit and an authentication agent are running.",
@@ -506,8 +506,7 @@ export function Screensharing({ active, config }) {
                 Direct capture is insecure compared to PipeWire because it bypasses the desktop
                 permission picker. Permission is limited to the currently authorized Discord
                 executable and its capture workers. Initial approval enables verified helper updates
-                without further authentication. Other apps running as your user may still control
-                Discord.
+                without further authentication.
                 <span
                   id="screenshare-permission-status"
                   class="dpe-setting-feedback"
@@ -534,31 +533,21 @@ export function Screensharing({ active, config }) {
                 </span>
               </>
             }
-            checked={permissionTarget ?? permission?.configured === true}
+            checked={
+              permissionTarget ?? (permission?.configured === true && !permission.needsUpdate)
+            }
             pending={permissionBusy || busy}
             disabled={
               (!values?.experimentalCapture && !permission?.configured) ||
               busy ||
               permissionBusy ||
               !permission ||
-              (permission.configured
+              (permission.configured && !permission.needsUpdate
                 ? permission.canRevoke === false
                 : permission.available === false)
             }
             onChange={allowCapture}
           />
-          {values?.experimentalCapture &&
-            permission?.configured &&
-            (!permission.allowed || permission.needsUpdate) &&
-            permission.available && (
-              <Button
-                id="screenshare-permission-update"
-                disabled={busy || permissionBusy}
-                onClick={() => allowCapture(true)}
-              >
-                {permission.allowed ? "Update helper" : "Update permission"}
-              </Button>
-            )}
           <Switch
             id="screenshare-pacing"
             label="Match capture to the share frame rate"

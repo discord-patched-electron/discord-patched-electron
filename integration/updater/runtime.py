@@ -511,7 +511,36 @@ def _ensure_runtime(
         if offline:
             # A new application payload has a new resource path, but may pin
             # the same Electron. Reuse it before bootstrap opens a download UI.
-            return install_runtime(root, app, policy, pinned_runtime(policy), offline=True)
+            try:
+                return install_runtime(root, app, policy, pinned_runtime(policy), offline=True)
+            except FAILURES:
+                if not bootstrap or os.environ.get("DPE_RUNTIME_BUNDLED") == "1":
+                    raise
+            # Only the startup UI uses an older verified runtime. The normal
+            # check prepares the new pins behind that UI before client launch.
+            candidates = []
+            for pointer in root.parent.glob("*/current.json"):
+                try:
+                    digest = json.loads(pointer.read_text())
+                    cached = pointer.parent / "generations" / digest
+                    previous_app = (cached / "resources").resolve().parent
+                    _, info = validate_generation(pointer.parent, previous_app, policy, digest)
+                    electron_version(info["electron_version"])
+                    candidates.append(info)
+                except FAILURES:
+                    continue
+            for info in sorted(
+                candidates,
+                key=lambda item: electron_version(item["electron_version"]),
+                reverse=True,
+            ):
+                try:
+                    return install_runtime(root, app, policy, info, offline=True)
+                except FAILURES:
+                    continue
+            raise ValueError(
+                "No verified Electron runtime is cached; launch once with internet access"
+            )
         updates = (
             os.environ.get("DPE_RUNTIME_UPDATES") != "0"
             and os.environ.get("DPE_RUNTIME_BUNDLED") != "1"

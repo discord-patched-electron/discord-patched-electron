@@ -502,6 +502,8 @@ impl Actor {
         {
             return Err("invalid-game-texture");
         }
+        // Experimental cursor composition is currently unsupported.
+        /*
         if self.mode == Mode::Relay
             && self.texture().is_none()
             && ((u32::from_ne_bytes(packet.name[..4].try_into().unwrap()) != 0
@@ -512,6 +514,7 @@ impl Actor {
             self.mode = Mode::Copy;
             self.fallback = "cursor-composition";
         }
+        */
         let mut texture = Texture {
             packet,
             descriptors,

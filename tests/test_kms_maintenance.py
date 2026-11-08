@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import threading
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -174,6 +175,7 @@ class Maintenance(unittest.TestCase):
             (root / "maintenance-authority.json").write_text(json.dumps(global_state))
             writes = []
             setup = SimpleNamespace(
+                as_user=lambda _: nullcontext(),
                 executable_grant=lambda *_: b"binding",
                 apply=lambda *args, **kwargs: writes.append((args, kwargs)),
             )

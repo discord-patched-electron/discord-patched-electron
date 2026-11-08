@@ -351,6 +351,7 @@ pub fn render_device(uuid: [u8; 16], requested: &CStr) -> io::Result<(u32, u32)>
     Err(io::ErrorKind::NotFound.into())
 }
 
+#[cfg(test)] // Experimental vkcapture cursor bitmaps are not used in production.
 pub fn sealed_bitmap(pixels: &[u32]) -> io::Result<OwnedFd> {
     // SAFETY: creates a private empty, sealable anonymous file.
     let fd = unsafe {

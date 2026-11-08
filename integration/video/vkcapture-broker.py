@@ -290,9 +290,10 @@ class Broker:
             )
             if key in os.environ
         }
-        identifier = sway_cursor_toplevel(peer)
-        if identifier:
-            environment["DPE_GAME_CURSOR_TOPLEVEL"] = identifier
+        # Experimental vkcapture cursor capture is currently unsupported.
+        # identifier = sway_cursor_toplevel(peer)
+        # if identifier:
+        #     environment["DPE_GAME_CURSOR_TOPLEVEL"] = identifier
         handoff = environment.get("DPE_GAME_CAPTURE_HANDOFF", "auto")
         if handoff not in ("auto", "copy", "relay"):
             raise ValueError("Invalid game capture handoff")

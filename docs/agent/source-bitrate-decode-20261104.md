@@ -1,5 +1,10 @@
 # Live source budgeting and receive decoder diagnostics
 
+Follow-up, 8 November: [source-based bitrate ceilings](source-bitrate-ceiling-20261108.md)
+corrects the default viewer policy's selected-resolution denominator. The
+historical default-off behavior below now preserves viewer adaptation against
+the available source raster.
+
 Follow-up, 5 November: the viewer-bitrate override below is now opt-in through
 DPE Settings > Screensharing > Quality > **Preserve bitrate in smaller viewer
 windows** (`preserveViewerBitrate`, default false). Off returns the reviewed

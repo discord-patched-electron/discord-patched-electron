@@ -213,9 +213,7 @@ def authorize(uid, pid, endpoint, token, app):
             if not byte:
                 raise ValueError("Maintenance caller disconnected")
             reply.extend(byte)
-        expected = (
-            os.fsencode(ROOT / "kms-maintenance") + b"\n" + os.fsencode(app.resolve()) + b"\n"
-        )
+        expected = os.fsencode(ROOT / "kms-maintenance") + b"\n" + os.fsencode(app) + b"\n"
         if reply != expected:
             raise ValueError("Wrong maintenance worker or active application")
         return peer
@@ -228,7 +226,7 @@ def runtime_identity(setup, uid, pid):
     binding = setup.executable_grant(uid, pid)
     # A pathname alone never chooses a runtime. Hash the live kernel executable,
     # then recheck the inode/change metadata used by the grant.
-    with Path(f"/proc/{pid}/exe").open("rb") as executable:
+    with setup.as_user(uid), Path(f"/proc/{pid}/exe").open("rb") as executable:
         digest = hashlib.file_digest(executable, "sha256").hexdigest()
     if setup.executable_grant(uid, pid) != binding:
         raise ValueError("Running executable changed")
@@ -243,7 +241,8 @@ def refresh(setup, uid, pid, app, endpoint, token, *, revoke=False):
         if policy.get("schema") != 1 or policy.get("enabled") is not True:
             raise ValueError("Maintenance not enabled")
         binding, runtime_digest = runtime_identity(setup, uid, pid)
-        incoming, payloads = descriptor(app, runtime_digest)
+        with setup.as_user(uid):
+            incoming, payloads = descriptor(app, runtime_digest)
         global_authority = json.loads(
             read_file(ROOT / "maintenance-authority.json", 16384, root=True)
         )

@@ -27,6 +27,21 @@ fn identity(m: &std::fs::Metadata) -> Option<[u64; 5]> {
         u64::try_from(i128::from(m.ctime()) * 1_000_000_000 + i128::from(m.ctime_nsec())).ok()?,
     ])
 }
+// Linux fsuid is per-thread: allow read-only identity checks on a user's
+// AppImage FUSE mount without changing the server's process credentials.
+struct FsUid(libc::uid_t);
+impl FsUid {
+    fn user(uid: libc::uid_t) -> Self {
+        // SAFETY: scalar per-thread filesystem credential change, restored by Drop.
+        Self(unsafe { libc::setfsuid(uid) } as libc::uid_t)
+    }
+}
+impl Drop for FsUid {
+    fn drop(&mut self) {
+        // SAFETY: restore the exact previous per-thread filesystem credential.
+        unsafe { libc::setfsuid(self.0) };
+    }
+}
 impl Grant {
     pub(crate) fn parse(bytes: &[u8]) -> Option<Self> {
         let mut lines = std::str::from_utf8(bytes).ok()?.split('\n');
@@ -79,6 +94,7 @@ impl Grant {
                 return None;
             }
             // procfs opens the actual running inode, including across path swaps.
+            let _access = FsUid::user(uid);
             let live = File::open(&executable).ok()?;
             let current = File::open(&self.path).ok()?;
             if identity(&live.metadata().ok()?)? != self.identity

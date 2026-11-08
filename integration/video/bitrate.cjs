@@ -54,7 +54,6 @@ module.exports = function installBitrate(options, runtime) {
         connections.delete(connection);
         continue;
       }
-      if (!state.preserveViewerBitrate) continue;
       const last = connection.lastDesktopEncodingOptions;
       if (owned(connection) && connection.hasDesktopSource?.() && last) {
         const update = connection.updateVideoQuality;
@@ -144,7 +143,6 @@ module.exports = function installBitrate(options, runtime) {
       const ceiling = this.goliveMaxQuality;
       const encode = ceiling?.encode;
       if (
-        state.preserveViewerBitrate &&
         owned(connection) &&
         state.constantsReviewed &&
         quality &&
@@ -157,6 +155,34 @@ module.exports = function installBitrate(options, runtime) {
         Number.isFinite(quality.bitrateMax) &&
         quality.bitrateMax <= ceiling.bitrateMax
       ) {
+        if (!state.preserveViewerBitrate) {
+          if (!sourceSize || !(encode.pixelCount > 0) || !(args[1] > 0)) return quality;
+          const pixels = Math.min(encode.pixelCount, sourceSize.width * sourceSize.height);
+          if (pixels === encode.pixelCount) return quality;
+          // The selected raster is an upper bound, not the available source.
+          // Reuse Discord's reviewed viewer-demand policy with the source as
+          // its denominator, preserving the negotiated cap and native geometry.
+          const policy = Object.create(this);
+          Object.defineProperty(policy, "goliveMaxQuality", {
+            value: { ...ceiling, encode: { ...encode, pixelCount: pixels } },
+          });
+          let sourceQuality;
+          try {
+            sourceQuality = Reflect.apply(original, policy, args);
+          } catch {
+            // A policy that requires private receiver state keeps native behavior.
+            return quality;
+          }
+          if (
+            !Number.isFinite(sourceQuality?.bitrateMax) ||
+            sourceQuality.bitrateMax < 0 ||
+            sourceQuality.bitrateMax > ceiling.bitrateMax
+          )
+            return quality;
+          return Object.assign(Object.create(Object.getPrototypeOf(quality)), quality, {
+            bitrateMax: sourceQuality.bitrateMax,
+          });
+        }
         state.preservedCeilings++;
         // Budget the available source raster at the selected encode quality.
         // Receiver pixel wants do not change this policy's encode dimensions,

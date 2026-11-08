@@ -13,8 +13,18 @@ bun run dev run current --profile dev --watch
 
 Use a version shown by `list`. `--profile` selects an independent login, settings
 and mods; log in manually on first use. Reuse that profile when switching versions.
-Stop with **Ctrl+C**. Concurrent runs need different versions **and** profiles.
+Stop with **Ctrl+C**. Concurrent runs need different profiles; they can share the same version.
 Managed runs use pinned inputs and disable automatic DPE updates.
+The startup screen stays visible while modules download and helpers are prepared.
+
+For two instances, run these commands in separate terminals:
+
+```sh
+bun run dev run current --profile dev --watch
+bun run dev run current --profile other --watch
+```
+
+Shared helper edits affect both instances; each watcher restarts its own profile.
 
 | Mode      | Behavior                                                                     |
 | --------- | ---------------------------------------------------------------------------- |

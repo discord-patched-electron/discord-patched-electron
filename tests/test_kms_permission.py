@@ -84,6 +84,37 @@ class KmsPermission(unittest.TestCase):
             with self.assertRaises(OSError):
                 setup.read_payload()
 
+    def test_filesystem_identity_restores_nested_contexts_and_errors(self):
+        identity = 0
+        transitions = []
+
+        def switch(uid):
+            nonlocal identity
+            previous = identity
+            if uid != setup._QUERY_FSUID:
+                transitions.append(uid)
+                identity = uid
+            return previous
+
+        with (
+            patch.object(setup, "_SETFSUID", side_effect=switch),
+            patch.object(os, "seteuid") as euid,
+        ):
+            with self.assertRaisesRegex(ValueError, "stop"):
+                with setup.as_user(1000):
+                    with setup.as_user(1000):
+                        self.assertEqual(identity, 1000)
+                        raise ValueError("stop")
+            self.assertEqual(identity, 0)
+            self.assertEqual(transitions, [1000, 1000, 1000, 0])
+            euid.assert_not_called()
+
+    def test_filesystem_identity_rejects_a_silent_switch_failure(self):
+        with patch.object(setup, "_SETFSUID", return_value=0):
+            with self.assertRaises(PermissionError):
+                with setup.as_user(1000):
+                    self.fail("Unverified filesystem identity was accepted")
+
     def test_executable_binding_uses_the_live_inode_and_rejects_another_owner(self):
         binding = setup.executable_grant(os.getuid(), os.getpid())
         self.assertTrue(binding.startswith(b"DPE-KMS-3\n"))

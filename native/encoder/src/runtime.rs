@@ -466,8 +466,9 @@ impl Codec {
                     return Err(());
                 }
                 let key = value.flags & f::AV_PKT_FLAG_KEY as i32 != 0;
+                // Repeat the source rectangle so late viewers and decoder resets
+                // recover without depending on retained metadata.
                 if codec == 2
-                    && key
                     && (pending.crop.width != pending.meta.width
                         || pending.crop.height != pending.meta.height)
                 {

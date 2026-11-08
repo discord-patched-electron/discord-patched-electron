@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Same-user direct capture producer. No image readback, PipeWire connection or
 //! GPU encoding lives here; descriptor leases and explicit fences cross IPC.
-mod cursor;
+// Experimental vkcapture cursor support is currently unsupported.
+// mod cursor;
 mod game;
 mod system;
 #[allow(

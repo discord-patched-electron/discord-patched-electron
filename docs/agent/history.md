@@ -4,6 +4,10 @@ Dated reports and retained evidence. Check current code and locks before reusing
 commands, versions or results. Start with the [maintainer guide](README.md) for
 current workflows.
 
+- [Source-based screenshare bitrate ceilings](source-bitrate-ceiling-20261108.md)
+- [Runtime update and managed startup splash](startup-splash-20261108.md)
+- [Capture and settings fixes](capture-settings-fixes-20261108.md)
+
 ## Start here
 
 - [Canary 1.0.2472 dev update and native patch review](client-2472-compatibility.md).

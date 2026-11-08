@@ -81,6 +81,7 @@ function fixture(options = {}) {
     require: contextRequire,
   });
   function contextRequire(name) {
+    if (name === "./diagnostic-log.cjs") return { record() {} };
     if (name === "node:fs")
       return {
         constants: fs.constants,
@@ -273,7 +274,7 @@ test("blocked/missing assets/cancelled setup preserve state and never imply a re
     (await fixture({ missing: ["/app/capture/dpe-kms-server"] }).api.status()).reason,
     "setup-unavailable",
   );
-  const f = fixture({ allowed: true });
+  const f = fixture({ allowed: true, maintenance: true });
   const attempt = f.api.revoke();
   await flush();
   f.finish({ code: 126 });
@@ -320,10 +321,12 @@ test("restricted launches use a verified user service for explicit permission ch
   assert.equal((await revoke).configured, false);
 });
 
-test("a helper update preserves its existing grant and requires an explicit allow", async () => {
+test("a helper update keeps its grant configured but disables capture until explicit allow", async () => {
   const f = fixture({ allowed: true, outdated: true });
   const before = await f.api.status();
-  assert.equal(before.allowed, true);
+  assert.equal(before.allowed, false);
+  assert.equal(before.configured, true);
+  assert.equal(before.reason, "permission-update-required");
   assert.equal(before.needsUpdate, true);
   assert.equal(
     f.calls.some((c) => c.file === "/usr/bin/pkexec"),
@@ -345,7 +348,8 @@ test("a helper update preserves its existing grant and requires an explicit allo
   await flush();
   cancelled.finish({ code: 126 });
   const state = await attempt;
-  assert.equal(state.allowed, true);
+  assert.equal(state.allowed, false);
+  assert.equal(state.configured, true);
   assert.equal(state.needsUpdate, true);
   assert.equal(state.reason, "authorization-cancelled");
 });
@@ -355,11 +359,13 @@ test("oversized or unavailable helper manifests cannot authorize an update", asy
     allowed: true,
     missing: ["/app/capture/kms-server.json"],
   }).api.status();
-  assert.equal(missing.allowed, true);
+  assert.equal(missing.allowed, false);
+  assert.equal(missing.configured, true);
   assert.equal(missing.available, false);
   const f = fixture({ allowed: true, outdated: true, oversized: `${root}/kms-server` });
   const state = await f.api.status();
-  assert.equal(state.allowed, true);
+  assert.equal(state.allowed, false);
+  assert.equal(state.configured, true);
   assert.equal(state.needsUpdate, true);
 });
 

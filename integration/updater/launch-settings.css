@@ -34,6 +34,7 @@ html,
 body {
   margin: 0;
   height: 100%;
+  overflow: hidden;
 }
 body {
   display: flex;
@@ -123,6 +124,7 @@ h3 {
   grid-template-columns: var(--dpe-discord-sidebar-width, 253px) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 .settings-sidebar {
   display: flex;
@@ -619,7 +621,8 @@ body[data-settings-tab="theming"] #container {
   width: 40px;
   height: 40px;
   object-fit: contain;
-  border-radius: var(--radius-md, 12px);
+  border-radius: 0;
+  background: transparent;
 }
 .mod-copy {
   min-width: 0;
@@ -888,14 +891,15 @@ body[data-settings-tab="theming"] #container {
   .settings-layout {
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
   }
   .settings-sidebar {
     flex: none;
     border-inline-end: 0;
     border-block-end: 1px solid var(--dpe-border);
-    overflow: visible;
+    overflow-y: auto;
+    max-height: 40%;
     padding: var(--space-8, 8px);
   }
   .project-header {
@@ -954,27 +958,27 @@ body[data-settings-tab="theming"] #container {
     display: none;
   }
   .settings-content {
-    overflow: visible;
+    overflow: hidden;
     flex: 1;
   }
   .content-header {
     height: 40px;
   }
   .settings-content main {
-    overflow: visible;
+    overflow-y: auto;
     padding: var(--space-20, 20px) 0;
   }
 }
 @media (max-height: 540px) {
   .settings-layout {
-    overflow: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
   }
   .settings-sidebar {
-    min-height: 100%;
+    min-height: 0;
   }
   main {
-    overflow: visible;
+    overflow-y: auto;
   }
 }
 
@@ -1056,7 +1060,7 @@ body[data-settings-tab="theming"] #container {
 }
 @media (max-width: 440px), (max-height: 540px) {
   body[data-settings-tab="theming"] main {
-    overflow: visible;
+    overflow-y: auto;
   }
 }
 

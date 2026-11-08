@@ -7,8 +7,10 @@ use crate::{
     target::Shader,
 };
 use dpe_core::cursor::Cursor;
+#[cfg(test)]
+use std::ffi::CString;
 use std::{
-    ffi::{CStr, CString},
+    ffi::CStr,
     os::fd::{FromRawFd, OwnedFd},
     ptr,
     rc::Rc,
@@ -149,6 +151,7 @@ impl Renderer {
             f::glGetError() == f::GL_NO_ERROR
         }
     }
+    #[allow(dead_code)] // Retained experimental cursor implementation.
     fn draw_cursor(&mut self, words: &[u32]) {
         let Some(cursor) = Cursor::parse(words) else {
             return;
@@ -230,6 +233,7 @@ impl Drop for Renderer {
         }
     }
 }
+#[allow(dead_code)] // Retained experimental cursor implementation.
 pub struct CursorOwner {
     x11: usize,
     wayland: usize,
@@ -237,6 +241,8 @@ pub struct CursorOwner {
 }
 impl CursorOwner {
     pub fn new() -> Self {
+        // Experimental vkcapture cursor acquisition is currently unsupported.
+        /*
         let id = std::env::var_os("DPE_GAME_CURSOR_TOPLEVEL")
             .and_then(|s| CString::new(s.as_encoded_bytes()).ok());
         // SAFETY: terminated identifier remains borrowed only during creation.
@@ -244,6 +250,8 @@ impl CursorOwner {
             0,
             |id| unsafe { dpe_wayland::dpe_wl_cursor_create(id.as_ptr()) } as usize,
         );
+        */
+        let wayland = 0;
         // Wayland selection never falls back to a stale Xwayland cursor.
         Self {
             x11: 0,
@@ -251,7 +259,9 @@ impl CursorOwner {
             is_wayland: std::env::var_os("WAYLAND_DISPLAY").is_some(),
         }
     }
-    pub fn draw(&mut self, renderer: &mut Renderer, window: u32, size: (u32, u32)) {
+    pub fn draw(&mut self, _renderer: &mut Renderer, _window: u32, _size: (u32, u32)) {
+        // Experimental vkcapture cursor support is currently unsupported.
+        /*
         if self.wayland != 0 {
             dpe_wayland::with_metadata(self.wayland, size.0, size.1, |words| {
                 renderer.draw_cursor(words)
@@ -264,6 +274,7 @@ impl CursorOwner {
                 renderer.draw_cursor(words)
             });
         }
+        */
     }
 }
 impl Drop for CursorOwner {

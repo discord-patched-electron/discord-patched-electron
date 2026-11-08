@@ -193,9 +193,8 @@ impl State {
                     if self.sequence == Some(true) || first & 0xe0 == 0 {
                         self.active = None;
                     }
-                    if self.sequence.is_some()
-                        && let Some(crop) = pending
-                    {
+                    // Decoder configuration may carry the sequence header separately.
+                    if let Some(crop) = pending {
                         self.active = Some(crop);
                     }
                     pending = None;
@@ -292,7 +291,10 @@ mod tests {
         assert_eq!(state.read(&DELTA), Some(CROP));
         assert_eq!(state.read(&[0x32, 1]), None);
         assert_eq!(state, State::default());
-        assert_eq!(state.read(&[metadata.as_slice(), &DELTA].concat()), None);
+        assert_eq!(
+            state.read(&[metadata.as_slice(), &DELTA].concat()),
+            Some(CROP)
+        );
         assert_eq!(
             state.read(&[SEQUENCE.as_slice(), &metadata, &KEY, &DELTA].concat()),
             None

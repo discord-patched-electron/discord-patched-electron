@@ -1,5 +1,6 @@
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,50 @@ spec.loader.exec_module(audio)
 
 
 class WaylandIdentity(unittest.TestCase):
+    def test_other_dpe_profiles_are_excluded_without_environment_markers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary) / "other/app-1.0.1"
+            sidecar = profile / "preload/libdpe-camera-probe.so"
+            sidecar.parent.mkdir(parents=True)
+            sidecar.write_bytes(b"DPE fixture")
+            with (
+                patch.object(audio, "process_identity", return_value=(200, "start", 1)),
+                patch.object(audio.os, "readlink", return_value=str(profile / "electron")),
+                patch.object(Path, "read_bytes", side_effect=PermissionError),
+            ):
+                self.assertTrue(audio.dpe_process(200))
+
+    def test_cached_dpe_runtime_is_excluded_through_its_resource_link(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary) / "application"
+            (app / "integration/audio").mkdir(parents=True)
+            (app / "integration/audio/app-audio.cjs").write_text("DPE fixture")
+            (app / "libdpe-camera-probe.so").write_bytes(b"fixture")
+            (app / "resources").mkdir()
+            runtime = Path(temporary) / "cache/runtime"
+            runtime.mkdir(parents=True)
+            (runtime / "resources").symlink_to(app / "resources")
+            readlink = audio.os.readlink
+
+            def executable_link(path, *args, **kwargs):
+                if str(path) == "/proc/200/exe":
+                    return str(runtime / "electron")
+                return readlink(path, *args, **kwargs)
+
+            with patch.object(audio.os, "readlink", side_effect=executable_link):
+                self.assertTrue(audio.dpe_executable(200))
+                (app / "libdpe-camera-probe.so").unlink()
+                self.assertFalse(audio.dpe_executable(200))
+
+    def test_detached_dpe_worker_ancestry_uses_executable_identity(self):
+        identities = {201: (201, "worker", 200), 200: (200, "other-dpe", 1)}
+        with (
+            patch.object(audio, "process_identity", side_effect=identities.get),
+            patch.object(audio, "dpe_executable", side_effect=lambda pid: pid == 200),
+            patch.object(Path, "read_bytes", return_value=b"UNRELATED=1\0"),
+        ):
+            self.assertTrue(audio.dpe_process(201))
+
     def test_appimage_audio_helpers_always_use_host_paths(self):
         with patch.dict("os.environ", {}, clear=True):
             self.assertEqual(audio.system_tool("pw-dump"), "/usr/bin/pw-dump")

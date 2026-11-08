@@ -36,11 +36,12 @@ def name(value: str) -> str:
 
 
 @contextlib.contextmanager
-def lock(path: Path):
+def lock(path: Path, *, shared: bool = False, wait: bool = False):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a") as stream:
         try:
-            fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            operation = fcntl.LOCK_SH if shared else fcntl.LOCK_EX
+            fcntl.flock(stream, operation | (0 if wait else fcntl.LOCK_NB))
         except BlockingIOError as error:
             raise ValueError(f"In use by another dev manager: {path.stem}") from error
         try:
@@ -141,30 +142,9 @@ class Manager:
                 temporary.unlink(missing_ok=True)
 
     def share_installed_runtime(self, app: Path, profile: Path):
-        # Publishing uses isolated copies for normal installs. In a managed
-        # profile only, fold identical immutable Electron files back into the pool.
-        trees = list((profile / "dpe-updater/installations").glob("*"))
-        trees += list(profile.glob("app-*"))
-        for original in files(app / "runtime"):
-            if original.stat().st_mode & 0o7222:
-                continue
-            relative = original.relative_to(app / "runtime")
-            for tree in trees:
-                candidate = tree / relative
-                if candidate.is_symlink() or not candidate.is_file():
-                    continue
-                if candidate.stat().st_ino == original.stat().st_ino:
-                    continue
-                if candidate.stat().st_size != original.stat().st_size:
-                    continue
-                if sha256(candidate) != sha256(original):
-                    continue
-                temporary = candidate.with_name(candidate.name + ".dev-link")
-                try:
-                    os.link(original, temporary)
-                    temporary.replace(candidate)
-                finally:
-                    temporary.unlink(missing_ok=True)
+        from dev_client import share_installed_runtime
+
+        share_installed_runtime(app, profile)
 
     def create(self, label: str, artifact: Path, clients: Path):
         from build_local_app import build
@@ -283,9 +263,11 @@ class Manager:
     def run(self, label: str, profile: str, watch: bool, sync: bool, args: list[str]):
         app = self.version(label)
         with (
-            lock(self.home / "locks" / (label + ".version")),
+            lock(self.home / "locks" / (label + ".version"), shared=True),
             lock(self.home / "locks" / (name(profile) + ".profile")),
         ):
+            # Recheck after locking in case removal completed before lock acquisition.
+            app = self.version(label)
             data = self.profile(profile)
             environment = dict(os.environ)
             environment.update(
@@ -306,7 +288,7 @@ class Manager:
                 "DPE_APPLICATION_VERSION",
             ):
                 environment.pop(key, None)
-            relaunch = app / "dev-relaunch.sh"
+            relaunch = data / "dev-relaunch.sh"
             relaunch.write_text(f"#!/bin/sh\nkill -USR1 {os.getpid()}\n")
             relaunch.chmod(0o700)
             environment["DPE_LAUNCHER"] = str(relaunch)
@@ -328,23 +310,15 @@ class Manager:
             try:
                 while not interrupted:
                     requested_restart = False
-                    if sync or watch:
-                        self.sync(app)
-                    with lock(self.home / "locks/catalog"):
-                        subprocess.run(
-                            [
-                                sys.executable,
-                                str(ROOT / "scripts/dev_client.py"),
-                                str(app),
-                                str(data),
-                                str(self.home / "downloads"),
-                            ],
-                            env={**environment, "PYTHONPATH": str(app / "python")},
-                            check=True,
-                        )
+                    from dev_client import configure_startup
+
+                    with lock(self.home / "locks/catalog", wait=True):
+                        if sync or watch:
+                            self.sync(app)
+                        configure_startup(app)
+                    environment["DPE_DEV_DOWNLOADS"] = str(self.home / "downloads")
                     if interrupted:
                         break
-                    self.share_installed_runtime(app, data)
                     print(f"Running {label} with profile {profile}. Ctrl+C stops it.", flush=True)
                     child = subprocess.Popen(
                         [str(app / "launch.sh"), *args], env=environment, start_new_session=True
@@ -391,6 +365,7 @@ class Manager:
             finally:
                 if child:
                     self.stop(child)
+                relaunch.unlink(missing_ok=True)
                 for sig, handler in handlers.items():
                     signal.signal(sig, handler)
         return 0

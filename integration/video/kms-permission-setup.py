@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import fcntl
 import hashlib
 import json
@@ -13,6 +14,7 @@ import re
 import stat
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 ROOT = Path("/usr/local/libexec/discord-patched-electron")
@@ -23,6 +25,10 @@ ACTION = "org.discord-patched-electron.capture"
 MAINTENANCE_ACTION = ACTION + ".maintain"
 BUNDLE = Path(__file__).resolve().parents[2] / "capture"
 MARKER = b"DPE-KMS-3\n"
+_SETFSUID = ctypes.CDLL(None).setfsuid
+_SETFSUID.argtypes = [ctypes.c_uint]
+_SETFSUID.restype = ctypes.c_uint
+_QUERY_FSUID = 0xFFFFFFFF
 POLICY = f'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
@@ -118,6 +124,22 @@ def read_payload() -> bytes:
     return data
 
 
+@contextmanager
+def as_user(uid):
+    # Match AppImage's mounting user for filesystem access, retaining the
+    # effective root credentials/capability needed to inspect /proc/<pid>/exe.
+    # setfsuid silently returns the previous identity even when switching fails.
+    previous = _SETFSUID(uid)
+    try:
+        if _SETFSUID(_QUERY_FSUID) != uid:
+            raise PermissionError("Could not select capture caller filesystem identity")
+        yield
+    finally:
+        _SETFSUID(previous)
+        if _SETFSUID(_QUERY_FSUID) != previous:
+            raise PermissionError("Could not restore capture installer filesystem identity")
+
+
 def executable_grant(uid: int, pid: int) -> bytes:
     # Read the live caller through procfs, never an executable path supplied by
     # the renderer. Pin its inode and change timestamps; replacing or modifying
@@ -125,30 +147,31 @@ def executable_grant(uid: int, pid: int) -> bytes:
     proc = Path(f"/proc/{pid}")
     if proc.stat().st_uid != uid:
         raise ValueError("Wrong Discord owner")
-    executable = proc / "exe"
-    name = os.readlink(executable)
-    if not name.startswith("/") or "\n" in name or name.endswith(" (deleted)"):
-        raise ValueError("Invalid Discord executable")
-    with executable.open("rb") as stream:
-        info = os.fstat(stream.fileno())
-        if (
-            not stat.S_ISREG(info.st_mode)
-            or info.st_uid not in (0, uid)
-            or info.st_mode & 0o022
-            or not 0 < info.st_size <= 512 * 1024 * 1024
-            or stream.read(4) != b"\x7fELF"
-        ):
+    with as_user(uid):
+        executable = proc / "exe"
+        name = os.readlink(executable)
+        if not name.startswith("/") or "\n" in name or name.endswith(" (deleted)"):
             raise ValueError("Invalid Discord executable")
+        with executable.open("rb") as stream:
+            info = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid not in (0, uid)
+                or info.st_mode & 0o022
+                or not 0 < info.st_size <= 512 * 1024 * 1024
+                or stream.read(4) != b"\x7fELF"
+            ):
+                raise ValueError("Invalid Discord executable")
 
-        def identity(st):
-            return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+            def identity(st):
+                return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
 
-        fields = identity(info)
-        if identity(Path(name).stat()) != fields or identity(executable.stat()) != fields:
-            raise ValueError("Discord executable changed")
-    if proc.stat().st_uid != uid or os.readlink(executable) != name:
-        raise ValueError("Discord process changed")
-    return MARKER + ("\n".join(map(str, fields)) + "\n" + name + "\n").encode()
+            fields = identity(info)
+            if identity(Path(name).stat()) != fields or identity(executable.stat()) != fields:
+                raise ValueError("Discord executable changed")
+        if proc.stat().st_uid != uid or os.readlink(executable) != name:
+            raise ValueError("Discord process changed")
+        return MARKER + ("\n".join(map(str, fields)) + "\n" + name + "\n").encode()
 
 
 def read_component(path: Path, limit=128 * 1024):
@@ -230,11 +253,12 @@ def apply(uid, data, binding, *, maintenance=None):
 
 
 def change(uid: int, enabled: bool, discord_pid: int | None = None):
-    data = read_payload() if enabled else None
-    binding = executable_grant(uid, discord_pid) if enabled and discord_pid else None
-    if enabled and binding is None:
-        raise ValueError("Discord identity required")
-    maintenance = bootstrap_maintenance(uid, discord_pid, data, binding) if enabled else None
+    with as_user(uid):
+        data = read_payload() if enabled else None
+        binding = executable_grant(uid, discord_pid) if enabled and discord_pid else None
+        if enabled and binding is None:
+            raise ValueError("Discord identity required")
+        maintenance = bootstrap_maintenance(uid, discord_pid, data, binding) if enabled else None
     root_directory(ROOT)
     root_directory(ROOT / "permissions")
     root_directory(ROOT / "maintenance")
@@ -269,8 +293,11 @@ def main() -> int:
     enabled = sys.argv[1] == "--allow"
     try:
         change(int(identity), enabled, discord_pid)
-    except (OSError, ValueError, KeyError):
-        print("DPE direct capture permission change failed", file=sys.stderr)
+    except (OSError, ValueError, KeyError) as error:
+        print(
+            f"DPE direct capture permission change failed: {type(error).__name__}: {error}",
+            file=sys.stderr,
+        )
         return 1
     print(json.dumps({"allowed": enabled}))
     return 0

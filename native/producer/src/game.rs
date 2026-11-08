@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-use crate::{
-    cursor::Cursor,
-    system::{self, Descriptors},
-};
+use crate::system::{self, Descriptors};
 use dpe_core::{
     direct::{self, Image, Packet},
     geometry::Rect,
@@ -32,7 +29,7 @@ pub struct Game {
     pause: bool,
     device: (u32, u32),
     texture: Option<Texture>,
-    cursor: Cursor,
+    // cursor: Cursor,
     pub stop_deadline: Option<Instant>,
 }
 impl Game {
@@ -44,7 +41,7 @@ impl Game {
             pause: false,
             device: (226, 128),
             texture: None,
-            cursor: Cursor::default(),
+            // cursor: Cursor::default(),
             stop_deadline: None,
         }
     }
@@ -59,7 +56,7 @@ impl Game {
             pause,
             device,
             texture: None,
-            cursor: Cursor::new(),
+            // cursor: Cursor::new(),
             stop_deadline: None,
         })
     }
@@ -181,6 +178,8 @@ impl Game {
                     image,
                     ..Packet::new(direct::FRAME)
                 };
+                // Experimental vkcapture cursor composition is unsupported.
+                /*
                 let window =
                     u32::from_ne_bytes(t.name[..4].try_into().expect("fixed window identity"));
                 if let Some((mut cursor, descriptor)) =
@@ -189,6 +188,7 @@ impl Game {
                     cursor.fd[0] = descriptors.push(descriptor)?;
                     output.cursor = cursor;
                 }
+                */
                 if explicit {
                     output.acquire = descriptors.push(
                         message.descriptors[0]

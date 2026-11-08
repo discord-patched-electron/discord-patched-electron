@@ -185,7 +185,8 @@ packages without `uninstall.py` need an updated bootstrap package first.
 ## Startup problems
 
 First launch downloads the application, then shows a setup dialog while Electron
-downloads.
+downloads. Later Electron downloads use the startup screen when a verified runtime
+is cached.
 If it fails or is cancelled, launch the app again to retry.
 The startup screen explains later failures and offers **Retry now**. Connection errors
 retry after ten seconds; **Pause retries** stops the countdown. Use **Copy details**

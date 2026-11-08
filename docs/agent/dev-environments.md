@@ -22,7 +22,8 @@ The manager imports only portable compiled local apps and checks the executable
 against their local build record; this is not a fresh provenance qualification.
 `create` uses the normal verified compiler-artifact path. Private dev payloads
 freeze their client compatibility identity to the staged compatibility key;
-this is why native/script changes require a new version. The manager primes the
+this is why native/script changes require a new version. The manager stages a
+private startup-worker hook before launching Electron. The splash worker runs the
 normal verified client installer, then records helper symlinks in its private
 module file index. Its private installation manifests likewise track symlink
 destinations and omit mutable `.log` files, which otherwise invalidate a prepared
@@ -113,3 +114,19 @@ also checked. Picker loading and errors now reuse the centered icon state instea
 of showing plain text alongside contradictory empty-state content. The real
 settings harness covers light/dark themes and narrow zoomed windows under its
 `capture-picker` scope; evidence is in `out/picker-state-ui/`.
+
+## Concurrent profiles on one version (2026-11-08)
+
+Managed runs hold shared version locks and exclusive profile locks. Removing an
+active version still requires an exclusive version lock and is rejected. Launch
+setup and helper sync serialize through the catalog lock. Startup helper copies
+publish atomically so another profile cannot import a partial file.
+
+Each profile owns its relaunch script, which signals its manager and is removed
+after shutdown. Watchers share the staged helper files but independently restart
+their own process groups. Restart managers started before this change to release
+their old exclusive version locks.
+
+Validation: repository lint and whitespace checks; tests and desktop checks were
+skipped at the user's request. Concurrent GUI startup, relaunch and watch behavior
+remain for human verification.

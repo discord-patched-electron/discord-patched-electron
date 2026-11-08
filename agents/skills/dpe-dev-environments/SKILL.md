@@ -31,8 +31,8 @@ Do not interpret a dev task as permission to start a hosted compilation.
 
 Keep managed versions at their permanent paths. Select the profile independently
 with `--profile`; use the same dev profile across versions sequentially, and a
-fresh profile for automated launch checks. A concurrent run needs a different
-version and profile. Launch through the manager so its locks, relaunch handling
+fresh profile for automated launch checks. Concurrent runs need different
+profiles and may share the same version. Launch through the manager so its locks, relaunch handling
 and shutdown cleanup remain effective.
 
 Do not duplicate profiles for each edit, rebuild, retry or native version. Reuse

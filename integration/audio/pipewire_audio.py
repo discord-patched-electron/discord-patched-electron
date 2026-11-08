@@ -86,6 +86,45 @@ def discord_root(pid):
         root = parent
 
 
+def dpe_executable(pid):
+    """Recognize published profiles and bundled/cached runtimes without env access."""
+    try:
+        executable = Path(os.readlink(f"/proc/{pid}/exe"))
+        if not executable.is_absolute():
+            return False
+        directory = executable.parent
+        # Each published profile keeps this DPE sidecar next to its runtime.
+        if (directory / "preload/libdpe-camera-probe.so").is_file():
+            return True
+        # Portable and downloaded runtimes point resources at their app payload.
+        application = (directory / "resources").resolve().parent
+        return (application / "integration/audio/app-audio.cjs").is_file() and (
+            application / "libdpe-camera-probe.so"
+        ).is_file()
+    except (OSError, ValueError, RuntimeError):
+        return False
+
+
+def dpe_process(pid):
+    """Exclude every DPE profile/version and its workers, including detached ones."""
+    seen = set()
+    while pid not in seen and len(seen) < 64:
+        seen.add(pid)
+        identity = process_identity(pid)
+        if identity is None:
+            return False
+        if dpe_executable(pid):
+            return True
+        try:
+            environment = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+            if any(value.startswith(b"DPE_APP_ROOT=") and value[13:] for value in environment):
+                return True
+        except OSError:
+            pass
+        pid = identity[2]
+    return False
+
+
 def capture_proxy(pid):
     """A display/portal broker's PID does not identify its hosted application."""
     try:
@@ -429,6 +468,7 @@ class Route:
         def wanted(pid, sandbox=False):
             return (
                 (identity := process_identity(pid)) is not None
+                and not dpe_process(pid)
                 and not descendant(pid, excluded)
                 and not descendant(excluded[0], identity)
                 and not descendant(pid, process_identity(os.getpid()))
@@ -836,6 +876,7 @@ class Controller:
                 identity = process_identity(pid)
                 if (
                     identity
+                    and not dpe_process(pid)
                     and not descendant(pid, self.excluded)
                     and not descendant(self.excluded[0], identity)
                     and not descendant(pid, process_identity(os.getpid()))
