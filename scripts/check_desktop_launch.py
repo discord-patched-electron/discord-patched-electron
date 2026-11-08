@@ -497,13 +497,19 @@ def complete_setup(websocket: str, *, configure: bool = False) -> dict:
       const done = document.getElementById('setup-done');
       const configure = document.getElementById('setup-configure');
       const useConfigure = USE_CONFIGURE;
+      const links = document.getElementById('setup-discord-links');
       const ready = button => welcome && button && !button.disabled
         && document.body.dataset.presentationReady === 'true'
         && document.visibilityState === 'visible'
         && button.getClientRects().length > 0;
       const choiceSent = !!ready(next);
-      const configureSent = !choiceSent && useConfigure && !!ready(configure);
-      const doneSent = !choiceSent && !useConfigure && !!ready(done);
+      // Disposable launch profiles must not change the host's protocol handler.
+      // Let the controlled switch rerender before clicking a finish action.
+      const linksOptOut = !choiceSent && !!links?.checked && !links.disabled
+        && (!!ready(configure) || !!ready(done));
+      if (linksOptOut) links.click();
+      const configureSent = !choiceSent && !linksOptOut && useConfigure && !!ready(configure);
+      const doneSent = !choiceSent && !linksOptOut && !useConfigure && !!ready(done);
       if (choiceSent) next.click();
       if (configureSent) configure.click();
       if (doneSent) done.click();
