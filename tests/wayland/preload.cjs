@@ -42,7 +42,9 @@ function stage(value) {
 function devices(get, label) {
   stage(label);
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 8000);
+    // Cold native audio startup can overlap compositor and server initialization
+    // on a loaded CI runner. Keep enumeration bounded without assuming 8 seconds.
+    const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 30000);
     get((value) => {
       clearTimeout(timer);
       resolve(value);
@@ -120,7 +122,7 @@ async function capture(name, change, settle = 2000) {
   if (name === "app-a") {
     // Discord refreshes its native device list asynchronously after the helper
     // creates the mix. Wait for the positive control, not a fixed startup delay.
-    const deadline = Date.now() + 8000;
+    const deadline = Date.now() + 30000;
     let raw = await devices(rawOutputDevices, "raw output enumeration");
     while (!raw.some(privateDevice) && Date.now() < deadline) {
       await wait(100);

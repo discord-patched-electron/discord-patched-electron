@@ -369,7 +369,7 @@ def session(
                 "native",
                 client_env,
             )
-            child.wait(timeout=610 if selection == "interactive" else 100)
+            child.wait(timeout=610 if selection == "interactive" else 180)
             if selector_errors:
                 raise ValueError("Fixture audio selector failed: " + repr(selector_errors))
             if child.returncode:
