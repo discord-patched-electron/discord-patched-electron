@@ -81,3 +81,20 @@ the cross-thread functional API. Both exact objects compile successfully
 tree (`out/local-alpha6-includes-verified.json`). The recorded migration changes
 only those two Electron C++ files and preserves the completed dependency hooks
 and objects. Distribution build output is `out/local-electron-alpha6-includes.log`.
+
+## Completed artifact
+
+The complete dev-input build finished on 8 November. Its archive is
+`/mnt/storage/discord-patched-electron-ci/local-latest-alpha6/runtime-dist.zip`
+(122,801,866 bytes), SHA-256
+`675ab047f31ed82fa72c87b0198fbc824bab76fb02a388bedd618ec7438d812f`.
+The native key is
+`9ce794464fc2288eb95783be29deb2c7fc5d0c57c2d71aa48a68bc56669d79eb`.
+Independent hash, ZIP CRC and native-key checks pass. The extracted executable
+reports Electron 46.0.0-alpha.6, Chromium 159.0.8130.0 and Node 26.13.0 in Node
+mode. Evidence: `out/local-alpha6-runtime-verification.json`.
+
+The local attempt is recorded as compiled in `ci-state`, preserving its original
+cooldown timestamp and zero Blacksmith charge. This does not replace the
+last-good runtime or publish/approve a release. Desktop/native-media runtime
+qualification remains outstanding.
