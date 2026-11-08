@@ -71,3 +71,13 @@ updates only that surrounding context and retains the added declaration and
 implementation. Fresh complete assembly is recorded in
 `out/local-alpha6-complete-verified.json`; exact hook replay is recorded in
 `out/local-alpha6-complete-hooks.log`.
+
+The complete-input compile later reached 45,225 tasks before the Discord source
+and decoder hit the same removed copier headers. A source audit found three
+remaining includes across those two files and no direct `CrossThreadCopier`
+uses. `alpha6-electron-includes.patch` removes those includes while retaining
+the cross-thread functional API. Both exact objects compile successfully
+(`out/alpha6-electron-video-objects.log`), and fresh assembly reproduces the new
+tree (`out/local-alpha6-includes-verified.json`). The recorded migration changes
+only those two Electron C++ files and preserves the completed dependency hooks
+and objects. Distribution build output is `out/local-electron-alpha6-includes.log`.

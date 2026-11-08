@@ -1,0 +1,25 @@
+diff --git a/discord/discord_video_decoder.cc b/discord/discord_video_decoder.cc
+index 7aeccd5fdbc5cbeb37e3656bf4946f937bd4ed5a..7a3117ec14ac86b6be645bef9cd7f36f60d690cb 100644
+--- a/discord/discord_video_decoder.cc
++++ b/discord/discord_video_decoder.cc
+@@ -24,7 +24,6 @@
+ #include "media/video/gpu_video_accelerator_factories.h"
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
+-#include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
+ #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+ #include "third_party/blink/renderer/platform/wtf/deque.h"
+ 
+diff --git a/discord/discord_video_source.cc b/discord/discord_video_source.cc
+index 625c1bc8c50fda21b3e80f893eb30195c2a5a71a..c0a56d3352ddb7bf1eb1c41100c09bcfb1f78a39 100644
+--- a/discord/discord_video_source.cc
++++ b/discord/discord_video_source.cc
+@@ -17,8 +17,6 @@
+ #include "base/trace_event/trace_event.h"
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
+-#include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
+-#include "third_party/blink/renderer/platform/wtf/cross_thread_copier_gfx.h"
+ #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+ 
+ namespace {
