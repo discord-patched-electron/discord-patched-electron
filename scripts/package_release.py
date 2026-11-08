@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import io
 import os
 import re
 import shutil
@@ -37,8 +38,36 @@ from stage_updater import validate_distribution
 REPOSITORY = "https://github.com/discord-patched-electron/discord-patched-electron"
 
 
+def removal_scripts(output: Path, name: str) -> dict[str, str]:
+    scripts = {}
+    for kind, guard in {
+        "deb": '[ "${1:-}" = remove ] || exit 0',
+        "rpm": '[ "${1:-}" = 0 ] || exit 0',
+        "archlinux": "# nFPM maps this to pre_remove, separate from pre_upgrade.",
+    }.items():
+        preremove = output / f"preremove-{kind}.sh"
+        preremove.write_text(
+            (ROOT / "packaging/linux/preremove.sh")
+            .read_text()
+            .replace("@PKGNAME@", name)
+            .replace("@FORMAT@", kind)
+            .replace("@REMOVE_GUARD@", guard)
+        )
+        scripts[kind] = str(preremove)
+    return scripts
+
+
 def required_glibc(app: Path) -> str:
     versions = {(2, 35)}
+
+    def inspect(elf):
+        section = elf.get_section_by_name(".gnu.version_r")
+        if section is not None:
+            for _, symbols in section.iter_versions():
+                for symbol in symbols:
+                    if re.fullmatch(r"GLIBC_[0-9.]+", symbol.name):
+                        versions.add(tuple(map(int, symbol.name[6:].split("."))))
+
     for path in app.rglob("*"):
         if not path.is_file():
             continue
@@ -46,12 +75,13 @@ def required_glibc(app: Path) -> str:
             if stream.read(4) != b"\x7fELF":
                 continue
             stream.seek(0)
-            section = ELFFile(stream).get_section_by_name(".gnu.version_r")
-            if section is not None:
-                for _, symbols in section.iter_versions():
-                    for symbol in symbols:
-                        if re.fullmatch(r"GLIBC_[0-9.]+", symbol.name):
-                            versions.add(tuple(map(int, symbol.name[6:].split("."))))
+            elf = ELFFile(stream)
+            inspect(elf)
+            backend = elf.get_section_by_name(".dpe.hevc")
+            if backend is not None:
+                if backend["sh_size"] > 16 * 1024 * 1024:
+                    raise ValueError("Embedded HEVC backend exceeds its bound")
+                inspect(ELFFile(io.BytesIO(backend.data())))
     return ".".join(map(str, max(versions)))
 
 
@@ -75,7 +105,7 @@ def metadata(
         "conflicts": [desktop_id(channel)],
         "maintainer": "discord-patched-electron contributors <he3als@users.noreply.github.com>",
         "homepage": REPOSITORY,
-        "license": "MIT AND BSD-3-Clause AND AGPL-3.0-only",
+        "license": "MIT AND BSD-3-Clause AND AGPL-3.0-only AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later",
         "description": f"Discord {channel.title()} with patched Electron for better Linux support\n"
         "Requires an x86-64-v3 (AVX2) CPU. Includes native streaming, Krisp and Linux audio fixes.",
         "mtime": datetime.fromtimestamp(epoch, UTC).isoformat(),
@@ -110,6 +140,8 @@ def metadata(
                     "libxcb",
                     "nss",
                     "libdrm",
+                    "libva",
+                    "libcap",
                     "mesa",
                     "libpulse",
                     "python>=3.11",
@@ -126,6 +158,7 @@ def metadata(
                     "xdg-desktop-portal: desktop screen selection",
                     "wireplumber: PipeWire session management",
                     "kdotool: KDE Plasma window labels",
+                    "polkit: authorize DPE direct screen capture",
                 ],
             },
             "deb": {
@@ -141,6 +174,9 @@ def metadata(
                     "libxtst6",
                     "libgbm1",
                     "libdrm2",
+                    "libva2",
+                    "libva-drm2",
+                    "libcap2",
                     "libpulse0",
                     "python3 (>= 3.11)",
                     "ca-certificates",
@@ -154,7 +190,13 @@ def metadata(
                     "pulseaudio-utils",
                     "zenity",
                 ],
-                "recommends": ["wireplumber", "xdg-desktop-portal", "libxcb-res0"],
+                "recommends": [
+                    "wireplumber",
+                    "xdg-desktop-portal",
+                    "libxcb-res0",
+                    "polkitd",
+                    "pkexec",
+                ],
             },
             "rpm": {
                 "depends": [
@@ -170,6 +212,8 @@ def metadata(
                     "libxcb",
                     "mesa-libgbm",
                     "libdrm",
+                    "libva",
+                    "libcap",
                     "pulseaudio-libs",
                     "python3 >= 3.11",
                     "ca-certificates",
@@ -181,7 +225,7 @@ def metadata(
                     "pulseaudio-utils",
                     "zenity",
                 ],
-                "recommends": ["wireplumber", "xdg-desktop-portal"],
+                "recommends": ["wireplumber", "xdg-desktop-portal", "polkit"],
             },
         },
         "deb": {"compression": "gzip"},
@@ -299,9 +343,11 @@ def package(
         (ROOT / "packaging/linux/postinstall.sh").read_text().replace("@PKGNAME@", name)
     )
     config["contents"].append(
-        {"src": str(profile), "dst": f"/etc/apparmor.d/{name}", "type": "config", "packager": "deb"}
+        {"src": str(profile), "dst": f"/etc/apparmor.d/{name}", "packager": "deb"}
     )
     config["overrides"]["deb"]["scripts"] = {"postinstall": str(postinstall)}
+    for kind, script in removal_scripts(output, name).items():
+        config["overrides"][kind].setdefault("scripts", {})["preremove"] = script
     write_json(output / "nfpm.json", config)
     files = sorted(path for path in app.rglob("*") if path.is_file() and path.name != "SHA256SUMS")
     (app / "SHA256SUMS").write_text(
@@ -347,6 +393,15 @@ def package(
             "client_version": build["client_version"],
             "client": client_pins,
             "application": application,
+            "capture_maintenance": {
+                "schema": 1,
+                "components": {
+                    "runtime": build["executable_sha256"],
+                    "server": sha256(source / "capture/dpe-kms-server"),
+                    "maintainer": sha256(source / "integration/video/kms-maintenance.py"),
+                    "installer": sha256(source / "integration/video/kms-permission-setup.py"),
+                },
+            },
             "package_distribution": "bootstrap-only",
             "appimage_dependencies": read_json(
                 appimage_tools / "dependencies/usr/share/dpe-dependencies/build.json"

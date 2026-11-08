@@ -55,12 +55,12 @@ jobs:
           # Atomic JSON writes default to 0600; the container uses a different UID.
           chmod 644 out/clients.lock.json
       - name: Build the Arch packaging environment
-        run: docker build -t discord-electron-arch-packaging ci/arch
+        run: docker build -t discord-electron-arch-packaging -f ci/arch/Dockerfile .
       - name: Package selected channels with a dummy runtime
         shell: bash
         run: |
           mkdir -p out/packaging
-          sudo chown 1000:1000 out/packaging
+          sudo chown 1000:1000 out out/packaging
           args=()
           if [ -n "$CLIENTS_STATE" ]; then
             args+=(--clients /repo/out/clients.lock.json)
@@ -73,6 +73,7 @@ jobs:
           fi
           docker run --rm --cpus 2 --memory 4g \
             -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -v "$GITHUB_WORKSPACE/out:/repo/out" \
             -v "$GITHUB_WORKSPACE/out/packaging:/packages" \
             discord-electron-arch-packaging \
             python /repo/scripts/smoke_packages.py --output /packages "${args[@]}"

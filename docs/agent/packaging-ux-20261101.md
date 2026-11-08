@@ -60,6 +60,9 @@ Sources: [Launchpad PPAs](https://ubuntu.com/docs/launchpad/user/PPA/),
 
 ## AppImage dependency boundary
 
+Historical November 1 design. The [November 5 dependency review](appimage-host-libraries-20261105.md)
+supersedes the desktop/audio bundling described below.
+
 The user requested dependency bundling, not an embedded Electron/application
 snapshot. The revised AppImage contains the unchanged bootstrap plus standalone
 Python, GnuPG, Brotli, Zenity, PipeWire/PulseAudio client tools and their library

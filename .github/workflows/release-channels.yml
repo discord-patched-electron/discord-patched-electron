@@ -1,7 +1,7 @@
 name: Qualify compiled runtime
 on:
   workflow_run:
-    workflows: [Candidate Electron build]
+    workflows: [Candidate Electron build, Import local Electron runtime]
     types: [completed]
     branches: [main]
 permissions:

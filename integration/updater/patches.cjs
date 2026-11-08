@@ -28,6 +28,14 @@ function bootstrap(source, filename, desktopExec) {
       "const startMin = process.argv?.includes?.('--start-minimized');",
       "const startMin = require(process.env.DPE_APP_ROOT + '/integration/desktop/preferences.cjs').startMinimized();",
     );
+    patch(
+      "desktopCore.setMainWindowVisible(!startMin);",
+      "desktopCore.setMainWindowVisible(!startMin);\n    require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').start(desktopCore);",
+    );
+    patch(
+      "desktopCore?.handleOpenUrl?.(a.includes('--url') && a[a.indexOf('--') + 1]);",
+      "require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').receive(a);\n    require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').dispatch(desktopCore);",
+    );
   } else if (filename === "index.js") {
     patch(
       "process.resourcesPath = join(__dirname, '..');",
@@ -75,10 +83,12 @@ function desktop(source, adapter) {
     "event.returnValue=injectedUpdater?.getUpdater()!=null",
     "event.returnValue=!0",
   );
+  // Canary 1.0.2444 removed the legacy injectedModuleUpdater binding. Resolve
+  // through the bootstrap module supplied by entry.cjs instead of that binding.
   source = replace(
     source,
     "return null!=newUpdater?newUpdater.committedModulePaths.get(name)??null:null",
-    "return null!=newUpdater?newUpdater.committedModulePaths.get(name)??null:injectedModuleUpdater?.getModulePath(name)??null",
+    'return null!=newUpdater?newUpdater.committedModulePaths.get(name)??null:require(process.env.DPE_APP_ROOT+"/bootstrap/src/updater/moduleUpdater.js").getModulePath(name)??null',
   );
   // Discord's main renderer explicitly uses sandbox:false. Electron now severs
   // window.opener when its child defaults to sandbox:true, leaving /popout's

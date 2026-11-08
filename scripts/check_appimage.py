@@ -73,11 +73,21 @@ def check(tools: Path, container: bool = False):
                 *args,
             ]
             root.chmod(0o755)
+        environment = {**os.environ, "APPIMAGE_EXTRACT_AND_RUN": "1"}
+        for name in (
+            "LD_LIBRARY_PATH",
+            "SPA_PLUGIN_DIR",
+            "PIPEWIRE_MODULE_DIR",
+            "PIPEWIRE_CONFIG_DIR",
+            "XDG_DATA_DIRS",
+        ):
+            if name in environment:
+                environment["DPE_TEST_" + name] = environment[name]
         result = subprocess.run(
             command,
             capture_output=True,
             text=True,
-            env={**os.environ, "APPIMAGE_EXTRACT_AND_RUN": "1"},
+            env=environment,
         )
         if result.returncode != 23 or json.loads(result.stdout) != args:
             raise ValueError(f"AppImage launch failed: {result}")

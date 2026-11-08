@@ -1,0 +1,29 @@
+{
+  "project": "wayland-protocols",
+  "version": "1.50",
+  "import_source": "/usr/share/wayland-protocols (installed 1.50 package)",
+  "upstream": "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/tree/1.50",
+  "license": "MIT; original copyright and permission notice retained in each XML",
+  "files": {
+    "ext-image-copy-capture-v1.xml": {
+      "sha256": "41a446653f788fabb404cab3168c0bd667c1ff4b54f1f0bb1e18810a1f47d73f",
+      "upstream_path": "staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml"
+    },
+    "ext-image-capture-source-v1.xml": {
+      "sha256": "4ef41d15e4cdb9f550158391358ceec724a6708b43b7efedec03121a6bb8458d",
+      "upstream_path": "staging/ext-image-capture-source/ext-image-capture-source-v1.xml"
+    },
+    "ext-foreign-toplevel-list-v1.xml": {
+      "sha256": "6b2ffb3a07d679d1c4170263adfefb9a7c37dd34ed3db5180bf58cb8ff8fbd0b",
+      "upstream_path": "staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml"
+    },
+    "linux-dmabuf-v1.xml": {
+      "sha256": "d4feffb8c0a3dbdecfff141f4d65d88d91ff2b022cb343c988b73e3c358d9a76",
+      "upstream_path": "stable/linux-dmabuf/linux-dmabuf-v1.xml"
+    },
+    "xdg-output-unstable-v1.xml": {
+      "sha256": "363d547c3eefe8959160cac903ff90b311d4b183005557d73640d9df2cfd7f79",
+      "upstream_path": "unstable/xdg-output/xdg-output-unstable-v1.xml"
+    }
+  }
+}

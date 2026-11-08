@@ -370,3 +370,24 @@ The restored application-level routing was checked again with automatic niri
 matching and the manual app picker on real PulseAudio plus PipeWire. Current
 unit coverage checks that all streams of one PID are included while another
 application remains excluded; see [restoration evidence](../evidence/automatic-audio-restored.json).
+
+## Optimized monitor audio, 2 November 2026
+
+Direct KMS/Wayland and game sources have no PipeWire video node, so the previous
+portal/compositor correlation could not recognize a confirmed entire monitor.
+The audio adapter now passes the native backend's active request ID, method and
+source type to the helper. This identity is refreshed while audio is active and
+is never inferred from Discord's ambiguous screen token.
+
+Confirmed optimized monitors honor the independent skip-screen-picker setting,
+using the existing system route that excludes Discord. Turning the option off,
+explicitly re-enabling audio, and (at that time) game capture retain the manual picker.
+Game capture now supports [authenticated process matching](vkcapture-audio-20261105.md). Losing
+or replacing the native request closes the old audio route and choice. An ended
+optimized request cannot fall through to an unrelated PipeWire video source.
+
+The synthetic regression checks passed 17 Python and 21 JavaScript tests,
+including no video nodes, disabled automatic matching, the skip preference,
+manual re-enable, game capture, request replacement and disappearance. No live
+call or system audio was captured for these checks. Parent staging must include
+both audio sidecars and the native backend snapshot's request ID.

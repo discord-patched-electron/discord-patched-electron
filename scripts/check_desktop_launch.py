@@ -359,7 +359,14 @@ ws.addEventListener("error", () => process.exit(0));
             state["version"] == ".".join(map(str, pinned["full"]["host_version"]))
             and state["modules"] == expected
         )
-        report["passed"] = report["passed"] and report["client_pins_verified"]
+        report["module_api_verified"] = (
+            report.get("page", {}).get("moduleVersions")
+            == {name: item["version"] for name, item in state["modules"].items()}
+            and report.get("page", {}).get("nativeUpdater") is True
+        )
+        report["passed"] = (
+            report["passed"] and report["client_pins_verified"] and report["module_api_verified"]
+        )
     write_json(output / "launch-report.json", report)
     if report["passed"] and not read_only_app:
         manifest = read_json(app / "local-build.json")
@@ -383,6 +390,9 @@ def inspect_discord(websocket: str) -> dict:
       equicordNative:typeof VencordNative!=='undefined',
       equicordRenderer:typeof Vencord!=='undefined'&&!!Vencord.Plugins,
       discordNative:typeof DiscordNative!=='undefined',
+      moduleVersions:globalThis.DiscordNative?.app?.getModuleVersions?.(),
+      nativeUpdater:globalThis.DiscordNative?.nativeModules?.hasUpdater
+        ?? (globalThis.DiscordNative?.nativeModules?.canBootstrapNewUpdater === false),
       modSelfUpdate:globalThis.__DPE_MOD_SELF_UPDATE__
     })"""
     result = cdp(websocket, "Runtime.evaluate", {"expression": expression, "returnByValue": True})
@@ -398,7 +408,7 @@ def check_popout(websocket: str) -> dict:
     """Exercise Discord's real popout handler and loaded handshake at the login page.
 
     The parent writes only a synthetic marker, never account or voice data.
-    Use the same name twice to verify that closing releases the popout registry.
+    Use each real video-popout name twice to verify that closing releases the registry.
     """
     expression = r"""(async () => {
       if (!document.querySelector('input[name=email]')
@@ -406,7 +416,9 @@ def check_popout(websocket: str) -> dict:
         return {passed:false, error:'Popout check requires the fresh login page'};
       }
       const attempts = [];
-      for (let attempt = 0; attempt < 2; attempt++) {
+      const keys = ['DISCORD_CHANNEL_CALL_POPOUT', 'DISCORD_CHANNEL_CALL_POPOUT',
+        'DISCORD_CALL_TILE_POPOUT_dpe_fixture', 'DISCORD_CALL_TILE_POPOUT_dpe_fixture'];
+      for (const key of keys) {
         const result = await new Promise(resolve => {
           let child, timer;
           const finish = value => {
@@ -437,15 +449,15 @@ def check_popout(websocket: str) -> dict:
           window.addEventListener('message', loaded);
           timer = setTimeout(() => finish({passed:false, error:'Popout loaded handshake timed out'}), 12000);
           try {
-            child = window.open('/popout', 'DISCORD_dpe_popout_check', 'width=640,height=480');
-            if (!child) finish({passed:false, error:'window.open returned null (opener severed)'});
+            child = window.open('/popout', key, 'menubar=no,toolbar=no,location=no,directories=no,width=854,height=480,');
+            if (!child) finish({passed:false, error:'window.open returned null (request denied or opener unavailable)'});
           } catch (error) { finish({passed:false, error:String(error)}); }
         });
-        attempts.push(result);
+        attempts.push({key, ...result});
         if (!result.passed) break;
         await new Promise(resolve => setTimeout(resolve, 150));
       }
-      return {passed:attempts.length === 2 && attempts.every(item => item.passed), attempts};
+      return {passed:attempts.length === keys.length && attempts.every(item => item.passed), attempts};
     })()"""
     result = cdp(
         websocket,

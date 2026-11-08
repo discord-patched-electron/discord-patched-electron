@@ -148,6 +148,59 @@ class ReferenceArtifact(unittest.TestCase):
                 validate_capacity(capacity, True, run_id="123", compiler_commit="commit")
 
     @patch.dict(os.environ, {"GH_REPO": "discord-patched-electron/discord-patched-electron"})
+    def test_successful_main_import_run_keeps_local_compiler_provenance(self):
+        sources = read_json(ROOT / "config/sources.lock.json")
+        spec = sources["targets"]["prerelease"]
+        config = build_config("prerelease")
+        key = runtime_key(spec, sources, config)
+        with zipfile.ZipFile(self.archive, "w") as archive:
+            archive.writestr("electron", "owned runtime fixture")
+        capacity = {
+            "source": {
+                "target": "prerelease",
+                "upstream_commit": spec["commit"],
+                "source_assembled": True,
+                "dependencies_patched": True,
+                "compiled": True,
+            },
+            "config": config,
+            "runtime_key": key,
+            "build_key": key,
+            "compiled_version": spec["version"],
+            "archive_sha256": sha256(self.archive),
+        }
+        local = {"compiler_provider": "local", "native_inputs_commit": "a" * 40}
+        metadata = {
+            "conclusion": "success",
+            "head_branch": "main",
+            "head_sha": "b" * 40,
+            "path": ".github/workflows/import-runtime.yml",
+            "run_attempt": 1,
+            "html_url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/123",
+            "head_repository": {"full_name": "discord-patched-electron/discord-patched-electron"},
+        }
+
+        def download(*args):
+            directory = Path(args[args.index("--dir") + 1])
+            directory.mkdir(parents=True)
+            if args[args.index("--name") + 1] == "candidate-capacity-123-1":
+                (directory / "capacity.json").write_text(json.dumps(capacity))
+                (directory / "local-build-provenance.json").write_text(json.dumps(local))
+            else:
+                self.assertIn("candidate-runtime-123", args)
+                (directory / "runtime-dist.zip").write_bytes(self.archive.read_bytes())
+
+        with (
+            patch("fetch_reference.subprocess.check_output", return_value=json.dumps(metadata)),
+            patch("fetch_reference.run", side_effect=download),
+        ):
+            fetch("123", self.output)
+        provenance = read_json(self.output / "artifact-provenance.json")
+        self.assertEqual(provenance["compiler_provider"], "local")
+        self.assertEqual(provenance["local_build_provenance"], local)
+        self.assertFalse(provenance["publishable"])
+
+    @patch.dict(os.environ, {"GH_REPO": "discord-patched-electron/discord-patched-electron"})
     @patch("fetch_reference.run")
     @patch("fetch_reference.subprocess.check_output")
     def test_failed_or_untrusted_compiler_run_is_not_downloaded(self, query, download):

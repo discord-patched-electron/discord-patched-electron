@@ -1,0 +1,5 @@
+{
+  "name": "dpe-native-screenshare-fixture",
+  "private": true,
+  "main": "main.cjs"
+}

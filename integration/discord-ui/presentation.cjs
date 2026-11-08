@@ -14,6 +14,7 @@ module.exports = function presentation(request, ui) {
     github: ["GithubIcon", "GitHubIcon"],
     external: ["ExternalLinkIcon", "OpenExternalIcon", "ArrowSquareUpRightIcon"],
     download: ["DownloadIcon"],
+    bolt: ["LightningBoltIcon", "BoltIcon"],
     refresh: ["ArrowClockwiseIcon", "RotateClockwiseIcon", "RefreshIcon"],
     applications: ["BrowserIcon", "WindowIcon", "AppsIcon"],
     screen: ["ScreenIcon", "MonitorIcon"],
@@ -26,6 +27,7 @@ module.exports = function presentation(request, ui) {
     maximize: ["WindowIcon"],
     restore: ["WindowMultipleIcon"],
     experimental: ["FlaskIcon", "BeakerIcon"],
+    warning: ["WarningIcon", "WarningTriangleIcon", "TriangleExclamationIcon"],
     copy: ["CopyIcon"],
     chevron: ["ChevronSmallDownIcon", "ChevronDownSmallIcon", "ChevronDownIcon"],
   };

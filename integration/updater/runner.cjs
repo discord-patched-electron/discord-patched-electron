@@ -1,5 +1,6 @@
 const { spawn } = require("node:child_process");
 const path = require("node:path");
+const { record } = require("./diagnostic-log.cjs");
 
 module.exports = function runUpdate(
   {
@@ -14,6 +15,7 @@ module.exports = function runUpdate(
   },
   launch = spawn,
 ) {
+  record("updater-start", { channel, offline, prepareOnly });
   const child = launch(
     "python3",
     [path.join(root, "integration/updater/check.py"), root, clientRoot, channel],
@@ -87,8 +89,10 @@ module.exports = function runUpdate(
         if (!line.trim()) continue;
         try {
           const value = JSON.parse(line);
-          if (value.type === "progress") onProgress(value);
-          else if (
+          if (value.type === "progress") {
+            record("updater-progress", value);
+            onProgress(value);
+          } else if (
             typeof value.application === "string" &&
             path.isAbsolute(value.application) &&
             !/[\r\n]/.test(value.application)
@@ -128,6 +132,7 @@ module.exports = function runUpdate(
     });
     child.once("close", (code) => {
       finished = true;
+      record("updater-finish", { code, cancelled, error: failure?.message });
       // The leader can exit before a child with captured/private output. Such
       // children no longer hold our pipes open, so close alone is not cleanup,
       // whether preparation succeeded, failed or was cancelled.

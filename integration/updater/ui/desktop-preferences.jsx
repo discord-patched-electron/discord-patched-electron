@@ -1,11 +1,27 @@
 /** @jsxImportSource preact */
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Button, Switch, errorMessage } from "./primitives.jsx";
 
 export function useDesktopPreferences() {
   const [state, setState] = useState();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const focusAfterSave = useRef();
+  useLayoutEffect(() => {
+    if (busy || !focusAfterSave.current) return;
+    const focused = focusAfterSave.current;
+    focusAfterSave.current = undefined;
+    if (
+      document.activeElement !== document.body &&
+      !(document.activeElement === focused && focused.disabled)
+    )
+      return;
+    const target =
+      focused.id === "desktop-discord-links" && focused.disabled
+        ? document.getElementById("desktop-discord-links-help")
+        : focused;
+    if (target?.isConnected && !target.disabled) target.focus({ preventScroll: true });
+  });
   const changing = useRef(false);
   const current = useRef(true);
   const load = async () => {
@@ -13,7 +29,7 @@ export function useDesktopPreferences() {
       const next = await window.Native.desktopLoad();
       if (current.current) {
         setState(next);
-        setError("");
+        setError(next.error || "");
       }
     } catch (failure) {
       if (current.current) setError(errorMessage(failure));
@@ -26,15 +42,16 @@ export function useDesktopPreferences() {
       current.current = false;
     };
   }, []);
-  const save = async (patch) => {
+  const run = async (request, patch = {}) => {
     if (changing.current || !state) return;
     changing.current = true;
     const previous = state;
+    focusAfterSave.current = document.activeElement;
     setState({ ...state, values: { ...state.values, ...patch } });
     setBusy(true);
     setError("");
     try {
-      const next = await window.Native.desktopSave(patch);
+      const next = await request();
       if (current.current) {
         setState(next);
         setError(next.error || "");
@@ -49,7 +66,45 @@ export function useDesktopPreferences() {
       if (current.current) setBusy(false);
     }
   };
-  return { state, busy, error, load, save };
+  const save = (patch) => run(() => window.Native.desktopSave(patch), patch);
+  const claimLinks = () => run(window.Native.desktopClaimLinks);
+  return { state, busy, error, load, save, claimLinks };
+}
+
+export const discordLinkSwitch = {
+  label: "Open Discord links",
+  description: "Use this app for discord:// links from your browser and other apps.",
+  elsewhere: "Another app opens Discord links right now.",
+};
+
+export function LinkPreferences({ model }) {
+  return (
+    <section class="settings-group" aria-labelledby="desktop-links-heading">
+      <h3 class="section-label" id="desktop-links-heading">
+        Links
+      </h3>
+      <div class="setting-row">
+        <div>
+          <label for="desktop-discord-links">{discordLinkSwitch.label}</label>
+          <p id="desktop-discord-links-help" class="hint" tabIndex="-1">
+            {model.state?.linksDefault
+              ? "This app opens Discord links. You can change this in your system’s default applications."
+              : model.state?.linksElsewhere
+                ? discordLinkSwitch.elsewhere
+                : discordLinkSwitch.description}
+          </p>
+        </div>
+        <Button
+          id="desktop-discord-links"
+          disabled={model.busy || !model.state || model.state.linksDefault}
+          aria-describedby="desktop-discord-links-help"
+          onClick={model.claimLinks}
+        >
+          {model.state?.linksDefault ? "In use" : "Use this app"}
+        </Button>
+      </div>
+    </section>
+  );
 }
 
 export function DesktopSwitch({ model, name, label, description, disabled = false, checked }) {
@@ -152,6 +207,38 @@ export function NotificationPreferences({ model }) {
         label="Badge only for mentions"
         description="Hide the badge for unread messages without mentions."
         disabled={!model.state?.values.appBadge}
+      />
+    </section>
+  );
+}
+
+export function PopoutPreferences({ model }) {
+  const values = model.state?.values;
+  const canHide = values?.popoutFloating && values?.windowControls && !values?.nativeTitlebar;
+  return (
+    <section class="settings-group" aria-labelledby="desktop-popout-heading">
+      <h3 class="section-label" id="desktop-popout-heading">
+        Video popouts
+      </h3>
+      <DesktopSwitch
+        model={model}
+        name="popoutFloating"
+        label="Float popouts by default"
+        description="Ask tiling window managers to float new video and screenshare windows."
+      />
+      <DesktopSwitch
+        model={model}
+        name="popoutHideTitlebar"
+        label="Hide floating popout titlebar"
+        description="Discord window controls and Native titlebar take precedence."
+        disabled={!canHide}
+        checked={Boolean(canHide && values?.popoutHideTitlebar)}
+      />
+      <DesktopSwitch
+        model={model}
+        name="popoutHideMembers"
+        label="Hide members when expanding a screenshare"
+        description="Collapse the members bar for the selected stream. You can still use Show Members to reopen it."
       />
     </section>
   );

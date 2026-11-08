@@ -1,0 +1,35 @@
+diff --git a/patches/chromium/direct_video_sinks.patch b/patches/chromium/direct_video_sinks.patch
+index 3d1627aae4ebb0ea10c3f842fb1488a08bf8ac51..60f25607fc41f38c56378c968b78a803add1114b 100644
+--- a/patches/chromium/direct_video_sinks.patch
++++ b/patches/chromium/direct_video_sinks.patch
+@@ -115,10 +115,10 @@ index 0000000000000000000000000000000000000000..ecb1be2931ca287236a6d677e9f3cd8e
+ \ No newline at end of file
+ diff --git a/third_party/blink/renderer/modules/discord_video/discord_video.cc b/third_party/blink/renderer/modules/discord_video/discord_video.cc
+ new file mode 100644
+-index 0000000000000000000000000000000000000000..a1a6878f59a999de6e1cdad83e7457c3f836e582
++index 0000000000000000000000000000000000000000..7c7c90e0a6fcde4957da57198464247cfbcc7d96
+ --- /dev/null
+ +++ b/third_party/blink/renderer/modules/discord_video/discord_video.cc
+-@@ -0,0 +1,180 @@
++@@ -0,0 +1,179 @@
+ +#include "third_party/blink/renderer/modules/discord_video/discord_video.h"
+ +
+ +#include "base/no_destructor.h"
+@@ -126,7 +126,6 @@ index 0000000000000000000000000000000000000000..a1a6878f59a999de6e1cdad83e7457c3
+ +#include "electron/discord/public/discord_video_frame.h"
+ +#include "third_party/blink/renderer/modules/mediastream/media_stream_track.h"
+ +#include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
+-+#include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
+ +#include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+ +#include "third_party/blink/renderer/platform/wtf/functional.h"
+ +#include "third_party/blink/renderer/platform/wtf/hash_map.h"
+diff --git a/patches/chromium/dpe_media_content_only.patch b/patches/chromium/dpe_media_content_only.patch
+index eac00dcad6ba4504872b190415730d72678497a7..c19876a6ba22e0343f12572be391ebb190d1ef82 100644
+--- a/patches/chromium/dpe_media_content_only.patch
++++ b/patches/chromium/dpe_media_content_only.patch
+@@ -101,4 +101,4 @@ diff --git a/third_party/blink/renderer/platform/media/web_media_player_impl.h b
+ +  bool HasMediaSessionAudio();
+    bool HasUnmutedAudio() const;
+  
+- 
++   // Report UMAs when this object instance is destroyed.

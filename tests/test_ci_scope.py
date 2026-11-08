@@ -16,10 +16,26 @@ def enabled(result):
 
 
 class CheckSelection(unittest.TestCase):
+    def test_capture_sources_never_select_electron_source_or_compiler_checks(self):
+        root = Path(__file__).resolve().parents[1]
+        paths = [
+            str(path.relative_to(root))
+            for directory in ("integration/video", "integration/camera", "patches/capture")
+            for path in (root / directory).rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        ]
+        for path in paths:
+            with self.subTest(path=path):
+                selected = enabled(select([path]))
+                self.assertIn("unit", selected)
+                self.assertIn("packaging", selected)
+                self.assertFalse(selected & {"source", "compiler"})
+
     def test_focused_changes_select_their_consumers(self):
         cases = {
             "README.md": set(),
             "docs/agent/releases.md": set(),
+            "agents/skills/dpe-upstream-review/SKILL.md": set(),
             "scripts/releases.py": {"unit"},
             "scripts/check_desktop_launch.py": {"unit", "packaging"},
             "scripts/appimage.py": {"unit", "packaging"},
@@ -37,12 +53,79 @@ class CheckSelection(unittest.TestCase):
             "scripts/patch_app_audio.py": {"unit", "packaging", "audio"},
             "scripts/desktop_identity.py": {"unit", "packaging", "audio"},
             "scripts/patch_krisp.py": {"unit", "packaging", "native"},
+            "scripts/patch_vaapi_hrd.py": {"unit", "packaging", "native"},
+            "scripts/patch_capture_dimensions.py": {"unit", "packaging", "native"},
+            "scripts/encoder_scope.py": {"unit", "packaging", "camera", "native"},
+            "scripts/capture_scale_scope.py": {"unit", "packaging", "camera", "native"},
+            "scripts/capture_sync_scope.py": {"unit", "packaging", "camera", "native"},
+            "scripts/capture_upstream_scope.py": {"unit", "packaging", "camera", "native"},
+            "scripts/build_capture_fixture.py": {"unit", "native"},
+            "integration/video/rebuild-game-consumers.py": {
+                "unit",
+                "packaging",
+                "capture",
+                "native",
+            },
+            "integration/video/transport.cjs": {"unit", "packaging", "native"},
+            "integration/video/encoder.c": {"unit", "packaging", "camera", "native"},
+            "integration/video/av1-level.h": {"unit", "packaging", "camera", "native"},
+            "integration/video/capture.c": {"unit", "packaging", "camera", "native"},
+            "integration/video/capture-scale.c": {"unit", "packaging", "camera", "native"},
+            "integration/video/capture-sync.c": {"unit", "packaging", "camera", "native"},
+            "integration/video/capture-upstream.c": {"unit", "packaging", "camera", "native"},
+            "integration/video/capture-rate.h": {
+                "unit",
+                "packaging",
+                "camera",
+                "capture",
+                "native",
+            },
+            "tests/screenshare/gpu-source.c": {"unit", "native"},
+            "scripts/benchmark_screenshare.py": {"unit", "native"},
+            "scripts/build_wayland_capture.py": {"unit", "native", "packaging", "capture"},
+            "scripts/build_wayland_source.py": {"unit", "native", "packaging", "capture"},
+            "scripts/build_kms_source.py": {"unit", "native", "packaging", "capture"},
+            "scripts/build_vkcapture_backend.py": {"unit", "native", "packaging", "capture"},
+            "scripts/stage_vkcapture.py": {"unit", "native", "packaging", "capture"},
+            "scripts/stage_capture_backends.py": {"unit", "native", "packaging", "capture"},
+            "patches/capture/vkcapture-copy-rate.patch": {"unit", "native", "packaging", "capture"},
+            "integration/video/vkcapture-wire.h": {"unit", "native", "packaging", "capture"},
+            "native/source/src/bin/wayland.rs": {
+                "unit",
+                "native",
+                "packaging",
+                "capture",
+                "camera",
+                "audio",
+            },
+            "native/source/src/bin/kms.rs": {
+                "unit",
+                "native",
+                "packaging",
+                "camera",
+                "capture",
+                "audio",
+            },
+            "integration/video/gamecapture-launch.py": {"unit", "native", "packaging", "capture"},
+            "integration/video/protocols/linux-dmabuf-v1.xml": {
+                "unit",
+                "native",
+                "packaging",
+                "capture",
+            },
             "tests/audio/speech.wav": {"unit", "native", "audio"},
             "tests/wayland/main.cjs": {"unit", "audio"},
             "tests/runtime/frame_addon.cc": {"unit", "native"},
             "ci/arch/Dockerfile": {"unit", "packaging", "audio"},
             "ci/audio/niri.Dockerfile": {"unit", "audio"},
-            "integration/camera/v4l2-probe.c": {"unit", "packaging", "camera"},
+            "native/bridge/src/camera_probe.rs": {
+                "unit",
+                "native",
+                "packaging",
+                "camera",
+                "capture",
+                "audio",
+            },
             "scripts/compiler_cache.py": {"unit", "compiler"},
             "LICENSE": {"unit", "packaging"},
             ".github/workflows/app-audio.yml": {"unit", "audio"},
@@ -63,6 +146,8 @@ class CheckSelection(unittest.TestCase):
             "config/build.json",
             "patches/future.patch",
             "scripts/new-helper.py",
+            "agents/skills/dpe-upstream-review/scripts/check.py",
+            "agents/skills/dpe-native-patches/assets/helper.c",
             "integration/new-adapter/file.c",
             "pyproject.toml",
             "uv.lock",

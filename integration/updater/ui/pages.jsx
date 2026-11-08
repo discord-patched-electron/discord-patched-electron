@@ -14,27 +14,12 @@ import {
   DesktopError,
   DesktopSwitch,
   NotificationPreferences,
+  LinkPreferences,
   WindowPreferences,
+  PopoutPreferences,
 } from "./desktop-preferences.jsx";
 
 const groups = [
-  [
-    "Screen sharing",
-    [
-      [
-        "Automatically detect screen-share audio",
-        "On Wayland, select a shared application's audio when its playback can be confidently matched. Otherwise, ask you to choose. Applies to your next share.",
-        "audioAutoDetect",
-        true,
-      ],
-      [
-        "Skip audio picker for entire screens",
-        "On Wayland, share system audio automatically when an entire screen is confirmed, excluding Discord. Turn off to choose audio for screens too. Applies to your next share.",
-        "audioSkipScreenPicker",
-        true,
-      ],
-    ],
-  ],
   [
     "Privacy",
     [
@@ -106,7 +91,30 @@ export function General({ config, desktop }) {
           )}
         </section>
       ))}
+      <LinkPreferences model={desktop} />
       <NotificationPreferences model={desktop} />
+      <section class="settings-group" aria-labelledby="media-controls-heading">
+        <h3 class="section-label" id="media-controls-heading">
+          Media
+        </h3>
+        <DesktopSwitch
+          model={desktop}
+          name="mediaControls"
+          label="Desktop media controls"
+          description="Show videos, voice messages and embedded players in your desktop media player and control playback with media keys. Notification and calling sounds are excluded. Applies next launch."
+        />
+      </section>
+      <section class="settings-group" aria-labelledby="webcam-heading">
+        <h3 class="section-label" id="webcam-heading">
+          Webcam
+        </h3>
+        <DesktopSwitch
+          model={desktop}
+          name="webcamFlip"
+          label="Flip webcam horizontally"
+          description="Flip your webcam for you and everyone watching. Your preview always matches the video you send."
+        />
+      </section>
     </div>
   );
 }
@@ -174,6 +182,7 @@ export function Appearance({ config, desktop }) {
     <div class="appearance-page">
       <DesktopError model={desktop} />
       <WindowPreferences model={desktop} />
+      <PopoutPreferences model={desktop} />
       <TrayIcons />
       <div class="appearance-heading">
         <label for="theme-css" class="section-label">
@@ -230,6 +239,23 @@ const diagnostics = [
 export function Diagnostics({ select, active = true }) {
   const [busy, setBusy] = useState();
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const exportLogs = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExported(false);
+    setExportError("");
+    try {
+      const result = await window.Native.exportLogs();
+      setExported(result.canceled ? false : result.filePath);
+    } catch (failure) {
+      setExportError(errorMessage(failure));
+    } finally {
+      setExporting(false);
+    }
+  };
   const open = async (name) => {
     setBusy(name);
     setError("");
@@ -265,6 +291,45 @@ export function Diagnostics({ select, active = true }) {
           to review or reset your changes.
         </p>
       </section>
+      <div class="diagnostic-row">
+        <div>
+          <h3 id="export-logs-label">Logs for bug reports</h3>
+          <p id="export-logs-help" class="hint">
+            Save available Discord, voice and renderer logs, crash summaries and system diagnostics.
+            Private information is redacted where possible; raw memory dumps are excluded. Review
+            before sharing.
+            <span
+              id="export-logs-status"
+              class="dpe-setting-feedback"
+              role="status"
+              hidden={!exporting && !exported}
+            >
+              {exporting
+                ? "Exporting and redacting logs…"
+                : exported
+                  ? `ZIP saved to ${exported}.`
+                  : ""}
+            </span>
+            <span
+              id="export-logs-error"
+              class="dpe-setting-feedback"
+              role="alert"
+              hidden={!exportError}
+            >
+              {exportError}
+            </span>
+          </p>
+        </div>
+        <Button
+          id="export-logs"
+          disabled={exporting}
+          aria-busy={exporting}
+          aria-describedby="export-logs-label export-logs-help"
+          onClick={exportLogs}
+        >
+          Export ZIP
+        </Button>
+      </div>
       <div class="diagnostics-list">
         {diagnostics.map(([name, label, description]) => (
           <div class="diagnostic-row" key={name}>

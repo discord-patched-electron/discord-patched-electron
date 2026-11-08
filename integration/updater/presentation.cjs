@@ -18,6 +18,7 @@ const iconNames = new Set([
   "github",
   "external",
   "download",
+  "bolt",
   "refresh",
   "applications",
   "screen",
@@ -30,6 +31,7 @@ const iconNames = new Set([
   "maximize",
   "restore",
   "experimental",
+  "warning",
   "copy",
   "chevron",
 ]);
@@ -307,6 +309,7 @@ function attach(window, preferredSource, options = {}) {
     windowControls: desktop.effectiveControls(window),
     focused: window.isFocused?.() !== false,
     recoveryCommand: recoveryCommand(),
+    gameCaptureCommand: `'${path.join(require("node:os").homedir(), ".local/bin/dpe-game-capture").replace(/'/g, "'\\''")}' -- %command%`,
   });
   function handle(name, callback) {
     window.webContents.ipc.handle(name, (event, ...args) => {
@@ -343,6 +346,11 @@ function attach(window, preferredSource, options = {}) {
     } else if (action === "close") window.close();
     else throw Error("Unknown window action");
     return { maximized: !window.isDestroyed() && window.isMaximized() };
+  });
+  handle("dpe-copy-command", async (text) => {
+    if (typeof text !== "string" || text.length > 16384) throw new Error("Invalid command");
+    await clipboard.writeText(text);
+    return { ok: true };
   });
   handle("dpe-copy-recovery", async () => {
     await clipboard.writeText(recoveryCommand());

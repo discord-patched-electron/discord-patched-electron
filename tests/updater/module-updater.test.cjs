@@ -179,3 +179,55 @@ test("application-only updates advertise a restart without changing running modu
     "/profile/generations/old/modules/discord_voice",
   );
 });
+
+test("native updater exposes running versions and rejects modules outside the approved generation", async () => {
+  const { updater } = fixture({}, "/installed");
+  const native = updater.native;
+  assert.deepEqual(
+    { ...(await native.queryCurrentVersionsWithOptions({})).current_modules },
+    { discord_voice: 7 },
+  );
+  assert.equal(native.queryCurrentVersionsWithOptionsSync({}).running_update.metadata_version, 0);
+  assert.equal(
+    native.committedModulePaths.get("discord_voice"),
+    "/installed/modules/discord_voice-7/discord_voice",
+  );
+  await native.installModule("discord_voice");
+  await native.commitModules({});
+  await assert.rejects(native.installModule("../discord_voice"), /approved client/);
+  await assert.rejects(native.installModule("missing"), /approved client/);
+});
+
+test("native checks share preparation and report only completed approved updates", async () => {
+  const { updater, pending } = fixture();
+  const events = [];
+  const first = updater.native.updateToLatestWithOptions({}, (event) => events.push(event));
+  const second = updater.native.updateToLatestWithOptions({}, (event) => events.push(event));
+  assert.equal(pending.length, 1);
+  await pending
+    .shift()
+    .done({ host: "/profile/generations/new", runtime: "/portable app/runtime/electron" });
+  await Promise.all([first, second]);
+  assert.equal(events.length, 2);
+  assert.equal(events[0].state, "Complete");
+  assert.ok(events[0].task.HostInstall);
+  assert.equal(
+    updater.native.committedModulePaths.get("discord_voice"),
+    "/profile/generations/old/modules/discord_voice",
+  );
+  const failed = updater.native.updateToLatestWithOptions({}, (event) => events.push(event));
+  await pending.shift().done(null, new Error("network unavailable"));
+  await assert.rejects(failed, /network unavailable/);
+  assert.equal(events.length, 2);
+});
+
+test("automatic checks use the same desktop notification path as the tray and menu", () => {
+  const { app, updater, tick, pending } = fixture();
+  let checked = 0;
+  app.on("menu:check-for-updates", () => checked++);
+  tick();
+  assert.equal(checked, 1);
+  updater.requestCheck();
+  assert.equal(checked, 2);
+  assert.equal(pending.length, 0);
+});

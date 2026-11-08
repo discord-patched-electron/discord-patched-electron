@@ -1,0 +1,262 @@
+diff --git a/patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch b/patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch
+index eea2b44277362462df35242d2560363e01f1ec8b..e28ae8ffaba18174b5cd02aef6c8d21e21bb9868 100644
+--- a/patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch
++++ b/patches/chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch
+@@ -103,10 +103,10 @@ index a5eb25c65132c67e6fe89d94fc175063fe309270..1c6268cc2121e591e4abc9b1b0389648
+        mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient> client)
+        final;
+ diff --git a/content/browser/media/forwarding_audio_stream_factory.cc b/content/browser/media/forwarding_audio_stream_factory.cc
+-index 67649b167b160248ccaa49347cba1012e3903077..c50f214f119f0a1a338afbe5d63ea2070c3d7e03 100644
++index 9bd15599fcfec61000c91b5689ea9af3baeb37e2..7bd0c9ab20b37b7cabe462190b6551bc70d5544f 100644
+ --- a/content/browser/media/forwarding_audio_stream_factory.cc
+ +++ b/content/browser/media/forwarding_audio_stream_factory.cc
+-@@ -114,6 +114,7 @@ void ForwardingAudioStreamFactory::Core::CreateOutputStream(
++@@ -117,6 +117,7 @@ void ForwardingAudioStreamFactory::Core::CreateOutputStream(
+      int render_process_id,
+      int render_frame_id,
+      const GlobalRenderFrameHostToken& main_frame_token,
+@@ -114,7 +114,7 @@ index 67649b167b160248ccaa49347cba1012e3903077..c50f214f119f0a1a338afbe5d63ea207
+      const std::string& device_id,
+      const media::AudioParameters& params,
+      mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient> client) {
+-@@ -124,6 +125,7 @@ void ForwardingAudioStreamFactory::Core::CreateOutputStream(
++@@ -127,6 +128,7 @@ void ForwardingAudioStreamFactory::Core::CreateOutputStream(
+        .insert(broker_factory_->CreateAudioOutputStreamBroker(
+            render_process_id, render_frame_id, main_frame_token,
+            ++stream_id_counter_, device_id, params, group_id_,
+@@ -123,10 +123,10 @@ index 67649b167b160248ccaa49347cba1012e3903077..c50f214f119f0a1a338afbe5d63ea207
+                           base::Unretained(this)),
+            std::move(client)))
+ diff --git a/content/browser/media/forwarding_audio_stream_factory.h b/content/browser/media/forwarding_audio_stream_factory.h
+-index 6904988ce505960461d0bd9a869cb7c9f23f9fc8..8d6eead54e365516a5969980f7a3ca852ed9b2e9 100644
++index 64d0190e70277d002965458f7ef187d07c2d6c78..c7ee0c9d55ac2f82db73aaa058f62b66f2b60a45 100644
+ --- a/content/browser/media/forwarding_audio_stream_factory.h
+ +++ b/content/browser/media/forwarding_audio_stream_factory.h
+-@@ -89,6 +89,7 @@ class CONTENT_EXPORT ForwardingAudioStreamFactory final
++@@ -91,6 +91,7 @@ class CONTENT_EXPORT ForwardingAudioStreamFactory final
+          int render_process_id,
+          int render_frame_id,
+          const GlobalRenderFrameHostToken& main_frame_token,
+@@ -761,7 +761,7 @@ index 397b55f9baf8bf45447860616a48bf00e4866471..8d28d26b402656bc02cccc92d8565fc4
+  
+    SEQUENCE_CHECKER(owning_sequence_);
+ diff --git a/third_party/blink/public/web/web_frame.h b/third_party/blink/public/web/web_frame.h
+-index 726882dee485542f95d14ceaba75691bfddb6d16..80854b816f1e6ac88f0c99ec35429b1c2152884e 100644
++index a778193cad053ad96d20a4b51bda47c6345bbbd2..367ece1b9ec2e8ae36ef572a78ed4cd2e237f589 100644
+ --- a/third_party/blink/public/web/web_frame.h
+ +++ b/third_party/blink/public/web/web_frame.h
+ @@ -31,6 +31,9 @@
+@@ -774,9 +774,9 @@ index 726882dee485542f95d14ceaba75691bfddb6d16..80854b816f1e6ac88f0c99ec35429b1c
+  #include "base/unguessable_token.h"
+  #include "third_party/blink/public/common/tokens/tokens.h"
+  #include "third_party/blink/public/mojom/frame/frame.mojom-shared.h"
+-@@ -189,6 +192,16 @@ class BLINK_EXPORT WebFrame {
+-   // the given node is not a frame, iframe or if the frame is empty.
+-   static WebFrame* FromFrameOwnerElement(const WebNode&);
++@@ -193,6 +196,16 @@ class BLINK_EXPORT WebFrame {
++   // nullptr if the given value is not a window or if the frame has detached.
++   static WebFrame* FromWindow(v8::Isolate* isolate, v8::Local<v8::Value> value);
+  
+ +  // Tags this frame's owner element as an element capture restriction target
+ +  // and returns its token, reusing the existing one if already tagged. Returns
+@@ -792,10 +792,10 @@ index 726882dee485542f95d14ceaba75691bfddb6d16..80854b816f1e6ac88f0c99ec35429b1c
+    // shadow tree, per https://w3c.github.io/webcomponents/spec/shadow/.
+    mojom::TreeScopeType GetTreeScopeType() const { return scope_; }
+ diff --git a/third_party/blink/renderer/core/css/resolver/style_adjuster.cc b/third_party/blink/renderer/core/css/resolver/style_adjuster.cc
+-index 6cea8d84bc2423c97472e4cd416f27d5d450208b..567ed4f102272d7d00d0eb512c5de6b1bf1f6021 100644
++index d140b5f847931026797b5fccb898e17b17536add..0eba1baa5232b22ccfca550a090558e169f68508 100644
+ --- a/third_party/blink/renderer/core/css/resolver/style_adjuster.cc
+ +++ b/third_party/blink/renderer/core/css/resolver/style_adjuster.cc
+-@@ -1255,6 +1255,11 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
++@@ -1248,6 +1248,11 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
+                               layout_parent_style);
+    }
+  
+@@ -808,10 +808,10 @@ index 6cea8d84bc2423c97472e4cd416f27d5d450208b..567ed4f102272d7d00d0eb512c5de6b1
+  
+    // https://github.com/WICG/html-in-canvas
+ diff --git a/third_party/blink/renderer/core/dom/element.cc b/third_party/blink/renderer/core/dom/element.cc
+-index 38eb73c687890122688a8cd3a1c8d6511a98f855..af91673cf0e067bec40e87bd529af026966a619a 100644
++index 0440519f9342f0401387469aecb24b70ad9c45d8..28f9624d5c7619cc7c3e153c599c950a989c9931 100644
+ --- a/third_party/blink/renderer/core/dom/element.cc
+ +++ b/third_party/blink/renderer/core/dom/element.cc
+-@@ -7693,8 +7693,6 @@ const TrackedElementSubRects* Element::GetTrackedElementSubRects() const {
++@@ -7702,8 +7702,6 @@ const TrackedElementSubRects* Element::GetTrackedElementSubRects() const {
+  }
+  
+  void Element::SetRestrictionTargetId(std::unique_ptr<RestrictionTargetId> id) {
+@@ -820,7 +820,7 @@ index 38eb73c687890122688a8cd3a1c8d6511a98f855..af91673cf0e067bec40e87bd529af026
+    NodeRareData& rare_data = EnsureRareData();
+    CHECK(!rare_data.GetRestrictionTargetId());
+  
+-@@ -7760,6 +7758,15 @@ void Element::SetIsEligibleForElementCapture(bool value) {
++@@ -7769,6 +7767,15 @@ void Element::SetIsEligibleForElementCapture(bool value) {
+    return SetElementFlag(ElementFlags::kIsEligibleForElementCapture, value);
+  }
+  
+@@ -837,7 +837,7 @@ index 38eb73c687890122688a8cd3a1c8d6511a98f855..af91673cf0e067bec40e87bd529af026
+    DCHECK(definition);
+    DCHECK(!GetCustomElementDefinition());
+ diff --git a/third_party/blink/renderer/core/dom/element.h b/third_party/blink/renderer/core/dom/element.h
+-index 813a0bdbdb0c87897a000b064d39947c026d62a6..1968fa1f31266f84f2f92c130187ae3eec34cb45 100644
++index 9aeaebd33e9f138941dbe430a42b673af8ad9cef..03c5d15a571647cf62d91c11c6406fbbf008e016 100644
+ --- a/third_party/blink/renderer/core/dom/element.h
+ +++ b/third_party/blink/renderer/core/dom/element.h
+ @@ -221,8 +221,9 @@ enum class ElementFlags {
+@@ -879,10 +879,10 @@ index ee97bc28a0061959540f40926cf2b8e2bd49d4cf..88b19eb901b5c91bd95b45d3d0d4b642
+    };
+  
+ diff --git a/third_party/blink/renderer/core/frame/web_frame.cc b/third_party/blink/renderer/core/frame/web_frame.cc
+-index cbbc4e1e82c4d251f217f5e9d3fe1d2510aee24c..658d8f5c8bba423910da4ceeb73feb93de2b59d6 100644
++index 1d44eacbe9df7c4cd69d7922372243137404017a..d7b99417c139280665952b6b08d7737353c681d9 100644
+ --- a/third_party/blink/renderer/core/frame/web_frame.cc
+ +++ b/third_party/blink/renderer/core/frame/web_frame.cc
+-@@ -27,6 +27,7 @@
++@@ -31,6 +31,7 @@
+  #include "third_party/blink/renderer/core/page/page.h"
+  #include "third_party/blink/renderer/core/probe/core_probes.h"
+  #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
+@@ -890,7 +890,7 @@ index cbbc4e1e82c4d251f217f5e9d3fe1d2510aee24c..658d8f5c8bba423910da4ceeb73feb93
+  
+  namespace blink {
+  
+-@@ -142,6 +143,29 @@ WebFrame* WebFrame::FromFrameOwnerElement(const WebNode& web_node) {
++@@ -156,6 +157,29 @@ WebFrame* WebFrame::FromWindow(v8::Isolate* isolate,
+    return nullptr;
+  }
+  
+diff --git a/patches/chromium/direct_video_sinks.patch b/patches/chromium/direct_video_sinks.patch
+index 326f78e14cf4c3211017cc987db309f8816c9f70..3d1627aae4ebb0ea10c3f842fb1488a08bf8ac51 100644
+--- a/patches/chromium/direct_video_sinks.patch
++++ b/patches/chromium/direct_video_sinks.patch
+@@ -7,7 +7,7 @@ allows forwarding MediaStreams (specific use case: ones created from
+ captureStream() on video and canvas elements) to discord native modules.
+ 
+ diff --git a/third_party/blink/public/web/web_v8_features.h b/third_party/blink/public/web/web_v8_features.h
+-index e5993d541af75e30a3250f9db254ed9bd55ffd62..795e56f2a7d63a07dd3f540f29194d5f74f2bbc7 100644
++index bcf89b051281ccc094c94d8b15bff4d22695c634..5a45ea930aa0b000d8fad04f29409b54ebb10f9a 100644
+ --- a/third_party/blink/public/web/web_v8_features.h
+ +++ b/third_party/blink/public/web/web_v8_features.h
+ @@ -25,6 +25,7 @@ namespace blink {
+@@ -19,10 +19,10 @@ index e5993d541af75e30a3250f9db254ed9bd55ffd62..795e56f2a7d63a07dd3f540f29194d5f
+    static void EnableMojoJSAndUseBroker(
+        v8::Local<v8::Context> context,
+ diff --git a/third_party/blink/renderer/bindings/generated_in_modules.gni b/third_party/blink/renderer/bindings/generated_in_modules.gni
+-index b56e9a96ebd3d598e53848fa955d02ac45628900..35c27b70f0201e0e200cc089057486ac5cecd933 100644
++index 973ee091e3a091c957240337a51d57bf6bfcd363..0734fc6d2ba513850d6e135d8d07d50bc6fbec17 100644
+ --- a/third_party/blink/renderer/bindings/generated_in_modules.gni
+ +++ b/third_party/blink/renderer/bindings/generated_in_modules.gni
+-@@ -2277,6 +2277,8 @@ generated_interface_sources_in_modules = [
++@@ -2285,6 +2285,8 @@ generated_interface_sources_in_modules = [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_directory_reader.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_directory_reader_sync.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_directory_reader_sync.h",
+@@ -32,22 +32,22 @@ index b56e9a96ebd3d598e53848fa955d02ac45628900..35c27b70f0201e0e200cc089057486ac
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_document.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_document_picture_in_picture.cc",
+ diff --git a/third_party/blink/renderer/bindings/idl_in_modules.gni b/third_party/blink/renderer/bindings/idl_in_modules.gni
+-index 68b809c784a4c9e4c938726d7125497f2747974c..8165970ca547c919d8acd6e6cdd45b0a5b733eb0 100644
++index fa79d4c7bffd07ed2cfca4156c1381093158f408..164aa8802b8c7b3ed90f3c410b1f90a47daf42f6 100644
+ --- a/third_party/blink/renderer/bindings/idl_in_modules.gni
+ +++ b/third_party/blink/renderer/bindings/idl_in_modules.gni
+-@@ -253,6 +253,7 @@ static_idl_files_in_modules = [
+-   "//third_party/blink/renderer/modules/device_orientation/window_device_orientation.idl",
+-   "//third_party/blink/renderer/modules/device_posture/device_posture.idl",
+-   "//third_party/blink/renderer/modules/device_posture/navigator_device_posture.idl",
++@@ -256,6 +256,7 @@ static_idl_files_in_modules = [
++   "//third_party/blink/renderer/modules/deviceboundsessions/device_bound_session.idl",
++   "//third_party/blink/renderer/modules/deviceboundsessions/device_bound_session_registration_observer.idl",
++   "//third_party/blink/renderer/modules/deviceboundsessions/device_bound_session_registration_observer_options.idl",
+ +  "//third_party/blink/renderer/modules/discord_video/discord_video.idl",
+    "//third_party/blink/renderer/modules/document_picture_in_picture/document_picture_in_picture.idl",
+    "//third_party/blink/renderer/modules/document_picture_in_picture/document_picture_in_picture_event.idl",
+    "//third_party/blink/renderer/modules/document_picture_in_picture/document_picture_in_picture_event_init.idl",
+ diff --git a/third_party/blink/renderer/core/context_features/context_feature_settings.h b/third_party/blink/renderer/core/context_features/context_feature_settings.h
+-index 5a112bc80291c05fa9bb2ebe4aec48c65e645910..dcf021ac0c1c90d29eed8e028d4eab59829ff0e9 100644
++index 2fc1aa1a83a784f1e8c32325856adf9637e7d600..a406876cd031579a8a3ac7a4b87607640f15c419 100644
+ --- a/third_party/blink/renderer/core/context_features/context_feature_settings.h
+ +++ b/third_party/blink/renderer/core/context_features/context_feature_settings.h
+-@@ -64,11 +64,16 @@ class CORE_EXPORT ContextFeatureSettings final
++@@ -71,9 +71,14 @@ class CORE_EXPORT ContextFeatureSettings final
+    }
+    bool isUnboundedElementEnabled() const;
+  
+@@ -58,14 +58,12 @@ index 5a112bc80291c05fa9bb2ebe4aec48c65e645910..dcf021ac0c1c90d29eed8e028d4eab59
+    void Trace(Visitor*) const override;
+  
+   private:
+++  bool enable_discord_video_ = false;
+    bool enable_mojo_js_ = false;
+    bool enable_mojo_js_file_system_access_helper_ = false;
+-+  bool enable_discord_video_ = false;
+    bool enable_unbounded_element_ = false;
+-   bool enable_unbounded_element_privileged_ = false;
+- };
+ diff --git a/third_party/blink/renderer/core/exported/web_v8_features.cc b/third_party/blink/renderer/core/exported/web_v8_features.cc
+-index b41c870161a06a4c336ff5e34be6b5863324d897..492991fecdc6e76afb05eff3313c2ca60e34ae7d 100644
++index 0a0f4b47cf332df9b90a91674b3d40505c65362b..e4e0fe708b350a040edfb574cbe88cea3214eb9e 100644
+ --- a/third_party/blink/renderer/core/exported/web_v8_features.cc
+ +++ b/third_party/blink/renderer/core/exported/web_v8_features.cc
+ @@ -52,6 +52,15 @@ void WebV8Features::EnableMojoJS(v8::Local<v8::Context> context, bool enable) {
+@@ -85,12 +83,12 @@ index b41c870161a06a4c336ff5e34be6b5863324d897..492991fecdc6e76afb05eff3313c2ca6
+  void WebV8Features::EnableMojoJSAndUseBroker(
+      v8::Local<v8::Context> context,
+ diff --git a/third_party/blink/renderer/modules/BUILD.gn b/third_party/blink/renderer/modules/BUILD.gn
+-index 9b0b898bdecf6c48b89e4caec5215335e4937cc8..c0aa761a283d7bb1204b41a9e56ace50b38fe4a1 100644
++index 909f3e9a64dc6c9f7a5535d57a46e647ab1fbe5d..51147e601ef58c118b23a3e7dc9784f17b1072a9 100644
+ --- a/third_party/blink/renderer/modules/BUILD.gn
+ +++ b/third_party/blink/renderer/modules/BUILD.gn
+-@@ -91,6 +91,7 @@ component("modules") {
+-     "//third_party/blink/renderer/modules/device_orientation",
++@@ -92,6 +92,7 @@ component("modules") {
+      "//third_party/blink/renderer/modules/device_posture",
++     "//third_party/blink/renderer/modules/deviceboundsessions",
+      "//third_party/blink/renderer/modules/dictation",
+ +    "//third_party/blink/renderer/modules/discord_video",
+      "//third_party/blink/renderer/modules/document_metadata",
+diff --git a/patches/chromium/fix_pointer_lock_in_views_that_only_receive_forwarded_input.patch b/patches/chromium/fix_pointer_lock_in_views_that_only_receive_forwarded_input.patch
+index d0d95ca114e7dae3f09f780ebd18297a6a4e9fc7..6f82c44d70d4f949a12da0fecf19f7ee0f22a53f 100644
+--- a/patches/chromium/fix_pointer_lock_in_views_that_only_receive_forwarded_input.patch
++++ b/patches/chromium/fix_pointer_lock_in_views_that_only_receive_forwarded_input.patch
+@@ -27,32 +27,26 @@ locked window, and views that lock on a mouse press already hold capture
+ from that press.
+ 
+ diff --git a/content/browser/renderer_host/render_widget_host_view_event_handler.cc b/content/browser/renderer_host/render_widget_host_view_event_handler.cc
+-index 0de09e162bb4b16f84a90a29c5b70505f343ee1d..c4488847b78f629d74568daae17687b2e4b2d0d8 100644
++index 88ea661224af5b87250d0bda753fbb4dd18a7635..2d9c7d7ba06f6a553dacfa2e47d1ea5828e5779e 100644
+ --- a/content/browser/renderer_host/render_widget_host_view_event_handler.cc
+ +++ b/content/browser/renderer_host/render_widget_host_view_event_handler.cc
+-@@ -32,6 +32,7 @@
+- #include "ui/base/ime/text_input_client.h"
+- #include "ui/compositor/compositor.h"
+- #include "ui/compositor/layer.h"
+-+#include "ui/display/screen.h"
+- #include "ui/events/blink/blink_event_util.h"
+- #include "ui/events/blink/web_input_event.h"
+- #include "ui/events/keycodes/dom/dom_code.h"
+-@@ -146,10 +147,17 @@ blink::mojom::PointerLockResult RenderWidgetHostViewEventHandler::LockPointer(
+-     if (!mouse_locked_unadjusted_movement_)
++@@ -160,6 +160,11 @@ blink::mojom::PointerLockResult RenderWidgetHostViewEventHandler::LockPointer(
+        return blink::mojom::PointerLockResult::kUnsupportedOptions;
+    }
+-+
++ 
+ +  unlocked_global_mouse_position_ =
+ +      gfx::PointF(display::Screen::Get()->GetCursorScreenPoint());
+ +  unlocked_mouse_position_ = unlocked_global_mouse_position_ -
+ +                             window_->GetBoundsInScreen().OffsetFromOrigin();
+ +
+-   mouse_locked_ = true;
++   // Retain legacy window-relative restoration for headless screens and
++   // embedders without screen mapping.
++   if (base::FeatureList::IsEnabled(
++@@ -176,6 +181,7 @@ blink::mojom::PointerLockResult RenderWidgetHostViewEventHandler::LockPointer(
+  
+    aura::Window::ScopedDeleteBlocker delete_blocker(window_);
+    window_->GetHost()->LockMouse(window_);
+ +  window_->SetCapture();
+  
+-   if (ShouldMoveToCenter(unlocked_global_mouse_position_))
+-     MoveCursorToCenter(nullptr);
++   if (ShouldMoveToCenter(pointer_lock_restore_position_
++                              ? gfx::PointF(*pointer_lock_restore_position_)

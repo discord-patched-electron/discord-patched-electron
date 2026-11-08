@@ -40,6 +40,25 @@ Native keys are calculated in `scripts/runtime_fingerprints.py`. Launcher,
 ASAR, mod and audio-adapter changes affect integration identity, so they can reuse
 Electron. Test changes can rerun validation against an existing artifact.
 
+Capture helpers also belong to the integration identity. Changes to the native
+capture adapter, direct Wayland producer, Vulkan/OpenGL hooks, protocol XML,
+helper build scripts or scope metadata rebuild the affected helpers and app
+package while retaining the same Electron runtime and compiled objects.
+CI builds and retains the capture bundle separately as `capture-support`; the
+native adapter remains in the independent `camera-support` artifact.
+
+Build either helper group locally without an Electron checkout or compilation:
+
+```sh
+uv run python scripts/build_camera_support.py --output out/camera-support
+uv run python scripts/stage_capture_backends.py --output out/capture-support
+```
+
+Use a fresh output directory for the capture bundle. Packaging verifies reusable
+bundles with `--prebuilt` and reuses the existing verified runtime. The runtime
+fingerprint intentionally excludes these helper sources and build scripts;
+regression tests check both runtime reuse and package invalidation for each input.
+
 Do not insert sccache into an existing unwrapped build: changing its compiler
 commands makes Ninja rebuild objects. Keep physical source paths stable too.
 Moving the prepared Electron 46 checkout once caused **42,454 tasks** to rerun

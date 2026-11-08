@@ -8,7 +8,11 @@ if (!output) throw Error("DPE_SPELLCHECK_OUTPUT must be a disposable directory")
 fs.mkdirSync(path.join(output, "profile"), { recursive: true });
 app.setPath("userData", path.join(output, "profile"));
 const adapter = require("../../integration/desktop/spellcheck.cjs");
-const config = { spellcheckLanguages: ["en-US", "fr"], spellcheckEnabled: true };
+const englishOnly = process.env.DPE_SPELLCHECK_ENGLISH === "1";
+const config = {
+  spellcheckLanguages: englishOnly ? ["en-GB", "en"] : ["en-US", "fr"],
+  spellcheckEnabled: true,
+};
 global.settings = { get: () => config };
 adapter.install(require("electron"));
 app.on("window-all-closed", () => {});
@@ -31,7 +35,7 @@ app
     const initialized = new Promise((resolve) => {
       s.on("spellcheck-dictionary-initialized", (_, language) => {
         ready.add(language);
-        if (ready.has("en-US") && ready.has("fr")) resolve();
+        if (config.spellcheckLanguages.every((language) => ready.has(language))) resolve();
       });
     });
     adapter.apply(config);
@@ -53,10 +57,11 @@ app
       await w.webContents.executeJavaScript('window.spellcheckProbe.isWordMisspelled("hello")'),
       false,
     );
-    assert.equal(
-      await w.webContents.executeJavaScript('window.spellcheckProbe.isWordMisspelled("bonjour")'),
-      false,
-    );
+    if (!englishOnly)
+      assert.equal(
+        await w.webContents.executeJavaScript('window.spellcheckProbe.isWordMisspelled("bonjour")'),
+        false,
+      );
     assert.equal(
       await w.webContents.executeJavaScript('window.spellcheckProbe.isWordMisspelled("helllo")'),
       true,
@@ -67,7 +72,7 @@ app
       ).includes("hello"),
     );
     adapter.setLanguages(s, ["en-US"]);
-    assert.deepEqual(s.getSpellCheckerLanguages(), ["en-US", "fr"]);
+    assert.deepEqual(s.getSpellCheckerLanguages(), config.spellcheckLanguages);
     const personal = "dpebilingualtestword";
     const previous = await s.listWordsInSpellCheckerDictionary();
     if (repeat) assert.ok(previous.includes(personal));
@@ -97,6 +102,69 @@ app
       await w.webContents.executeJavaScript('document.querySelector("textarea").value'),
       "hello ",
     );
+    // Match the reported typo in both native textareas and Discord-style rich
+    // text. Chromium deliberately defers the unfinished word at the caret.
+    for (const richText of [false, true]) {
+      await w.webContents.executeJavaScript(`(() => {
+        document.body.innerHTML = ${JSON.stringify('<textarea spellcheck="true"></textarea>')};
+        if (${richText}) document.body.innerHTML = '<div contenteditable="true" spellcheck="true"></div>';
+        const input = document.body.firstElementChild;
+        input.style.cssText = 'position:absolute;left:10px;top:10px;width:500px;height:200px;font:24px monospace';
+        input.focus();
+      })()`);
+      w.webContents.insertText("convienient");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      assert.equal(
+        await w.webContents.executeJavaScript(
+          'window.spellcheckProbe.isWordMisspelled("convienient")',
+        ),
+        true,
+      );
+      const contextAtWord = () =>
+        new Promise((resolve) => {
+          w.webContents.once("context-menu", (_, params) => resolve(params));
+          w.webContents.sendInputEvent({
+            type: "mouseDown",
+            button: "right",
+            x: 35,
+            y: 25,
+            clickCount: 1,
+          });
+          w.webContents.sendInputEvent({
+            type: "mouseUp",
+            button: "right",
+            x: 35,
+            y: 25,
+            clickCount: 1,
+          });
+        });
+      assert.equal(
+        (await contextAtWord()).misspelledWord,
+        "",
+        "unfinished word at the caret is deferred",
+      );
+      // Use a fresh editor so the first context click cannot change the next
+      // typing sequence's selection or focus.
+      await w.webContents.executeJavaScript(`(() => {
+        const previous = document.body.firstElementChild;
+        const input = previous.cloneNode(false);
+        if (input.tagName === "TEXTAREA") input.value = "";
+        previous.replaceWith(input);
+        input.focus();
+      })()`);
+      w.webContents.insertText("convienient ");
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const result = await contextAtWord();
+      assert.equal(result.misspelledWord, "convienient", richText ? "rich text" : "textarea");
+      assert.ok(result.dictionarySuggestions.includes("convenient"));
+      w.webContents.replaceMisspelling("convenient");
+      assert.equal(
+        await w.webContents.executeJavaScript(
+          "document.body.firstElementChild.value ?? document.body.firstElementChild.textContent",
+        ),
+        richText ? "convenient\u00a0" : "convenient ",
+      );
+    }
     adapter.apply({ ...config, spellcheckEnabled: false });
     assert.equal(s.spellCheckerEnabled, false);
     adapter.apply(config);
@@ -106,7 +174,9 @@ app
       assert.equal(downloadAttempts, 0, "cached dictionaries work offline without a download");
     const report = {
       languages: s.getSpellCheckerLanguages(),
-      englishAndFrenchAccepted: true,
+      englishAndFrenchAccepted: !englishOnly,
+      reportedTypoInTextareaAndRichText: true,
+      unfinishedWordDeferred: true,
       misspellingDetected: true,
       contextMenuSuggestions: true,
       replacement: true,

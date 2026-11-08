@@ -5,7 +5,9 @@ const {
   DEFAULTS,
   normalize,
   titlebarCSS,
+  webcamCSS,
   createController,
+  configureMediaControls,
 } = require("../../integration/desktop/preferences.cjs");
 const { patch } = require("../../integration/desktop/preferences-patch.cjs");
 
@@ -94,6 +96,29 @@ function fixture(value = {}, options) {
   return { app, controller, create };
 }
 const settled = () => new Promise((resolve) => setImmediate(resolve));
+
+test("webcam flip changes capture while the preview always keeps the same orientation", async () => {
+  assert.equal(normalize().webcamFlip, false);
+  assert.equal(normalize({ webcamFlip: "true" }).webcamFlip, false);
+  assert.match(webcamCSS(), /transform:none/);
+  const { controller, create } = fixture();
+  const window = create();
+  const messages = [];
+  window.webContents.send = (...args) => messages.push(args);
+  await controller.apply({ webcamFlip: true });
+  assert.deepEqual(messages.at(-1), ["dpe-camera-flip", true]);
+  await controller.cameraStatus(window.webContents, { supported: true, active: true });
+  assert.deepEqual([...window.webContents.styles.values()], [webcamCSS()]);
+  await controller.cameraStatus({}, { supported: false, active: false });
+  assert.equal(controller.status().error, undefined, "unobserved senders cannot change state");
+  await controller.cameraStatus(window.webContents, { supported: false, active: false });
+  assert.match(controller.status().error, /unavailable/);
+  await controller.apply({ webcamFlip: false });
+  assert.deepEqual(messages.at(-1), ["dpe-camera-flip", false]);
+  assert.equal(controller.status().error, undefined);
+  assert.deepEqual([...window.webContents.styles.values()], [webcamCSS()]);
+  assert.equal(controller.status().restartRequired, false);
+});
 
 test("desktop settings normalize only supported values and preserve saved button preferences", async () => {
   assert.deepEqual(normalize(), DEFAULTS);
@@ -251,16 +276,19 @@ test("window controls use only their existing class tokens and stylesheet swaps 
     controller.apply({ windowControls: false }),
     controller.apply({ closeButton: false }),
   ]);
-  assert.deepEqual([...window.webContents.styles.values()], [titlebarCSS({ closeButton: false })]);
+  assert.deepEqual(
+    [...window.webContents.styles.values()],
+    [titlebarCSS({ closeButton: false }) + webcamCSS()],
+  );
   await controller.apply({ windowControls: true });
   await settled();
-  assert.equal(window.webContents.styles.size, 0);
+  assert.deepEqual([...window.webContents.styles.values()], [webcamCSS()]);
   window.webContents.url = "https://example.org/";
   await controller.apply({ windowControls: false });
   await settled();
   assert.deepEqual(
     [...window.webContents.styles.values()],
-    [titlebarCSS({ windowControls: false })],
+    [titlebarCSS({ windowControls: false }) + webcamCSS()],
   );
 });
 
@@ -285,7 +313,7 @@ test("third-party windows are observed without duplicate handlers or inherited D
   );
   assert.deepEqual(
     [...window.webContents.styles.values()],
-    [titlebarCSS({ nativeTitlebar: true })],
+    [titlebarCSS({ nativeTitlebar: true }) + webcamCSS()],
   );
   controller.attachPopout(window, { outOfProcessOverlay: true });
   window.webContents.emit("dom-ready");
@@ -329,4 +357,111 @@ test("desktop integration patch validates each native call site exactly once", a
   assert.throws(() => patch(original + locked, "/preferences.cjs", replace), /Ambiguous/);
   assert.throws(() => patch(original + original, "/preferences.cjs", replace), /Unsupported/);
   assert.throws(() => patch("unexpected layout", "/preferences.cjs", replace), /Unsupported/);
+});
+
+test("video popout startup hints survive disabled minimum sizes and restore real minima after mapping", async () => {
+  for (const enabled of [true, false]) {
+    const { controller } = fixture({ minimumWindowSize: enabled });
+    const options = {
+      width: 854,
+      height: 480,
+      minWidth: 854,
+      dpeVideo: true,
+      dpeFloating: true,
+      minHeight: 480,
+      dpeMinimum: [320, 180],
+      dpeMaximum: [0, 0],
+      dpeResizable: true,
+    };
+    const window = new Window(options);
+    window.windowKey = "DISCORD_CHANNEL_CALL_POPOUT";
+    window.setResizable = (value) => {
+      window.resizable = value;
+    };
+    window.setMaximumSize = (...value) => {
+      window.maximum = value;
+    };
+    controller.attachPopout(window, options);
+    window.emit("ready-to-show");
+    assert.deepEqual(window.minimum, [854, 480]);
+    window.emit("focus");
+    assert.equal(window.resizable, true);
+    assert.deepEqual(window.maximum, [0, 0]);
+    assert.deepEqual(window.minimum, enabled ? [320, 180] : [1, 1]);
+    window.setSize(640, 360);
+    await controller.apply({ minimumWindowSize: true });
+    assert.deepEqual(window.minimum, [320, 180]);
+    assert.deepEqual(window.size, [640, 360]);
+    window.emit("focus");
+    assert.deepEqual(window.size, [640, 360]);
+  }
+});
+
+test("popout titlebar follows its floating preference and global controls always win", async () => {
+  const { controller } = fixture();
+  const window = new Window({ width: 512, height: 288 });
+  window.windowKey = "DISCORD_CHANNEL_CALL_POPOUT";
+  controller.attachPopout(window, {
+    dpeVideo: true,
+    dpeFloating: true,
+    minWidth: 320,
+    minHeight: 180,
+  });
+  assert.equal(controller.effectiveControls(window).windowControls, false);
+  await controller.apply({ popoutHideTitlebar: false });
+  assert.equal(controller.effectiveControls(window).windowControls, true);
+  await controller.apply({ popoutHideTitlebar: false, windowControls: false });
+  assert.equal(controller.effectiveControls(window).windowControls, false);
+  assert.match([...window.webContents.styles.values()][0], /wordmark_/);
+  const tiled = new Window({ width: 512, height: 288 });
+  tiled.windowKey = "DISCORD_CHANNEL_CALL_POPOUT";
+  controller.attachPopout(tiled, {
+    dpeVideo: true,
+    dpeFloating: false,
+    minWidth: 320,
+    minHeight: 180,
+  });
+  await controller.apply({});
+  assert.equal(controller.effectiveControls(tiled).windowControls, true);
+});
+
+test("desktop media controls default off, preserve flags and allow opting in", async () => {
+  assert.equal(normalize().mediaControls, false);
+  assert.equal(normalize({ mediaControls: "true" }).mediaControls, false);
+  const switches = {
+    "enable-features": "Other:param/value,MediaSessionService,HardwareMediaKeyHandling<Trial",
+    "disable-features": "Unrelated,MediaSessionService",
+  };
+  const commandLine = {
+    getSwitchValue: (name) => switches[name] || "",
+    appendSwitch: (name, value) => {
+      switches[name] = value;
+    },
+    removeSwitch: (name) => {
+      delete switches[name];
+    },
+  };
+  configureMediaControls(commandLine);
+  assert.equal(switches["enable-features"], "Other:param/value");
+  assert.equal(
+    switches["disable-features"],
+    "Unrelated,MediaSessionService,HardwareMediaKeyHandling",
+  );
+  configureMediaControls(commandLine);
+  assert.equal(
+    switches["disable-features"],
+    "Unrelated,MediaSessionService,HardwareMediaKeyHandling",
+  );
+  const before = { ...switches };
+  configureMediaControls(commandLine, { mediaControls: true });
+  assert.deepEqual(switches, before, "opting in leaves explicit launch flags untouched");
+  const { controller } = fixture();
+  assert.equal(controller.status().restartRequired, false);
+  await controller.apply({ mediaControls: true });
+  assert.equal(controller.status().restartRequired, true);
+  await controller.apply({ mediaControls: false });
+  assert.equal(controller.status().restartRequired, false);
+  const enabled = fixture({ mediaControls: true }).controller;
+  await enabled.apply({ mediaControls: false });
+  assert.equal(enabled.status().restartRequired, true);
 });

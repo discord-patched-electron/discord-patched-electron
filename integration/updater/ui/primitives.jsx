@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { createContext } from "preact";
-import { useContext, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import fallbackIcons from "../../discord-ui/icons.cjs";
 
 export const fallback = fallbackIcons();
@@ -87,8 +87,10 @@ export function Switch({
   description,
   checked,
   disabled = false,
+  pending = false,
   value,
   experimental,
+  warning,
   onChange,
 }) {
   const host = useRef();
@@ -118,10 +120,11 @@ export function Switch({
     else input.removeAttribute("aria-label");
   });
   return (
-    <div class="setting-row">
+    <div class={`setting-row${pending ? " dpe-setting-pending" : ""}`}>
       <div>
         <label id={`${id}-label`} for={id}>
           {experimental && <Icon name="experimental" label="Experimental" className="risk-icon" />}
+          {warning && <Icon name="warning" label="Warning" className="risk-icon warning" />}
           {label}
         </label>
         {description && (
@@ -164,7 +167,13 @@ export function Select({
     };
   }, []);
   useLayoutEffect(() => {
-    input.current.replaceChildren(...options.map(([key, text]) => new Option(text, key)));
+    input.current.replaceChildren(
+      ...options.map(([key, text, disabled = false]) => {
+        const option = new Option(text, key);
+        option.disabled = disabled;
+        return option;
+      }),
+    );
   }, [options]);
   useLayoutEffect(() => {
     input.current.value = value;
@@ -189,26 +198,68 @@ export function Select({
   );
 }
 
-export function RecoveryCommand() {
-  const { recoveryCommand } = useContext(Presentation);
-  const button = useRef();
-  useLayoutEffect(() => window.DPEControls.copyButton(button.current), []);
+export function Command({ children, recovery = false, disabled = false }) {
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const blocked = useRef(disabled);
+  blocked.current = disabled;
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(""), 2500);
+    return () => clearTimeout(timer);
+  }, [feedback]);
+  const copy = async () => {
+    if (blocked.current || busy) return;
+    setBusy(true);
+    try {
+      const result = await (recovery
+        ? window.Native.copyRecovery()
+        : window.Native.copyCommand(String(children)));
+      if (result?.error) throw new Error(result.error);
+      setFeedback("Command copied");
+    } catch {
+      setFeedback("Could not copy command. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <div class="command">
+    <div
+      class="command"
+      aria-disabled={disabled}
+      onCopy={(event) => {
+        if (disabled) event.preventDefault();
+      }}
+      onCut={(event) => {
+        if (disabled) event.preventDefault();
+      }}
+    >
       <pre>
-        <code>
-          {recoveryCommand || "discord-canary-prerelease-patched-electron-bin --ignore-flags"}
-        </code>
+        <code>{children}</code>
       </pre>
       <button
-        ref={button}
         class="command-copy"
         type="button"
-        aria-label="Copy command"
-        title="Copy command"
-      />
-      <span class="sr-only" role="status" />
+        disabled={disabled || busy}
+        aria-label={feedback === "Command copied" ? "Copied command" : "Copy command"}
+        title={feedback || "Copy command"}
+        onClick={copy}
+      >
+        <Icon name={feedback === "Command copied" ? "check" : "copy"} />
+      </button>
+      <span class="sr-only" role="status">
+        {disabled ? "" : feedback}
+      </span>
     </div>
+  );
+}
+
+export function RecoveryCommand() {
+  const { recoveryCommand } = useContext(Presentation);
+  return (
+    <Command recovery>
+      {recoveryCommand || "discord-canary-prerelease-patched-electron-bin --ignore-flags"}
+    </Command>
   );
 }
 
@@ -342,12 +393,29 @@ export function Versions({ modState }) {
 }
 
 // Discord's menu checkbox: text on the left, square check on the right.
-export function CheckboxMenu({ id, label, options, disabled = false, onChange }) {
+export function CheckboxMenu({
+  id,
+  label,
+  options,
+  disabled = false,
+  descriptionId,
+  name,
+  onChange,
+}) {
   const menu = useRef();
+  const anchor = useRef();
   const [open, setOpen] = useState(false);
   useLayoutEffect(() => {
     if (disabled && menu.current?.matches(":popover-open")) menu.current.hidePopover();
   }, [disabled]);
+  const position = () => {
+    if (!anchor.current) return;
+    const { right, bottom } = anchor.current;
+    const width = menu.current.offsetWidth || 220;
+    const height = menu.current.offsetHeight || 0;
+    menu.current.style.left = `${Math.max(8, Math.min(right - width, innerWidth - width - 8))}px`;
+    menu.current.style.top = `${Math.max(8, Math.min(bottom + 4, innerHeight - height - 8))}px`;
+  };
   const active = options.some((option) => option.checked);
   return (
     <>
@@ -357,13 +425,14 @@ export function CheckboxMenu({ id, label, options, disabled = false, onChange })
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={`${id}-menu`}
+        aria-label={name}
+        aria-describedby={descriptionId}
         popovertarget={`${id}-menu`}
         popovertargetaction="toggle"
         variant={active ? "primary" : "secondary"}
         onClick={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          menu.current.style.left = `${Math.max(8, Math.min(rect.right - 220, innerWidth - 228))}px`;
-          menu.current.style.top = `${Math.min(rect.bottom + 4, innerHeight - 112)}px`;
+          anchor.current = event.currentTarget.getBoundingClientRect();
+          position();
         }}
       >
         {label}
@@ -374,14 +443,17 @@ export function CheckboxMenu({ id, label, options, disabled = false, onChange })
         ref={menu}
         popover="auto"
         role="menu"
-        aria-label={label}
+        aria-label={name || label}
         class="dpe-select-menu dpe-checkbox-menu"
         onToggle={(event) => {
           setOpen(event.newState === "open");
-          if (event.newState === "open") menu.current.querySelector("button").focus();
+          if (event.newState === "open") {
+            position();
+            menu.current.querySelector("button:not(:disabled)")?.focus();
+          }
         }}
         onKeyDown={(event) => {
-          const buttons = [...menu.current.querySelectorAll("button")];
+          const buttons = [...menu.current.querySelectorAll("button:not(:disabled)")];
           const index = buttons.indexOf(document.activeElement);
           if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
             event.preventDefault();
@@ -392,7 +464,7 @@ export function CheckboxMenu({ id, label, options, disabled = false, onChange })
                   ? buttons.length - 1
                   : (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) %
                     buttons.length;
-            buttons[next].focus();
+            buttons[next]?.focus();
           } else if (event.key === "Escape") {
             event.preventDefault();
             menu.current.hidePopover();
@@ -408,7 +480,7 @@ export function CheckboxMenu({ id, label, options, disabled = false, onChange })
             class="dpe-checkbox-menu-item"
             role="menuitemcheckbox"
             aria-checked={option.checked}
-            disabled={disabled}
+            disabled={disabled || option.disabled}
             onClick={() => onChange(option.id, !option.checked)}
           >
             <span>{option.label}</span>

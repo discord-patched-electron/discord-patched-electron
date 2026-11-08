@@ -1,0 +1,106 @@
+diff --git a/patches/chromium/.patches b/patches/chromium/.patches
+index ac41257ff0..51dbad14ac 100644
+--- a/patches/chromium/.patches
++++ b/patches/chromium/.patches
+@@ -175,3 +175,4 @@ fix_pointer_lock_in_views_that_only_receive_forwarded_input.patch
+ fix_media_gracefully_handle_discard_overflow_in_audiodiscardhelper.patch
+ keep_primary_paste_command_line_override.patch
+ allow_per_window_frame_button_visibility.patch
++check_discord_prefilled_editors.patch
+diff --git a/patches/chromium/check_discord_prefilled_editors.patch b/patches/chromium/check_discord_prefilled_editors.patch
+new file mode 100644
+index 0000000000..b2e28fc39b
+--- /dev/null
++++ b/patches/chromium/check_discord_prefilled_editors.patch
+@@ -0,0 +1,91 @@
++Subject: fix: check prefilled Discord editors after user-initiated editing
++
++Keep Chromium script-focus restrictions for other origins and subframes.
++Allow the active user gesture to initialize checking in Discord edit fields.
++
++diff --git a/third_party/blink/renderer/core/editing/spellcheck/cold_mode_spell_check_requester.cc b/third_party/blink/renderer/core/editing/spellcheck/cold_mode_spell_check_requester.cc
++index 28b092bee0..e9ea0242be 100644
++--- a/third_party/blink/renderer/core/editing/spellcheck/cold_mode_spell_check_requester.cc
+++++ b/third_party/blink/renderer/core/editing/spellcheck/cold_mode_spell_check_requester.cc
++@@ -13,6 +13,7 @@
++ #include "third_party/blink/renderer/core/editing/iterators/backwards_character_iterator.h"
++ #include "third_party/blink/renderer/core/editing/iterators/character_iterator.h"
++ #include "third_party/blink/renderer/core/editing/selection_template.h"
+++#include "third_party/blink/renderer/core/editing/spellcheck/dpe_edit_gesture.h"
++ #include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester.h"
++ #include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester_helper.h"
++ #include "third_party/blink/renderer/core/editing/spellcheck/spell_checker.h"
++@@ -92,6 +93,7 @@ const Element* ColdModeSpellCheckRequester::QualifyingEditable() const {
++   const Element* focused_element = window_->document()->FocusedElement();
++   bool skip_due_to_selection =
++       (!focused_element || !focused_element->WasLastFocusFromUserGesture()) &&
+++      !HasDiscordEditGesture(*window_) &&
++       !base::FeatureList::IsEnabled(
++           features::kUnrestrictSpellingAndGrammarForTesting);
++   base::UmaHistogramBoolean(
++diff --git a/third_party/blink/renderer/core/editing/spellcheck/idle_spell_check_controller.cc b/third_party/blink/renderer/core/editing/spellcheck/idle_spell_check_controller.cc
++index d167d3f2ac..7d4732e50c 100644
++--- a/third_party/blink/renderer/core/editing/spellcheck/idle_spell_check_controller.cc
+++++ b/third_party/blink/renderer/core/editing/spellcheck/idle_spell_check_controller.cc
++@@ -21,6 +21,7 @@
++ #include "third_party/blink/renderer/core/editing/iterators/character_iterator.h"
++ #include "third_party/blink/renderer/core/editing/selection_template.h"
++ #include "third_party/blink/renderer/core/editing/spellcheck/cold_mode_spell_check_requester.h"
+++#include "third_party/blink/renderer/core/editing/spellcheck/dpe_edit_gesture.h"
++ #include "third_party/blink/renderer/core/editing/spellcheck/hot_mode_spell_check_requester.h"
++ #include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester.h"
++ #include "third_party/blink/renderer/core/editing/spellcheck/spell_checker.h"
++@@ -140,6 +141,7 @@ void IdleSpellCheckController::RespondToChangedSelection() {
++   // https://explainers-by-googlers.github.io/user-dictionary-leaks/
++   const Element* focused_element = GetDocument().FocusedElement();
++   if ((!focused_element || !focused_element->WasLastFocusFromUserGesture()) &&
+++      !HasDiscordEditGesture(GetWindow()) &&
++       !base::FeatureList::IsEnabled(
++           features::kUnrestrictSpellingAndGrammarForTesting)) {
++     Deactivate();
++@@ -195,7 +197,8 @@ void IdleSpellCheckController::RespondToChangedEnablement() {
++   // We can skip this pass as it must be the result of a script.
++   // For more see:
++   // https://explainers-by-googlers.github.io/user-dictionary-leaks/
++-  if (!base::FeatureList::IsEnabled(
+++  if (!HasDiscordEditGesture(GetWindow()) &&
+++      !base::FeatureList::IsEnabled(
++           features::kUnrestrictSpellingAndGrammarForTesting)) {
++     Deactivate();
++     base::UmaHistogramBoolean(
++diff --git a/third_party/blink/renderer/core/editing/spellcheck/dpe_edit_gesture.h b/third_party/blink/renderer/core/editing/spellcheck/dpe_edit_gesture.h
++new file mode 100644
++--- /dev/null
+++++ b/third_party/blink/renderer/core/editing/spellcheck/dpe_edit_gesture.h
++@@ -0,0 +1,31 @@
+++// Copyright 2026 Discord Patched Electron contributors
+++// Use of this source code is governed by a BSD-style license that can be
+++// found in the LICENSE file.
+++
+++#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_SPELLCHECK_DPE_EDIT_GESTURE_H_
+++#define THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_SPELLCHECK_DPE_EDIT_GESTURE_H_
+++
+++#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+++#include "third_party/blink/renderer/core/frame/local_frame.h"
+++#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+++
+++namespace blink {
+++
+++// Discord mounts and focuses its prefilled Slate editor from the user's Edit
+++// action. Treat that short-lived gesture as an editing request, without lifting
+++// Chromium's script-focus restrictions in other sites or embedded frames.
+++inline bool HasDiscordEditGesture(const LocalDOMWindow& window) {
+++  const LocalFrame* frame = window.GetFrame();
+++  const SecurityOrigin* origin = window.GetSecurityOrigin();
+++  if (!frame || !frame->IsMainFrame() || origin->Protocol() != "https" ||
+++      !LocalFrame::HasTransientUserActivation(frame)) {
+++    return false;
+++  }
+++  const String& host = origin->Host();
+++  return host == "discord.com" || host == "canary.discord.com" ||
+++         host == "ptb.discord.com";
+++}
+++
+++}  // namespace blink
+++
+++#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_SPELLCHECK_DPE_EDIT_GESTURE_H_

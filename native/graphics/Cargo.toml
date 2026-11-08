@@ -1,0 +1,34 @@
+[package]
+name = "dpe-graphics"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license = "GPL-3.0-only"
+
+[features]
+game = ["dep:dpe-x11", "dep:dpe-wayland", "dep:dpe-game"]
+preview = ["game", "dep:dpe-game", "dep:dpe-os"]
+kms-capture = ["dep:dpe-kms"]
+
+[[bin]]
+name = "dpe-vkcapture-preview"
+path = "src/bin/game-preview.rs"
+required-features = ["preview"]
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+dpe-core = { path = "../media-core" }
+dpe-kms = { path = "../kms", optional = true }
+dpe-x11 = { path = "../x11", optional = true }
+dpe-wayland = { path = "../wayland", optional = true }
+dpe-game = { path = "../game", optional = true }
+dpe-os = { path = "../os", optional = true }
+libc = "=0.2.191"
+
+[build-dependencies]
+bindgen = "=0.73.2"
+
+[lints]
+workspace = true

@@ -109,6 +109,9 @@ function fixture({ wayland = false, ozonePlatform = "", platform = "linux" } = {
           createAuxiliaryWindow: (Window, options) => new Window(options),
           status: () => ({ restartRequired: false }),
           apply: (value) => desktopCalls.push(value),
+          linksElsewhere: async () => false,
+          linksDefault: () => false,
+          claimLinks: () => desktopCalls.push("claim-links"),
         };
       }
       if (name === "./tray.cjs")
@@ -285,6 +288,12 @@ test("cached editable config cannot overwrite backend state or escape window IPC
   assert.equal(f.state.onboardingPending, false);
   assert.equal(f.state.clientMod, "vencord");
   assert.equal(f.state.launchFlags.version, 2);
+  const exportLogs = window.handlers.get("dpe-export-logs");
+  await assert.rejects(exportLogs({ sender: {}, senderFrame: {} }), /Invalid settings window/);
+  await assert.rejects(
+    exportLogs({ sender: window.webContents, senderFrame: {} }),
+    /Invalid settings window/,
+  );
   const link = window.handlers.get("dpe-config-open-link");
   await assert.rejects(link(f.event(window), "https://untrusted.invalid"), /Unknown project link/);
   await assert.rejects(link({ sender: {}, senderFrame: {} }, "github"), /Invalid settings window/);
@@ -383,6 +392,16 @@ test("tray operations stay in the owning settings window", async () => {
   );
   await statePreset(f.event(window), "unread", "equicord");
   assert.deepEqual(f.trayCalls[3], ["state-preset", "unread", "equicord"]);
+});
+
+test("only the trusted settings frame can explicitly claim Discord links", async () => {
+  const f = fixture();
+  const window = f.api.open();
+  const claim = window.handlers.get("dpe-desktop-claim-links");
+  await assert.rejects(claim({ sender: {}, senderFrame: {} }), /Invalid settings/);
+  await claim(f.event(window));
+  assert.deepEqual(f.desktopCalls, ["claim-links"]);
+  assert.equal(f.state.desktop, undefined);
 });
 
 test("desktop IPC validates patches, preserves unrelated preferences and rolls back failed writes", async () => {

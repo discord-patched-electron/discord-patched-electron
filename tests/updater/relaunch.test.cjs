@@ -4,7 +4,16 @@ const relaunch = require("../../integration/updater/relaunch.cjs");
 
 test("relaunch keeps original user arguments rather than resolved preset switches", () => {
   const args = ["--flag=one=two", "discord://example", "argument with spaces"];
-  assert.deepEqual(relaunch.arguments({ DPE_LAUNCH_ARGS: JSON.stringify(args) }), args);
+  assert.deepEqual(relaunch.arguments({ DPE_LAUNCH_ARGS: JSON.stringify(args) }), [
+    args[0],
+    args[2],
+    args[1],
+  ]);
+  require("../../integration/desktop/links.cjs").start({ handleOpenUrl() {} });
+  assert.deepEqual(relaunch.arguments({ DPE_LAUNCH_ARGS: JSON.stringify(args) }), [
+    args[0],
+    args[2],
+  ]);
   for (const value of ["oops", "{}", '["ok",2]', "null", ""])
     assert.deepEqual(relaunch.arguments({ DPE_LAUNCH_ARGS: value }), []);
 });

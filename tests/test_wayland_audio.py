@@ -16,11 +16,12 @@ spec.loader.exec_module(audio)
 
 
 class WaylandIdentity(unittest.TestCase):
-    def test_appimage_helpers_preserve_spaces_and_native_system_paths(self):
+    def test_appimage_audio_helpers_always_use_host_paths(self):
         with patch.dict("os.environ", {}, clear=True):
             self.assertEqual(audio.system_tool("pw-dump"), "/usr/bin/pw-dump")
         with patch.dict("os.environ", {"DPE_TOOLS_DIR": "/tmp/image mount/usr/bin"}):
-            self.assertEqual(audio.system_tool("pw-dump"), "/tmp/image mount/usr/bin/pw-dump")
+            for name in ("pw-dump", "pw-cli", "pw-cat", "pw-loopback", "pactl"):
+                self.assertEqual(audio.system_tool(name), f"/usr/bin/{name}")
 
     def test_audio_picker_identity_preserves_selection_and_cancellation(self):
         for identity, root, reply, status, kind in (
@@ -484,3 +485,142 @@ class PlaybackDiscovery(unittest.TestCase):
             controller.tick()
             stop.assert_called_once_with(chooser)
             self.assertIsNone(controller.chooser)
+
+
+class OptimizedAudio(unittest.TestCase):
+    def test_vkcapture_uses_authenticated_game_identity_without_video_nodes(self):
+        for auto, force, live_start, expected in (
+            (True, False, "2000", "automatic"),
+            (False, False, "2000", "manual"),
+            (True, True, "2000", "manual"),
+            (True, False, "reused", "unavailable"),
+            (True, False, None, "unavailable"),
+        ):
+
+            def identity(pid, live_start=live_start):
+                if pid == 200:
+                    return (200, live_start, 1) if live_start else None
+                return (pid, "1000", 1)
+
+            with (
+                self.subTest(auto=auto, force=force, live_start=live_start),
+                patch.object(audio, "process_identity", side_effect=identity),
+                patch.object(audio, "discord_root", return_value=(100, "1000", 1)),
+                patch.object(audio, "descendant", return_value=False),
+                patch.object(audio, "capture_proxy", return_value=False),
+                patch.object(audio, "graph", return_value=[]),
+                patch.object(audio, "command", return_value="[]"),
+                patch.object(audio.Controller, "detect_portal") as portal,
+                patch.object(audio, "niri_request") as niri,
+                patch.object(audio.Controller, "emit") as emit,
+                patch.object(audio.Controller, "choose", return_value=None) as choose,
+                patch.object(audio, "Route") as route,
+            ):
+                controller = audio.Controller(100)
+                snapshot = {
+                    "requestId": 8,
+                    "method": "vkcapture",
+                    "sourceType": "window",
+                    "processIdentity": {"pid": 200, "start": "2000"},
+                }
+                controller.update(
+                    {
+                        "generation": 1,
+                        "enabled": True,
+                        "autoDetect": auto,
+                        "forcePicker": force,
+                        "capture": snapshot,
+                    }
+                )
+                controller.tick()
+                portal.assert_not_called()
+                niri.assert_not_called()
+                if expected == "manual":
+                    choose.assert_called_once()
+                    route.assert_not_called()
+                elif expected == "unavailable":
+                    choose.assert_not_called()
+                    route.assert_not_called()
+                    emit.assert_called_with(state="unavailable")
+                else:
+                    choose.assert_not_called()
+                    route.return_value.sync.assert_called_once_with(
+                        [], [], (200, "2000", 1), (100, "1000", 1)
+                    )
+                    controller.set_capture(snapshot)
+                    self.assertIsNotNone(controller.route)
+                    controller.update({"generation": 1, "capture": None})
+                    route.return_value.close.assert_called_once()
+                    controller.tick()
+                    self.assertIsNone(controller.route)
+
+    def test_optimized_monitor_skip_and_manual_boundaries_without_video_nodes(self):
+        for method, kind, skip, force, automatic in (
+            ("kms", "screen", True, False, True),
+            ("wayland-direct", "screen", True, False, True),
+            ("kms", "screen", False, False, False),
+            ("kms", "screen", True, True, False),
+            ("vkcapture", "window", True, False, False),
+        ):
+            with (
+                self.subTest(method=method, skip=skip, force=force),
+                patch.object(audio, "process_identity", return_value=(100, "start", 1)),
+                patch.object(audio, "discord_root", return_value=(100, "start", 1)),
+                patch.object(audio, "graph", return_value=[]),
+                patch.object(audio, "command", return_value="[]"),
+                patch.object(audio, "niri_request") as niri,
+                patch.object(audio.Controller, "detect_portal") as portal,
+                patch.object(audio.Controller, "emit"),
+                patch.object(audio.Controller, "choose", return_value=None) as choose,
+                patch.object(audio, "Route") as route,
+            ):
+                controller = audio.Controller(100)
+                controller.update(
+                    {
+                        "generation": 1,
+                        "enabled": True,
+                        "autoDetect": False,
+                        "skipScreenPicker": skip,
+                        "forcePicker": force,
+                        "capture": {"requestId": 8, "method": method, "sourceType": kind},
+                    }
+                )
+                controller.tick()
+                niri.assert_not_called()
+                portal.assert_not_called()
+                if automatic:
+                    choose.assert_not_called()
+                    route.return_value.sync.assert_called_once_with([], [], None, (100, "start", 1))
+                    controller.update({"generation": 1, "observations": [], "capture": None})
+                    route.return_value.close.assert_called_once()
+                    self.assertIsNone(controller.capture)
+                    self.assertIsNone(controller.route)
+                    controller.tick()
+                    choose.assert_not_called()
+                    self.assertIsNone(controller.route)
+                else:
+                    choose.assert_called_once_with([], [], ("optimized", 8))
+                    route.assert_not_called()
+
+    def test_only_native_confirmed_monitor_identity_can_skip(self):
+        with (
+            patch.object(audio, "process_identity", return_value=(100, "start", 1)),
+            patch.object(audio, "discord_root", return_value=(100, "start", 1)),
+            patch.object(audio.Controller, "emit"),
+        ):
+            controller = audio.Controller(100)
+            for value in (
+                {"requestId": True, "method": "kms", "sourceType": "screen"},
+                {"requestId": 8, "method": "vkcapture", "sourceType": "screen"},
+                {"requestId": 8, "method": "kms", "sourceType": "window"},
+                {"requestId": 8, "method": "pipewire", "sourceType": "screen"},
+            ):
+                controller.set_capture(value)
+                self.assertIsNone(controller.capture)
+            valid = {"requestId": 9, "method": "kms", "sourceType": "screen"}
+            controller.set_capture(valid)
+            controller.choice = {"kind": "system"}
+            controller.set_capture(valid)
+            self.assertIsNotNone(controller.choice, "periodic identical metadata retains consent")
+            controller.set_capture({**valid, "requestId": 10})
+            self.assertIsNone(controller.choice, "new native request never inherits old consent")

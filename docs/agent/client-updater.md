@@ -34,7 +34,8 @@ including OpenAsar, ASAR patching and the Python updater.
 
 ## Application downloads and activation
 
-`integration/bootstrap/loader.py` is the only installed Python code. It downloads
+`integration/bootstrap/loader.py` handles installed startup; the separate
+`uninstall.py` removes system capture authorization during package removal. The loader downloads
 the package-pinned application on first launch, rejects unsafe ZIP entries and
 verifies every extracted file against a checksum-pinned index. It performs no
 ASAR patching or Electron/client update work. Normal cached launches need no

@@ -4,6 +4,27 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Implementation context, build
 handoffs and test results are indexed in [docs/agent/README.md](docs/agent/README.md).
 Keep user docs short; put investigation notes in that directory.
 
+## Repository skills
+
+Reusable workflows live in `agents/skills/`. For a matching task, read the
+relevant `SKILL.md` before implementing changes. Load its linked references only
+as needed. Paths in commands assume the repository root.
+
+| Skill                                                               | Use for                                                                              |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [dpe-upstream-review](agents/skills/dpe-upstream-review/SKILL.md)   | Discovery/release failures and complete Discord/Electron update diffs                |
+| [dpe-native-patches](agents/skills/dpe-native-patches/SKILL.md)     | Binary patch chains, ABI scopes, compiled hooks and Electron source ports            |
+| [dpe-updater](agents/skills/dpe-updater/SKILL.md)                   | Bootstrap, update activation/recovery, native updater APIs and mod preservation      |
+| [dpe-settings-ui](agents/skills/dpe-settings-ui/SKILL.md)           | Preact settings, shared controls, presentation and Discord page adapters             |
+| [dpe-runtime-checks](agents/skills/dpe-runtime-checks/SKILL.md)     | Isolated desktop, native media, audio and camera validation                          |
+| [dpe-capture-checks](agents/skills/dpe-capture-checks/SKILL.md)     | Screenshare codecs, capture backends, lifecycle and matched benchmarks               |
+| [dpe-dev-environments](agents/skills/dpe-dev-environments/SKILL.md) | Managed dev versions, independent profiles, helper watch/restart and storage cleanup |
+| [dpe-build-release](agents/skills/dpe-build-release/SKILL.md)       | Runtime reuse, local packages, qualification and budgeted compilation                |
+
+Keep reusable instructions in these skills and maintained guides; keep dated
+investigations and evidence in `docs/agent/`. Skills do not grant permission to
+publish, approve releases or repeat historical machine operations.
+
 ## Discord replica UI
 
 - DPE surfaces must look like Discord's current settings and dialogs. Reuse the
@@ -37,6 +58,17 @@ See [shared UI architecture](docs/agent/discord-ui.md) and the
 [measured Discord UI work](docs/agent/discord-native-ui-20261031.md) for rationale,
 component provenance and validation. These conventions apply to all future UI
 changes, including new tabs and settings.
+
+## Upstream update reviews
+
+For Discord/Electron updates and discovery failures, follow the complete
+[upstream update review workflow](docs/agent/upstream-update-review.md). Compare
+immutable last-qualified and candidate snapshots, inventory every changed
+payload/ASAR/native module, and give every diff hunk an explicit disposition.
+Fix and validate every affected integration path; do not stop at the first
+failure, merely extend a native hash allowlist, or treat old-lock tests as proof
+that the candidate works. Record review coverage and remaining limits in agent
+docs before declaring completion.
 
 ## Working rules
 

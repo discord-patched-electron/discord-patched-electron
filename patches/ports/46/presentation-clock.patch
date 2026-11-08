@@ -1,0 +1,62 @@
+diff --git a/discord/discord_video_source.cc b/discord/discord_video_source.cc
+--- a/discord/discord_video_source.cc
++++ b/discord/discord_video_source.cc
+@@ -234,7 +234,18 @@
+     if (ELECTRON_VIDEO_SUCCEEDED(frame.frame.electron->QueryInterface(
+             discord::media::electron::IElectronVideoFrameMedia::IID,
+             electron_frame_media.Receive<void>()))) {
+-      video_frame = electron_frame_media->GetMediaFrame();
++      // The decoder retains its original RTP-tagged frame. Wrap its storage
++      // before applying the direct sink's microsecond presentation timestamp;
++      // no pixels or GPU textures are copied and other decoder owners are safe.
++      auto* decoded_frame = electron_frame_media->GetMediaFrame();
++      if (decoded_frame) {
++        video_frame = media::VideoFrame::WrapVideoFrame(
++            decoded_frame, decoded_frame->format(), decoded_frame->visible_rect(),
++            decoded_frame->natural_size());
++        if (video_frame) {
++          video_frame->set_timestamp(base::Microseconds(frame.timestamp_us));
++        }
++      }
+     }
+   }
+ 
+@@ -268,10 +279,23 @@
+   }
+   video_frame->metadata().transformation = media::VideoTransformation(rotation);
+ 
++  // Match Chromium's remote WebRTC source: the native timestamp is the
++  // planned presentation time on the monotonic clock. Without reference_time
++  // the MediaStream compositor disables its render-smoothness algorithm and
++  // overwrites frames arriving between display ticks. Zero remains immediate
++  // for previews; this adds no fixed playout delay or pixel copy.
++  base::TimeTicks render_time = base::TimeTicks::Now();
++  if (frame.timestamp_us > 0) {
++    render_time = base::TimeTicks() + base::Microseconds(frame.timestamp_us);
++    video_frame->metadata().reference_time = render_time;
++  } else {
++    video_frame->metadata().reference_time.reset();
++  }
++
+   PostCrossThreadTask(
+       *video_task_runner_.get(), FROM_HERE,
+       CrossThreadBindOnce(&VideoSourceDelegate::DoRenderFrameOnIOThread,
+                           WrapRefCounted(this), video_frame,
+-                          base::TimeTicks()));
++                          render_time));
+ 
+   if (userData) {
+diff --git a/discord/module.cc b/discord/module.cc
+--- a/discord/module.cc
++++ b/discord/module.cc
+@@ -40,7 +40,9 @@
+   const WebString track_id(CreateCanonicalUuidString());
+ 
+   auto* media_stream_source = MakeGarbageCollected<MediaStreamSource>(
+-      track_id, MediaStreamSource::kTypeVideo, track_id, false,
++      // Direct Discord tracks are remote tracks, including for presentation
++      // scheduling. Zero-timestamp previews still render immediately.
++      track_id, MediaStreamSource::kTypeVideo, track_id, true,
+       std::move(platform_source));
+   MediaStreamSource::Capabilities capabilities;
+   capabilities.device_id = track_id;

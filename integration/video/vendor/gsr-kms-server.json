@@ -1,0 +1,10 @@
+{
+  "project": "GPU Screen Recorder",
+  "revision": "099a55b",
+  "source": "kms/server/kms_server.c",
+  "source_sha256": "24ce437a6ec34d960d799dd360eac00dc56639d9ad00215dba93d9a686cbca99",
+  "archive_url": "https://dec05eba.com/snapshot/gpu-screen-recorder.git.r1536.099a55b.tar.gz",
+  "archive_sha256": "699ee6af0530e01d446c25e1e1372e21d97502f5484c9bd6a09a665c91024483",
+  "license": "GPL-3.0-only",
+  "unchanged": true
+}

@@ -32,11 +32,13 @@ def check_client_free_archive(bundle, root):
 
 
 def check_bootstrap_archive(bundle, root):
+    bundle.getmember(root + "/uninstall.py")
     policy = json.load(bundle.extractfile(root + "/bootstrap.json"))
     if policy.get("schema") != 1 or policy["application"].get("asset") != "application.zip":
         raise ValueError("Package is not a minimal bootstrap distribution")
     allowed = {
         "loader.py",
+        "uninstall.py",
         "launch.sh",
         "bootstrap.json",
         "release-signing-key.asc",
@@ -60,6 +62,7 @@ def check_bootstrap_archive(bundle, root):
 
 
 def check_appimage(image: Path, expected: dict, channel: str):
+    from appimage import validate_dependencies
     from desktop_identity import desktop_id
 
     with tempfile.TemporaryDirectory(prefix="release-appimage-") as temporary:
@@ -70,6 +73,7 @@ def check_appimage(image: Path, expected: dict, channel: str):
             stdout=subprocess.DEVNULL,
         )
         appdir = Path(temporary) / "squashfs-root"
+        validate_dependencies(appdir)
         bootstrap = appdir / "usr/lib/dpe"
         dependencies = read_json(appdir / "usr/share/dpe-dependencies/build.json")
         if (
@@ -145,6 +149,20 @@ def check(directory: Path):
             raise ValueError("Application module pins differ from the signed release")
     deb = next(directory.glob("*.deb"))
     rpm = next(directory.glob("*.rpm"))
+    control = subprocess.check_output(["bsdtar", "-xOf", str(deb), "control.tar.gz"])
+    with tarfile.open(fileobj=io.BytesIO(control), mode="r:gz") as archive:
+        script = archive.extractfile("./prerm").read().decode()
+        if (
+            f"/opt/{root}/uninstall.py --package {root}" not in script
+            or '[ "${1:-}" = remove ] || exit 0' not in script
+        ):
+            raise ValueError("Debian package lacks upgrade-safe capture cleanup")
+    script = subprocess.check_output(["rpm", "-qp", "--scripts", str(rpm)], text=True)
+    if (
+        f"/opt/{root}/uninstall.py --package {root}" not in script
+        or '[ "${1:-}" = 0 ] || exit 0' not in script
+    ):
+        raise ValueError("RPM package lacks upgrade-safe capture cleanup")
     # dpkg-deb is available in release CI; bsdtar supplies the local Arch path.
     data = subprocess.check_output(["bsdtar", "-xOf", str(deb), "data.tar.gz"])
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as package:
@@ -171,6 +189,11 @@ def check(directory: Path):
             ):
                 raise ValueError(f"Debian payload mismatch: {path}")
     arch = next(directory.glob("*.pkg.tar.zst"))
+    script = subprocess.check_output(["bsdtar", "-xOf", str(arch), ".INSTALL"], text=True)
+    if f"/opt/{root}/uninstall.py --package {root}" not in script or "pre_remove()" not in script:
+        raise ValueError("Arch package lacks capture cleanup")
+    if "pre_upgrade()" in script or "post_upgrade()" in script:
+        raise ValueError("Arch upgrade must preserve capture authorization")
     for packaged in (rpm, arch):
         with tempfile.TemporaryDirectory(prefix="release-package-") as temporary:
             subprocess.run(["bsdtar", "-xf", str(packaged), "-C", temporary], check=True)
@@ -198,6 +221,7 @@ def check(directory: Path):
         "channel": manifest["channel"],
         "assets": manifest["assets"],
         "same_app_payload_in_all_formats": True,
+        "capture_uninstall_hooks_verified": True,
         "bundled_discord_client": False,
         "bundled_electron": False,
         "payload_files": len(expected),

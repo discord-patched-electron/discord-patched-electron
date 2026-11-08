@@ -181,12 +181,41 @@ function open(tab = "settings", sourceContents, options = {}) {
     if (!Object.hasOwn(links, name)) throw new Error("Unknown project link");
     await shell.openExternal(links[name]);
   });
+  handle("dpe-export-logs", () => require("./export-logs.cjs").exportLogs(window));
   handle("dpe-config-diagnostic", (name) => require("./diagnostics.cjs").open(name));
-  const desktopState = () => {
+  handle("dpe-screenshare-load", () => require("./screensharing.cjs").load(settings));
+  handle("dpe-screenshare-save", (patch) => require("./screensharing.cjs").save(settings, patch));
+  handle("dpe-screenshare-status", () => require("./screensharing.cjs").snapshot());
+  handle("dpe-capture-permission-status", () => require("./capture-permission.cjs").status());
+  handle("dpe-capture-permission-allow", () => {
+    if (
+      !require("../video/settings.cjs").normalize(settings.get("openasar", {}).screensharing)
+        .experimentalCapture
+    )
+      throw new Error("Enable experimental capture methods first.");
+    return require("./capture-permission.cjs").allow();
+  });
+  handle("dpe-capture-permission-revoke", () => require("./capture-permission.cjs").revoke());
+  handle("dpe-capture-selection", () => require("./capture-backends.cjs").state());
+  handle("dpe-capture-refresh", () => require("./capture-backends.cjs").refresh());
+  handle("dpe-capture-choose", (id, source, authorize) =>
+    require("./capture-backends.cjs").choose(id, source, authorize === true),
+  );
+  handle("dpe-capture-cancel", (id) => require("./capture-backends.cjs").cancel(id));
+  const desktopState = async () => {
     const desktop = require("../desktop/preferences.cjs");
-    return { ...desktop.status(), values: desktop.normalize(settings.get("openasar", {}).desktop) };
+    return {
+      ...desktop.status(),
+      values: desktop.normalize(settings.get("openasar", {}).desktop),
+      linksDefault: desktop.linksDefault(),
+      linksElsewhere: await desktop.linksElsewhere(),
+    };
   };
   handle("dpe-desktop-load", desktopState);
+  handle("dpe-desktop-claim-links", () => {
+    require("../desktop/preferences.cjs").claimLinks();
+    return desktopState();
+  });
   handle("dpe-desktop-save", async (patch) => {
     const desktop = require("../desktop/preferences.cjs");
     if (
@@ -208,18 +237,16 @@ function open(tab = "settings", sourceContents, options = {}) {
       throw error;
     }
     global.oaConfig = { ...next, autoupdate: false };
+    const errors = [];
     try {
       await desktop.apply(next.desktop);
     } catch (error) {
       // The preference is already durable. Keep the UI on the saved values
       // when a window closes mid-update or a live native operation fails.
       console.error("Could not apply desktop preferences", error);
-      return {
-        ...desktopState(),
-        error: "Settings saved. Restart Discord to finish applying these changes.",
-      };
+      errors.push("Settings saved. Restart Discord to finish applying these changes.");
     }
-    return desktopState();
+    return { ...(await desktopState()), error: errors.join(" ") };
   });
   const spellingState = () => {
     const state = require("../desktop/spellcheck.cjs").status();

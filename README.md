@@ -5,21 +5,40 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 
 > [!WARNING]
 > Experimental. Testing is limited, and bugs are expected.
+>
+> [Using this project breaks Discord TOS](#discord-terms-of-service).
 
 <br />
 
 ## Features and patches
 
-- Updated Electron for newer Chromium features and Linux improvements.
-- Discord's native screen sharing and Krisp noise suppression.
-- Wayland by default, with X11 support too.
-- [Application audio](docs/wayland-audio.md) for screen sharing.
-- Faster camera startup and hardware video decoding where supported.
-- Integrated OpenAsar for custom themes and startup settings.
-- Configurable tray icons and multilingual spell checking with Chromium dictionaries.
-- Easily configurable Electron flags, with graphics presets and custom overrides.
-- [Vencord and Equicord](docs/client-mods.md) support that persists across updates.
-- Automatic Discord and patched Electron updates.
+### Runtime and media
+
+- Newer Electron with native Wayland and X11 support.
+- Discord’s native screensharing and Krisp noise suppression.
+- [Improved stream quality, hardware encoding and video decoding](docs/screensharing.md).
+- Experimental game and direct monitor capture.
+- [Application audio](docs/wayland-audio.md) for screensharing.
+- Faster camera startup and optional outgoing webcam mirroring.
+
+### Desktop controls
+
+- Native titlebars and individually configurable window buttons.
+- Resizable windows without Discord’s minimum-size limit.
+- Floating video popouts with optional titlebars and member lists.
+- Notification flashing and optional mention-only app badges.
+- Custom tray icons and minimized startup.
+- Optional desktop media controls.
+
+### Customization and updates
+
+- OpenAsar themes and startup preferences.
+- Multilingual spell checking with Chromium dictionaries.
+- Graphics presets and custom Electron flags.
+- Autoscroll and middle-click paste controls.
+- Built-in GPU, media and WebRTC diagnostics.
+- [Vencord or Equicord](docs/client-mods.md), preserved across updates.
+- Automatic, verified Discord and patched Electron updates.
 
 On first launch, the app downloads Discord's client files directly from Discord.
 Downloads are verified before use.
@@ -48,27 +67,21 @@ are available for testing.
 
 ## Settings and client mods
 
-Open Discord's **User Settings**, then click **DPE Settings**
-above **Log Out** in the left sidebar.
+Open **User Settings → DPE Settings**, above **Log Out**, to configure the app.
+See [settings and launcher options](docs/linux-launcher.md) for details.
 
 First-run setup offers Vencord, Equicord or no client mod. Use **Mods** to change
 your choice later; see [client mods](docs/client-mods.md).
-
-Use **General** and **Appearance** to configure OpenAsar. The **Flags** tab provides
-display options, graphics presets under **Advanced**, and a box for custom
-Electron flags. Valid flag changes save automatically and apply on the next
-launch. **Undo** restores the flags from when you opened Settings. See
-[launcher settings](docs/linux-launcher.md) for more details.
-
-The **Troubleshooting** tab opens GPU, media, WebRTC and other diagnostic pages
-inside Discord’s Electron runtime.
 
 ## Guides
 
 - [Appearance, startup and launcher settings](docs/linux-launcher.md)
 - [Screen-share audio and desktop support](docs/wayland-audio.md)
+- [Screensharing, game capture and direct capture](docs/screensharing.md)
 - [Vencord and Equicord](docs/client-mods.md)
+- [Local development and reusable dev profiles](docs/development.md)
 - [Contributing](CONTRIBUTING.md)
+- [Maintainer guide](docs/agent/README.md)
 
 ## AI usage
 
@@ -85,3 +98,14 @@ Report issues here rather than contacting Discord support about this package.
 
 The automation is [MIT licensed](LICENSE). Bundled software keeps its
 [own licenses](THIRD_PARTY.md).
+
+## Discord Terms of Service
+
+Using DPE, Equicord or Vencord violates Discord’s Terms of Service, as does using
+any other client modification.
+
+Avoid plugins that enable abusive behavior. If losing access to your account
+would be a serious problem, use the official, unmodified client instead.
+Consider a server’s rules before posting screenshots of a modified client.
+
+Adapted from [Vencord’s disclaimer](https://github.com/Vendicated/Vencord#disclaimer).

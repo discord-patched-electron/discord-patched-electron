@@ -91,11 +91,7 @@ def recipe(manifest: dict, tag: str, revision: int = 1) -> str:
         if manifest.get("client_distribution") == "module-only"
         else ["LicenseRef-Discord", "MIT", "BSD-3-Clause"]
     )
-    install_hook = (
-        ""
-        if manifest.get("package_distribution") == "bootstrap-only"
-        else "install=discord.install\n"
-    )
+    install_hook = "install=discord.install\n"
     return f"""# Maintainer: he3als <he3als@users.noreply.github.com>
 pkgname={config["name"]}
 pkgver={manifest["version"]}
@@ -140,14 +136,23 @@ def stage(directory: Path, manifest: dict, tag: str):
         else 1
     )
     (directory / "PKGBUILD").write_text(recipe(manifest, tag, revision))
-    if manifest.get("package_distribution") == "bootstrap-only":
-        (directory / "discord.install").unlink(missing_ok=True)
-    else:
-        (directory / "discord.install").write_text(
+    cleanup = (
+        (ROOT / "packaging/linux/discord.install.in")
+        .read_text()
+        .replace("@ROOT@", f"/opt/{name}")
+        .replace("@PKGNAME@", name)
+    )
+    # Re-publishing a historical archive cannot add a missing uninstaller.
+    cleanup = cleanup.replace(
+        "  python3 -I", f"  [ -f /opt/{name}/uninstall.py ] || return 0\n  python3 -I"
+    )
+    if manifest.get("package_distribution") != "bootstrap-only":
+        cleanup += (
             "post_install() {\n"
             f"  sh /opt/{name}/refresh-mod-backup.sh /opt/{name}\n"
             "}\n\npost_upgrade() {\n  post_install\n}\n"
         )
+    (directory / "discord.install").write_text(cleanup)
     write_srcinfo(directory)
 
 

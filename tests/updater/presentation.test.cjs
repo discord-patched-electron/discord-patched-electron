@@ -13,6 +13,14 @@ test("Flags retires cached System icons and accepts only the semantic flag key",
   assert.equal(presentation.sanitize({ icons: { flag: valid } }).icons.flag, valid);
 });
 
+test("optimized capture accepts the shared sanitized bolt icon", () => {
+  assert.equal(presentation.sanitize({ icons: { bolt: valid } }).icons.bolt, valid);
+  assert.equal(
+    presentation.sanitize({ icons: { bolt: "<svg><script></script></svg>" } }).icons.bolt,
+    undefined,
+  );
+});
+
 test("version metadata identifies the client branch and running Linux distribution", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dpe-version-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -370,6 +378,10 @@ test("settings follows live theme, constrains IPC and releases its polling lifec
   assert.equal((await f.invoke("dpe-presentation")).maximized, true);
   await f.invoke("dpe-copy-recovery", "arbitrary text is ignored");
   assert.deepEqual(f.copies, ["discord-canary --ignore-flags"]);
+  await f.invoke("dpe-copy-command", "~/.local/bin/dpe-game-capture -- game-command");
+  assert.equal(f.copies.at(-1), "~/.local/bin/dpe-game-capture -- game-command");
+  await assert.rejects(f.invoke("dpe-copy-command", {}), /Invalid command/);
+  await assert.rejects(f.invoke("dpe-copy-command", "x".repeat(16385)), /Invalid command/);
   const count = f.css.length;
   f.sourceURL = "https://example.invalid/";
   await f.bridge.sync();

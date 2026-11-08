@@ -1,0 +1,28 @@
+[package]
+name = "dpe-pipewire"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+default = ["relay"]
+relay = []
+source = ["relay"]
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[[example]]
+name = "upstream-fixture"
+crate-type = ["staticlib"]
+
+[dependencies]
+dpe-core = { path = "../media-core" }
+libc = "=0.2.191"
+
+[build-dependencies]
+bindgen = "=0.73.2"
+
+[lints]
+workspace = true

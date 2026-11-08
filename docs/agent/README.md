@@ -1,85 +1,33 @@
-# Contributor and agent docs
+# Maintainer guide
 
-Use these pages to build, test and maintain the project. For installation and
-app settings, start with the [main README](../../README.md).
+Start with [contributor setup](../../CONTRIBUTING.md). For app installation and
+settings, use the [main README](../../README.md). Check current code and locks
+before reusing versions or commands from a dated report.
 
-Only Discord Canary with alpha/beta Electron is enabled. Check the current code
-and locks before acting on an older report; its versions and results belong to
-that test run.
+## Common tasks
 
-## Start here
+| Task                                               | Guide                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------------- |
+| Run dev versions, switch profiles or watch helpers | [Development manager](../development.md)                                  |
+| Package, qualify or approve a release              | [Release packaging](releases.md)                                          |
+| Investigate discovery or an upstream update        | [Whole-diff review](upstream-update-review.md), [discovery](discovery.md) |
+| Choose checks or compile Electron                  | [CI runners](ci-setup.md), [runtime validation](runtime-validation.md)    |
+| Change settings or native integrations             | [Repository skills](../../AGENTS.md#repository-skills)                    |
 
-- [Handoff](handoff.md): current configuration, retained builds and open test gaps.
-- [Release packaging](releases.md): make, test and approve a release.
-- [Runtime validation](runtime-validation.md): test native video and Krisp.
-- [Channel switches](channels.md): enable or disable supported build tracks.
+## Implementation references
 
-## Builds and updates
+- **Latest client review:** [Canary 1.0.2472 dev validation](client-2472-compatibility.md).
+- **Updates:** [client/runtime updater](client-updater.md), [mod preservation](client-mods.md).
+- **Builds:** [source ports](source-ports.md), [cache reuse](build-caching.md),
+  [channel switches](channels.md).
+- **Desktop:** [shared UI](discord-ui.md), [application audio](wayland-audio.md),
+  [capture review](screenshare-review-20261105.md).
+- **Operations:** [release internals](release-reference.md),
+  [runner and credential details](ci-reference.md).
 
-- [CI runners and budget](ci-setup.md)
-- [CPU target and build caching](build-caching.md)
-- [Source ports](source-ports.md)
-- [Update discovery and scheduling](discovery.md)
-- [Electron scheduling, retry and provider-usage reliability audit](electron-update-reliability-20261101.md)
-- [Client and Electron updater](client-updater.md)
-- [Vencord and Equicord preservation](client-mods.md)
-- [Installer resilience and GitHub API limits](mod-network-resilience-20261031.md)
+## Investigations and evidence
 
-## Linux integration
-
-- [Desktop controls, scrolling and primary-selection paste](desktop-preferences-20261101.md)
-- [Settings descriptions, titlebar behavior and autoscroll dependency](settings-refinements-20261101.md)
-- [Native middle-click patch, regression checks and runtime artifact](middle-click-native-20261101.md)
-- [Tray icons and bilingual spell checking](tray-spellcheck-20261101.md)
-- [Dictionary filters, removal, progress and tray reset state](dictionary-controls-20261101.md)
-- [Vencord/Equicord tray presets and asset credits](tray-presets-20261101.md)
-- [Individual tray preset links and essential-flags copy](tray-row-presets-20261101.md)
-- [Collapsed window controls and Custom tray preset state](controls-custom-20261101.md)
-- [In-window audio picker and detection research](audio-picker.md)
-- [Cross-desktop audio detection](audio-auto-detection.md)
-- [Wayland application audio](wayland-audio.md)
-- [Audio investigation and mixer fix](audio-investigation.md)
-- [Camera startup](camera-startup.md)
-- [Launcher, codecs and shortcuts](linux-launcher.md)
-- [OpenAsar playback crash and flag audit](video-playback.md)
-- [Editable presets, recovery and initial GPU flag research](launch-presets.md)
-- [Deeper Linux GPU flag audit, dependencies and codec tests](linux-gpu-flags.md)
-- [Shared Discord UI runtime and adapters](discord-ui.md)
-- [OpenAsar settings entry and diagnostic pages](openasar-settings.md)
-- [Blank voice debug popouts and opener compatibility](debug-popout.md)
-- [Compact Flags tab, file storage and automated codec checks](flags-file.md)
-- [Software codec initialization and sandbox fix](software-codecs.md)
-- [Codec playback verification and NVIDIA HEVC flags](codec-support.md)
-- [External links, test-profile isolation and Zen verification](external-links.md)
-- [Canary window identity and runtime reuse after updates](desktop-identity.md)
-- [Local runtime checks](linux-runtime.md)
-
-- [Discord-style settings, setup and working-tree checks](discord-native-ui-20261031.md)
-
-## History and evidence
-
-- [Branch consolidation](branch-consolidation-20261031.md): final integration of
-  the audio picker, bootstrap recovery and reliability review worktrees.
-
-These pages explain past decisions and preserve test results. They are not
-current setup instructions or authorization to repeat earlier actions.
-
-- [Offline reliability and safety review, 30–31 October](reliability-review-20261030.md)
-- [Reliability fixes and regression checks, 31 October](reliability-fixes-20261031.md)
-- [Ongoing project-wide reliability work](project-reliability-20261031.md)
-- [Reliability delivery audit and final validation](reliability-delivery-audit-20261031.md)
-- [Build and release history](handoff-history.md)
-- [Updater implementation history](updater-history.md)
-- [Early implementation milestones](status.md)
-- [Original plan](plan.md)
-- [Initial build capacity experiment](build-capacity.md)
-- [Older Arch packaging path](packaging.md)
-- [Previous Equicord loader](equicord.md)
-- [Proprietary payload cleanup](proprietary-payload-cleanup.md)
-- [Saved test reports](../evidence/)
-
-- [Blacksmith build economics and dictionary feedback](blacksmith-build-economics-20261101.md)
-
-- [Free build capacity and incremental checkpoints](free-build-reuse-20261101.md)
-
-- [AppImage review and package repository UX](packaging-ux-20261101.md)
+The [investigation index](history.md) preserves dated reports, decisions and test
+limits. Store new investigation notes here and link them from that index.
+User guides should explain setup and use; keep disassembly, experiments and
+individual test runs in these maintainer references.

@@ -6,10 +6,12 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+from build_rust_support import stage_source as stage_rust_source
 from build_ui import build as build_ui
 from common import ROOT, download, read_json, sha256, write_json
 from desktop_identity import desktop_id
 from patch_app_audio import SIDECARS
+from stage_capture_backends import stage as stage_capture
 from stage_openasar import stage as stage_editor
 from updater_python import stage as stage_python
 
@@ -89,7 +91,7 @@ def stage(
     # Official mod installers use this to identify the installation. The loader
     # reads the live client metadata from Discord's per-user installation.
     write_json(resources / "build_info.json", {"releaseChannel": channel, "version": version})
-    for directory in ("updater", "audio", "desktop", "launcher", "discord-ui"):
+    for directory in ("updater", "audio", "video", "camera", "desktop", "launcher", "discord-ui"):
         shutil.copytree(
             ROOT / "integration" / directory,
             output / "integration" / directory,
@@ -114,13 +116,31 @@ def stage(
             shutil.copy2(bundled / "ui-runtime.cjs", output / directory / "ui-runtime.cjs")
             shutil.copy2(bundled / "PREACT-LICENSE.txt", output / directory / "PREACT-LICENSE.txt")
     scripts = output / "scripts"
-    scripts.mkdir()
+    stage_rust_source(output)
+    scripts.mkdir(exist_ok=True)
     for name in (
         "client_native.py",
         "camera_scope.py",
+        "capture_scope.py",
+        "capture_scale_scope.py",
+        "capture_upstream_scope.py",
+        "capture_sync_scope.py",
+        "capture_picker_scope.py",
+        "capture_direct_scope.py",
+        "encoder_scope.py",
+        "build_hevc_support.py",
+        "build_capture_shader.py",
         "patch_krisp.py",
         "patch_app_audio.py",
+        "native_client_2444.py",
+        "native_client_2472.py",
         "patch_pulse_audio.py",
+        "patch_vaapi_hrd.py",
+        "patch_capture_dimensions.py",
+        "patch_capture_chroma.py",
+        "patch_presentation_clock.py",
+        "patch_video_pacing.py",
+        "patch_decoder_eagain.py",
         "common.py",
     ):
         shutil.copy2(ROOT / "scripts" / name, scripts)
@@ -132,6 +152,7 @@ def stage(
     shutil.copy2(ROOT / "packaging/discord-canary.png", output / "discord.png")
     stage_python(output, python_archives)
     stage_editor(output, cdn_archive)
+    stage_capture(output / "capture")
     write_json(
         output / "client-distribution.json",
         {

@@ -14,11 +14,14 @@
     "preact": "11.1.1"
   },
   "scripts": {
-    "lint": "uv run ruff check . && uv run ruff format --check . && oxlint integration tests && oxfmt --check . && uv run python scripts/check_style.py && uv run actionlint",
-    "format": "uv run ruff check --fix . && uv run ruff format . && oxfmt --write . && uv run python scripts/check_style.py --fix",
-    "test": "bun run test:python && bun run test:js",
+    "lint": "uv run ruff check . && uv run ruff format --check . && oxlint integration tests && oxfmt --check . && uv run python scripts/check_style.py && uv run actionlint && bun run lint:rust",
+    "lint:rust": "cargo fmt --all --check && cargo clippy --locked --workspace --all-targets --features dpe-graphics/preview,dpe-graphics/kms-capture,dpe-pipewire/source -- -D warnings",
+    "format": "uv run ruff check --fix . && uv run ruff format . && oxfmt --write . && uv run python scripts/check_style.py --fix && cargo fmt --all",
+    "test": "bun run test:python && bun run test:js && bun run test:rust",
+    "test:rust": "cargo test --locked --workspace --features dpe-graphics/preview,dpe-graphics/kms-capture,dpe-pipewire/source",
     "test:python": "uv run python -m unittest discover -s tests -v",
-    "test:js": "node --test tests/audio/*.test.cjs tests/updater/*.test.cjs tests/discord-ui/*.test.cjs"
+    "test:js": "node --test tests/audio/*.test.cjs tests/updater/*.test.cjs tests/discord-ui/*.test.cjs tests/screenshare/*.test.cjs",
+    "dev": "uv run python scripts/dev.py"
   },
   "packageManager": "bun@1.4.4"
 }
