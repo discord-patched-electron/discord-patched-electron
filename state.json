@@ -941,8 +941,14 @@
       "blacksmith_minutes": 0,
       "provider": "local",
       "source_commit": "c76ee1bdf7fcbe45c16344c607852164c82e2b7b",
-      "status": "building",
-      "version": "46.0.0-alpha.6"
+      "status": "compiled",
+      "version": "46.0.0-alpha.6",
+      "completed_at": "2026-11-08T01:11:12.238966+00:00",
+      "runtime_key": "9ce794464fc2288eb95783be29deb2c7fc5d0c57c2d71aa48a68bc56669d79eb",
+      "archive_sha256": "675ab047f31ed82fa72c87b0198fbc824bab76fb02a388bedd618ec7438d812f",
+      "archive_bytes": 122801866,
+      "artifact_path": "/mnt/storage/discord-patched-electron-ci/local-latest-alpha6/runtime-dist.zip",
+      "runtime_qualified": false
     }
   },
   "releases": {
