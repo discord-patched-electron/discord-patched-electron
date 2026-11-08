@@ -195,6 +195,33 @@ def fetch(run_id: str, output: Path, *, capacity_only=False):
     validate_capacity(capacity, candidate, run_id=run_id, compiler_commit=metadata.get("head_sha"))
     if capacity_only:
         return capacity
+    if cached and imported:
+        run(
+            "gh",
+            "release",
+            "download",
+            good["cache_release"],
+            "--repo",
+            CACHE_REPOSITORY,
+            "--pattern",
+            "local-build-provenance.json",
+            "--dir",
+            output / "capacity",
+        )
+        cache = json.loads(
+            subprocess.check_output(
+                [
+                    "gh",
+                    "api",
+                    f"repos/{CACHE_REPOSITORY}/releases/tags/{good['cache_release']}",
+                ],
+                text=True,
+            )
+        )
+        provenance = output / "capacity/local-build-provenance.json"
+        uploaded = {asset["name"]: asset.get("digest") for asset in cache["assets"]}
+        if uploaded.get(provenance.name) != "sha256:" + sha256(provenance):
+            raise ValueError("Retained local compiler provenance checksum mismatch")
     artifact = "candidate-runtime" if candidate else "reference-runtime"
     if cached:
         run(

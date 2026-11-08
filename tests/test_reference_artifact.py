@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import stat
@@ -199,6 +200,77 @@ class ReferenceArtifact(unittest.TestCase):
         self.assertEqual(provenance["compiler_provider"], "local")
         self.assertEqual(provenance["local_build_provenance"], local)
         self.assertFalse(provenance["publishable"])
+
+    @patch.dict(os.environ, {"GH_REPO": "discord-patched-electron/discord-patched-electron"})
+    def test_cached_import_retains_provenance_and_rejects_changed_upload_bytes(self):
+        with zipfile.ZipFile(self.archive, "w") as archive:
+            archive.writestr("electron", "owned runtime fixture")
+        capacity = {"archive_sha256": sha256(self.archive)}
+        local = {"compiler_provider": "local", "native_inputs_commit": "a" * 40}
+        payload = json.dumps(local).encode()
+        metadata = {
+            "conclusion": "success",
+            "head_branch": "main",
+            "head_sha": "b" * 40,
+            "path": ".github/workflows/import-runtime.yml",
+            "run_attempt": 1,
+            "html_url": "https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/123",
+            "head_repository": {"full_name": "discord-patched-electron/discord-patched-electron"},
+        }
+        good = {
+            "run": "123",
+            "compiler_commit": metadata["head_sha"],
+            "cache_release": "runtime-cache-fixture",
+            "capacity_sha256": digest(capacity),
+        }
+
+        def read(path):
+            if path.name == "update-policy.json":
+                return {"last_good_runtime": good}
+            return read_json(path)
+
+        def download(*args):
+            self.assertIn("release", args)
+            name = args[args.index("--pattern") + 1]
+            directory = Path(args[args.index("--dir") + 1])
+            directory.mkdir(parents=True, exist_ok=True)
+            data = {
+                "capacity.json": json.dumps(capacity).encode(),
+                "local-build-provenance.json": payload,
+                "runtime-dist.zip": self.archive.read_bytes(),
+            }
+            (directory / name).write_bytes(data[name])
+
+        for changed in (False, True):
+            with self.subTest(changed=changed):
+                output = self.output / str(changed)
+                cache = {
+                    "assets": [
+                        {
+                            "name": "local-build-provenance.json",
+                            "digest": "sha256:"
+                            + ("0" * 64 if changed else hashlib.sha256(payload).hexdigest()),
+                        }
+                    ],
+                }
+                with (
+                    patch("fetch_reference.read_json", side_effect=read),
+                    patch("fetch_reference.validate_capacity"),
+                    patch("fetch_reference.run", side_effect=download),
+                    patch(
+                        "fetch_reference.subprocess.check_output",
+                        side_effect=[json.dumps(metadata), json.dumps(cache)],
+                    ),
+                ):
+                    if changed:
+                        with self.assertRaisesRegex(ValueError, "provenance checksum"):
+                            fetch("123", output)
+                        self.assertFalse((output / "runtime").exists())
+                    else:
+                        fetch("123", output)
+                        provenance = read_json(output / "artifact-provenance.json")
+                        self.assertEqual(provenance["local_build_provenance"], local)
+                        self.assertEqual(provenance["compiler_commit"], metadata["head_sha"])
 
     @patch.dict(os.environ, {"GH_REPO": "discord-patched-electron/discord-patched-electron"})
     @patch("fetch_reference.run")
