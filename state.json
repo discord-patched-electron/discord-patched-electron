@@ -42,21 +42,7 @@
       "status": "completed"
     }
   },
-  "blacksmith_usage": {
-    "at": "2026-11-09T10:10:39+00:00",
-    "limit_minutes": 3000,
-    "period_start": "2026-11-01T00:00:00+00:00",
-    "runner_rate": 8,
-    "settled_runs": {
-      "40001600965": 0,
-      "41282196886": 8,
-      "41282631878": 704,
-      "42057144790": 152,
-      "42068080789": 72,
-      "42118937404": 88
-    },
-    "used_minutes": 1024
-  },
+  "blacksmith_usage_error": "CalledProcessError",
   "bundled_runtime_errors": {},
   "bundled_runtimes": {
     "canary": {
@@ -3777,5 +3763,5 @@
       "withdrawn_at": null
     }
   ],
-  "security_checked_at": "2026-11-09T10:09:25Z"
+  "security_checked_at": "2026-11-09T18:55:49Z"
 }
