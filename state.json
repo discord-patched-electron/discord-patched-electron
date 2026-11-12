@@ -5,7 +5,7 @@
       "at": "2026-11-01T06:47:06.343948+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-11T23:55:54+00:00",
+      "provider_settled_at": "2026-11-12T03:56:24+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -13,7 +13,7 @@
       "at": "2026-11-01T06:54:02.281292+00:00",
       "conclusion": "success",
       "minutes": 960,
-      "provider_settled_at": "2026-11-11T23:55:54+00:00",
+      "provider_settled_at": "2026-11-12T03:56:24+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -21,7 +21,7 @@
       "at": "2026-11-05T15:39:39.838127+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-11T23:55:54+00:00",
+      "provider_settled_at": "2026-11-12T03:56:24+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -29,7 +29,7 @@
       "at": "2026-11-05T16:48:18.342617+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-11T23:55:54+00:00",
+      "provider_settled_at": "2026-11-12T03:56:24+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -37,13 +37,13 @@
       "at": "2026-11-05T22:09:16.833291+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-11T23:55:54+00:00",
+      "provider_settled_at": "2026-11-12T03:56:24+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     }
   },
   "blacksmith_usage": {
-    "at": "2026-11-11T23:55:54+00:00",
+    "at": "2026-11-12T03:56:24+00:00",
     "limit_minutes": 3000,
     "period_start": "2026-11-01T00:00:00+00:00",
     "runner_rate": 8,
@@ -995,6 +995,18 @@
         "version": "46.0.0-alpha.2"
       }
     },
+    "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1": {
+      "attempts": 1,
+      "previous_runs": [],
+      "requested_at": "2026-11-12T03:56:30.668900+00:00",
+      "run": "43151321032",
+      "status": "queued",
+      "target": {
+        "commit": "bdaeaaa4795ee641a6d8262496e028c371533e09",
+        "version": "46.0.0-alpha.10"
+      },
+      "urgent_reasons": []
+    },
     "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f": {
       "attempts": 3,
       "previous_runs": [
@@ -1054,6 +1066,17 @@
       "status": "available",
       "tag": "v46.0.0-alpha.1",
       "version": "46.0.0-alpha.1"
+    },
+    "prerelease:46.0.0-alpha.10": {
+      "channel": "prerelease",
+      "commit": "bdaeaaa4795ee641a6d8262496e028c371533e09",
+      "published_at": "2026-11-12T03:02:16Z",
+      "release_id": 442322543,
+      "repository": "electron/electron",
+      "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
+      "status": "available",
+      "tag": "v46.0.0-alpha.10",
+      "version": "46.0.0-alpha.10"
     },
     "prerelease:46.0.0-alpha.2": {
       "channel": "prerelease",
@@ -1203,7 +1226,9 @@
     "22554c4f376a56c5c73a67a007fb309dabf6ad820a430ac13b741b80d8f0e3f1": {
       "attempts": [],
       "channel": "prerelease",
-      "status": "pending",
+      "reason": "newer-prerelease",
+      "status": "superseded",
+      "superseded_by": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "target": {
         "commit": "0061487dbe6fe8be9aba12b94e927acd6b5e8ed5",
         "version": "46.0.0-alpha.9"
@@ -1284,6 +1309,15 @@
       "target": {
         "commit": "db544c51d8ce5cfb918667a4840438e62e79e81d",
         "version": "46.0.0-alpha.3"
+      }
+    },
+    "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1": {
+      "attempts": [],
+      "channel": "prerelease",
+      "status": "pending",
+      "target": {
+        "commit": "bdaeaaa4795ee641a6d8262496e028c371533e09",
+        "version": "46.0.0-alpha.10"
       }
     },
     "7220ea145c3beb15b0b72cc2515b39ab414f673a8d775486cb596d495bcd92d5": {
@@ -3875,5 +3909,5 @@
       "withdrawn_at": null
     }
   ],
-  "security_checked_at": "2026-11-11T23:54:36Z"
+  "security_checked_at": "2026-11-12T03:54:58Z"
 }
