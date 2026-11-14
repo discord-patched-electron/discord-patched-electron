@@ -1,6 +1,17 @@
 {
   "schema": 1,
   "commits": {
+    "9afbeb595acb77430a5f67d7d8d3f2f54db3e2a7": {
+      "Improvements": [
+        "Make bun dev run current automatically select a cache for the current Git branch and working tree, refresh changed UI/helpers, and reassemble changed native support or packaging inputs using a matching verified Electron runtime. Existing development profiles are preserved.",
+        "Use a same-graph PipeWire loopback for application-audio capture instead of the raw pw-cat-to-pacat bridge, avoiding an extra PCM FIFO while keeping capture bound to the selected private sinks. Real PulseAudio retains its separate bridge."
+      ],
+      "Fixes": [
+        "Match Niri PiP top spacing to configured gaps and struts without adding the previous 16-pixel minimum at the top; preserve side and bottom margins and corner highlighting.",
+        "Return an unavailable PiP state when a pending compositor query finishes after the window closes, avoiding access to a destroyed window.",
+        "Restart managed development windows when a relaunch signal arrives while the old process is still running."
+      ]
+    },
     "a9d6e232cce3fd5fb3cdf9577e4def8cfe422bcb": {
       "New": [
         "Choose the default PiP corner, turn automatic positioning on or off, and control whether floating PiP windows stay on top.",
