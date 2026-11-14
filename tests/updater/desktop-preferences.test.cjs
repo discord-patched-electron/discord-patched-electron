@@ -375,6 +375,16 @@ test("desktop integration patch validates each native call site exactly once", a
     patch(locked, "/preferences.cjs", replace),
     /exports\.setupPopout=function\(popoutWindow,key,options,webappEndpoint\)\{require\("\/preferences\.cjs"\)\.attachPopout\(popoutWindow,options\);/,
   );
+  const spellcheck = original.replace(
+    "webappEndpoint,openerWebContents){",
+    "webappEndpoint,openerWebContents,onSpellcheckResult){",
+  );
+  const modern = patch(spellcheck, "/preferences.cjs", replace);
+  assert.ok(
+    modern.includes(
+      'openerWebContents,onSpellcheckResult){require("/preferences.cjs").attachPopout(popoutWindow,options);',
+    ),
+  );
   assert.throws(() => patch(original + locked, "/preferences.cjs", replace), /Ambiguous/);
   assert.throws(() => patch(original + original, "/preferences.cjs", replace), /Unsupported/);
   assert.throws(() => patch("unexpected layout", "/preferences.cjs", replace), /Unsupported/);

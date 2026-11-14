@@ -2,9 +2,10 @@
 // points. The client archive and renderer application code stay untouched.
 function patch(source, adapter, replace) {
   const load = `require(${JSON.stringify(adapter)})`;
-  // Canary 1.0.2357 (the locked baseline) predates the opener argument added
-  // in 1.0.2422. Both retain the same options object and setup lifecycle.
+  // Preserve the opener and spellcheck callback added by newer clients. All
+  // reviewed signatures retain the same options object and setup lifecycle.
   const popoutSignatures = [
+    "exports.setupPopout=function(popoutWindow,key,options,webappEndpoint,openerWebContents,onSpellcheckResult){",
     "exports.setupPopout=function(popoutWindow,key,options,webappEndpoint,openerWebContents){",
     "exports.setupPopout=function(popoutWindow,key,options,webappEndpoint){",
   ];

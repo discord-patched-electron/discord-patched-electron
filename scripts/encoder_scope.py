@@ -474,6 +474,13 @@ def software_av1_scope(elf):
     )
     reviewed = (
         (
+            "19c50ca9c1a3eaea47a9ac2475410a96ec6469ff21ad86a936e7df588e2b7670",
+            "062052d54a232d2981a88f27e7de45c11f321df1d62400abc7ad1d4239ed5f5b",
+            "36fb213a238f07a42d26553b1789eee7924c487bd14a6c633748e05c64c4d07b",
+            "5b004fbd394a47da01169baae6e68ed4db56dddb7f9446e24f9ff5f3a16de03a",
+            "87efae2c148766e1adc4c6cc80bcd39c83cff15cfe647eb20332aa5af86a9284",
+        ),
+        (
             "2a86054778dfecb53a1af1a125ef2bc3e53585cd0276333670af34eabe8ac609",
             "275531874cc574bc4a2cde2a16165bd4483d3581d720950f80e0df52848d60b1",
             "0f5eb43767d9b7b12fb012887def8e75e116b61b77a7f3e2e2c3b8a1a9a94da7",

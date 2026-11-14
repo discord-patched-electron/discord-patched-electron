@@ -13,11 +13,13 @@ from pathlib import Path
 
 from native_client_2444 import STAGES
 from native_client_2472 import STAGES as CLIENT_2472_STAGES
+from native_client_2483 import STAGES as CLIENT_2483_STAGES
 
 PATCH = "screenshare-pacing-default-v1"
 BEFORE = b"1.0,2875,80,40,-60,3\0"
 AFTER = b"2.5,0050,80,40,-60,3\0"
 REVIEWED = (
+    (*CLIENT_2483_STAGES["pacing"][0:2], CLIENT_2483_STAGES["pacing"][2][0][0]),
     (*CLIENT_2472_STAGES["pacing"][0:2], CLIENT_2472_STAGES["pacing"][2][0][0]),
     (*STAGES["pacing"][0:2], STAGES["pacing"][2][0][0]),
     (

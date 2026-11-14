@@ -190,6 +190,7 @@ RULES = (
             "scripts/patch_vaapi_hrd.py",
             "scripts/native_client_2444.py",
             "scripts/native_client_2472.py",
+            "scripts/native_client_2483.py",
             "scripts/patch_capture_dimensions.py",
             "scripts/patch_capture_chroma.py",
             "scripts/patch_presentation_clock.py",

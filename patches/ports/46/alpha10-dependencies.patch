@@ -1,0 +1,10 @@
+diff --git a/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch b/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch
+index 0fe0ca28dc8..de626c6bb53 100644
+--- a/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch
++++ b/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch
+@@ -18,4 +18,4 @@ index 5f0d41ffc62542748a3a77dd5895b2b9e583cc08..135e94f81d165a8298e7ee3405d448e1
+ +      status: "stable",
+      },
+      {
+-       // Shared MessagePort between AudioWorklet and AudioWorkletGlobalScope.
++       name: "AudioWorkletProcessorErrorEventType",

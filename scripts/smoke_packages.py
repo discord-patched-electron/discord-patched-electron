@@ -38,6 +38,7 @@ def missing_libraries(relative: str, checksum: str, listing: str) -> list[str]:
         in {
             "e5bb33a5c07fdc46f84db2e8fb9c37a3ba9154adeafc614bdc8673b160e180bd",
             "fe521f1d6baff8885990860f8c7a3beea5c5feb70d75ec4a0d1e2da0a3dfa618",
+            "3735dc180a0249055ed90348a03efef2ad1f97ec6a8c516c2796ad4f5830b910",
         }
         and set(missing) <= {"libssl.so.1.1", "libcrypto.so.1.1"}
     )

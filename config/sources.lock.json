@@ -98,6 +98,10 @@
         {
           "patch": "patches/ports/46/alpha6-electron-includes.patch",
           "patch_sha256": "058e29888f4ea7b0efc7bc40bc2cde002fb647c99bc8cb1d30c859927ccd87ab"
+        },
+        {
+          "patch": "patches/ports/46/alpha10-dependencies.patch",
+          "patch_sha256": "0a2af45f54593c21c8fe1a54c10c8de27ea3397fb2a65eab35c6c01d493e10f0"
         }
       ],
       "patch": "patches/ports/46/compatibility.patch",

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import native_client_2444
 import native_client_2472
+import native_client_2483
 import patch_capture_chroma as chroma
 import patch_capture_dimensions as dimensions
 import patch_decoder_eagain as decoder
@@ -53,8 +54,10 @@ PINNED_VOLUME_OUTPUT_SHA256 = "838a77d7498201d9c0ca1f1f7e0d5fe8ce54d6a3271f729b6
 
 
 def reviewed(digest):
-    current = native_client_2472.reviewed("hrd", digest) or native_client_2444.reviewed(
-        "hrd", digest
+    current = (
+        native_client_2483.reviewed("hrd", digest)
+        or native_client_2472.reviewed("hrd", digest)
+        or native_client_2444.reviewed("hrd", digest)
     )
     if current:
         before, after, sites = current

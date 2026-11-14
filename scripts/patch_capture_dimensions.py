@@ -17,6 +17,7 @@ from pathlib import Path
 
 import native_client_2444
 import native_client_2472
+import native_client_2483
 import patch_capture_chroma as chroma
 import patch_decoder_eagain as decoder
 
@@ -42,8 +43,10 @@ PINNED_OFFSET = 0x15719AE
 
 
 def reviewed(digest):
-    current = native_client_2472.reviewed("dimensions", digest) or native_client_2444.reviewed(
-        "dimensions", digest
+    current = (
+        native_client_2483.reviewed("dimensions", digest)
+        or native_client_2472.reviewed("dimensions", digest)
+        or native_client_2444.reviewed("dimensions", digest)
     )
     if current:
         before, after, sites = current
