@@ -251,7 +251,8 @@ complete FFmpeg patches apply in order to the real Chromium pre-patch tree;
 Python AST validation passes. Additional follow-up context edits preserve the
 NVIDIA super-resolution default and FFmpeg rolling/import helpers; all remaining
 31 Chromium patches apply in sequence in the sparse preflight checkout.
-**Full alpha.10 compilation and runtime qualification
-remain pending** in the opt-in PC workflow; retained-runtime results above must
+The complete dependency hook queue now applies and GN generation succeeds.
+**Full alpha.10 compilation is running and runtime qualification remains pending**
+in [PC workflow 43546460079](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/43546460079); retained-runtime results above must
 not be reported as alpha.10 results. Failed attempts and network recovery are
 retained under `out/update-review/`.
