@@ -29,6 +29,7 @@ def check(
     animations=False,
     second_output: str | None = None,
     panel=False,
+    compact_top=False,
 ):
     runtime, output = runtime.resolve(), output.resolve()
     core = core.resolve() if core else None
@@ -128,8 +129,14 @@ def check(
                 config.write_text(
                     base_config
                     + f'\noutput "winit" {{ scale {scale}; }}\n'
-                    + "\nlayout { gaps 24; struts { top 30; bottom 40; left 20; right 50; }; border { on; width 4; }; }\n"
+                    + (
+                        "\nlayout { gaps 10; struts { top -10; }; border { on; width 4; }; }\n"
+                        if compact_top
+                        else "\nlayout { gaps 24; struts { top 30; bottom 40; left 20; right 50; }; border { on; width 4; }; }\n"
+                    )
                 )
+                if compact_top:
+                    env["DPE_POPOUT_COMPACT_TOP"] = "1"
                 niri = spawn(["niri", "-c", str(config)], "niri")
                 deadline = time.monotonic() + 15
                 while True:
@@ -361,6 +368,7 @@ def check(
                 second_output=second_output,
                 scale=scale,
                 panel=panel,
+                compact_top=compact_top,
                 fixture=str(fixture.relative_to(ROOT)),
                 process_exit=code,
                 preferences=preferences,
@@ -389,6 +397,9 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--no-minimum-size", action="store_true")
     parser.add_argument("--no-auto-position", action="store_true")
+    parser.add_argument(
+        "--compact-top", action="store_true", help="Test Niri gaps 10 with a -10 top strut"
+    )
     parser.add_argument(
         "--panel",
         action="store_true",
@@ -432,6 +443,8 @@ def main():
         parser.error("--x11-wm requires --x11")
     if args.panel and (args.x11 or args.compositor != "niri"):
         parser.error("--panel requires native Niri")
+    if args.compact_top and (args.x11 or args.compositor != "niri"):
+        parser.error("--compact-top requires native Niri")
     if args.second_output and (args.x11 or args.compositor != "sway"):
         parser.error("--second-output requires native Sway")
     if not args.placement_only and not args.core:
@@ -454,6 +467,7 @@ def main():
         animations=args.animations,
         second_output=args.second_output,
         panel=args.panel,
+        compact_top=args.compact_top,
     )
 
 

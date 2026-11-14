@@ -139,12 +139,34 @@ static unsigned emitted, dropped_count, keys, wanted_width, wanted_height;
 static unsigned source_width, source_height;
 static FILE *recording;
 static unsigned active_codec;
+static uint32_t seen_timestamps;
 static struct dpe_av1_crop_state crop_state;
 static const char *recovery_path;
+static struct encoder_frame_meta timing(unsigned index) {
+  // Independent RTP, capture and NTP domains. Cross the 32-bit RTP wrap;
+  // codec PTS normalization must never leak into any caller metadata.
+  return (struct encoder_frame_meta){.timestamp = (uint32_t)(UINT32_MAX - 3000u + index * 1500u),
+                                     .capture_timestamp = 123456789000ull + index * 16667ull,
+                                     .ntp_timestamp = 3990000000000ull + index * 17ull,
+                                     .rotation = 90,
+                                     .submitted = index + 1};
+}
+static void check_timing(const struct encoder_frame_meta *meta) {
+  assert(meta->submitted > 0 && meta->submitted <= 24);
+  uint32_t bit = 1u << (meta->submitted - 1);
+  assert(!(seen_timestamps & bit));
+  seen_timestamps |= bit;
+  struct encoder_frame_meta expected = timing(meta->submitted - 1);
+  assert(meta->timestamp == expected.timestamp);
+  assert(meta->capture_timestamp == expected.capture_timestamp);
+  assert(meta->ntp_timestamp == expected.ntp_timestamp);
+  assert(meta->rotation == expected.rotation);
+}
 static void encoded(void *ctx, const struct encoder_frame_meta *meta, uint64_t info,
                     const uint8_t *bytes, size_t size, const void *recon) {
   (void)ctx;
   (void)recon;
+  check_timing(meta);
   bool native_short = active_codec == 2 && !(source_width & 63) && (source_height & 15) == 8 &&
                       meta->height == source_height + 2;
   assert(meta->width == wanted_width && (meta->height == wanted_height || native_short));
@@ -185,7 +207,7 @@ static void encoded(void *ctx, const struct encoder_frame_meta *meta, uint64_t i
 }
 static void dropped(void *ctx, const struct encoder_frame_meta *meta) {
   (void)ctx;
-  (void)meta;
+  check_timing(meta);
   dropped_count++;
 }
 static void feed(const struct dpe_hevc_api *api, void *enc, unsigned width, unsigned height,
@@ -204,8 +226,12 @@ static void feed(const struct dpe_hevc_api *api, void *enc, unsigned width, unsi
                                {pixels + width * height, width / 2, width / 2, height / 2},
                                {pixels + width * height * 5 / 4, width / 2, width / 2, height / 2}};
   for (unsigned i = 0; i < 3; i++) {
-    struct encoder_frame_meta meta = {.width = width, .height = height};
-    struct encoder_frame_info info = {.idr = i == 2, .timestamp_ms = (first + i) * 17};
+    struct encoder_frame_meta meta = timing(first + i);
+    meta.width = width;
+    meta.height = height;
+    // Repeated/backward codec timestamps exercise the private monotonic PTS
+    // correction independently of the original media clocks above.
+    struct encoder_frame_info info = {.idr = i == 2, .timestamp_ms = i == 2 ? 0 : first * 17};
     assert(api->i420(enc, &meta, info, p));
   }
   free(pixels);
@@ -231,6 +257,7 @@ int main(int argc, char **argv) {
     recording = fopen(output, "wb");
     assert(recording);
     emitted = dropped_count = keys = 0;
+    seen_timestamps = 0;
     fprintf(stderr, "codec%u create\n", codec);
     struct encoder_session session = {.fps = 60, .maximum = {1920, 1080}, .codec = codec};
     struct encoder_options options = {60, {256, 256}, 500000, 1000000, 3000};
@@ -267,10 +294,11 @@ int main(int argc, char **argv) {
     }
     api->destroy(enc);
     assert(emitted == 21 && keys == 13 && dropped_count == 3);
+    assert(seen_timestamps == (1u << 24) - 1);
     fclose(recording);
-    printf(
-        "codec%u: suspension, resize, resume, failed-update and crop-transition recovery passed\n",
-        codec);
+    printf("codec%u: suspension, resize, resume, failed-update, media timestamps and "
+           "crop-transition recovery passed\n",
+           codec);
   }
   return 0;
 }

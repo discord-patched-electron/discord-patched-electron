@@ -12,7 +12,8 @@ when changing the manager or investigating storage/reload behavior.
 
 ## Choose a reusable baseline
 
-Default to `bun run dev run VERSION --watch`, which reuses `dev`. Do not invent
+Default to `bun dev run current`, which automatically resolves the checkout and reuses `dev`.
+Use explicit named versions when pinned staged inputs are intended. Do not invent
 a task-specific profile name for sequential manual work. Preserve other named
 manual identities (such as `clock`) unless their removal is requested.
 
@@ -51,7 +52,11 @@ login data into another profile just to try a new build.
 
 ## Pick the reload boundary
 
-- `run VERSION` preserves staged helper sources.
+- `run current` fingerprints the branch/working tree, reuses a matching cached
+  payload, refreshes helper edits, or assembles changed build inputs with a verified
+  retained runtime. It refuses stale native runtime inputs; it does not start a
+  hosted compiler. `--artifact PATH` selects an explicit verified artifact.
+- `run VERSION` for other names preserves staged helper sources.
 - `--sync` refreshes once; `--watch` refreshes and restarts after supported edits.
   Supported sources include integration JavaScript/JSX, CSS, SVG, HTML and Python
   helpers in audio, video, camera and desktop, plus the explicitly allowlisted

@@ -20,6 +20,7 @@ function corner(area, width, height, preferred = "bottom-right") {
 
   const left = preferred === "top-left" || preferred === "bottom-left";
   const top = preferred === "top-left" || preferred === "top-right";
+  const topInset = area.pipInsets?.top ?? 16;
   return {
     x: Math.round(
       area.x +
@@ -30,7 +31,7 @@ function corner(area, width, height, preferred = "bottom-right") {
     y: Math.round(
       area.y +
         (top
-          ? Math.min(16, Math.max(0, area.height - height))
+          ? Math.min(topInset, Math.max(0, area.height - height))
           : Math.max(0, area.height - height - 16)),
     ),
   };
@@ -143,12 +144,16 @@ function niri(run, env) {
         : undefined;
       const inset = measured
         ? require("./niri-insets.cjs").insets(workspace, env)
-        : { left: 0, right: 0, top: 0, bottom: 0 };
+        : { left: 16, right: 16, top: 16, bottom: 16 };
+      const extra = Object.fromEntries(
+        Object.entries(inset).map(([side, value]) => [side, Math.max(0, value - 16)]),
+      );
       const area = measured && {
-        x: measured.x + inset.left,
-        y: measured.y + inset.top,
-        width: measured.width - inset.left - inset.right,
-        height: measured.height - inset.top - inset.bottom,
+        x: measured.x + extra.left,
+        y: measured.y + extra.top,
+        width: measured.width - extra.left - extra.right,
+        height: measured.height - extra.top - extra.bottom,
+        ...(inset.top < 16 ? { pipInsets: { top: inset.top } } : {}),
       };
       if (measured && !rect(area)) return undefined;
       return {

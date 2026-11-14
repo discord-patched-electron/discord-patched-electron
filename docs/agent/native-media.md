@@ -159,6 +159,38 @@ rate limiting to hide cadence loss. A basic frame-delivery pass does not establi
 scheduled presentation. Local marker latency excludes WAN/SFU and physical
 scanout; see [measurement limits](benchmarks.md).
 
+For reports of delayed audio with PipeWire capture, AV1 and a Windows viewer,
+keep sender audio buffering separate from receiver playout. Linux receiver
+hooks cannot explain a Windows viewer's presentation. The reviewed native
+dav1d wrapper builds RTP/NTP timing from EncodedImage separately from dav1d's
+private crop tickets (`scripts/encoder_scope.py`, `software_av1_scope`).
+
+The hardware lifecycle fixture now checks original RTP, capture and NTP metadata
+on encoded and dropped callbacks, including RTP wrap and repeated/backward codec
+PTS across suspend/resume, resize and rejected updates. AV1 and HEVC passed on
+`/dev/dri/renderD128` with backend SHA-256
+`1a5f89609af8b5e0fbd239e88938d2e3abba3ace8644e8f0f3b58a95426b3fcf`;
+evidence: `out/av-sync-investigation/metadata-lifecycle-final/`. This excludes those
+metadata-corruption cases for that backend, not a live-call synchronization bug.
+
+`check_screenshare.py` has no correlated audio stimulus or receiver audio
+measurement: `timing_verified` concerns video markers only. Application-audio
+isolation tests likewise do not qualify end-to-end A/V sync. PipeWire-Pulse
+now uses a same-graph loopback instead of the raw `pw-cat`→`pacat` bridge;
+real PulseAudio retains that bridge. See [sender buffering limits](audio.md#sender-buffering-limits)
+for identity, recovery and qualification contracts. Native capture's
+`PULSE_LATENCY_MSEC` defaults to 40 unless already set. Latency requests are not
+measured or additive guarantees, and preserved encoder metadata cannot rule out
+audio delay accumulated before native capture.
+
+The intermittent live offset remains unconfirmed. Reproduce with owned
+simultaneous flash/click content and compare AV1/H.264 with the same source,
+dimensions, FPS and bitrate. Record whether audio trails video, the offset and
+whether it grows, whether simultaneous viewers agree, and whether viewer rejoin
+or sender restart independently clears it. Measure sender audio-route age and
+receiver playout against the same stimulus before changing buffering or adding
+a fixed offset; existing video-only loopbacks cannot locate this fault.
+
 ## Chromium playback and OpenH264 acquisition
 
 Chromium playback/WebCodecs and Discord's native call engine are separate paths.

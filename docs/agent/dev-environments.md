@@ -4,6 +4,38 @@ Use [the developer guide](../development.md) for commands and
 [dpe-dev-environments](../../agents/skills/dpe-dev-environments/SKILL.md) for the
 implementation workflow.
 
+## Automatic current checkout
+
+`run current` reserves `current` as an automatic selector, independently of the
+persistent `dev` profile. `dev_current.py` fingerprints tracked/untracked build
+inputs under integration/native/patches/scripts/config/ci/packaging plus root
+build manifests, excluding ignored outputs. Content and executable bits participate;
+branch and checkout path separate caches. Editable helper contents have their own
+fingerprint; their inventory is a frozen build input so removals cannot leave
+stale packaged files. Commit IDs alone are not cache identities.
+
+The selector validates retained prerelease compiler provenance, current runtime
+fingerprints (or exact reviewed compatibility), and archive SHA-256 before reuse.
+The last-good-runtime packaging exception alone cannot authorize stale native
+inputs here. Artifact discovery prunes runtime/profile/source/compiler object
+trees and is bounded to three levels beneath `out/`; explicit `--artifact` supports
+other locations. It never dispatches a compiler or fetches mutable upstream state.
+`Manager.create` performs normal portable assembly at the permanent cache path,
+rebuilding project native support through its existing caches and pooling Electron
+files. Assembly races discard only the newly assembled payload, not compiler caches.
+
+Profile locking precedes resolution. A separate resolution lock serializes cache
+creation. Helper publication requires catalog and exclusive version locks; unchanged
+cache hits allow shared runs. A failed/partial helper refresh invalidates its record
+before writing files, ensuring the next launch repairs it even after source rollback.
+Checkout changes during assembly/refresh cannot publish a matching cache record.
+A relaunch signal breaks the running-child wait loop immediately; it must not
+wait for the old app to exit on its own. A current watch/sync run takes an exclusive version lock; watch keeps the helper
+record current and refuses to refresh a different frozen build underneath that label.
+Named versions retain their existing explicit sync/watch semantics. Cache entries
+are managed versions with `current-checkout.json`; no automatic profile deletion
+or version eviction occurs. A legacy stored `current` is preserved, not selected.
+
 ## Storage and helper identity
 
 `build_local_app.py` extracts runtime archives into every output. Nonportable
@@ -88,13 +120,20 @@ resource links. Production installations do not receive this hook.
 
 ## Validation limits
 
-Earlier manager checks established fresh launch/relaunch, real Node helper
-resolution, picker IPC and watch/restart without changing archive mtimes.
-Historical `out/dev-manager-check*` outputs were subsequently cleaned, so their
-paths are not retained artifacts. The 8 November concurrent-profile/startup
-changes had lint/whitespace checks only; concurrent GUI startup, relaunch and
-watch behavior remain open until exercised with those exact inputs. A development
-import is not fresh runtime provenance or release qualification.
+Current-checkout regression coverage exercises content/inventory/branch invalidation,
+profile locking before assembly, active-version publication refusal, failed-refresh
+repair after rollback, source races, archive integrity, and rejection of stale
+native inputs despite the last-good packaging exception. A real retained Electron
+46.0.0-alpha.10 payload with pinned Canary 1.0.2483 was assembled and launched on
+one fresh temporary identity, then relaunched and restarted after a helper edit.
+The native login form was checked through the existing desktop CDP inspector;
+no account login, messages, calls or media capture occurred. The helper edit
+preserved downloaded archive mtimes and client-generation inventory. A restored
+checkout then resolved the warm cache with assembly and sync explicitly forbidden.
+Inputs and results: `out/dev-current-real-result.json`; raw launch/watch/cache
+logs: `out/dev-current-real-{launch,watch,cache}.log`. The temporary profile was
+removed after stopping its manager. This is development-manager coverage, not
+release/native-media qualification or proof of every installed-view storage path.
 
 The manual `test` profile uses managed version `latest`, pinned to Canary
 1.0.2483/module revision 11 and the retained verified Electron 46.0.0-alpha.6.

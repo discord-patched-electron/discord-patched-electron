@@ -484,6 +484,43 @@ window.dispatchEvent(new CustomEvent('dpe-capture-picker-request', {
         )
         self.assertEqual(result.strip(), "native-base")
 
+    def test_relaunch_signal_restarts_while_the_current_child_is_still_running(self):
+        import signal
+
+        app = self.manager.path("versions", "signal-relaunch")
+        app.mkdir()
+        write_json(app / "dev-version.json", {"schema": 1})
+        count = app / "launch-count"
+        launcher = app / "launch.sh"
+        launcher.write_text(
+            "#!/usr/bin/env python3\n"
+            "import os,signal,time\n"
+            "from pathlib import Path\n"
+            f"count=Path({str(count)!r})\n"
+            "before=count.read_text() if count.exists() else ''\n"
+            "count.write_text(before+'start\\n')\n"
+            "if not before:\n"
+            " os.kill(os.getppid(),signal.SIGUSR1)\n"
+            " time.sleep(60)\n"
+        )
+        launcher.chmod(0o700)
+
+        def timeout(*_):
+            raise TimeoutError("Manager ignored relaunch while its child was running")
+
+        previous = signal.signal(signal.SIGALRM, timeout)
+        signal.alarm(6)
+        try:
+            with (
+                patch("dev_client.configure_startup"),
+                patch.object(self.manager, "stamp", return_value={}),
+            ):
+                self.assertEqual(self.manager.run("signal-relaunch", "dev", False, False, []), 0)
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, previous)
+        self.assertEqual(count.read_text().splitlines(), ["start", "start"])
+
     def test_run_forwards_flags_and_profile(self):
         app = self.manager.path("versions", "one")
         app.mkdir()
