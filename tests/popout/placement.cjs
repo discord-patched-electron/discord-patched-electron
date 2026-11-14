@@ -158,6 +158,15 @@ app
                 y: display.bounds.y + 38 + Number(process.env.DPE_POPOUT_PANEL || 0),
                 width: display.bounds.width - 86,
                 height: display.bounds.height - 86 - Number(process.env.DPE_POPOUT_PANEL || 0),
+                ...(process.env.DPE_POPOUT_COMPACT_TOP === "1"
+                  ? {
+                      x: display.bounds.x,
+                      y: display.bounds.y + Number(process.env.DPE_POPOUT_PANEL || 0),
+                      width: display.bounds.width,
+                      height: display.bounds.height - Number(process.env.DPE_POPOUT_PANEL || 0),
+                      pipInsets: { top: 0 },
+                    }
+                  : {}),
               },
             },
           };

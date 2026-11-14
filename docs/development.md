@@ -8,11 +8,14 @@ first, then run commands from the repository root.
 
 ```sh
 bun run dev list
-bun run dev run current --watch
+bun dev run current
 ```
 
-Use a version shown by `list`. Runs reuse `dev` by default, including across
-versions. `--profile` selects an independent login, settings
+`current` resolves your current Git branch and working tree automatically,
+including uncommitted and untracked build inputs. It reuses a cached payload,
+refreshes changed helpers/UI, or assembles a new payload when build inputs change.
+No `--sync` flag is needed. Runs reuse `dev` by default, including across versions.
+Other version names shown by `list` remain pinned to their staged sources. `--profile` selects an independent login, settings
 and mods; log in manually on first use. Reuse that profile when switching versions.
 Stop with **Ctrl+C**. Concurrent runs need different profiles; they can share the same version.
 Managed runs use pinned inputs and disable automatic DPE updates.
@@ -27,11 +30,30 @@ bun run dev run current --profile other --watch
 
 Shared helper edits affect both instances; each watcher restarts its own profile.
 
-| Mode      | Behavior                                                                     |
-| --------- | ---------------------------------------------------------------------------- |
-| `--watch` | Refresh supported helpers and restart after edits; active calls/streams end. |
-| `--sync`  | Refresh helpers once before launch.                                          |
-| Neither   | Run staged helpers unchanged.                                                |
+| Mode          | Behavior                                                                          |
+| ------------- | --------------------------------------------------------------------------------- |
+| `run current` | Prepare the checkout automatically; reuse unchanged bundles and native artifacts. |
+| `--watch`     | Refresh supported helpers and restart after edits; active calls/streams end.      |
+| `--sync`      | Refresh helpers once before launch.                                               |
+| Neither       | Run staged helpers unchanged.                                                     |
+
+Automatic `current` assembly reuses a checksum-verified prerelease Electron
+artifact discovered beneath `out/` (up to three directory levels), or one supplied
+with `--artifact PATH`. Rust/C support builds use their existing local caches.
+If Electron's native inputs changed and no matching compiled artifact exists,
+the command stops with instructions; it does not launch stale code or dispatch
+a hosted compiler. Retain/fetch the matching artifact, then run the same command.
+
+Cache selection includes the checkout path, branch, frozen build inputs and
+runtime identity. Helper content edits refresh the same payload; helper inventory
+changes, native/launcher/patch changes and changed locks select another payload.
+Returning to a previous branch/input set reuses its cached payload. A cache entry
+in use cannot be refreshed beneath a running profile; close that run first.
+`--watch` is optional and restarts on helper edits. If frozen build inputs change,
+launch `current` again to assemble them. Existing profiles and named versions are
+never replaced by cache selection; old cached versions remain visible in `list`
+and can be removed explicitly. A legacy named version called `current` is retained,
+but `run current` now selects the checkout rather than that old staged payload.
 
 JavaScript/JSX, CSS, SVG, HTML, audio/video/camera/desktop Python helpers and the
 diagnostic Python helpers (collector, redactor, inventory and event logger) can

@@ -149,6 +149,10 @@ geometry is revalidated before dispatch. Stable owned IDs allow these checks
 without requiring focus after the initial match. KWin background queries remain
 PID/UUID restricted.
 
+Revalidate window lifetime after each awaited compositor snapshot before calling
+native window methods. A corner query that completes after the PiP closes returns
+`available: false`; stale geometry must not reach a destroyed BrowserWindow.
+
 `popoutAlwaysOnTop` defaults true. Electron supplies X11 stacking; KWin uses
 `keepAbove` on the verified window. Native Wayland compositors without a stacking
 API retain their policy; do not repeatedly raise/focus windows to emulate it.
@@ -189,17 +193,22 @@ Explicit corner clicks restore that size before moving and highlighting; setting
 changes still preserve manual sizing/placement. Late Discord minimum-size IPC
 must not stretch floating PiP beyond its bounded minimum or invalidate its baseline.
 
-The margin is a bounded 16 logical pixels inside the
-usable area, including visible outer frames, not invisible shadows/resize handles.
+The default margin is a bounded 16 logical pixels inside the usable area,
+including visible outer frames, not invisible shadows/resize handles. Niri
+allows a smaller top margin to follow its configured gaps plus top strut; keep
+side/bottom margins at least 16. Preserve the true panel-reserved work area and
+carry the smaller top margin as `workArea.pipInsets.top`, so placement, snapshots
+and corner highlighting use the same geometry without moving the work area
+above the panel.
 
-| Backend       | Placement contract and limit                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Niri          | Decorated tile size/output-local relative moves; preserve sign of fractional negative zero. Calibrate the panel-reserved working area through bounded center/fixed moves of only the verified owned PiP, then cache per output geometry. Read active config gaps/struts with ordered includes/workspace overrides; total inset is max(16, gap + strut). Initial map/calibration may show before final placement. |
-| Sway          | Containing workspace rectangle includes gaps/panel reservations; accept our own resize/move notifications. Negative/fractional output origins are covered.                                                                                                                                                                                                                                                       |
-| Hyprland      | Revalidate owned floating/fullscreen state rather than Wayland's maximized hint. Wait for committed resize; account for monitor reservations, rotation, scale and global float gaps/borders. Support validated older commands/current Lua dispatchers. Per-workspace extensions remain outside the global query.                                                                                                 |
-| KDE Plasma 6  | Bounded temporary KWin script identifies the initial active PID/stable UUID, then reads only that owned UUID for background controls; checks previous decorated frame and MaximizeArea. Authenticate D-Bus callbacks against KWin's unique owner; unload scripts/remove temporary files. Optional dbus-python/PyGObject absence falls back to compositor placement.                                              |
-| GNOME Wayland | Resizable-dialog sizing begins at ready-to-show without initial focus; subsequent real blur/resize cancels it. Shell owns position. Do not enable unsafe Eval or install an extension.                                                                                                                                                                                                                           |
-| X11           | Electron/EWMH work area and WM panel reservations; real WM testing matters beyond bare Xvfb.                                                                                                                                                                                                                                                                                                                     |
+| Backend       | Placement contract and limit                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Niri          | Decorated tile size/output-local relative moves; preserve sign of fractional negative zero. Calibrate the panel-reserved working area through bounded center/fixed moves of only the verified owned PiP, then cache per output geometry. Read active config gaps/struts with ordered includes/workspace overrides; top inset is max(0, gap + top strut); side/bottom insets remain max(16, gap + strut). Initial map/calibration may show before final placement. |
+| Sway          | Containing workspace rectangle includes gaps/panel reservations; accept our own resize/move notifications. Negative/fractional output origins are covered.                                                                                                                                                                                                                                                                                                        |
+| Hyprland      | Revalidate owned floating/fullscreen state rather than Wayland's maximized hint. Wait for committed resize; account for monitor reservations, rotation, scale and global float gaps/borders. Support validated older commands/current Lua dispatchers. Per-workspace extensions remain outside the global query.                                                                                                                                                  |
+| KDE Plasma 6  | Bounded temporary KWin script identifies the initial active PID/stable UUID, then reads only that owned UUID for background controls; checks previous decorated frame and MaximizeArea. Authenticate D-Bus callbacks against KWin's unique owner; unload scripts/remove temporary files. Optional dbus-python/PyGObject absence falls back to compositor placement.                                                                                               |
+| GNOME Wayland | Resizable-dialog sizing begins at ready-to-show without initial focus; subsequent real blur/resize cancels it. Shell owns position. Do not enable unsafe Eval or install an extension.                                                                                                                                                                                                                                                                            |
+| X11           | Electron/EWMH work area and WM panel reservations; real WM testing matters beyond bare Xvfb.                                                                                                                                                                                                                                                                                                                                                                      |
 
 Private Niri/Sway/Openbox fixtures cover animation, 125%/150% scale, negative
 origins, 640×480 secondary output and panel reservations. KWin 6.8.2, GNOME 51.1
@@ -211,7 +220,8 @@ coverage. No real call was needed. Reports live under
 `out/popout-gnome-startup-*`, `out/popout-hyprland-*` and
 `out/pip-corner-settings-final-20261112/`. Use `scripts/check_popout.py --help`
 for `--placement-only`, `--compositor`, `--scale`, `--corner`,
-`--no-auto-position`, `--panel` (private Niri layer-shell panel), `--tools-prefix`
+`--no-auto-position`, `--panel` (private Niri layer-shell panel),
+`--compact-top` (gaps 10/top strut -10), `--tools-prefix`
 and real X11 WM options. Niri configuration reads are bounded and fail back to
 the measured working area when the supported KDL subset cannot be parsed. Changes
 to panel reservations while a PiP is open are not automatically recalibrated.
@@ -226,6 +236,10 @@ absence of custom resize controls/IPC. The same checks pass on KWin 6.8.2 and
 Hyprland 0.57.2; X11/KWin verify default topmost and live opt-out.
 Reports: `out/pip-native-resize-{niri,x11}-checked-20261114/result/report.json`
 and `out/pip-native-resize-{kwin,hyprland}-20261114/result/report.json`.
+Private panel checks at 125% scale also cover zero top spacing with unchanged
+side/bottom margins and the existing larger positive-strut placement:
+`out/pip-niri-compact-top-20261114/result/report.json` and
+`out/pip-niri-standard-insets-20261114/result/report.json`.
 The settings harness covers default-on topmost, shared selects, titlebar controls,
 keyboard/narrow/zoomed layout and letterboxing versus actual titlebar measurements
 in `out/pip-native-resize-settings-final-20261114/`. These synthetic checks do not

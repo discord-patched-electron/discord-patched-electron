@@ -400,7 +400,35 @@ class Route:
             self.mix = self.create_sink(self.prefix + "-mix")
             server = json.loads(command([system_tool("pactl"), "-f", "json", "info"]))
             if "PipeWire" in server.get("server_name", ""):
-                self.create_sink(self.prefix + "-native")
+                native = self.create_sink(self.prefix + "-native")
+                # Stay on the PipeWire graph: raw pw-cat -> pacat pipes lose
+                # capture timing and can retain old PCM after backpressure.
+                # Loopback uses the newest capture buffer at each playback
+                # cycle and flushes its streams on pause, without an extra FIFO.
+                self.playback = self.spawn(
+                    [
+                        system_tool("pw-loopback"),
+                        "-n",
+                        self.prefix + "-bridge",
+                        "-C",
+                        self.mix,
+                        "-P",
+                        native,
+                        "-c",
+                        "2",
+                        "-l",
+                        "20",
+                        "-i",
+                        "{ stream.capture.sink = true audio.rate = 48000 node.passive = true node.dont-reconnect = true }",
+                        "-o",
+                        # Pulse hides the client index for virtual streams.
+                        # Discord needs it to resolve this worker's real PID.
+                        # Keep playback active like the replaced pacat stream.
+                        "{ node.virtual = false audio.rate = 48000 node.passive = false node.dont-reconnect = true }",
+                    ]
+                )
+                self.capture_pid = self.playback.pid
+                return self.capture_pid
             else:
                 self.module = int(
                     command(

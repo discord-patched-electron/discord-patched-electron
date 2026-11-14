@@ -93,6 +93,50 @@ stalled in that fixture mode; six unchanged-input runs passed after restoring
 the wrapper's dedicated-control default. Stop/flush fixture recorders per phase
 and wait for positive-control device enumeration before measuring leakage.
 
+### Sender buffering limits
+
+With PipeWire-Pulse, selected streams feed the private mix through
+`pw-loopback`; a second loopback connects that mix directly to the private native
+sink on the same graph. Both bridge ends request 48 kHz stereo and a 20 ms
+latency. There is no `pw-cat`/OS pipe/`pacat` FIFO between the mix and native sink.
+[PipeWire's loopback](https://github.com/PipeWire/pipewire/blob/1.6.11/src/modules/module-loopback.c)
+uses the newest capture buffer per playback cycle and flushes capture/playback
+buffers on pause. No `target.delay.sec` is set, so its optional delay ring stays
+disabled. These are scheduling contracts, not measured end-to-end latency.
+
+The bridge capture uses the exact private mix serial with sink capture enabled;
+playback uses the exact private native sink serial. Both disable reconnection so
+source loss cannot redirect to a default device. Capture is passive; playback
+stays active like the former `pacat` stream. Playback must set `node.virtual =
+false`: [PipeWire-Pulse hides the client index of virtual streams](https://github.com/PipeWire/pipewire/blob/1.6.11/src/modules/module-protocol-pulse/pulse-server.c),
+preventing Discord from resolving the worker PID. Native capture follows only
+that worker's PID. The owned worker, private sinks and selected-app feeds retain
+the route's parent-death and teardown guards.
+
+Real PulseAudio keeps its separate-server raw bridge and per-stream fallback
+feeds; it cannot use this same-graph connection. Its `pw-cat`→`pacat` bridge still
+requests 80 ms on each side, without sample-age metadata or stale-audio recovery.
+`Route.spawn` removes `PULSE_LATENCY_MSEC` from helper children, so native
+Discord's 40 ms default does not override those requests. This remains an
+unqualified latency limitation for the real PulseAudio backend.
+
+Route health checks cover child exit, not progress or queue age. An unchanged
+target keeps its route and feeds; restarting viewing does not reset sender audio.
+Child stderr is discarded. The PipeWire change removes the identified raw FIFO
+mechanism for this backend but has no native runtime or live A/V qualification
+yet, and does not establish the cause of the intermittent AV1/Windows report.
+
+Static disassembly of the prepared Canary 1.0.2483 voice module (SHA-256
+`42b32e010c1bbd57bc0eb71b0b751730738d85e282c920f331ffabcb3ef035e5`,
+recognized by `native_client_2483.py`) shows a separate 192,000-byte native
+mixer ring: one second of capacity at this format, not a fixed one-second delay.
+`SamplesReady` and `Read` advance sample cursors without sample-age metadata;
+reads clear consumed slots. The existing patch clears the ring when attaching
+a different PID, not continuously; native uncork handling also realigns a
+stream's write cursor. This native ring is separate from the removed PipeWire
+raw bridge and the retained real PulseAudio bridge. Source copies and disassembly
+are under `out/av-sync-investigation/static/`.
+
 ## Validation and limits
 
 Use `scripts/check_app_audio.py` for wrapper/picker/native contracts and

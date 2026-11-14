@@ -75,8 +75,9 @@ Placement leaves 16 logical pixels inside the reported usable area, accounting
 for Sway workspace gaps, KDE panels and Hyprland floating gaps and borders.
 Niri placement measures its panel-reserved area using the PiP itself and reads
 the active configuration's gaps and struts, including ordered includes and named
-workspace overrides. Its total inset is at least 16 logical pixels, or the
-configured gap plus strut when larger. It does not create window rules. A corner
+workspace overrides. Top spacing follows the gap plus top strut, bounded at
+zero so it stays below panel reservations. Side and bottom spacing retain at
+least 16 logical pixels, or the configured gap plus strut when larger. It does not create window rules. A corner
 button restores the automatic size and position after manual resizing.
 KDE placement needs the system Python D-Bus and
 GObject bindings (`python-dbus`/`python-gobject` on Arch,

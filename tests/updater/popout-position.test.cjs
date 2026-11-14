@@ -478,3 +478,39 @@ test("Niri calibrates panel-reserved area using only the owned floating window",
   await controller.prepare("bottom-left");
   assert.equal(commands.length, total, "Once calibrated, corner changes need no calibration moves");
 });
+
+test("Niri compact top spacing respects negative struts without reducing bottom/side margins", (t) => {
+  const fs = require("node:fs");
+  const os = require("node:os");
+  const path = require("node:path");
+  const { insets } = require("../../integration/desktop/niri-insets.cjs");
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "dpe-niri-insets-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  for (const [top, expected] of [
+    [-30, 0],
+    [-10, 0],
+    [0, 10],
+    [30, 40],
+  ]) {
+    const file = path.join(directory, `${top}.kdl`);
+    fs.writeFileSync(file, `layout { gaps 10; struts { top ${top}; }; }`);
+    assert.deepEqual(insets(undefined, { NIRI_CONFIG: file }), {
+      left: 16,
+      right: 16,
+      top: expected,
+      bottom: 16,
+    });
+  }
+  assert.deepEqual(insets(undefined, { NIRI_CONFIG: path.join(directory, "missing") }), {
+    left: 16,
+    right: 16,
+    top: 16,
+    bottom: 16,
+  });
+  const { corner } = require("../../integration/desktop/popout-position.cjs");
+  const usable = { x: 0, y: 64, width: 1280, height: 656, pipInsets: { top: 0 } };
+  assert.deepEqual(corner(usable, 400, 300, "top-left"), { x: 16, y: 64 });
+  assert.deepEqual(corner(usable, 400, 300, "top-right"), { x: 864, y: 64 });
+  assert.deepEqual(corner(usable, 400, 300, "bottom-left"), { x: 16, y: 404 });
+  assert.deepEqual(corner(usable, 400, 300, "bottom-right"), { x: 864, y: 404 });
+});

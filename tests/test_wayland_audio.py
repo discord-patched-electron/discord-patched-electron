@@ -16,6 +16,99 @@ audio = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audio)
 
 
+class WaylandRoute(unittest.TestCase):
+    def test_pipewire_bridge_exposes_worker_pid_without_a_raw_audio_pipe(self):
+        route = audio.Route()
+        child = Mock(pid=4321)
+        child.poll.return_value = None
+        with (
+            patch.object(route, "create_sink", side_effect=["101", "102"]) as sinks,
+            patch.object(
+                audio, "command", return_value='{"server_name":"PulseAudio (on PipeWire)"}'
+            ),
+            patch.object(audio.sp, "Popen", return_value=child) as launch,
+        ):
+            self.assertEqual(route.start(), child.pid)
+            self.assertEqual(route.capture_pid, child.pid)
+            self.assertEqual(route.children, [child])
+            self.assertEqual(sinks.call_count, 2)
+            launch.assert_called_once()
+            args = launch.call_args.args[0]
+            self.assertEqual(args[0], "/usr/bin/pw-loopback")
+            self.assertEqual(args[args.index("-C") + 1], "101")
+            self.assertEqual(args[args.index("-P") + 1], "102")
+            self.assertIn("stream.capture.sink = true", args[args.index("-i") + 1])
+            self.assertIn("node.virtual = false", args[args.index("-o") + 1])
+            self.assertIn("node.passive = true", args[args.index("-i") + 1])
+            self.assertIn("node.passive = false", args[args.index("-o") + 1])
+            for option in ("-i", "-o"):
+                self.assertIn("node.dont-reconnect = true", args[args.index(option) + 1])
+                self.assertIn("audio.rate = 48000", args[args.index(option) + 1])
+            self.assertNotIn("stdin", launch.call_args.kwargs)
+            self.assertEqual(launch.call_args.kwargs["stdout"], audio.sp.DEVNULL)
+            # The graph worker remains owned by the route, including on exit.
+            child.poll.return_value = 1
+            with self.assertRaisesRegex(ValueError, "Audio bridge process exited"):
+                route.sync([], [], None, (100, "discord", 1))
+            route.close()
+            child.wait.assert_called_once()
+            self.assertEqual(route.children, [])
+
+    def test_pipewire_bridge_start_failure_releases_owned_sink_process(self):
+        route = audio.Route()
+        owner = Mock()
+        owner.poll.return_value = None
+        route.owner = owner
+        route.children.append(owner)
+        with (
+            patch.object(route, "create_sink", side_effect=["101", "102"]),
+            patch.object(audio, "command", return_value='{"server_name":"PipeWire"}'),
+            patch.object(audio.sp, "Popen", side_effect=OSError("loopback unavailable")),
+        ):
+            with self.assertRaisesRegex(OSError, "loopback unavailable"):
+                route.start()
+            owner.terminate.assert_called_once()
+            owner.wait.assert_called_once()
+            self.assertEqual(route.children, [])
+
+    def test_real_pulse_server_retains_its_own_playback_clock_and_helper_pid(self):
+        route = audio.Route()
+        guard, recording, playback = (Mock(pid=pid) for pid in (4320, 4321, 4322))
+        recording.poll.return_value = playback.poll.return_value = None
+
+        def command(args):
+            if args[-1] == "info":
+                return '{"server_name":"pulseaudio"}'
+            if "load-module" in args:
+                return "77"
+            return ""
+
+        with (
+            patch.object(route, "create_sink", return_value="101") as sinks,
+            patch.object(audio, "command", side_effect=command) as commands,
+            patch.object(audio.sp, "Popen", side_effect=[guard, recording, playback]) as launch,
+        ):
+            self.assertEqual(route.start(), audio.os.getpid())
+            self.assertEqual(route.module, 77)
+            self.assertEqual(route.children, [recording, playback])
+            sinks.assert_called_once()
+            self.assertEqual(launch.call_args_list[1].args[0][0], "/usr/bin/pw-cat")
+            self.assertEqual(launch.call_args_list[2].args[0][0], "/usr/bin/pacat")
+            self.assertIn(
+                "--property=application.process.id=" + str(audio.os.getpid()),
+                launch.call_args_list[2].args[0],
+            )
+            self.assertIs(launch.call_args_list[2].kwargs["stdin"], recording.stdout)
+            recording.stdout.close.assert_called_once()
+            route.close()
+            recording.terminate.assert_called_once()
+            playback.terminate.assert_called_once()
+            guard.stdin.close.assert_called_once()
+            self.assertIn("unload-module", commands.call_args.args[0])
+            self.assertIsNone(route.module)
+            self.assertEqual(route.children, [])
+
+
 class WaylandIdentity(unittest.TestCase):
     def test_other_dpe_profiles_are_excluded_without_environment_markers(self):
         with tempfile.TemporaryDirectory() as temporary:

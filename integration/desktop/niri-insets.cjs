@@ -207,11 +207,13 @@ function insets(workspace, env = process.env) {
     return Object.fromEntries(
       ["left", "right", "top", "bottom"].map((side) => [
         side,
-        Math.max(0, cache.value.gaps + cache.value.struts[side] - 16),
+        // Keep the PiP's side/bottom breathing room, but let a compact top
+        // strut align with normal windows instead of adding another 16px.
+        Math.max(side === "top" ? 0 : 16, cache.value.gaps + cache.value.struts[side]),
       ]),
     );
   } catch {
-    return { left: 0, right: 0, top: 0, bottom: 0 };
+    return { left: 16, right: 16, top: 16, bottom: 16 };
   }
 }
 module.exports = { load, insets };

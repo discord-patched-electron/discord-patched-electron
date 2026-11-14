@@ -176,6 +176,8 @@ class Manager:
     def create(self, label: str, artifact: Path, clients: Path):
         from build_local_app import build
 
+        if label == "current":
+            raise ValueError("current resolves the checkout automatically; choose a version name")
         destination = self.path("versions", label)
         with lock(self.home / "locks/catalog"), lock(self.home / "locks" / (label + ".version")):
             if destination.exists():
@@ -231,6 +233,8 @@ class Manager:
         )
 
     def import_app(self, label: str, source: Path):
+        if label == "current":
+            raise ValueError("current resolves the checkout automatically; choose a version name")
         source = source.resolve()
         metadata = read_json(source / "local-build.json")
         if not metadata.get("portable") or metadata.get("runtime_kind") != "compiled":
@@ -342,13 +346,27 @@ class Manager:
                 (self.home / "locks" / (profile + ".profile")).unlink(missing_ok=True)
 
     def run(self, label: str, profile: str, watch: bool, sync: bool, args: list[str]):
+        with lock(self.home / "locks" / (name(profile) + ".profile")):
+            self.current_state = None
+            if label == "current":
+                from dev_current import resolve
+
+                label = resolve(self, getattr(self, "current_artifact", None))
+            return self.run_version(label, profile, watch, sync, args)
+
+    def run_version(self, label: str, profile: str, watch: bool, sync: bool, args: list[str]):
         app = self.version(label)
-        with (
-            lock(self.home / "locks" / (label + ".version"), shared=True),
-            lock(self.home / "locks" / (name(profile) + ".profile")),
+        with lock(
+            self.home / "locks" / (label + ".version"),
+            shared=not (self.current_state and (sync or watch)),
         ):
             # Recheck after locking in case removal completed before lock acquisition.
             app = self.version(label)
+            if (
+                self.current_state
+                and read_json(app / "current-checkout.json") != self.current_state
+            ):
+                raise ValueError("Current cache changed before launch; run current again")
             (self.home / "locks" / (name(profile) + ".profile")).write_text(label)
             data = self.profile(profile)
             environment = dict(os.environ)
@@ -397,7 +415,25 @@ class Manager:
 
                     with lock(self.home / "locks/catalog", wait=True):
                         if sync or watch:
+                            if self.current_state:
+                                from dev_current import checkout
+
+                                state = checkout()
+                                if any(
+                                    state[k] != self.current_state[k] for k in ("branch", "build")
+                                ):
+                                    raise ValueError(
+                                        "Build inputs changed; run current again to rebuild"
+                                    )
+                                (app / "current-checkout.json").unlink(missing_ok=True)
                             self.sync(app)
+                            if self.current_state:
+                                if checkout() != state:
+                                    raise ValueError(
+                                        "Checkout changed during refresh; run current again"
+                                    )
+                                write_json(app / "current-checkout.json", state)
+                                self.current_state = state
                         configure_startup(app)
                     environment["DPE_DEV_DOWNLOADS"] = str(self.home / "downloads")
                     if interrupted:
@@ -407,7 +443,7 @@ class Manager:
                         [str(app / "launch.sh"), *args], env=environment, start_new_session=True
                     )
                     restart = False
-                    while child.poll() is None and not interrupted:
+                    while child.poll() is None and not interrupted and not requested_restart:
                         time.sleep(0.5)
                         current = self.stamp() if watch else previous
                         if current != previous:
@@ -486,6 +522,9 @@ class Manager:
         print(f"Total allocated (shared inodes counted once): {size(self.home)}")
         print("Category sizes share links; they must not be added together.")
         print("\nUse run VERSION --profile dev --watch, or --help for all commands.")
+        print(
+            "run current automatically prepares the current branch/working tree; named versions stay pinned."
+        )
 
     def remove(self, kind: str, label: str):
         path = self.path(kind, label)
@@ -533,6 +572,9 @@ def main(argv=None):
     )
     run.add_argument("--watch", action="store_true", help="Sync and restart when sources change")
     run.add_argument("--sync", action="store_true", help="Sync helper sources before launching")
+    run.add_argument(
+        "--artifact", type=Path, help="Verified Electron artifact for automatic current assembly"
+    )
     activate = commands.add_parser("open", help="Open Discord links in a managed version/profile")
     activate.add_argument("name")
     activate.add_argument("--profile", default="dev")
@@ -568,6 +610,9 @@ def main(argv=None):
             case "import":
                 manager.import_app(args.name, args.app)
             case "run":
+                if args.artifact and args.name != "current":
+                    raise ValueError("--artifact applies only to run current")
+                manager.current_artifact = args.artifact
                 if args.temporary_profile:
                     return manager.run_temporary(args.name, args.watch, args.sync, forwarded)
                 return manager.run(args.name, args.profile, args.watch, args.sync, forwarded)

@@ -214,6 +214,9 @@ function attach(window, options, onReady, screen) {
             area: screen.getDisplayMatching(window.getBounds()).workArea,
           }
         : undefined;
+    // Compositor IPC can finish after close or a fullscreen transition. Never
+    // call native window methods using a result from before that boundary.
+    if (window.isDestroyed() || window.isFullScreen() || fullscreenNormal) return;
     if (value && !window.isFullScreen()) lastNormal = { ...value, client: window.getBounds() };
     else if (
       !compositor &&
@@ -233,6 +236,7 @@ function attach(window, options, onReady, screen) {
   };
   const cornerState = async () => {
     const value = await snapshot();
+    if (window.isDestroyed()) return { available: false };
     if (!value)
       return {
         available: false,

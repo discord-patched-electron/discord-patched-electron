@@ -619,3 +619,45 @@ test("initial compositor configures and Hyprland's synthetic maximized state per
   resolvePlacement();
   await new Promise((done) => setImmediate(done));
 });
+
+test("a corner query finishing after close does not touch the destroyed native window", async (t) => {
+  const { EventEmitter } = require("node:events");
+  const { attach, session } = require("../../integration/desktop/popout.cjs");
+  const position = require("../../integration/desktop/popout-position.cjs");
+  const geometry = { bounds: { x: 50, y: 50, width: 512, height: 288 }, area: display.workArea };
+  let destroyed = false,
+    pending = false,
+    finish;
+  t.mock.method(position, "identify", () => ({
+    display: async () => undefined,
+    snapshot: () =>
+      pending
+        ? new Promise((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve(geometry),
+  }));
+  const live = (value) => {
+    assert.equal(destroyed, false, "No native method after destruction");
+    return value;
+  };
+  const window = Object.assign(new EventEmitter(), {
+    windowKey: key,
+    webContents: new EventEmitter(),
+    isDestroyed: () => destroyed,
+    isFullScreen: () => live(false),
+    isFocused: () => live(true),
+    getBounds: () => live(geometry.bounds),
+    getSize: () => live([512, 288]),
+  });
+  attach(window, { dpeVideo: true, dpeFloating: true }, () => {}, screen);
+  window.emit("focus");
+  await new Promise((resolve) => setImmediate(resolve));
+  pending = true;
+  const query = session(window).state();
+  assert.equal(typeof finish, "function");
+  destroyed = true;
+  window.emit("closed");
+  finish(geometry);
+  assert.deepEqual(await query, { available: false });
+});
