@@ -101,7 +101,7 @@
         },
         {
           "patch": "patches/ports/46/alpha10-dependencies.patch",
-          "patch_sha256": "7fe02ca4534acced6349c0f99794f0c24c7bea6dc7d9d96206e70e372b69ebe1"
+          "patch_sha256": "45ab39e2cf363b22f4229560160d5da04281bf168d62454b6325ac82208832f7"
         }
       ],
       "patch": "patches/ports/46/compatibility.patch",

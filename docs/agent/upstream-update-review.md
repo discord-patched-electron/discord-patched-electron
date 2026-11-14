@@ -248,7 +248,10 @@ FFmpeg build-script patches after upstream Python formatting changes. Its Media
 Foundation adaptation preserves the newer aligned coded-size/plane-layout fix in
 the pool-backed decoder branch and keeps MF buffer ownership separate. The six
 complete FFmpeg patches apply in order to the real Chromium pre-patch tree;
-Python AST validation passes. **Full alpha.10 compilation and runtime qualification
+Python AST validation passes. Additional follow-up context edits preserve the
+NVIDIA super-resolution default and FFmpeg rolling/import helpers; all remaining
+31 Chromium patches apply in sequence in the sparse preflight checkout.
+**Full alpha.10 compilation and runtime qualification
 remain pending** in the opt-in PC workflow; retained-runtime results above must
 not be reported as alpha.10 results. Failed attempts and network recovery are
 retained under `out/update-review/`.

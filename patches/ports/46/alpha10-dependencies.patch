@@ -315,6 +315,26 @@ index 4f9ef5a53cc..0418fb315b9 100644
  --- a/media/filters/ffmpeg_video_decoder.h
  +++ b/media/filters/ffmpeg_video_decoder.h
  @@ -92,6 +92,11 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
+diff --git a/patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch b/patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch
+index 6651dfde153..aaae0f437b1 100644
+--- a/patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch
++++ b/patches/chromium/disable_nvidiavpsuperresolution_feature_by_default.patch
+@@ -23,14 +23,11 @@ diff --git a/ui/gl/gl_switches.h b/ui/gl/gl_switches.h
+ index fbf5f8498970424b17f6d55b7dd028d3b7c3114e..a68bd8cf327d19b0ae741649134d4ee07335d6f5 100644
+ --- a/ui/gl/gl_switches.h
+ +++ b/ui/gl/gl_switches.h
+-@@ -142,6 +142,7 @@ GL_EXPORT BASE_DECLARE_FEATURE(kDirectCompositionUnlimitedOverlays);
+- GL_EXPORT BASE_DECLARE_FEATURE(kDesktopPlaneRemovalForMFFullScreenLetterbox);
++@@ -156,3 +156,4 @@
+  GL_EXPORT BASE_DECLARE_FEATURE(kEGLDualGPURendering);
+  GL_EXPORT BASE_DECLARE_FEATURE(kIntelVpSuperResolution);
+ +GL_EXPORT BASE_DECLARE_FEATURE(kNvidiaVpSuperResolution);
+  GL_EXPORT BASE_DECLARE_FEATURE(kDefaultANGLEVulkan);
+- GL_EXPORT BASE_DECLARE_FEATURE(kTrackCurrentShaders);
+- GL_EXPORT BASE_DECLARE_FEATURE(kVulkanFromANGLE);
+ diff --git a/ui/gl/swap_chain_presenter.cc b/ui/gl/swap_chain_presenter.cc
+ index d4a6ef6576c55236f12f40190d0a05bc7966663f..5b31fd99bccf4bf2e4244b340fe46f25a38474fe 100644
+ --- a/ui/gl/swap_chain_presenter.cc
 diff --git a/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch b/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch
 index 534cf39c050..d972b071b6e 100644
 --- a/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch
@@ -357,6 +377,84 @@ index 0fe0ca28dc8..de626c6bb53 100644
       {
 -       // Shared MessagePort between AudioWorklet and AudioWorkletGlobalScope.
 +       name: "AudioWorkletProcessorErrorEventType",
+diff --git a/patches/chromium/fix_syntax_fixup_and_support_import_option_for_rolling_ffmpeg_from.patch b/patches/chromium/fix_syntax_fixup_and_support_import_option_for_rolling_ffmpeg_from.patch
+index ed5bcb08533..050bda3db69 100644
+--- a/patches/chromium/fix_syntax_fixup_and_support_import_option_for_rolling_ffmpeg_from.patch
++++ b/patches/chromium/fix_syntax_fixup_and_support_import_option_for_rolling_ffmpeg_from.patch
+@@ -7,54 +7,49 @@ Subject: fix: syntax fixup and support import option for rolling ffmpeg from
+ Correct several issues when rolling ffmpeg.
+ 
+ diff --git a/media/ffmpeg/scripts/generate_gn.py b/media/ffmpeg/scripts/generate_gn.py
+-index d819546d47b4f91957ee32606534be61d0862668..d4fce5292c988cc8a44d90ef80301ff5dbfb8bce 100755
+ --- a/media/ffmpeg/scripts/generate_gn.py
+ +++ b/media/ffmpeg/scripts/generate_gn.py
+-@@ -784,8 +784,10 @@ def GetIncludedSources(file_path, source_dir, include_set, scan_only=False):
++@@ -826,8 +826,10 @@
+      if not os.path.isabs(file_path):
+          file_path = os.path.abspath(os.path.join(source_dir, file_path))
+      file_path = os.path.normpath(file_path)
+-+    parent_path = os.path.normpath(os.path.join(file_path, '..'))
+++    parent_path = os.path.normpath(os.path.join(file_path, ".."))
+  
+      current_dir = os.path.dirname(file_path)
+ +    parent_dir = os.path.dirname(parent_path)
+  
+      # Already processed this file, bail out.
+      if file_path in include_set:
+-@@ -810,6 +812,8 @@ def GetIncludedSources(file_path, source_dir, include_set, scan_only=False):
+-         # and we'll checking their validity below.
+-         include_path_in_current_dir = os.path.join(current_dir,
+-                                                    include_file_path)
+-+        include_path_in_current_parent_dir = os.path.join(parent_dir,
+-+                                                          include_file_path)
+-         include_path_in_source_dir = os.path.join(source_dir,
+-                                                   include_file_path)
++@@ -854,6 +856,7 @@
++             current_dir, include_file_path
++         )
++         include_path_in_source_dir = os.path.join(source_dir, include_file_path)
+++        include_path_in_current_parent_dir = os.path.join(parent_dir, include_file_path)
+          resolved_include_path = ''
+-@@ -820,6 +824,9 @@ def GetIncludedSources(file_path, source_dir, include_set, scan_only=False):
++ 
++         # Check if file is in current directory.
++@@ -862,6 +865,9 @@
+          # Else, check source_dir (should be FFmpeg root).
+          elif os.path.isfile(include_path_in_source_dir):
+              resolved_include_path = include_path_in_source_dir
+-+        # Else, check parent_dir
+++        # Else, check parent_dir.
+ +        elif os.path.isfile(include_path_in_current_parent_dir):
+ +            resolved_include_path = include_path_in_current_parent_dir
+          # Else, we couldn't find it :(.
+          elif include_file_path in IGNORED_INCLUDE_FILES:
+              continue
+ diff --git a/media/ffmpeg/scripts/robosushi.py b/media/ffmpeg/scripts/robosushi.py
+-index 90e910c09cf7b6f9ce4c97545e8372c4cba3d331..daffd78102c8a9b52c406be66e6fa9755203af1c 100755
+ --- a/media/ffmpeg/scripts/robosushi.py
+ +++ b/media/ffmpeg/scripts/robosushi.py
+-@@ -51,6 +51,9 @@ def main(argv):
+-         '--build-gn',
++@@ -53,6 +53,7 @@
++         action='store_true',
++         help='Unconditionally build all the configs and import them.',
++     )
+++    parser.add_argument('--import-only', action='store_true', help='Import ffmpeg configuration')
++     parser.add_argument(
++         '--auto-merge',
+          action='store_true',
+-         help='Unconditionally build all the configs and import them.')
+-+    parser.add_argument('--import-only',
+-+                        action='store_true',
+-+                        help='Import ffmpeg configuration')
+-     parser.add_argument('--auto-merge',
+-                         action='store_true',
+-                         help='Run auto-merge. (Usually what you want)')
+-@@ -96,6 +99,8 @@ def main(argv):
++@@ -105,6 +106,8 @@
+      if options.build_gn:
+          # Unconditionally build all the configs and import them.
+          robo_build.BuildAndImportAllFFmpegConfigs(robo_configuration)
 diff --git a/patches/chromium/fix_workaround_for_ffmpeg_build_on_macos_host.patch b/patches/chromium/fix_workaround_for_ffmpeg_build_on_macos_host.patch
 index 67f1e84ae60..d796abada78 100644
 --- a/patches/chromium/fix_workaround_for_ffmpeg_build_on_macos_host.patch
