@@ -110,3 +110,11 @@ docs before declaring completion.
 - Treat old agent notes as historical evidence; consult current code and locks
   before making changes. Don't restart old monitors or hibernate the PC without
   a current instruction to do so.
+
+## Development branch synchronization
+
+Before starting work on `dev` and before pushing it, fetch `origin` and merge
+`origin/main` without rewriting development commits. Preserve uncommitted work
+before merging and resolve conflicts explicitly. Never merge `ci-state` into
+`dev` or `main`. `.github/workflows/sync-dev.yml` automates main-to-dev merges
+once installed on the default branch; its conflicts still require a maintainer.

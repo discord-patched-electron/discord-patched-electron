@@ -117,6 +117,44 @@ class GitHub:
             raise ValueError("Source tag did not resolve to a commit")
 
 
+def observe_fork(github, sources: dict) -> dict:
+    """Observe release branches independently; never silently replace the imported delta."""
+    repository = (
+        sources["fork"]["repository"].removeprefix("https://github.com/").removesuffix(".git")
+    )
+    branches = {}
+    for page in range(1, 101):
+        batch = github.get(f"repos/{repository}/branches?per_page=100&page={page}")
+        if not isinstance(batch, list):
+            raise ValueError("Expected Discord fork branch page")
+        for branch in batch:
+            name, commit = branch["name"], branch["commit"]["sha"]
+            if not re.fullmatch(r"[a-f0-9]{40}", commit):
+                raise ValueError("Invalid Discord fork commit")
+            if re.fullmatch(r"[0-9]+-x-y", name):
+                branches[name] = commit
+        if len(batch) < 100:
+            break
+    else:
+        raise ValueError("Discord fork pagination limit reached")
+    imported_major = Path(sources["fork"]["patch"]).parent.name
+    tracked = imported_major + "-x-y"
+    changed = {
+        name: commit
+        for name, commit in branches.items()
+        if int(name.split("-")[0]) >= int(imported_major)
+        and (name != tracked or commit != sources["fork"]["commit"])
+    }
+    return {
+        "repository": repository,
+        "branches": branches,
+        "imported_commit": sources["fork"]["commit"],
+        "tracked_branch": tracked,
+        "review_required": changed,
+        "tracked_branch_missing": tracked not in branches,
+    }
+
+
 def parse_tags(advertisement: str) -> dict[str, str]:
     direct, peeled = {}, {}
     for line in advertisement.splitlines():
@@ -375,6 +413,11 @@ def main():
         state["electron_discovery_error"] = str(error)
     state["client_errors"] = client_errors
     try:
+        state["discord_fork"] = observe_fork(github, sources)
+        state.pop("fork_discovery_error", None)
+    except (ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
+        state["fork_discovery_error"] = str(error)
+    try:
         advisories = github.advisories()
         state["security_advisories"] = [
             {k: a.get(k) for k in ("ghsa_id", "severity", "withdrawn_at", "vulnerabilities")}
@@ -412,10 +455,15 @@ def main():
             "client_errors",
             "bundled_runtime_errors",
             "electron_discovery_error",
+            "fork_discovery_error",
             "security_discovery_error",
         )
         if state.get(key)
     }
+    fork = state.get("discord_fork", {})
+    if fork.get("review_required") or fork.get("tracked_branch_missing"):
+        errors["discord_fork_review"] = fork
+    summary["discord_fork"] = fork
     summary["errors"] = errors
     if output := os.environ.get("GITHUB_OUTPUT"):
         with open(output, "a") as stream:

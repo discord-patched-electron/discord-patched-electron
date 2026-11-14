@@ -193,3 +193,11 @@ candidate pass or treat later alpha.6 work as part of this review.
 `connect-src` blocking `sentry-ipc://start/sentry_key` was a separate preload
 Sentry handshake, not a Discord API/module-download failure. No telemetry/CSP
 allowance was justified. Recheck exact candidate contents for a new incident.
+
+Discovery also observes all numbered Discord Electron release branches,
+independently of upstream release tags and bundled executable hashes. Movement
+of the imported branch, a newer major branch, or a missing imported branch is
+reported as requiring review in discovery diagnostics. The immutable imported
+patch is preserved until a complete source port is reviewed; observing fork
+movement never grants approval to replace it. Fork API outages retain the prior
+observation and surface a separate error without blocking client discovery.

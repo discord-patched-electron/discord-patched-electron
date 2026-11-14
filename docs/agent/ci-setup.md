@@ -213,3 +213,28 @@ For a currently authorized local-runner adjustment, inspect container logs,
 An updated CPU quota does not change an existing Ninja `-j`. Never start a second
 Ninja in the same output or restart a healthy compiler. Historical container
 names, machine inventory and dispatch commands are not current authorization.
+
+## One-off compilation on the PC
+
+Blacksmith remains the default for scheduled and manual builds. Dispatch
+`build.yml` with `compiler=local` to run the same source preflight and compiler
+entry point on the registered `discord-electron-compiler` Docker runner. Local
+builds accept `dev` as well as `main`, retain `/work/build-cache` and never reserve
+Blacksmith allowance. They upload candidate runtime and capacity artifacts but
+`dev` runs do not enter automatic release qualification or publication.
+
+The local runner has no Docker CPU, memory, swap or PID quota. This exposes host
+capacity rather than creating extra RAM; automatic Ninja concurrency still uses
+measured CPU/RAM. GitHub limits this job to 72 hours. Do not restart healthy
+compilers, start a second Ninja in their output, or delete retained dependencies.
+For this one-off build use:
+
+```sh
+gh workflow run build.yml --ref dev -f target=prerelease -f compiler=local
+```
+
+`sync-dev.yml` merges `main` into `dev` after main pushes, hourly and on manual
+dispatch. It preserves development commits and fails on conflicts or concurrent
+pushes; it never force-pushes or merges generated `ci-state`. Push and scheduled
+activation requires the workflow to reach the default branch. Until then, merge
+`origin/main` into `dev` before starting development and before pushing it.

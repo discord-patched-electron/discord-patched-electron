@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import ROOT, read_json, write_json
-from discover import GitHub, main, parse_tags, pending, reconcile
+from discover import GitHub, main, observe_fork, parse_tags, pending, reconcile
 
 NOW = "2026-10-23T20:00:00Z"
 
@@ -54,6 +54,20 @@ class Discovery(unittest.TestCase):
         self.records.append(value)
         self.tags[value["tag_name"]] = f"{identity:040x}"
 
+    def test_fork_movement_and_new_major_require_review(self):
+        github = Mock()
+        commit = self.sources["fork"]["commit"]
+        github.get.return_value = [{"name": "44-x-y", "commit": {"sha": commit}}]
+        self.assertEqual(observe_fork(github, self.sources)["review_required"], {})
+        github.get.return_value += [{"name": "46-x-y", "commit": {"sha": "a" * 40}}]
+        self.assertEqual(
+            observe_fork(github, self.sources)["review_required"], {"46-x-y": "a" * 40}
+        )
+        github.get.return_value[0]["commit"]["sha"] = "b" * 40
+        self.assertEqual(observe_fork(github, self.sources)["review_required"]["44-x-y"], "b" * 40)
+        github.get.return_value = []
+        self.assertTrue(observe_fork(github, self.sources)["tracked_branch_missing"])
+
     def test_activation_seeds_only_prerelease_without_historical_backfill(self):
         state = self.reconcile()
         self.assertEqual(list(state["releases"]), ["prerelease:46.0.0-alpha.1"])
@@ -71,6 +85,9 @@ class Discovery(unittest.TestCase):
             github = Mock()
             github.releases.side_effect = [RuntimeError("synthetic outage"), self.records]
             github.source_tags.return_value = self.tags
+            github.get.return_value = [
+                {"name": "44-x-y", "commit": {"sha": self.sources["fork"]["commit"]}}
+            ]
             github.get.return_value = []
             with (
                 patch("sys.argv", ["discover", "--state", str(state_path), "--output", str(root)]),

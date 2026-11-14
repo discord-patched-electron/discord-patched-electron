@@ -11,6 +11,11 @@ on:
         description: Electron track enabled in config/channels.json
         type: string
         default: prerelease
+      compiler:
+        description: Compiler for this dispatch only (routine builds use Blacksmith)
+        type: choice
+        options: [blacksmith, local]
+        default: blacksmith
       parallel_jobs:
         description: Ninja tasks (auto respects CPU/RAM limits; takes effect on this dispatch)
         type: choice
@@ -27,16 +32,22 @@ env:
   ELECTRON_INCREMENTAL_WORKSPACE: "1"
 jobs:
   source:
-    if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main' && github.run_attempt == 1
+    if: github.repository == 'discord-patched-electron/discord-patched-electron' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      local: ${{ steps.provider.outputs.local }}
     env:
       EXPECTED_RUNTIME_KEY: ${{ inputs.runtime_key }}
       ELECTRON_BUILD_TARGET: ${{ inputs.target }}
+      COMPILER: ${{ inputs.compiler || 'blacksmith' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+      - name: Select compiler provider
+        id: provider
+        run: python3 -c 'import os; p=os.environ["COMPILER"]; assert p in ("local", "blacksmith"); open(os.environ["GITHUB_OUTPUT"], "a").write("local=" + str(p == "local").lower() + "\n")'
       - name: Assemble and check source before reserving Blacksmith minutes
         run: |
           if [ -n "$EXPECTED_RUNTIME_KEY" ]; then
@@ -56,7 +67,7 @@ jobs:
     concurrency:
       group: electron-state-writer
       cancel-in-progress: false
-    if: github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main' && github.run_attempt == 1
+    if: needs.source.outputs.local != 'true' && github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main' && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -191,3 +202,46 @@ jobs:
             out/capacity/*.log
           retention-days: 90
           if-no-files-found: warn
+  local:
+    needs: source
+    if: needs.source.outputs.local == 'true' && github.run_attempt == 1
+    runs-on: [self-hosted, Linux, X64, discord-electron-compiler]
+    timeout-minutes: 4320
+    env:
+      ELECTRON_BUILD_CACHE: /work/build-cache
+      ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || 'auto' }}
+      ELECTRON_BUILD_TARGET: ${{ inputs.target }}
+      EXPECTED_RUNTIME_KEY: ${{ inputs.runtime_key }}
+      SENTRYCLI_SKIP_DOWNLOAD: "1"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+      - name: Build on the PC with retained dependencies and Ninja objects
+        shell: bash
+        run: |
+          if [ -n "$EXPECTED_RUNTIME_KEY" ]; then python3 scripts/check_runtime_key.py; fi
+          mkdir -p out/capacity
+          set -o pipefail
+          /usr/bin/time -v python3 scripts/build_reference.py --target "$ELECTRON_BUILD_TARGET" 2>&1 | tee out/capacity/build.log
+      - name: Retain binary for client compatibility tests
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: candidate-runtime-${{ github.run_id }}
+          path: out/capacity/runtime-dist.zip
+          compression-level: 0
+          retention-days: 90
+          if-no-files-found: error
+      - name: Retain diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: candidate-capacity-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            out/capacity/*.json
+            out/capacity/*.log
+          retention-days: 90
