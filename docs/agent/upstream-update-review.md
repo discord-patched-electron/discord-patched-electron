@@ -252,7 +252,18 @@ Python AST validation passes. Additional follow-up context edits preserve the
 NVIDIA super-resolution default and FFmpeg rolling/import helpers; all remaining
 31 Chromium patches apply in sequence in the sparse preflight checkout.
 The complete dependency hook queue now applies and GN generation succeeds.
-**Full alpha.10 compilation is running and runtime qualification remains pending**
-in [PC workflow 43546460079](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/43546460079); retained-runtime results above must
+**Full alpha.10 compilation passed; signed prerelease qualification is pending**
+after [PC workflow 43546460079](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/43546460079); retained-runtime results above must
 not be reported as alpha.10 results. Failed attempts and network recovery are
 retained under `out/update-review/`.
+
+The completed alpha.10 runtime key is
+`ba2de5a0a4db082ea23845c7776f2f940421544be69a3cc9e949fd730a054161`,
+archive SHA-256
+`7ae29f857b048149c59ab979c15f606cd62f9fa26ef91a0741dc52b38248d2e1`,
+assembled source tree `5437badea3499445c33bb373d388445bb7ddb233`.
+`out/update-review/alpha10-runtime/` retains compiler provenance and the verified
+artifact. Exact-candidate native bridge/offline Krisp and FrameCapture explicit
+stop, immediate stop, target destruction and consumer destruction passed locally.
+The normal import/release workflows still gate public test publication and keep
+manual approval separate.

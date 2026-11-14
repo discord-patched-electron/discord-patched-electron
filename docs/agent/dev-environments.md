@@ -99,6 +99,7 @@ import is not fresh runtime provenance or release qualification.
 The manual `test` profile uses managed version `latest`, pinned to Canary
 1.0.2483/module revision 11 and the retained verified Electron 46.0.0-alpha.6.
 Launch with `bun run dev run latest --profile test`. Its data is independent of
-`dev` and `clock`; no account data was copied. Alpha.10 source assembly and a
-separate PC workflow are pending qualification. Do not label this profile's
-current runtime as alpha.10 or switch its version while it is running.
+`dev` and `clock`; no account data was copied. The additional `alpha10` version now uses the completed, checksum-verified
+Electron 46.0.0-alpha.10 artifact with the same client pins. Use
+`bun run dev run alpha10 --profile test` after closing an existing run; do not
+switch a running profile between versions.
