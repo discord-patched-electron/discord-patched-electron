@@ -252,7 +252,7 @@ Python AST validation passes. Additional follow-up context edits preserve the
 NVIDIA super-resolution default and FFmpeg rolling/import helpers; all remaining
 31 Chromium patches apply in sequence in the sparse preflight checkout.
 The complete dependency hook queue now applies and GN generation succeeds.
-**Full alpha.10 compilation passed; signed prerelease qualification is pending**
+**Full alpha.10 compilation and signed prerelease qualification passed**
 after [PC workflow 43546460079](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/43546460079); retained-runtime results above must
 not be reported as alpha.10 results. Failed attempts and network recovery are
 retained under `out/update-review/`.
@@ -265,5 +265,18 @@ assembled source tree `5437badea3499445c33bb373d388445bb7ddb233`.
 `out/update-review/alpha10-runtime/` retains compiler provenance and the verified
 artifact. Exact-candidate native bridge/offline Krisp and FrameCapture explicit
 stop, immediate stop, target destruction and consumer destruction passed locally.
-The normal import/release workflows still gate public test publication and keep
-manual approval separate.
+[Qualification run 43553912380](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/43553912380)
+passed bundled/custom native checks, FrameCapture/safeStorage, application audio,
+package installs, relocation/relaunch, mod preservation and signed update activation.
+The public [alpha.10 prerelease](https://github.com/discord-patched-electron/discord-patched-electron/releases/tag/v20261114035333.0.0-canary.93704cacad66d0b7)
+is intentionally unapproved. Local alpha.10 VP8, H.264/OpenH264, AV1/dav1d and
+Wayland HEVC/Electron delivery and the full settings harness also passed. The
+focus-outline assertion uses computed longhands so serialization order changes
+cannot conceal or falsely reject its exact colour/style/width contract. Earlier
+retained-runtime results remain distinguished above; account calls, other GPUs,
+Windows/macOS, restricted direct GPU and scheduled-presentation limits remain.
+
+An independent main Checks attempt failed to fetch an Arch package signature
+from its mirror while building the audio image; release qualification's audio
+job passed. Retain this as an infrastructure failure, not a reason to weaken
+native or package gates. The failed main job was retried with the same checks.

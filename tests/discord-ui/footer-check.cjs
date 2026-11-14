@@ -87,9 +87,12 @@ module.exports = async function checkFooter(window) {
   window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Tab" });
   await settle();
   await run("document.querySelector('[data-dpe-settings-version]').focus()");
-  assert.equal(
-    await run("getComputedStyle(document.querySelector('[data-dpe-settings-version]')).outline"),
-    "rgb(0, 176, 244) solid 2px",
+  assert.deepEqual(
+    await run(`(() => {
+      const style = getComputedStyle(document.querySelector('[data-dpe-settings-version]'));
+      return [style.outlineColor, style.outlineStyle, style.outlineWidth];
+    })()`),
+    ["rgb(0, 176, 244)", "solid", "2px"],
     "keyboard focus remains visible despite Discord's global outline reset",
   );
   for (const keyCode of ["Return", " "]) {
