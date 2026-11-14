@@ -355,12 +355,12 @@ test("genuine stylesheet failures are reported while closed windows do not fail 
 });
 
 test("desktop integration patch validates each native call site exactly once", async () => {
+  const original = require("./desktop-preferences-fixture.cjs");
   const sites = [];
-  patch("", "/preferences.cjs", (source, before, after) => {
+  patch(original, "/preferences.cjs", (source, before, after) => {
     sites.push([before, after]);
     return source;
   });
-  const original = require("./desktop-preferences-fixture.cjs");
   const replace = (source, before, after) => {
     if (source.split(before).length !== 2) throw Error("Unsupported Discord client layout");
     return source.replace(before, after);

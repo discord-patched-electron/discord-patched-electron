@@ -1186,7 +1186,10 @@ app
     assert.deepEqual(window.getSize(), [1100, 800]);
     // Window controls add content above the editor. Give it actual spare space
     // before checking growth rather than expecting it to grow inside overflow.
-    window.setSize(1400, 1400);
+    const editorRoom = await evaluate(
+      'document.querySelector(".appearance-page").scrollHeight + 256',
+    );
+    window.setSize(1400, editorRoom);
     await until(() => evaluate("innerWidth > 1080"));
     await until(() =>
       evaluate(

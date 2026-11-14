@@ -119,7 +119,7 @@ def extract(archive: Path, destination: Path, expected: str):
         raise ValueError("Reference archive lacks an Electron executable")
 
 
-def fetch(run_id: str, output: Path, *, capacity_only=False):
+def fetch(run_id: str, output: Path, *, capacity_only=False, allow_development=False):
     if not re.fullmatch(r"[1-9][0-9]*", run_id):
         raise ValueError("Expected a numeric GitHub Actions run ID")
     repository = os.environ.get("GH_REPO", "")
@@ -135,7 +135,15 @@ def fetch(run_id: str, output: Path, *, capacity_only=False):
     )
     if (
         metadata["conclusion"] != "success"
-        or metadata["head_branch"] != "main"
+        or not (
+            metadata["head_branch"] == "main"
+            or (
+                allow_development
+                and metadata["head_branch"] == "dev"
+                and metadata["path"] == ".github/workflows/build.yml"
+                and metadata.get("event") == "workflow_dispatch"
+            )
+        )
         or metadata["head_repository"]["full_name"] != repository
         or metadata["path"]
         not in {
@@ -279,8 +287,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_id")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--allow-development",
+        action="store_true",
+        help="Allow a successful manually dispatched dev build for local tests only",
+    )
     args = parser.parse_args()
-    fetch(args.run_id, args.output)
+    fetch(args.run_id, args.output, allow_development=args.allow_development)
 
 
 if __name__ == "__main__":

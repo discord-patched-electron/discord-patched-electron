@@ -149,6 +149,46 @@ class ReferenceArtifact(unittest.TestCase):
                 validate_capacity(capacity, True, run_id="123", compiler_commit="commit")
 
     @patch.dict(os.environ, {"GH_REPO": "discord-patched-electron/discord-patched-electron"})
+    def test_development_download_requires_explicit_opt_in_and_manual_project_build(self):
+        valid = {
+            "conclusion": "success",
+            "head_branch": "dev",
+            "event": "workflow_dispatch",
+            "path": ".github/workflows/build.yml",
+            "run_attempt": 1,
+            "head_repository": {"full_name": "discord-patched-electron/discord-patched-electron"},
+        }
+        for change in (
+            {},
+            {"head_branch": "other"},
+            {"event": "pull_request"},
+            {"path": ".github/workflows/import-runtime.yml"},
+            {"conclusion": "failure"},
+            {"head_repository": {"full_name": "someone/fork"}},
+        ):
+            with (
+                self.subTest(change=change),
+                patch(
+                    "fetch_reference.subprocess.check_output",
+                    return_value=json.dumps(valid | change),
+                ),
+                patch(
+                    "fetch_reference.run", side_effect=RuntimeError("download reached")
+                ) as download,
+            ):
+                with self.assertRaisesRegex(ValueError, "successful main-branch"):
+                    fetch("123", self.root / "default")
+                download.assert_not_called()
+                if change:
+                    with self.assertRaisesRegex(ValueError, "successful main-branch"):
+                        fetch("123", self.root / "opt-in", allow_development=True)
+                    download.assert_not_called()
+                else:
+                    with self.assertRaisesRegex(RuntimeError, "download reached"):
+                        fetch("123", self.root / "opt-in", allow_development=True)
+                    download.assert_called_once()
+
+    @patch.dict(os.environ, {"GH_REPO": "discord-patched-electron/discord-patched-electron"})
     def test_successful_main_import_run_keeps_local_compiler_provenance(self):
         sources = read_json(ROOT / "config/sources.lock.json")
         spec = sources["targets"]["prerelease"]

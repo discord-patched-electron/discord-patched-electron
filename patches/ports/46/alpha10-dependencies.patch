@@ -1,3 +1,352 @@
+diff --git a/patches/chromium/add_discord_ffmpeg_config_options.patch b/patches/chromium/add_discord_ffmpeg_config_options.patch
+index f40946063f0..5485faa6267 100644
+--- a/patches/chromium/add_discord_ffmpeg_config_options.patch
++++ b/patches/chromium/add_discord_ffmpeg_config_options.patch
+@@ -11,42 +11,42 @@ changes:
+  - add .sigs entries needed by clips
+ 
+ diff --git a/media/ffmpeg/scripts/build_ffmpeg.py b/media/ffmpeg/scripts/build_ffmpeg.py
+-index fa22c573e0fe8624f4339c9219561d33d0111474..d0532156140861b4afb6bdd3b084e59fce5c47bc 100755
++index ae9bfc507844026febffbd84be9a8e4c05dd2f7c..a1707579f5dadbfcdba982480e014ae001cd4db3 100755
+ --- a/media/ffmpeg/scripts/build_ffmpeg.py
+ +++ b/media/ffmpeg/scripts/build_ffmpeg.py
+-@@ -690,9 +690,9 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+-         # Common codecs.
+-         '--enable-decoder=vorbis,libopus,flac',
+-         '--enable-decoder=pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3',
+--        '--enable-decoder=pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw',
+--        '--enable-demuxer=ogg,matroska,wav,flac,mp3,mov',
+--        '--enable-parser=opus,vorbis,flac,mpegaudio,vp9',
+-+        '--enable-decoder=pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw,gif',
+-+        '--enable-demuxer=ogg,matroska,wav,flac,mp3,mov,gif',
+-+        '--enable-parser=opus,vorbis,flac,mpegaudio,vp9,gif',
+- 
+-         # Setup include path so Chromium's libopus can be used.
+-         '--extra-cflags=-I' +
+-@@ -990,9 +990,12 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+- 
++@@ -825,9 +825,9 @@
++             # Common codecs.
++             '--enable-decoder=vorbis,libopus,flac',
++             '--enable-decoder=pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3',
++-            '--enable-decoder=pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw',
++-            '--enable-demuxer=ogg,matroska,wav,flac,mp3,mov',
++-            '--enable-parser=opus,vorbis,flac,mpegaudio,vp9',
+++            '--enable-decoder=pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw,gif',
+++            '--enable-demuxer=ogg,matroska,wav,flac,mp3,mov,gif',
+++            '--enable-parser=opus,vorbis,flac,mpegaudio,vp9,gif',
++             # Setup include path so Chromium's libopus can be used.
++             '--extra-cflags=-I'
++             + os.path.join(CHROMIUM_ROOT_DIR, 'third_party/opus/src/include'),
++@@ -1196,9 +1196,12 @@
+      # Google Chrome specific configuration.
+-     configure_flags['Chrome'].extend([
+--        '--enable-decoder=aac,h264',
+-+        '--enable-decoder=aac,h264,hevc',
+-         '--enable-demuxer=aac',
+--        '--enable-parser=aac,h264',
+-+        '--enable-parser=aac,h264,hevc',
+-+        '--enable-muxer=mp4',
+-+        '--enable-encoder=aac',
+-+        '--enable-protocol=file',
+-     ])
++     configure_flags['Chrome'].extend(
++         [
++-            '--enable-decoder=aac,h264',
+++            '--enable-decoder=aac,h264,hevc',
++             '--enable-demuxer=aac',
++-            '--enable-parser=aac,h264',
+++            '--enable-parser=aac,h264,hevc',
+++            '--enable-muxer=mp4',
+++            '--enable-encoder=aac',
+++            '--enable-protocol=file',
++         ]
++     )
+  
+-     configure_flags['ChromeAndroid'].extend([
+ diff --git a/media/ffmpeg/scripts/generate_gn.py b/media/ffmpeg/scripts/generate_gn.py
+-index af7b5e9a82834ae4f41dcb9a59adb74c278d6dc8..d819546d47b4f91957ee32606534be61d0862668 100755
++index 344661b618e92e634606e54723574ae7582f4da0..730dc8b73dae8db4e0808e570ebd261d1a45f0b3 100755
+ --- a/media/ffmpeg/scripts/generate_gn.py
+ +++ b/media/ffmpeg/scripts/generate_gn.py
+-@@ -117,7 +117,6 @@ def CleanObjectFiles(object_files):
++@@ -117,7 +117,6 @@
+          'libavcodec/resample.o',
+          'libavcodec/resample2.o',
+          'libavcodec/x86/dnxhd_mmx.o',
+@@ -54,7 +54,7 @@ index af7b5e9a82834ae4f41dcb9a59adb74c278d6dc8..d819546d47b4f91957ee32606534be61
+          'libavutil/adler32.o',
+          'libavutil/avsscanf.o',
+          'libavutil/audio_fifo.o',
+-@@ -127,7 +126,6 @@ def CleanObjectFiles(object_files):
++@@ -127,7 +126,6 @@
+          'libavutil/file.o',
+          'libavutil/hash.o',
+          'libavutil/hmac.o',
+diff --git a/patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch b/patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch
+index 4f9ef5a53cc..0418fb315b9 100644
+--- a/patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch
++++ b/patches/chromium/add_media_foundation_h264_decode_to_ffmpeg.patch
+@@ -5,10 +5,10 @@ Subject: add media foundation h264 decode to ffmpeg
+ 
+ 
+ diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+-index aca2627015bec55846b892886b3fe955cb614325..147983c1d756253e68669c275331b62ec5eb366e 100644
++index 77d6b700b6..af8ff4589b 100644
+ --- a/content/browser/renderer_host/render_process_host_impl.cc
+ +++ b/content/browser/renderer_host/render_process_host_impl.cc
+-@@ -4079,6 +4079,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
++@@ -4089,6 +4089,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+        switches::kTextGamma,
+        switches::kTrySupportedChannelLayouts,
+        switches::kRaiseTimerFrequency,
+@@ -18,11 +18,11 @@ index aca2627015bec55846b892886b3fe955cb614325..147983c1d756253e68669c275331b62e
+  #if BUILDFLAG(IS_OZONE)
+        switches::kOzonePlatform,
+ diff --git a/media/base/media_switches.cc b/media/base/media_switches.cc
+-index 6ddd8169a21ce367dd8ea9c3732f96b0108fbfa9..32d9c78cf6ffa216d85a04b389f6fcc9631e1f5b 100644
++index b6287df1ad..b85f4206ba 100644
+ --- a/media/base/media_switches.cc
+ +++ b/media/base/media_switches.cc
+-@@ -302,6 +302,15 @@ const char kAlsaOutputDevice[] = "alsa-output-device";
+-         // BUILDFLAG(IS_FREEBSD) || BUILDFLAG(IS_SOLARIS)
++@@ -317,6 +317,15 @@ const char kUseFakeNativeScreenCapturePicker[] =
++ #endif  // BUILDFLAG(IS_MAC)
+  
+  #if BUILDFLAG(IS_WIN)
+ +// When enabled, FFmpegVideoDecoder will use
+@@ -38,10 +38,10 @@ index 6ddd8169a21ce367dd8ea9c3732f96b0108fbfa9..32d9c78cf6ffa216d85a04b389f6fcc9
+  // Leads to lower latencies for audio streams which uses the
+  // AudioParameters::AUDIO_PCM_LOW_LATENCY audio path.
+ diff --git a/media/base/media_switches.h b/media/base/media_switches.h
+-index 85e5f08b56bca59d906ffa1e1157a89462379c68..6d03bdf565b63932ab8d2152984933d564a35ae0 100644
++index 9f905846d5..0132e91b7e 100644
+ --- a/media/base/media_switches.h
+ +++ b/media/base/media_switches.h
+-@@ -103,6 +103,8 @@ MEDIA_EXPORT extern const char kEnableExclusiveAudio[];
++@@ -108,6 +108,8 @@ MEDIA_EXPORT extern const char kEnableExclusiveAudio[];
+  MEDIA_EXPORT extern const char kForceWaveAudio[];
+  MEDIA_EXPORT extern const char kTrySupportedChannelLayouts[];
+  MEDIA_EXPORT extern const char kWaveOutBuffers[];
+@@ -51,7 +51,7 @@ index 85e5f08b56bca59d906ffa1e1157a89462379c68..6d03bdf565b63932ab8d2152984933d5
+  
+  #if BUILDFLAG(USE_CRAS)
+ diff --git a/media/ffmpeg/ffmpeg_common.cc b/media/ffmpeg/ffmpeg_common.cc
+-index e4c443001dba3beafeb64d88a492ea52bf39679c..45eb0b391b39d0393feda672130b41533906ec8e 100644
++index e4c443001d..45eb0b391b 100644
+ --- a/media/ffmpeg/ffmpeg_common.cc
+ +++ b/media/ffmpeg/ffmpeg_common.cc
+ @@ -65,7 +65,7 @@ VideoColorSpace GetGuessedColorSpace(const VideoColorSpace& color_space) {
+@@ -72,31 +72,31 @@ index e4c443001dba3beafeb64d88a492ea52bf39679c..45eb0b391b39d0393feda672130b4153
+      codec_context->color_range = AVCOL_RANGE_JPEG;
+    }
+ diff --git a/media/ffmpeg/scripts/build_ffmpeg.py b/media/ffmpeg/scripts/build_ffmpeg.py
+-index da7971926da34f875295bbeec6fc0d90ec45f141..1debe52133d42a26b832202381810f53e377179f 100755
++index 8ffcbfa14c..95729a7579 100755
+ --- a/media/ffmpeg/scripts/build_ffmpeg.py
+ +++ b/media/ffmpeg/scripts/build_ffmpeg.py
+-@@ -975,6 +975,8 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+-             '--toolchain=msvc',
+-             '--extra-cflags=-I' +
+-             os.path.join(FFMPEG_DIR, 'chromium/include/win'),
+-+            '--enable-mediafoundation',
+-+            '--enable-decoder=h264_mf',
+-         ])
+- 
+-         if target_arch == 'x64':
+-@@ -996,8 +998,10 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
++@@ -1171,6 +1171,8 @@ def ConfigureAndBuild(
++                 '--toolchain=msvc',
++                 '--extra-cflags=-I'
++                 + os.path.join(FFMPEG_DIR, 'chromium/include/win'),
+++                '--enable-mediafoundation',
+++                '--enable-decoder=h264_mf',
++             ]
++         )
+  
++@@ -1197,8 +1199,10 @@ def ConfigureAndBuild(
+      # Google Chrome specific configuration.
+-     configure_flags['Chrome'].extend([
+-+        # TODO(dyc): remove h264 after h264_mf is rolled out
+-         '--enable-decoder=aac,h264,hevc',
+-         '--enable-demuxer=aac',
+-+        # TODO(dyc): remove h264 after h264_mf is rolled out
+-         '--enable-parser=aac,h264,hevc',
+-         '--enable-muxer=mp4',
+-         '--enable-encoder=aac',
++     configure_flags['Chrome'].extend(
++         [
+++            # TODO(dyc): remove h264 after h264_mf is rolled out
++             '--enable-decoder=aac,h264,hevc',
++             '--enable-demuxer=aac',
+++            # TODO(dyc): remove h264 after h264_mf is rolled out
++             '--enable-parser=aac,h264,hevc',
++             '--enable-muxer=mp4',
++             '--enable-encoder=aac',
+ diff --git a/media/filters/ffmpeg_video_decoder.cc b/media/filters/ffmpeg_video_decoder.cc
+-index 3e351538d12f075224fa840d24a75ca99f117faf..bf317490e20e2c80f706858b764800e546e03a45 100644
++index 07a4be8b49..7f1836843d 100644
+ --- a/media/filters/ffmpeg_video_decoder.cc
+ +++ b/media/filters/ffmpeg_video_decoder.cc
+ @@ -10,6 +10,8 @@
+@@ -116,26 +116,48 @@ index 3e351538d12f075224fa840d24a75ca99f117faf..bf317490e20e2c80f706858b764800e5
+  #include "media/base/decoder_buffer.h"
+  #include "media/base/limits.h"
+  #include "media/base/media_log.h"
+-@@ -414,9 +417,6 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
++@@ -413,27 +416,6 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
+      return false;
+    }
+  
+ -  auto* opaque = static_cast<OpaqueData*>(av_buffer_get_opaque(frame->buf[0]));
+ -  CHECK(!!opaque);
+ -
+-   // `frame->width,height` may be different from what they were when we
+-   // allocated the buffer.  Presumably `width` is always the same, but in
+-   // practice `height` can be smaller.  They are advertised as the coded size,
+-@@ -435,10 +435,63 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
++-  // `frame->width,height` may be different from what they were when we
++-  // allocated the buffer in `GetVideoBuffer()`.  `opaque->layout.coded_size()`
++-  // includes FFmpeg's internal over-allocation from `avcodec_align_dimensions2`
++-  // (e.g. 32-row alignment and +2 rows for SIMD chroma MC overread protection)
++-  // which FFmpeg never writes to.  Do not expose that over-allocation as the
++-  // `VideoFrame::coded_size()`: downstream paths (such as
++-  // `ConvertYuvVideoFrameToRgbSharedImage`) upload `coded_size` and draw
++-  // `visible_rect` with `SkFilterMode::kNearest`, where Skia's YUVA fancy
++-  // upsampling promotes chroma planes to linear filtering that samples just
++-  // outside `visible_rect`.  Since `FrameBufferPool` zero-initializes buffers
++-  // (`U=0, V=0` is bright green in YUV, not neutral `128`) and does not
++-  // re-clear on reuse, exposing the unwritten padding rows in `coded_size`
++-  // causes edge bleeding (http://crbug.com/578868477).
++-  //
++-  // `crop*` take this difference into account, and are meant to be applied to
++-  // `width` and `height` as they are.
++-  const gfx::Size coded_size = VideoFrame::DetermineAlignedSize(
++-      opaque->layout.format(), gfx::Size(frame->width, frame->height));
++   const gfx::Rect visible_rect(frame->crop_left, frame->crop_top,
++                                frame->width - frame->crop_right,
++                                frame->height - frame->crop_bottom);
++@@ -447,16 +429,85 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
+    gfx::Size natural_size = aspect_ratio.GetNaturalSize(visible_rect);
+  
+    const auto pts = ConvertFromTimeBase(codec_context_->pkt_timebase, frame->pts);
++-  auto layout = VideoFrameLayout::CreateWithPlanes(
++-      opaque->layout.format(), coded_size, opaque->layout.planes(),
++-      opaque->layout.buffer_addr_align());
++-  if (!layout) {
++-    return false;
++-  }
+ -  auto video_frame = VideoFrame::WrapExternalDataWithLayout(
+--      opaque->layout, visible_rect, natural_size, opaque->data, pts);
++-      *layout, visible_rect, natural_size, opaque->data, pts);
+ -  if (!video_frame) {
+ -    return false;
+-+
+-+
+ +  scoped_refptr<VideoFrame> video_frame;
+ +
+ +#if BUILDFLAG(IS_WIN)
+@@ -180,21 +202,45 @@ index 3e351538d12f075224fa840d24a75ca99f117faf..bf317490e20e2c80f706858b764800e5
+ +  } else
+ +#endif  // BUILDFLAG(IS_WIN)
+ +  {
+-+    // OpaqueData was set up by GetVideoBuffer (get_buffer2).
+-+    auto* opaque =
+-+        static_cast<OpaqueData*>(av_buffer_get_opaque(frame->buf[0]));
+++    auto* opaque = static_cast<OpaqueData*>(av_buffer_get_opaque(frame->buf[0]));
+ +    CHECK(!!opaque);
+++
+++    // `frame->width,height` may be different from what they were when we
+++    // allocated the buffer in `GetVideoBuffer()`.  `opaque->layout.coded_size()`
+++    // includes FFmpeg's internal over-allocation from `avcodec_align_dimensions2`
+++    // (e.g. 32-row alignment and +2 rows for SIMD chroma MC overread protection)
+++    // which FFmpeg never writes to.  Do not expose that over-allocation as the
+++    // `VideoFrame::coded_size()`: downstream paths (such as
+++    // `ConvertYuvVideoFrameToRgbSharedImage`) upload `coded_size` and draw
+++    // `visible_rect` with `SkFilterMode::kNearest`, where Skia's YUVA fancy
+++    // upsampling promotes chroma planes to linear filtering that samples just
+++    // outside `visible_rect`.  Since `FrameBufferPool` zero-initializes buffers
+++    // (`U=0, V=0` is bright green in YUV, not neutral `128`) and does not
+++    // re-clear on reuse, exposing the unwritten padding rows in `coded_size`
+++    // causes edge bleeding (http://crbug.com/578868477).
+++    //
+++    // `crop*` take this difference into account, and are meant to be applied to
+++    // `width` and `height` as they are.
+++    const gfx::Size coded_size = VideoFrame::DetermineAlignedSize(
+++        opaque->layout.format(), gfx::Size(frame->width, frame->height));
+++    auto layout = VideoFrameLayout::CreateWithPlanes(
+++        opaque->layout.format(), coded_size, opaque->layout.planes(),
+++        opaque->layout.buffer_addr_align());
+++    if (!layout) {
+++      return false;
+++    }
+ +    video_frame = VideoFrame::WrapExternalDataWithLayout(
+-+        opaque->layout, visible_rect, natural_size, opaque->data, pts);
+++        *layout, visible_rect, natural_size, opaque->data, pts);
+ +    if (!video_frame) {
+ +      return false;
+ +    }
+++
+ +    video_frame->AddDestructionObserver(
+ +        frame_pool_->CreateFrameCallback(opaque->fb_priv));
+    }
+  
+    auto config_cs = config_.color_space_info().ToGfxColorSpace();
+-@@ -477,8 +530,6 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
++@@ -495,8 +546,6 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
+    video_frame->set_hdr_metadata(hdr_metadata);
+  
+    video_frame->metadata().power_efficient = false;
+@@ -203,7 +249,7 @@ index 3e351538d12f075224fa840d24a75ca99f117faf..bf317490e20e2c80f706858b764800e5
+    output_cb_.Run(video_frame);
+    return true;
+  }
+-@@ -513,11 +564,40 @@ bool FFmpegVideoDecoder::ConfigureDecoder(const VideoDecoderConfig& config,
++@@ -531,11 +580,40 @@ bool FFmpegVideoDecoder::ConfigureDecoder(const VideoDecoderConfig& config,
+    // microsecond-level precision such as VideoFrame.timestamp.
+    codec_context_->pkt_timebase = AVRational{1, 1000000};
+  
+@@ -246,7 +292,7 @@ index 3e351538d12f075224fa840d24a75ca99f117faf..bf317490e20e2c80f706858b764800e5
+    decoding_loop_ = std::make_unique<FFmpegDecodingLoop>(codec_context_.get());
+    return true;
+ diff --git a/media/filters/ffmpeg_video_decoder.h b/media/filters/ffmpeg_video_decoder.h
+-index 75dce31eb75a97eb4aa2c4bd2c3ae5a599757a46..52b0d807a8f158c8ec59e13df8adfbfd6c4b261d 100644
++index 75dce31eb7..52b0d807a8 100644
+ --- a/media/filters/ffmpeg_video_decoder.h
+ +++ b/media/filters/ffmpeg_video_decoder.h
+ @@ -92,6 +92,11 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
+diff --git a/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch b/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch
+index 534cf39c050..d972b071b6e 100644
+--- a/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch
++++ b/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch
+@@ -71,18 +71,18 @@ index 483138ccf1ccb72fb3dde4bdecc957d4c535105d..6b21e32e71142f03647e9cd01c1dfe3c
+    return "";
+  #endif
+ diff --git a/media/ffmpeg/scripts/build_ffmpeg.py b/media/ffmpeg/scripts/build_ffmpeg.py
+-index 46ba41f004d6844c4568ab02b6905d4eaf833a2b..f0bbb9071ccc49cf586dcb22c52cb41ce4dbc1f5 100755
++index cdf89935dd7fd64a65af7b574abbf67f5a9f6473..eb444041b97fb116062c05e58c1c5f15fda5709f 100755
+ --- a/media/ffmpeg/scripts/build_ffmpeg.py
+ +++ b/media/ffmpeg/scripts/build_ffmpeg.py
+-@@ -731,6 +731,8 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+-                     '--enable-lto',
+-                     '--arch=x86_64',
+-                     '--target-os=linux',
+-+                    '--enable-libopenh264',
+-+                    '--enable-decoder=libopenh264',
+-                 ])
++@@ -871,6 +871,8 @@
++                         '--enable-lto',
++                         '--arch=x86_64',
++                         '--target-os=linux',
+++                        '--enable-libopenh264',
+++                        '--enable-decoder=libopenh264',
++                     ]
++                 )
+  
+-                 if host_arch != 'x64':
+ diff --git a/media/ffmpeg/scripts/generate_gn.py b/media/ffmpeg/scripts/generate_gn.py
+ index d4fce5292c988cc8a44d90ef80301ff5dbfb8bce..449e87aaf9cf6f3d01d5f068ad586aa8ea9d3570 100755
+ --- a/media/ffmpeg/scripts/generate_gn.py
 diff --git a/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch b/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch
 index 0fe0ca28dc8..de626c6bb53 100644
 --- a/patches/chromium/enabling_audiovideotracks_feature_to_use_htmlmediaelements.patch
@@ -8,3 +357,108 @@ index 0fe0ca28dc8..de626c6bb53 100644
       {
 -       // Shared MessagePort between AudioWorklet and AudioWorkletGlobalScope.
 +       name: "AudioWorkletProcessorErrorEventType",
+diff --git a/patches/chromium/fix_workaround_for_ffmpeg_build_on_macos_host.patch b/patches/chromium/fix_workaround_for_ffmpeg_build_on_macos_host.patch
+index 67f1e84ae60..d796abada78 100644
+--- a/patches/chromium/fix_workaround_for_ffmpeg_build_on_macos_host.patch
++++ b/patches/chromium/fix_workaround_for_ffmpeg_build_on_macos_host.patch
+@@ -5,14 +5,14 @@ Subject: fix: workaround for ffmpeg build on macos host
+ 
+ 
+ diff --git a/media/ffmpeg/scripts/build_ffmpeg.py b/media/ffmpeg/scripts/build_ffmpeg.py
+-index d0532156140861b4afb6bdd3b084e59fce5c47bc..b150ed49da25b321ab3e4e20eea1cae61d96001d 100755
++index a1707579f5dadbfcdba982480e014ae001cd4db3..8ffcbfa14c263668b9b666ae22080419c7f0081c 100755
+ --- a/media/ffmpeg/scripts/build_ffmpeg.py
+ +++ b/media/ffmpeg/scripts/build_ffmpeg.py
+-@@ -950,6 +950,7 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+-             configure_flags['Common'].extend([
+-                 '--arch=x86_64',
+-                 '--extra-cflags=-m64',
+-+                '--extra-cflags=--target=x86_64-apple-macos14',
+-                 '--extra-ldflags=-arch x86_64',
+-             ])
+-         elif target_arch == 'arm64':
++@@ -1145,6 +1145,7 @@
++                 [
++                     '--arch=x86_64',
++                     '--extra-cflags=-m64',
+++                    '--extra-cflags=--target=x86_64-apple-macos14',
++                     '--extra-ldflags=-arch x86_64',
++                 ]
++             )
+diff --git a/patches/chromium/remove_ffmpeg_h264_decoder_and_parser.patch b/patches/chromium/remove_ffmpeg_h264_decoder_and_parser.patch
+index 9d7ea8d8d38..39ae711e1f0 100644
+--- a/patches/chromium/remove_ffmpeg_h264_decoder_and_parser.patch
++++ b/patches/chromium/remove_ffmpeg_h264_decoder_and_parser.patch
+@@ -18,20 +18,20 @@ index 6b21e32e71142f03647e9cd01c1dfe3c17914b82..0a9ed1e3e8ba6bbe184181ff9234f5b8
+    return "";
+  #endif
+ diff --git a/media/ffmpeg/scripts/build_ffmpeg.py b/media/ffmpeg/scripts/build_ffmpeg.py
+-index f0bbb9071ccc49cf586dcb22c52cb41ce4dbc1f5..f3c23999abd66086a79d5f4caeebe479c5958172 100755
++index eb444041b97fb116062c05e58c1c5f15fda5709f..b61271e8247c0bf722715daf19832afba474de26 100755
+ --- a/media/ffmpeg/scripts/build_ffmpeg.py
+ +++ b/media/ffmpeg/scripts/build_ffmpeg.py
+-@@ -995,11 +995,9 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+- 
++@@ -1201,11 +1201,9 @@
+      # Google Chrome specific configuration.
+-     configure_flags['Chrome'].extend([
+--        # TODO(dyc): remove h264 after h264_mf is rolled out
+--        '--enable-decoder=aac,h264',
+-+        '--enable-decoder=aac',
+-         '--enable-demuxer=aac',
+--        # TODO(dyc): remove h264 after h264_mf is rolled out
+--        '--enable-parser=aac,h264',
+-+        '--enable-parser=aac',
+-         '--enable-muxer=mp4',
+-         '--enable-encoder=aac',
+-         '--enable-protocol=file',
++     configure_flags['Chrome'].extend(
++         [
++-            # TODO(dyc): remove h264 after h264_mf is rolled out
++-            '--enable-decoder=aac,h264',
+++            '--enable-decoder=aac',
++             '--enable-demuxer=aac',
++-            # TODO(dyc): remove h264 after h264_mf is rolled out
++-            '--enable-parser=aac,h264',
+++            '--enable-parser=aac',
++             '--enable-muxer=mp4',
++             '--enable-encoder=aac',
++             '--enable-protocol=file',
+diff --git a/patches/chromium/remove_hevc_decode_from_ffmpeg.patch b/patches/chromium/remove_hevc_decode_from_ffmpeg.patch
+index c4cbd709199..aaa9d85707d 100644
+--- a/patches/chromium/remove_hevc_decode_from_ffmpeg.patch
++++ b/patches/chromium/remove_hevc_decode_from_ffmpeg.patch
+@@ -6,19 +6,19 @@ Subject: remove hevc decode from ffmpeg
+ remove hevc decode from ffmpeg
+ 
+ diff --git a/media/ffmpeg/scripts/build_ffmpeg.py b/media/ffmpeg/scripts/build_ffmpeg.py
+-index 43205347d1bce8575840a9a08507ad0c783c83fe..46ba41f004d6844c4568ab02b6905d4eaf833a2b 100755
++index 95729a75797afcd9a58ed0dbfc52b4247fe0a243..cdf89935dd7fd64a65af7b574abbf67f5a9f6473 100755
+ --- a/media/ffmpeg/scripts/build_ffmpeg.py
+ +++ b/media/ffmpeg/scripts/build_ffmpeg.py
+-@@ -994,10 +994,10 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
+-     # Google Chrome specific configuration.
+-     configure_flags['Chrome'].extend([
+-         # TODO(dyc): remove h264 after h264_mf is rolled out
+--        '--enable-decoder=aac,h264,hevc',
+-+        '--enable-decoder=aac,h264',
+-         '--enable-demuxer=aac',
+-         # TODO(dyc): remove h264 after h264_mf is rolled out
+--        '--enable-parser=aac,h264,hevc',
+-+        '--enable-parser=aac,h264',
+-         '--enable-muxer=mp4',
+-         '--enable-encoder=aac',
+-         '--enable-protocol=file',
++@@ -1200,10 +1200,10 @@
++     configure_flags['Chrome'].extend(
++         [
++             # TODO(dyc): remove h264 after h264_mf is rolled out
++-            '--enable-decoder=aac,h264,hevc',
+++            '--enable-decoder=aac,h264',
++             '--enable-demuxer=aac',
++             # TODO(dyc): remove h264 after h264_mf is rolled out
++-            '--enable-parser=aac,h264,hevc',
+++            '--enable-parser=aac,h264',
++             '--enable-muxer=mp4',
++             '--enable-encoder=aac',
++             '--enable-protocol=file',

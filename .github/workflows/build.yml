@@ -208,6 +208,11 @@ jobs:
     runs-on: [self-hosted, Linux, X64, discord-electron-compiler]
     timeout-minutes: 4320
     env:
+      # Same locked Chromium objects through its official mirror on this dispatch.
+      # This avoids stalled Googlesource ref negotiation on the PC.
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: url.https://github.com/chromium/chromium.git.insteadOf
+      GIT_CONFIG_VALUE_0: https://chromium.googlesource.com/chromium/src.git
       ELECTRON_BUILD_CACHE: /work/build-cache
       ELECTRON_BUILD_JOBS: ${{ inputs.parallel_jobs || 'auto' }}
       ELECTRON_BUILD_TARGET: ${{ inputs.target }}

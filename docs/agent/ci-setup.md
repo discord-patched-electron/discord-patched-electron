@@ -220,7 +220,9 @@ Blacksmith remains the default for scheduled and manual builds. Dispatch
 `build.yml` with `compiler=local` to run the same source preflight and compiler
 entry point on the registered `discord-electron-compiler` Docker runner. Local
 builds accept `dev` as well as `main`, retain `/work/build-cache` and never reserve
-Blacksmith allowance. They upload candidate runtime and capacity artifacts but
+Blacksmith allowance. Local dispatches fetch the locked Chromium objects through
+its official GitHub mirror; the source revision and patch checks remain mandatory.
+They upload candidate runtime and capacity artifacts but
 `dev` runs do not enter automatic release qualification or publication.
 
 The local runner has no Docker CPU, memory, swap or PID quota. This exposes host
@@ -235,6 +237,13 @@ gh workflow run build.yml --ref dev -f target=prerelease -f compiler=local
 
 `sync-dev.yml` merges `main` into `dev` after main pushes, hourly and on manual
 dispatch. It preserves development commits and fails on conflicts or concurrent
-pushes; it never force-pushes or merges generated `ci-state`. Push and scheduled
-activation requires the workflow to reach the default branch. Until then, merge
-`origin/main` into `dev` before starting development and before pushing it.
+pushes; it never force-pushes or merges generated `ci-state`. The workflow is installed on the default branch and its initial push-triggered
+merge passed. Also merge `origin/main` into `dev` before starting development and
+before pushing it, so local work does not wait for the next scheduled merge.
+
+Fetch a successful manual `dev` compiler run for local testing with
+`scripts/fetch_reference.py RUN --output out/dev-runtime --allow-development`.
+The opt-in accepts only a successful project `build.yml` workflow dispatch on
+`dev`, with the same checksum/source/configuration validation. Ordinary release
+fetches retain their main-branch restriction; dev artifacts are not automatically
+published or approved.

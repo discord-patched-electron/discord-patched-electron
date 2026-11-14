@@ -201,3 +201,54 @@ reported as requiring review in discovery diagnostics. The immutable imported
 patch is preserved until a complete source port is reviewed; observing fork
 movement never grants approval to replace it. Fork API outages retain the prior
 observation and surface a separate error without blocking client discovery.
+
+### Canary 1.0.2483 and Electron alpha.10 candidate
+
+`out/update-review/` retains verified before/after archives, ASAR/member inventories,
+47 changed-entry dispositions, formatted JavaScript diffs, ELF export/section
+comparisons, native patch/ABI/call-target review and the 238-file/779-hunk Electron
+source inventory. The qualified comparison is Canary 1.0.2473: its retained lock
+matches the approved proposal at `cda0e901afbb045cded23f9897c751a927655bb3`.
+The additional 2472 comparison binds the previous reviewed native chain.
+Candidate module revision 11 and all archive identities are in the retained
+`after/clients.lock.json` and repository client lock; discovery is a snapshot,
+not permission to substitute later same-version module downloads.
+
+Original voice SHA-256:
+`ae2ca4d3730dcc3665cc718af1c674662109ad76c8d29f4575f2c50a8d9e6891`.
+Prepared voice SHA-256:
+`42b32e010c1bbd57bc0eb71b0b751730738d85e282c920f331ffabcb3ef035e5`.
+`scripts/native_client_2483.py` binds each intermediate and patch site. Selection
+storage is `0x2323c10`; both Python scopes and compiled picker/wake guards carry
+the relocated identities. Full preparation is idempotent and unknown layouts
+remain rejected. Preserve upstream DAVE fingerprint API changes, ws pong limits,
+brace-expansion work limits, normal window bounds and popout spellcheck callbacks;
+DPE accepts the sixth popout setup argument without replacing that callback.
+The optional dispatch OpenSSL 1.1 exception is restricted to the reviewed new
+whole-file hash; it does not establish working dispatch service support.
+
+On the retained verified Electron 46.0.0-alpha.6 runtime, exact-candidate checks
+passed fresh-profile login/relaunch and module APIs, bundled native bridge/offline
+Krisp, 46 real Settings checks, official Vencord/Equicord installation/self-update/
+package-update preservation/uninstall, isolated X11 audio and Wayland video/audio
+with PipeWire, PulseAudio and manual selection. VP8, H.264/OpenH264, AV1/dav1d and
+HEVC/Electron synthetic delivery passed with picker cancellation, scaler, sync,
+transport and decoded-frame integrity checks. HEVC needs the hardware-capable
+Wayland receiver; X11 software-only and native software HEVC remain unsupported.
+Five package formats passed common payload validation; RPM dependency installation
+is explicitly unverified. These results do not establish live-call or other-GPU/
+platform parity, nor clear the earlier scheduled-presentation limitation or
+qualify the separately restricted direct GPU adapter.
+
+Electron alpha.10 is pinned to
+`bdaeaaa4795ee641a6d8262496e028c371533e09`; Discord's `44-x-y` fork still matches
+`aade2a4ea35e538d1be93207233c4269459a4561`. Source assembly passes. The
+checksum-pinned alpha.10 follow-up adapts AudioVideoTracks context and all six
+FFmpeg build-script patches after upstream Python formatting changes. Its Media
+Foundation adaptation preserves the newer aligned coded-size/plane-layout fix in
+the pool-backed decoder branch and keeps MF buffer ownership separate. The six
+complete FFmpeg patches apply in order to the real Chromium pre-patch tree;
+Python AST validation passes. **Full alpha.10 compilation and runtime qualification
+remain pending** in the opt-in PC workflow; retained-runtime results above must
+not be reported as alpha.10 results. Failed attempts and network recovery are
+retained under `out/update-review/`.

@@ -95,3 +95,10 @@ paths are not retained artifacts. The 8 November concurrent-profile/startup
 changes had lint/whitespace checks only; concurrent GUI startup, relaunch and
 watch behavior remain open until exercised with those exact inputs. A development
 import is not fresh runtime provenance or release qualification.
+
+The manual `test` profile uses managed version `latest`, pinned to Canary
+1.0.2483/module revision 11 and the retained verified Electron 46.0.0-alpha.6.
+Launch with `bun run dev run latest --profile test`. Its data is independent of
+`dev` and `clock`; no account data was copied. Alpha.10 source assembly and a
+separate PC workflow are pending qualification. Do not label this profile's
+current runtime as alpha.10 or switch its version while it is running.
