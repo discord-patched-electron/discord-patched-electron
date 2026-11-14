@@ -8,10 +8,11 @@ first, then run commands from the repository root.
 
 ```sh
 bun run dev list
-bun run dev run current --profile dev --watch
+bun run dev run current --watch
 ```
 
-Use a version shown by `list`. `--profile` selects an independent login, settings
+Use a version shown by `list`. Runs reuse `dev` by default, including across
+versions. `--profile` selects an independent login, settings
 and mods; log in manually on first use. Reuse that profile when switching versions.
 Stop with **Ctrl+C**. Concurrent runs need different profiles; they can share the same version.
 Managed runs use pinned inputs and disable automatic DPE updates.
@@ -54,8 +55,14 @@ Choose one command and replace the input paths. Import preserves the original
 and requires `local-build.json`; AppImages, installed bootstraps and nonportable
 apps cannot be imported. `create` reuses Electron rather than compiling it.
 See [local packaging](agent/releases.md#package-locally) for input preparation.
-Keep managed versions at their permanent paths. Use a fresh profile for automated
-tests and a normal portable payload for release qualification.
+Keep managed versions at their permanent paths. For automated managed launch checks,
+use `bun run dev run current --temporary-profile --sync`: this creates a fresh
+profile and deletes it after shutdown, including launch failures. It cannot be
+combined with `--profile`. Ctrl+C and SIGTERM clean up; after a forced kill or
+power loss, inspect leftovers with `doctor --profiles` and remove named managed
+profiles with `remove profiles NAME`. Use a normal portable payload for release
+qualification; keep fresh qualification profiles scoped to a temporary directory.
+Never use a logged-in manual profile for unattended checks.
 
 ## Clean up
 
@@ -65,9 +72,13 @@ tests and a normal portable payload for release qualification.
 | `bun run dev remove profiles x11-test`  | Delete that profile’s login, settings, mods and caches.             |
 | `bun run dev prune`                     | Preview unused shared Electron files. Add `--apply` to delete them. |
 | `bun run dev prune --downloads`         | Also preview archive-cache removal; add `--apply` to delete.        |
+| `bun run dev doctor --profiles`         | Find leftover Chromium/DPE profiles beneath `out/`.                 |
 | `bun run dev doctor`                    | Inventory older unmanaged output directories without deleting them. |
 
-Electron files and verified archives share storage; per-tree sizes overcount
-shared files. Prepared modules remain profile-owned. Put `--home PATH` before the
+Electron files and verified archives share storage. Sizes count each inode once
+within a tree; the total in `list` also deduplicates across categories. Category
+sizes still overlap and must not be added together. Reflink extents may overlap
+too; allocated sizes are not a measurement of exclusive physical disk usage. Prepared modules remain profile-owned. Use `doctor --root PATH` to inspect a historical output tree on another drive;
+add `--profiles` to list its leftover profiles. Put `--home PATH` before the
 command to choose another fixed storage root. Run `bun run dev --help` for options;
 [implementation notes](agent/dev-environments.md) cover storage and reload internals.

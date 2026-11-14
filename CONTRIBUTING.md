@@ -28,8 +28,10 @@ bun install --frozen-lockfile --ignore-scripts
 
 ## Make a change
 
-Create a branch and keep the change focused. Add a regression test when changing
-behavior, and update the relevant guide when a setting or installation step changes.
+Create a branch and keep the change focused. Cover changed behavior with a focused
+regression test or an existing integration check; routine copy/style edits need no
+new test. Follow the [test design policy](docs/agent/ci-setup.md#test-design-and-coverage).
+Update the relevant guide when a setting or installation step changes.
 
 ```sh
 git switch -c fix/describe-the-change
@@ -42,7 +44,8 @@ bun run test
 the pinned upstream files and patches.
 
 Use `bun run test:python`, `bun run test:js` or `bun run test:rust` to run one suite while iterating.
-These tests need no Discord account or Electron build. Arch-specific assertions
+The full command runs all three suites even if one fails, then returns failure if
+any suite failed. These tests need no Discord account or Electron build. Arch-specific assertions
 are skipped when `vercmp` is unavailable. CI also checks generated Arch packages.
 Documentation-only changes need `bun run lint` and a review of changed links and
 instructions. CI selects integration checks by affected files; see
@@ -99,5 +102,5 @@ Explain the problem, the resulting behavior and the checks you ran. For desktop
 changes, include your distribution, desktop environment and Wayland/X11 session.
 Mention any remaining limitations.
 
-Keep user guides focused on using the app. Build infrastructure, investigation
-notes and test evidence belong in [agent docs](docs/agent/README.md).
+Keep user guides focused on using the app. Update maintained build and integration references in [agent docs](docs/agent/README.md).
+Maintain those references in place; keep task logs and full investigation artifacts under `out/` as described in the [documentation policy](AGENTS.md#agent-documentation).

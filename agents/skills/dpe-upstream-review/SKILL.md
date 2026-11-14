@@ -15,7 +15,7 @@ under a fresh `out/` directory.
 - Read the failed job's complete logs, retained reports and exact client lock.
   Compare with the last **qualified** snapshot, which can be newer than the
   bootstrap lock. Record immutable source/state commits and archive hashes.
-- Use [discovery and scheduling](../../../docs/agent/discovery.md) to distinguish
+- Use [discovery and scheduling](../../../docs/agent/upstream-update-review.md#discovery-and-scheduling) to distinguish
   discovery, source preparation, compilation, qualification and approval. A later
   successful poll may simply have found no work.
 - Fetch snapshots with `scripts/fetch_client_snapshot.py`; verify downloads before
@@ -46,7 +46,9 @@ APIs, update notifications, mod lifecycle, native media, capture lifecycle,
 settings and package payloads. Reuse a verified runtime unless source changes
 actually require compilation.
 
-Run repository lint and tests. Reconcile all inventory entries in an agent note
-linked from [the index](../../../docs/agent/README.md), retaining failed attempts
-and explicit environment/coverage limits. Qualification does not authorize
+Run repository lint and tests. Reconcile all inventory entries in the fresh `out/` review artifacts, retaining
+failed attempts and explicit environment/coverage limits. Update the existing
+[upstream reference](../../../docs/agent/upstream-update-review.md#reviewed-client-snapshots)
+with input identities, coverage, artifact location and unresolved limits; do not
+create a dated report. Qualification does not authorize
 publication, approval or unrelated machine actions.

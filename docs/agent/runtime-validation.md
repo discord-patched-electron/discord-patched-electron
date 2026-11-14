@@ -89,7 +89,7 @@ and validation commits separately. Earlier three-channel results are retained in
 qualification is Canary-only. Publication and approval are described in the
 [release guide](releases.md).
 
-The separate [Wayland audio fixture](wayland-audio.md) covers actual native
+The separate [Wayland audio fixture](audio.md#routing-and-teardown) covers actual native
 portal video and selective application audio, including multiple processes and
 both Pulse servers. Its bundled-runtime result does not replace the custom-runtime
 and real-call checks above.
@@ -155,3 +155,29 @@ the clean reference and an improvement of at least 0.03, retention of at least
 half the disabled speech gain, and restoration of the disabled behavior. Negative
 tests demonstrate that unchanged noisy output and fully muted output fail. This
 is a reproducible regression signal, not a human intelligibility assessment.
+
+## Other affected boundaries
+
+Inspect current `--help`, pass exact candidate client locks and use a fresh output
+for every script. A bootstrap-lock pass cannot qualify a newer discovered client.
+
+| Boundary                                                            | Fixture                                         |
+| ------------------------------------------------------------------- | ----------------------------------------------- |
+| Actual bootstrap, module APIs, login page and same-profile relaunch | `scripts/check_desktop_launch.py --relaunch`    |
+| Preact controls, focus, responsive/token layout                     | `scripts/check_launch_settings.py`              |
+| Main/popout placement, media sizing and close/reopen                | `scripts/check_popout.py`                       |
+| Native audio wrapper/picker                                         | `scripts/check_app_audio.py`                    |
+| Portal video plus selected app audio across both Pulse servers      | `scripts/check_wayland_audio.py`                |
+| Camera format probing, async startup, metadata only                 | `scripts/check_camera_startup.py`               |
+| Codec/framing, actual hardware encode/decode, source lifecycle      | `scripts/check_screenshare.py`                  |
+| Matched capture cost and lifecycle transitions                      | [Benchmark runners](benchmarks.md#reproduction) |
+
+Use private HOME/profile/display/audio/D-Bus services and owned synthetic content.
+Do not infer the RunAsNode fuse is enabled: a bundled executable has opened its
+normal app instead. Verify test-runtime behavior and environment before probing.
+No unattended account login/messages/calls; physical-camera pixels must never be
+saved/uploaded and desktop screenshots are forbidden during those tests.
+
+Documentation-only changes require lint/link review, not a runtime benchmark.
+Code changes need affected integrations plus repository checks. Synthetic success
+never clears an explicitly failed native/presentation/qualification gate.

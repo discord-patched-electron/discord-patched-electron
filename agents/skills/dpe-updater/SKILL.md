@@ -5,8 +5,8 @@ description: Change or debug DPE bootstrap, application/client/runtime updates, 
 
 # Work on the DPE updater
 
-Read [the updater design](../../../docs/agent/client-updater.md). For mod-related
-changes also read [mod preservation](../../../docs/agent/client-mods.md). Verify
+Read the relevant sections of [the updater design](../../../docs/agent/client-updater.md),
+including mod preservation when affected. Verify
 these descriptions against current code; dated examples are evidence for their
 run, not current pins. Run commands from the repository root.
 

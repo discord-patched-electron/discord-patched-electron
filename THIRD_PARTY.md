@@ -23,7 +23,7 @@ The current runtime uses FFmpeg's LGPL build, dav1d for software AV1 and libvpx
 for software VP8/VP9; their notices are in `LICENSES.chromium.html`. HEVC playback
 uses platform hardware decoding. No software HEVC decoder or system-libde265
 adapter is included. Open-source licences and codec patent rights are separate;
-see the [codec licensing investigation](docs/agent/codec-support.md#software-hevc-and-licensing-review)
+see the [codec and redistribution constraints](docs/agent/native-media.md#chromium-playback-and-openh264-acquisition)
 before changing or redistributing codec components.
 
 The independent HEVC encoder and AMD AV1 alignment workaround embed a private,
@@ -222,7 +222,7 @@ native addons are not bundled by this audio adapter.
 
 `native/bridge/src/camera_probe.rs` is project-owned MIT-licensed compatibility
 code, using Linux's public V4L2 userspace API. It does not include WebRTC source
-or modify Discord's proprietary camera binary. See [camera startup](https://github.com/discord-patched-electron/discord-patched-electron/blob/main/docs/agent/camera-startup.md)
+or modify Discord's proprietary camera binary. See [camera startup](docs/agent/native-media.md#camera-startup)
 for the upstream algorithm and kernel API references.
 
 ## AppImage dependencies

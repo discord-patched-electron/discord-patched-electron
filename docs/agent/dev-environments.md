@@ -1,15 +1,10 @@
-# Development environment manager: implementation and evidence
+# Development manager internals
 
-For commands, profiles, reload coverage and cleanup, see the
-[developer guide](../development.md). Agent workflow instructions live in
-[dpe-dev-environments](../../agents/skills/dpe-dev-environments/SKILL.md).
+Use [the developer guide](../development.md) for commands and
+[dpe-dev-environments](../../agents/skills/dpe-dev-environments/SKILL.md) for the
+implementation workflow.
 
-## Design and investigation
-
-The initial inventory on 2026-11-05 found about 179 GiB under `out/`, including
-29 GiB in `client-2444-compat`, 25 GiB in `capture-implementation-20261102`, and
-multiple 9–13 GiB experiment directories. This is historical evidence, not a
-cleanup allowlist. No historical outputs or account profiles were deleted.
+## Storage and helper identity
 
 `build_local_app.py` extracts runtime archives into every output. Nonportable
 apps embed their output path in their ASAR and cannot safely be relocated.
@@ -33,100 +28,70 @@ pins selected during managed runs. Mods remain profile-owned.
 
 Managed files must stay at their permanent location. The manager never edits
 production profiles, source portable apps, native binaries or running modules.
-Future work could add a graphical selector, shared extracted unmodified Discord
-modules and renderer-only refresh where lifecycle hooks support disposal.
 
-## Validation (2026-11-05)
+## Profile lifetime and storage accounting
 
-- Repository lint and full Python/JavaScript suites pass (719 Python tests;
-  430 JavaScript passes, three skips).
-- Nine manager regressions cover path restrictions, locks, profile preservation,
-  failed creation cleanup, sharing/pruning, atomic sync and editable manifest
-  semantics.
-- Imported the retained `experimental-codecs-manual/app` portable app without
-  changing its source. This is an older Canary 1.0.2357 baseline, not qualification
-  of current native patches or the latest client lock.
-- `check_desktop_launch.check` through a manager wrapper, a fresh `smoke2` profile
-  and watch mode passed login, native module APIs, codec preload and popouts.
-  Welcome's restart returned through the manager. Evidence is local under
-  `out/dev-manager-check2/` and `out/dev-manager-check3/` (after runtime sharing).
-- A real temporary helper content edit triggered watch/restart, reused all archive
-  mtimes and retained the same installation view set. Source contents and timestamps
-  were restored afterward. Evidence: `out/dev-manager-watch.log`.
-- No account login, messages, calls, physical media capture or historical cleanup.
-  Verified-artifact `create` was not exercised end to end because no extracted
-  compiler artifact was present; it uses the existing build/provenance path.
+`run` defaults to the persistent `dev` identity independently of version selection.
+`--temporary-profile` instead owns a unique managed profile for one manager run;
+normal return, launch failure, Ctrl+C and SIGTERM remove it after the child process
+group stops. SIGKILL or power loss can leave it behind. Temporary profiles use
+normal manager locks and shared downloads. `--profile` and `--temporary-profile`
+are mutually exclusive. For harnesses that relaunch or inspect state after a run,
+wrap their full sequence in a temporary-directory context instead.
 
-Test-only managed versions, profiles and cached objects/archives were removed
-after validation. Reports and original portable inputs were retained.
+`doctor --profiles` finds Chromium state or DPE current-state roots under `out/`,
+without following directory symlinks or descending into identified profiles.
+`doctor --root PATH` selects another output tree, including external storage.
+It never deletes anything and cannot infer whether an identity is expendable.
+`list` reports an allocated total with hard-linked inodes counted once across the
+managed home. Per-category figures overlap; reflink extents are not deduplicated.
+Historical benchmark payload copies and Rust targets are outside managed pruning;
+review them separately rather than evicting reusable downloads to hide growth.
 
-## Fresh working-tree setup after cleanup (2026-11-05)
+## Discord link registration
 
-At the user's request, all previous `out/` contents and temporary dev-test logs
-were removed, closing the two old test app instances first. The historical local
-output/report paths above no longer exist. Compiler workspaces outside `out/`
-were preserved.
+Link ownership checks the effective XDG desktop entry's launch command, rather
+than Electron's channel desktop ID. An installed entry is accepted when its
+executable resolves to the running launcher's path. Explicit registration creates
+a per-command user desktop entry and verifies the resulting association; startup
+and status checks never claim it automatically.
 
-Created managed version `current` from the working tree using
-`config/clients.lock.json` (Canary 1.0.2357) and the verified retained Electron
-46.0.0-alpha.1 artifact pinned in `config/update-policy.json`. Built/staged the
-current native integration helpers and prepared fresh profile `dev`; no account
-login or onboarding choices were made in that profile. Electron itself was reused,
-not recompiled from the working tree.
+Managed runs supply `DPE_LINK_COMMAND` with the manager's persistent `open VERSION
+--profile PROFILE --` command. This is separate from `DPE_LAUNCHER`, whose temporary
+signal script only restarts the current manager. Desktop activation starts a cold
+profile through normal `run` handling or forwards links to the running version
+with the same profile and disabled development updates. The held profile lock
+records the version name; activation refuses to join a different version using
+that profile. Removing the managed version leaves its desktop association stale;
+select another handler through its app or system settings.
 
-Managed launch and relaunch passed with a separate fresh `verification` profile,
-including login, native module APIs, codec preload and popouts. The verification
-profile, reports and temporary build directories were then deleted as requested;
-`out/` retains only the new managed environment and its shared download/runtime
-caches. Start it with `bun run dev run current --profile dev --watch`.
+## Helper resolution
 
-## Picker helper resolution fix (2026-11-05)
+Managed links must target staged `integration/audio/` sidecars with packaged
+names, not canonical `integration/video/` files: Node resolves relative imports
+from the symlink target. Sync refreshes aliases before restarting. Include link
+destinations in installed-view identity so repairing a cache cannot reuse a stale
+view. Helper content edits retain that identity. Native/script changes need a
+new version; production manifests remain content-hashed.
 
-Managed voice helpers linked directly to canonical source files. Node followed
-those links into `integration/video/`, where renamed imports such as
-`./dpe-screenshare-settings.cjs` do not exist. Capture backend setup stopped before
-registering its picker listener, producing the 15-second selection timeout.
+## Concurrent profiles and startup
 
-Links now target the staged `integration/audio/` sidecars with their packaged
-names. Sync refreshes those aliases before restart. The next manager run repairs
-existing profile links; no native rebuild or profile reset is needed. Restart
-the manager itself to load the updated watch implementation.
+Runs hold shared version locks and exclusive profile locks. Removing an active
+version requires an exclusive version lock. Setup and atomic helper publication
+serialize through the catalog lock. Each profile owns a relaunch script and its
+process group; watchers restart their own group. Restart managers predating these
+lock changes to release their old exclusive version lock.
 
-Validation: real Node module resolution and picker RPC regression, including
-migration and helper edits; an isolated Electron 46 check with the prepared
-Canary 1.0.2357 voice module and real native picker hooks; lint; 720 Python tests
-and 430 JavaScript passes (three skips). Evidence: `out/picker-helper-check/`,
-`out/picker-helper-tests.log` and `out/picker-helper-lint.log`. The Electron check
-exercised page/preload events and IPC without logging in or capturing a source.
-Live account sharing remains unverified. Existing user profiles were untouched.
+The manager stages a private `check.py` startup hook: the normal splash worker
+prepares modules and editable helper links. Shared runtime bytes get independent
+resource links. Production installations do not receive this hook.
 
-### Installed-view follow-up
+## Validation limits
 
-The first repair corrected the cache, but `prepare_view` could reuse an installed
-view still linked to canonical sources. Private dev installations now include
-helper link destinations in their identity. Restarting republishes the corrected
-view once; helper content edits retain the same identity. Production installation
-rules remain unchanged.
-
-The regression reproduces stale reuse, then checks migration, publication and
-reuse after a content edit. The current dev profile’s published helper paths were
-also checked. Picker loading and errors now reuse the centered icon state instead
-of showing plain text alongside contradictory empty-state content. The real
-settings harness covers light/dark themes and narrow zoomed windows under its
-`capture-picker` scope; evidence is in `out/picker-state-ui/`.
-
-## Concurrent profiles on one version (2026-11-08)
-
-Managed runs hold shared version locks and exclusive profile locks. Removing an
-active version still requires an exclusive version lock and is rejected. Launch
-setup and helper sync serialize through the catalog lock. Startup helper copies
-publish atomically so another profile cannot import a partial file.
-
-Each profile owns its relaunch script, which signals its manager and is removed
-after shutdown. Watchers share the staged helper files but independently restart
-their own process groups. Restart managers started before this change to release
-their old exclusive version locks.
-
-Validation: repository lint and whitespace checks; tests and desktop checks were
-skipped at the user's request. Concurrent GUI startup, relaunch and watch behavior
-remain for human verification.
+Earlier manager checks established fresh launch/relaunch, real Node helper
+resolution, picker IPC and watch/restart without changing archive mtimes.
+Historical `out/dev-manager-check*` outputs were subsequently cleaned, so their
+paths are not retained artifacts. The 8 November concurrent-profile/startup
+changes had lint/whitespace checks only; concurrent GUI startup, relaunch and
+watch behavior remain open until exercised with those exact inputs. A development
+import is not fresh runtime provenance or release qualification.

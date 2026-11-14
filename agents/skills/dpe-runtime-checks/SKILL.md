@@ -32,15 +32,15 @@ report that as a custom-runtime pass. Check current enabled channels and flags.
 
 ## Choose additional coverage
 
-| Changed behavior                                           | Fixture / maintained guide                                                                 |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Bootstrap, login, module API, popouts and restart          | `scripts/check_desktop_launch.py`, [release packaging](../../../docs/agent/releases.md)    |
-| Native FrameCapture ownership and teardown                 | `scripts/check_frame_capture.py`, runtime guide                                            |
-| Native audio adapter and Discord picker/settings contracts | `scripts/check_app_audio.py`, [audio picker](../../../docs/agent/audio-picker.md)          |
-| Portal video plus selective application audio              | `scripts/check_wayland_audio.py`, [Wayland audio](../../../docs/agent/wayland-audio.md)    |
-| Camera startup and native bridge                           | `scripts/check_camera_startup.py`, [camera startup](../../../docs/agent/camera-startup.md) |
-| DPE settings and presentation                              | [settings skill](../dpe-settings-ui/SKILL.md)                                              |
-| Codecs, framing, GPU handoff and capture lifecycle         | [capture skill](../dpe-capture-checks/SKILL.md)                                            |
+| Changed behavior                                           | Fixture / maintained guide                                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Bootstrap, login, module API, popouts and restart          | `scripts/check_desktop_launch.py`, [release packaging](../../../docs/agent/releases.md)                 |
+| Native FrameCapture ownership and teardown                 | `scripts/check_frame_capture.py`, runtime guide                                                         |
+| Native audio adapter and Discord picker/settings contracts | `scripts/check_app_audio.py`, [audio picker](../../../docs/agent/audio.md#picker-and-ownership)         |
+| Portal video plus selective application audio              | `scripts/check_wayland_audio.py`, [Wayland audio](../../../docs/agent/audio.md#routing-and-teardown)    |
+| Camera startup and native bridge                           | `scripts/check_camera_startup.py`, [camera startup](../../../docs/agent/native-media.md#camera-startup) |
+| DPE settings and presentation                              | [settings skill](../dpe-settings-ui/SKILL.md)                                                           |
+| Codecs, framing, GPU handoff and capture lifecycle         | [capture skill](../dpe-capture-checks/SKILL.md)                                                         |
 
 Read each selected script's current `--help` before composing its invocation.
 Audio changes need selection, cancellation, source replacement and route cleanup;

@@ -36,7 +36,7 @@ coherent candidate bundles; do not mix a new producer with stale hooks.
   cases. Cover the affected encoder and actual decoder, dimensions/cropping,
   unique decoded frames, quality, latency and cleanup. A hardware encode pass
   with an incompatible software receiver does not qualify delivery.
-- Use [matched benchmarks](../../../docs/agent/capture-benchmark-workflow-20261102.md)
+- Use [matched benchmarks](../../../docs/agent/benchmarks.md#reproduction)
   for `scripts/benchmark_capture_methods.py` and
   `scripts/benchmark_capture_lifecycle.py`. Their dry-run plans expose identities;
   `--run` starts the bounded owned workload. Use fresh outputs and verified inputs.

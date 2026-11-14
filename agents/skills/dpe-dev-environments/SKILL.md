@@ -12,6 +12,10 @@ when changing the manager or investigating storage/reload behavior.
 
 ## Choose a reusable baseline
 
+Default to `bun run dev run VERSION --watch`, which reuses `dev`. Do not invent
+a task-specific profile name for sequential manual work. Preserve other named
+manual identities (such as `clock`) unless their removal is requested.
+
 Prefer the manager for iterative helper work instead of making another complete
 experiment app/profile under `out/`. Start with `bun run dev list`; inspect the
 chosen version's `local-build.json`, `dev-version.json` and client pins rather
@@ -37,8 +41,10 @@ and shutdown cleanup remain effective.
 
 Do not duplicate profiles for each edit, rebuild, retry or native version. Reuse
 one persistent profile per manual test identity across sequential versions.
-For automated checks that require a fresh profile, create a temporary profile
-and remove it after the run, including on failure; do not retain a numbered
+For automated checks that require a fresh managed profile, use
+`run VERSION --temporary-profile --sync`. For harnesses needing multiple launches
+on one fresh identity, own the profile with a `TemporaryDirectory` around the
+entire sequence and pass its path explicitly. Remove it after success or failure; do not retain a numbered
 series of verification profiles. Create an additional persistent profile only
 when a distinct identity or concurrent run actually requires it. Never copy
 login data into another profile just to try a new build.
@@ -78,7 +84,21 @@ profile installations. Resources remain private; prepared modules remain
 profile-owned. Discord archives are shared by verified SHA-256. Do not edit shared
 Electron files in place or sum per-tree size listings as unique disk usage.
 
-Use `list` for managed inventory and `doctor` for historical `out/` inventory.
+Before adding an app/runtime copy, inspect `list` and `doctor`; reuse a compatible
+managed version or runtime and one stable output directory per investigation.
+Do not create numbered/date-stamped app copies for retries or copy Electron into
+every benchmark case. Share one immutable runtime across cases and retain small
+results separately. Put generated work under this repository's `out/`, not loose
+`dpe-*` directories or logs at a storage drive's root. If external storage is
+needed, use one explicit managed home with `--home` and document its owner.
+
+Use `list` for managed inventory, `doctor` for historical `out/` inventory and
+`doctor --profiles` to find unmanaged profiles too. For historical output on
+another drive, pass `doctor --root PATH` (optionally `--profiles`). Profile detection uses
+Chromium state files or DPE current-state metadata; it is an inventory, not a
+complete ownership classifier. After checks, remove disposable profiles and
+redundant payloads while retaining required reports, reusable inputs and compiler
+objects. A fresh profile requirement is not permission to retain it indefinitely.
 Remove only named versions/profiles within the requested cleanup scope. Version
 removal preserves profiles; profile removal deletes login data, settings, mods
 and client caches. Preview `prune` before applying it; `--downloads` also evicts

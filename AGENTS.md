@@ -1,8 +1,8 @@
 # Working on this repository
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md). Implementation context, build
-handoffs and test results are indexed in [docs/agent/README.md](docs/agent/README.md).
-Keep user docs short; put investigation notes in that directory.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Maintained guides and retained
+evidence are indexed in [docs/agent/README.md](docs/agent/README.md).
+Load only references relevant to the task.
 
 ## Repository skills
 
@@ -21,9 +21,23 @@ as needed. Paths in commands assume the repository root.
 | [dpe-dev-environments](agents/skills/dpe-dev-environments/SKILL.md) | Managed dev versions, independent profiles, helper watch/restart and storage cleanup |
 | [dpe-build-release](agents/skills/dpe-build-release/SKILL.md)       | Runtime reuse, local packages, qualification and budgeted compilation                |
 
-Keep reusable instructions in these skills and maintained guides; keep dated
-investigations and evidence in `docs/agent/`. Skills do not grant permission to
-publish, approve releases or repeat historical machine operations.
+Keep reusable instructions in these skills and maintained guides. Skills do not
+grant permission to publish, approve releases or repeat historical machine operations.
+
+## Agent documentation
+
+Maintain the subsystem references indexed in `docs/agent/README.md` in place.
+Do not create dated task reports, review diaries, handoffs, history indexes or
+archive copies unless the user explicitly requests a separate document. Routine
+fix summaries and test counts belong in the PR/final response.
+
+Keep raw logs, full upstream inventories/hunk dispositions and investigation
+scratch work under `out/`. Put only durable contracts, reproducible benchmark
+results, qualification input identities/coverage and unresolved limits in the
+relevant existing reference; replace superseded results instead of appending
+retry chronology. This changes documentation storage, not review/test coverage or
+user-facing explanations. Use the
+[maintenance skill](agents/skills/dpe-agent-docs/SKILL.md) for consolidation.
 
 ## Discord replica UI
 
@@ -54,9 +68,14 @@ publish, approve releases or repeat historical machine operations.
   Run the real settings harness for changes to settings components and layout.
   Do not claim exact visual parity from unit tests alone.
 
-See [shared UI architecture](docs/agent/discord-ui.md) and the
-[measured Discord UI work](docs/agent/discord-native-ui-20261031.md) for rationale,
-component provenance and validation. These conventions apply to all future UI
+Dependent controls belong directly beneath the option that enables/disables them,
+using the shared indented settings group. Keep their values while disabled.
+Select rows include a description when it explains the choice; rows without one
+vertically center the title against the control. Keep this behavior in shared
+components, including Display flags and PiP settings.
+
+See [shared UI architecture](docs/agent/discord-ui.md) for rationale, component
+provenance, measurements and validation. These conventions apply to all future UI
 changes, including new tabs and settings.
 
 ## Upstream update reviews
@@ -76,6 +95,12 @@ docs before declaring completion.
   for code, configuration or workflow changes. Documentation-only edits need lint
   and a review of changed links/instructions. Scope integration checks to affected
   components; see [CI check selection](docs/agent/ci-setup.md#check-selection).
+- Choose new tests by a concrete failure mode; extend existing behavior coverage
+  before adding fixtures or workflows. Do not add source-spelling assertions,
+  duplicate syntax checks or tests for routine reversible copy/style changes.
+  Preserve ABI, update recovery, signing and real end-to-end checks. Follow the
+  [test design policy](docs/agent/ci-setup.md#test-design-and-coverage) and workflow
+  ownership before expanding CI; a red run alone is not a reason to remove a gate.
 - Preserve pinned upstream files and patches; don't format them.
 - Reuse verified runtimes for packaging. New CI compilations use the budgeted
   Blacksmith workflow. Don't restart a healthy compiler or discard retained local objects.

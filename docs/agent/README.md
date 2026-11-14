@@ -1,33 +1,26 @@
-# Maintainer guide
+# Maintainer references
 
-Start with [contributor setup](../../CONTRIBUTING.md). For app installation and
-settings, use the [main README](../../README.md). Check current code and locks
-before reusing versions or commands from a dated report.
+Start with [CONTRIBUTING](../../CONTRIBUTING.md) and the matching
+[repository skill](../../AGENTS.md#repository-skills). Read the relevant section,
+not the whole directory. Current code, locks and manifests define shipped behavior;
+benchmark snapshots below describe only their recorded inputs.
 
-## Common tasks
+| Task                                                  | Reference                                                         |
+| ----------------------------------------------------- | ----------------------------------------------------------------- |
+| Select CI checks, test design, compiler budget        | [CI](ci-setup.md)                                                 |
+| Package, reuse runtimes, port Electron, sign releases | [Builds and releases](releases.md)                                |
+| Review Discord/Electron updates and discovery         | [Upstream review](upstream-update-review.md)                      |
+| Bootstrap, activation, recovery, mods                 | [Updater](client-updater.md)                                      |
+| Managed dev versions, helper reload, storage          | [Development](dev-environments.md), [commands](../development.md) |
+| Preact settings, Discord adapters, presentation       | [Shared UI](discord-ui.md)                                        |
+| Launcher, flags, links, popouts, spelling, tray       | [Desktop](desktop.md)                                             |
+| Application-audio identity, routing, cleanup          | [Audio](audio.md)                                                 |
+| Native patch scopes, camera, codecs, AV1 framing      | [Native media](native-media.md)                                   |
+| Capture ownership, backends, permissions, picker      | [Capture](capture.md)                                             |
+| Reproduce measurements and interpret results          | [Benchmarks](benchmarks.md)                                       |
+| Run isolated desktop/native/media checks              | [Validation](runtime-validation.md)                               |
 
-| Task                                               | Guide                                                                     |
-| -------------------------------------------------- | ------------------------------------------------------------------------- |
-| Run dev versions, switch profiles or watch helpers | [Development manager](../development.md)                                  |
-| Package, qualify or approve a release              | [Release packaging](releases.md)                                          |
-| Investigate discovery or an upstream update        | [Whole-diff review](upstream-update-review.md), [discovery](discovery.md) |
-| Choose checks or compile Electron                  | [CI runners](ci-setup.md), [runtime validation](runtime-validation.md)    |
-| Change settings or native integrations             | [Repository skills](../../AGENTS.md#repository-skills)                    |
-
-## Implementation references
-
-- **Latest client review:** [Canary 1.0.2472 dev validation](client-2472-compatibility.md).
-- **Updates:** [client/runtime updater](client-updater.md), [mod preservation](client-mods.md).
-- **Builds:** [source ports](source-ports.md), [cache reuse](build-caching.md),
-  [channel switches](channels.md).
-- **Desktop:** [shared UI](discord-ui.md), [application audio](wayland-audio.md),
-  [capture review](screenshare-review-20261105.md).
-- **Operations:** [release internals](release-reference.md),
-  [runner and credential details](ci-reference.md).
-
-## Investigations and evidence
-
-The [investigation index](history.md) preserves dated reports, decisions and test
-limits. Store new investigation notes here and link them from that index.
-User guides should explain setup and use; keep disassembly, experiments and
-individual test runs in these maintainer references.
+Maintain these subsystem references in place. Do not add dated task reports,
+handoffs or another history/index. Keep raw logs and investigation scratch work
+under `out/`; record only durable conclusions, reproducible measurements and open
+limits in the relevant section. See [documentation policy](../../AGENTS.md#agent-documentation).

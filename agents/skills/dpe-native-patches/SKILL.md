@@ -42,7 +42,7 @@ Neither a hash-only test nor a successful compile establishes runtime correctnes
 
 ## Electron source ports
 
-Read [source ports](../../../docs/agent/source-ports.md) and the current
+Read [source ports](../../../docs/agent/releases.md#source-ports) and the current
 `config/sources.lock.json` first. Preserve the exact imported Discord delta;
 adapt through the checksum-pinned port layers. Every excluded imported path
 needs its explicit replacement or documented upstream equivalent. Do not invent

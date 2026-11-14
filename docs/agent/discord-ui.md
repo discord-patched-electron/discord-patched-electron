@@ -13,6 +13,12 @@ only for historical contract probes.
   standalone palette. It is staged beside both consumers and included in the
   application compatibility identity.
 
+Dependent controls belong directly beneath the option that enables/disables them,
+using the shared `SettingsDependents` group. Keep their values while disabled.
+Select rows include a description when it explains the choice; rows without one
+vertically center the title against the control. Keep this behavior in shared
+components, including Display flags and PiP settings.
+
 Welcome uses those local components before Discord's desktop renderer starts.
 `updater/native-presentation.cjs` obtains current tokens, fonts and icons from a
 hidden, sandboxed public Discord shell in a disposable session. Only its login
@@ -84,32 +90,6 @@ the sibling source directory in a checkout. Both copies initialize the same
 page-world singleton. Shared changes enter the application compatibility hash and
 select the audio/package CI checks; they do not trigger an Electron rebuild.
 
-## Validation (31 October 2026)
-
-`tests/discord-ui/settings.test.cjs` covers lazy and cached factories, another
-mod's wrapper, translated labels, native icon identity, immutable lists, duplicate
-prevention and missing/ambiguous icons. The existing audio discovery and lifecycle
-tests now exercise the common runtime. Packaging tests load the staged bridge and
-compare its shared files with the source files.
-
-`tests/discord-ui/native-settings-check.cjs` runs inside the native audio smoke on a
-fresh signed-out Canary profile. It registers the settings chunks without opening
-account settings, initializes the layout definition and uses Discord's real
-compiler to verify the row type, default variant, parent, icon, title and placement.
-The audio smoke then verifies native controls, keyboard behavior, zoom/font scaling,
-search, selection, teardown, broken components and host unmounts in the same page.
-
-Evidence: `out/shared-discord-ui-smoke/final-results/native-settings.json`, `result.json`,
-`layouts.json` and `scaling.json`. Retained Electron 46.0.0-alpha.1 was reused under
-Xvfb. No account login, message, call or physical capture was performed. This checks
-the real native layout contract; a logged-in sidebar was not visually inspected.
-
-The separate OpenAsar configuration/diagnostics integration also passed with a
-fresh profile: `out/dpe-openasar-shared-settings-check/settings.json`.
-
-Final repository checks passed: `bun run lint`, 395 Python tests and 131 JavaScript
-tests through `bun run test`.
-
 ## Equicord factory recompilation fix
 
 The first check covered plain Discord but missed Equicord's source-recompiling
@@ -130,10 +110,52 @@ to a disposable archive copy when running the native picker smoke. The user's
 mod settings, account data and updater are not used. The settings check recognizes
 the patched native layout compiler as well as the unmodified compiler.
 
-The missing entry was reproduced in `out/settings-equicord-repro/before2.log`.
-After the fix, `out/settings-equicord-repro/after2/native-settings.json` confirms
-the label, ordinary native row type, exact Discord cog and placement; `result.json`
-and `scaling.json` cover the native audio dialog in the same modded page. The plain
-Discord check also passed in `out/settings-equicord-repro/plain/`. These are fresh,
-signed-out profiles using retained Electron 46.0.0-alpha.1. No account interaction
-or capture was performed.
+## Shared settings behavior
+
+Tray selection uses `trayIconPreset` as its baseline, `trayIconPresets` for
+per-state overrides and `trayIcons` for custom PNGs. **Custom** is a derived
+selector placeholder, never a saved/selectable preset. Reset removes only the
+row's overrides; choosing a new baseline preserves other rows. Asset provenance,
+hashes and licenses live in `integration/updater/assets/tray-presets/manifest.json`
+and `THIRD_PARTY.md`; image decoding is cached without network requests.
+
+Dictionary removal saves manual selection first, disables aliases sharing the
+file and deletes only matching versioned BDic files. Personal words survive.
+Download events supply start/success/failure, not byte percentages. Filter options
+combine with search and are disabled in system-language mode.
+
+Hidden window controls collapse their slots. With all controls hidden, restore
+the native top bar's token-based trailing inset; preserve RTL and live token
+changes. Preserve [native window-control behavior](desktop.md#desktop-preferences).
+
+The main renderer populates the shared presentation cache without opening Settings.
+Retries for late native assets are bounded to thirty seconds; reinjection and
+navigation must not leave duplicate timers.
+
+Troubleshooting opens allowlisted, sandboxed diagnostic windows in the running
+Electron session. Repeated requests reuse the window; local-main-frame IPC
+rejects unknown pages. GPU, media-internals, webrtc-internals, histograms,
+process-internals and network-errors loaded on the tested Electron 46 runtime;
+Chrome-only pages and tracing were unsuitable.
+
+## Measurements and checks
+
+The measured settings replica work established semantic token/root-size/zoom
+propagation, shared control geometry, fonts and native icons. Values belong in
+`integration/discord-ui/components.css` and presentation data, not copies of
+scaled screenshot pixels. Use `primitives.jsx` and `settings-controls.js` for
+controlled values, callbacks and disabled state after rerenders. Keep focus,
+selection and scroll stable during saves/filtering. Extend shared components.
+
+`check_launch_settings.py` rebuilds Preact and exercises real controls, keyboard,
+narrow layouts, zoom, long labels, theme tokens and reduced motion. Inspect the
+rendered result for layout changes. Unit tests and synthetic sidebar definitions
+do not prove exact live Discord visual parity. Native picker/settings entry
+changes also need `tests/discord-ui/native-settings-check.cjs` through the native
+audio fixture, including supported mod wrappers.
+
+The real plain/Equicord layout check verified an ordinary row before Log Out,
+Discord's own cog, immutable utility lists and correct native audio controls.
+Evidence: `out/shared-discord-ui-smoke/`, `out/settings-equicord-repro/` and
+`out/dpe-openasar-settings-check-3/settings.json`. These were signed-out fixtures;
+a logged-in sidebar and physical desktop tray were not visually qualified.

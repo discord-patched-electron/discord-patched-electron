@@ -111,5 +111,5 @@ outside that restriction. **Incoming video** reports hardware/software decoding;
 the codec name alone does not prove hardware acceleration.
 
 For implementation details and measured limits, see the
-[capture comparison](agent/capture-native12-comparison-20261107.md) and
-[screensharing review](agent/screenshare-review-20261105.md).
+[capture comparison](agent/benchmarks.md#native12-resource-comparison) and
+[screensharing review](agent/capture.md#qualification-and-remaining-work).

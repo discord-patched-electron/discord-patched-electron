@@ -2,8 +2,7 @@
 
 Use this workflow for Discord host/module updates, Electron updates and failures
 first exposed by discovery. Fixing the first exception or passing the previous
-client lock does not complete the review. The
-[1.0.2444 review](client-2444-compatibility.md) is a worked example.
+client lock does not complete the review. Historical snapshot findings are summarized [below](#reviewed-client-snapshots).
 
 ## Pin the comparison
 
@@ -72,8 +71,10 @@ the candidate or merely found no new work.
 
 ## Keep a complete disposition record
 
-Create an agent note linked from [the index](README.md). Each changed file and
-behavior needs a disposition; related hunks may share one entry only when their
+Store the complete inventory and hunk dispositions in the review's fresh `out/`
+directory. Update this reference's qualification summary with immutable inputs,
+coverage, artifact location and unresolved limits; do not create a dated report.
+Each changed file and behavior needs a disposition; related hunks may share one entry only when their
 coverage is explicit. No entry may remain unreviewed when declaring completion.
 
 | Changed file / hunks                      | Behavior and affected callers    | Disposition                                                                  | Evidence / tests         | Remaining limits             |
@@ -97,7 +98,7 @@ Normalized body equality alone does not establish target identity or ABI safety.
 Never add an unknown module to a reviewed hash set solely to bypass a rejection.
 
 When porting a native fix, review the entire ordered patch chain and reapply it
-idempotently. Check scope generators, runtime JS guards, compiled C helper guards,
+idempotently. Check scope generators, runtime JS guards, compiled helper guards,
 selection storage and wakeup tables independently. Carry new helpers and assets
 through source/package manifests, staging, compatibility keys, fingerprints and
 CI scope selection. A Python scope accepting a module does not prove that the
@@ -139,12 +140,56 @@ synthetic tests. If a relevant check cannot run, report the limitation and do no
 claim that behavior was verified. Qualification does not authorize publication
 or automatic approval.
 
-## Completion and handoff
+## Completion
 
-Reconcile every inventory/disposition entry, rerun checks affected by final edits
-and preserve the evidence under `out/` with its index in `docs/agent/`. Leave
-existing user changes intact. If another active thread shares these files,
-coordinate edits and recheck after its final changes before declaring the shared
-result complete. A requested hibernation must wait for every thread or task the
-user explicitly named; an idle/waiting/interrupted run is not proof its work is
-finished. Read its final result and verify that required work is complete.
+Reconcile every inventory/disposition entry and rerun checks affected by final
+edits. Preserve complete review artifacts under `out/` and update the existing
+qualification summary with their path, immutable inputs, coverage and open limits.
+Leave unrelated changes intact; do not create a separate report or evidence index.
+
+## Discovery and scheduling
+
+`scripts/discover.py` and scheduling/state code distinguish changed content from
+poll timestamps. Preserve immutable client snapshots, full source/state commits
+and archive hashes. Client/module changes qualify immediately against the retained
+runtime; Discord executable bytes detect changes to its bundled Electron, not
+fork branch movement. Routine eligible Electron builds wait 96 hours. Verified
+high/critical security fixes and bounded retries have explicit policy paths.
+Reservations, interrupted jobs and failures remain durable on `ci-state`; do not
+merge that generated state branch into development. Unchanged polls do no work.
+
+Compiler dispatch also needs [budget allocation](ci-setup.md#blacksmith-compilation).
+An active/successful identical runtime is reused. Source-port conflicts must be
+resolved before compilation, not retried blindly. A healthy poll after a failed
+qualification does not qualify the failed candidate.
+
+## Reviewed client snapshots
+
+These are historical compatibility evidence, not the current lock or approval.
+
+| Snapshot        | Durable finding / evidence                                                                                                                                                                                                                                                                                                    |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Canary 1.0.2444 | Native updater migration removed the legacy module-updater binding. Optional chaining on an undeclared identifier still throws. Resolve fallback through the supplied bootstrap module; implement remaining native-updater API paths and exercise same-profile relaunch. `out/client-2444-compat/`, `out/discovery-csp-fix/`. |
+| Canary 1.0.2472 | Inventory every payload/ASAR and native diff; port the ordered voice edits and both Python and compiled picker/wake scopes. `out/discord-update-20261107/` contains inventories, ABI review, patch identities and candidate checks.                                                                                           |
+
+The 2472 original voice hash is
+`d069bc035b4dab698223a45829e52a096680c76fb8adf0068108acc0a5f8b56e`;
+prepared hash is
+`3956c8e932bea891ecdf4621fcd4c986bb461460edf875717c934797a021a2a7`.
+`scripts/native_client_2472.py` records intermediates. Selection storage moved to
+`0x231fb90`; offsets are evidence for that exact module, never a portable recipe.
+The port preserved normalized encoder/decoder/clock/picker/wake bodies and matched
+shader bytes, with relocated relative operands and all scopes bound to final bytes.
+
+That review reused Electron 46.0.0-alpha.1 from run 41282631878 (review archive
+SHA-256 `981f5d9cfcace0b4491807c1a2e9180643ae0d59fe4589e5f513cc890990951c`).
+Managed login/relaunch and module APIs, four popout handshakes per launch, native
+frame/Krisp, VP8/H.264/AV1/HEVC local delivery and official mod lifecycle passed.
+`native/` retains a scheduled-presentation failure: 15 callbacks for 45
+submissions. Basic native delivery does not clear it. AV1 without the matching
+encoder adapter also failed framing. Do not turn either failure into a blanket
+candidate pass or treat later alpha.6 work as part of this review.
+
+`connect-src` blocking `sentry-ipc://start/sentry_key` was a separate preload
+Sentry handshake, not a Discord API/module-download failure. No telemetry/CSP
+allowance was justified. Recheck exact candidate contents for a new incident.

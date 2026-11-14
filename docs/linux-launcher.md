@@ -16,7 +16,7 @@ then enable **Allow VA-API on NVIDIA GPUs** under **Advanced**.
 This sets `VaapiOnNvidiaGPUs`; it does not enable encoding or bypass driver checks.
 `PlatformHEVCDecoderSupport` is already enabled by default;
 `AcceleratedVideoEncoder` is unnecessary for playback.
-See the [codec checks](agent/codec-support.md) for tested formats and hardware.
+See the [codec checks](agent/native-media.md#codec-availability-and-library-paths) for tested formats and hardware.
 
 ## Appearance and startup
 
@@ -45,17 +45,43 @@ media player and respond to media keys for videos, voice messages and embedded
 players. It is off by default. Notification and calling sounds are excluded.
 Changes apply after restarting Discord; playback inside Discord is unaffected.
 
-**General → Links → Use this app** makes the installed DPE desktop entry handle
-`discord://` links. Welcome offers the same choice and leaves it unchecked when
+**General → Links → Use this app** makes this DPE installation handle
+`discord://` links. Development builds retain their selected version and profile.
+Welcome offers the same choice and leaves it unchecked when
 another app handles them. To choose a different handler later, use your system’s
 default applications. Opening Settings or restarting DPE does not reclaim links.
 
-**Appearance → Video popouts** controls floating windows, their titlebar, and
-automatic member-bar collapse when expanding a screenshare. All three default
-on. Global window controls Off also hides popout controls; extra legacy titlebar
-content is preserved. New popouts fit the video and display scale, with a
-bottom-right placement request. On Wayland, placement depends on the compositor;
-niri also uses its window-specific IPC. Use **Show Members** to reopen the bar.
+**Appearance → Picture-in-picture** controls floating video windows, automatic
+positioning, titlebar visibility and member-bar collapse. Choose **PiP corner**
+for any of the four screen corners. Turn off **Automatically position PiP windows**
+to let your window manager place new popouts; video sizing still works. Changing
+corners also moves an open PiP that remains at its previous corner and size.
+**Hide PiP titlebar** hides both Discord and native titlebars on floating popouts;
+reopen the PiP after changing a native frame. **Keep PiP on top** defaults on;
+some native Wayland compositors retain their own stacking policy.
+
+Hover over a PiP video to choose a corner using four small rectangles. A rectangle
+highlights only when the window matches that corner and its automatic size.
+The picker hides when the window occupies at least 70% of the usable screen.
+Resize using your compositor’s regular window edges and corners. Fullscreen restores
+the previous normal size and position when you exit.
+New and reopened PiP windows fit the currently watched video’s aspect ratio,
+with a 16:9 default when no video is available.
+Use **Show Members** to reopen the members bar.
+
+Automatic corners work on X11 and native Wayland with Niri, Sway, Hyprland and
+KDE Plasma 6. GNOME Wayland supports automatic sizing; GNOME chooses the position.
+Placement leaves 16 logical pixels inside the reported usable area, accounting
+for Sway workspace gaps, KDE panels and Hyprland floating gaps and borders.
+Niri placement measures its panel-reserved area using the PiP itself and reads
+the active configuration's gaps and struts, including ordered includes and named
+workspace overrides. Its total inset is at least 16 logical pixels, or the
+configured gap plus strut when larger. It does not create window rules. A corner
+button restores the automatic size and position after manual resizing.
+KDE placement needs the system Python D-Bus and
+GObject bindings (`python-dbus`/`python-gobject` on Arch,
+`python3-dbus`/`python3-gi` on Debian/Ubuntu); otherwise KDE chooses the position.
+
 The Custom CSS editor has a 480px minimum height and grows with the window.
 
 **General** includes **Start minimized**, **System tray**, notification flashing,

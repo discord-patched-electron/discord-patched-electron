@@ -7,7 +7,7 @@ description: Build or qualify local DPE packages, reuse verified Electron artifa
 
 Read [release packaging](../../../docs/agent/releases.md). For compilation also
 read [CI runners and budget](../../../docs/agent/ci-setup.md) and
-[build caching](../../../docs/agent/build-caching.md). Use current configuration
+[build caching](../../../docs/agent/releases.md#runtime-reuse). Use current configuration
 and locks; historical run IDs, budgets and example timestamps are not inputs to
 reuse blindly. Run commands from the repository root.
 
@@ -60,3 +60,11 @@ must not be merged into `main`. Local artifacts and passing tests do not imply
 permission to dispatch paid work, publish, approve, install packages or update
 AUR. Proceed with externally mutating steps only within the user's authorized
 task, using the existing signed-release and manual approval policy.
+
+## Change CI or test coverage
+
+Use the [workflow ownership and test design policy](../../../docs/agent/ci-setup.md#workflow-ownership)
+before adding jobs, workflows or fixtures. Share pinned setup; keep distinct
+candidate, runtime, package and approval boundaries. Add coverage for observable
+failures, not assertions about script spelling. Read final failed-step results:
+expected negative-test diagnostics can contain “error” even when the suite passes.
