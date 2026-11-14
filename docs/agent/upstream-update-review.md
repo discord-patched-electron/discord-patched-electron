@@ -279,4 +279,5 @@ Windows/macOS, restricted direct GPU and scheduled-presentation limits remain.
 An independent main Checks attempt failed to fetch an Arch package signature
 from its mirror while building the audio image; release qualification's audio
 job passed. Retain this as an infrastructure failure, not a reason to weaken
-native or package gates. The failed main job was retried with the same checks.
+native or package gates. The failed main job was retried with the same checks and passed in
+[main Checks attempt 2](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/43553882488/attempts/2).
