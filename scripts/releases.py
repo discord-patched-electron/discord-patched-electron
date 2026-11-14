@@ -423,6 +423,45 @@ def change_category(subject: str) -> tuple[str, str]:
     return "Improvements", subject
 
 
+def detailed_changes() -> dict:
+    """Read maintained descriptions; git history decides which entries have shipped."""
+    path = ROOT / "config/release-notes.json"
+    if not path.exists():
+        return {}
+    data = read_json(path)
+    if not isinstance(data, dict) or data.get("schema") != 1:
+        raise ValueError("Invalid release-notes schema")
+    commits = data.get("commits")
+    if not isinstance(commits, dict):
+        raise ValueError("Release notes require a commits object")
+    for commit, groups in commits.items():
+        if not re.fullmatch(r"[a-f0-9]{40}", commit) or not isinstance(groups, dict) or not groups:
+            raise ValueError("Release notes require full commit IDs and nonempty change groups")
+        for category, entries in groups.items():
+            if (
+                category not in ("New", "Improvements", "Fixes")
+                or not isinstance(entries, list)
+                or not entries
+                or any(
+                    not isinstance(entry, str)
+                    or not entry.strip()
+                    or entry != entry.strip()
+                    or len(entry.splitlines()) != 1
+                    for entry in entries
+                )
+            ):
+                raise ValueError(
+                    "Release notes require a known category and single-line descriptions"
+                )
+    return commits
+
+
+def change_line(sha: str, subject: str, category: str = "") -> str:
+    subject = re.sub(r"([\\`*_\[\]<>])", r"\\\1", subject).replace("@", "＠")
+    badge = "**NEW** " if category == "New" else ""
+    return f"- {badge}{subject} ([{sha[:7]}]({URL}/commit/{sha}))"
+
+
 def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
     commit = manifest["source_commit"]
     log = ""
@@ -457,21 +496,39 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
             text=True,
         )
     changes = ["### Discord and Electron", "", *input_changes(manifest, previous)]
+    descriptions = detailed_changes()
     project_changes = []
+    commits = []
+    expanded = False
     for entry in log.splitlines():
         sha, subject = entry.split("\t", 1)
         if subject.startswith(
             ("Approve tested ", "Propose Discord ", "Update release discovery state")
         ):
             continue
-        category, subject = change_category(subject)
-        subject = re.sub(r"([\\`*_\[\]<>])", r"\\\1", subject).replace("@", "＠")
-        badge = "**NEW** " if category == "New" else ""
-        project_changes.append((category, f"- {badge}{subject} ([{sha[:7]}]({URL}/commit/{sha}))"))
+        commits.append(change_line(sha, subject))
+        if sha in descriptions:
+            expanded = True
+            for category, entries in descriptions[sha].items():
+                project_changes.extend(
+                    (category, change_line(sha, text, category)) for text in entries
+                )
+        else:
+            category, title = change_category(subject)
+            project_changes.append((category, change_line(sha, title, category)))
     for category in ("New", "Improvements", "Fixes"):
         entries = [line for group, line in project_changes if group == category]
         if entries:
             changes.extend(["", "### " + category, "", *entries])
+    if expanded:
+        label = (
+            "All project commits since the previous stable release"
+            if previous
+            else "All project commits in this build"
+        )
+        changes.extend(
+            ["", "<details>", f"<summary>{label}</summary>", "", *commits, "", "</details>"]
+        )
     if previous is None:
         changes.append(
             "- First stable release. Project changes include the history through this build."

@@ -170,8 +170,24 @@ public assets. Build-version ordering determines release order. Notes compare
 against the prior approved release for the same channel/track, including merged
 code and helper changes, rather than the preceding test release.
 
+Detailed descriptions live in [`config/release-notes.json`](../../config/release-notes.json),
+keyed by the full introducing commit ID and grouped as `New`, `Improvements` or
+`Fixes`. Expand broad commits into concrete behavior changes; reserve `New` for
+new features. Candidate publication, approval and note repairs use the same
+renderer. It selects entries from the exact previous-approved-source-to-tested-source
+Git range, falls back to subjects for commits without descriptions, and retains
+the complete commit list when expanding descriptions. Later and already shipped
+changes stay out of the summary. Keep older entries so repairs remain repeatable.
+Descriptions come from the workflow checkout, allowing a notes-only fix without
+changing tested package inputs. Invalid description data stops approval before
+approval state is written.
+
 `uv run python scripts/releases.py refresh-notes` previews note repairs under
 `out/release-notes/`; `--apply` is a publication action requiring authorization.
+Pass an exact release tag to limit the repair. The **Approve tested release**
+workflow's `notes_only` option runs this repair on `main`, preserving package
+files and approval status and skipping AUR publication. Leave it off for normal
+tested-build approval.
 AUR metadata-only changes increment `pkgrel`; identical retries do nothing.
 An archive change under an existing version is rejected. The standard Canary
 identity conflicts with stock Canary; current enabled tracks come from

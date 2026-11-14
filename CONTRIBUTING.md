@@ -33,6 +33,12 @@ regression test or an existing integration check; routine copy/style edits need 
 new test. Follow the [test design policy](docs/agent/ci-setup.md#test-design-and-coverage).
 Update the relevant guide when a setting or installation step changes.
 
+For a commit covering several user-visible changes, add detailed descriptions to
+[`config/release-notes.json`](config/release-notes.json) after committing the code.
+Use its full commit ID and describe each feature or fix separately. The release
+workflow includes these descriptions only when that commit ships; see
+[release notes](docs/agent/releases.md#package-boundaries-and-recovery).
+
 ```sh
 git switch -c fix/describe-the-change
 bun run format

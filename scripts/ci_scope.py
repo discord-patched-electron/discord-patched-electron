@@ -82,6 +82,7 @@ RULES = (
             "scripts/check_style.py",
             "config/approved-release.json",
             "config/update-policy.json",
+            "config/release-notes.json",
             "config/update-proposals/*",
             ".github/workflows/approve-release.yml",
             ".github/workflows/publish-aur.yml",

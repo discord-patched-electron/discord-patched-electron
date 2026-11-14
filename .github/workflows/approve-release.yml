@@ -11,6 +11,11 @@ on:
         type: boolean
         required: true
         default: false
+      notes_only:
+        description: Repair only the changelog, preserving approval status and package files
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: read
   actions: read
@@ -19,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   approve:
-    if: inputs.tested && github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main'
+    if: (inputs.tested || inputs.notes_only) && github.repository == 'discord-patched-electron/discord-patched-electron' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -34,10 +39,15 @@ jobs:
           persist-credentials: false
           ref: main
           fetch-depth: 0
-      - name: Verify and promote the tested files
+      - name: Generate the stable-to-stable changelog and promote the tested files
+        if: ${{ !inputs.notes_only }}
         run: python3 scripts/releases.py approve "$RELEASE_TAG"
+      - name: Repair the stable-to-stable changelog only
+        if: inputs.notes_only
+        run: python3 scripts/releases.py refresh-notes "$RELEASE_TAG" --apply
   aur:
     needs: approve
+    if: ${{ !inputs.notes_only }}
     runs-on: ubuntu-24.04
     concurrency:
       group: aur-publisher

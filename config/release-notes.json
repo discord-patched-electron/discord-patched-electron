@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "commits": {
+    "a9d6e232cce3fd5fb3cdf9577e4def8cfe422bcb": {
+      "New": [
+        "Choose the default PiP corner, turn automatic positioning on or off, and control whether floating PiP windows stay on top.",
+        "Move a floating PiP window between corners directly from its corner controls."
+      ],
+      "Improvements": [
+        "Respect compositor work areas, monitor scaling and reserved space when placing PiP windows on Niri, Sway, Hyprland and KDE Wayland. KDE placement uses temporary KWin scripts without changing window rules.",
+        "Group dependent PiP settings under their controlling options and share the select layout with Display settings.",
+        "Run managed development versions with temporary profiles, route Discord links to the selected running profile, and count shared files once when reporting disk usage.",
+        "Check AppImage builds and launches in the main checks workflow, share project setup across workflows, and declare KDE PiP integration dependencies in Linux packages."
+      ],
+      "Fixes": [
+        "Size PiP windows from the current video rather than stale geometry, distinguish letterboxing from window chrome, and bound the initial window even when video metadata is unavailable.",
+        "Preserve manual PiP resizing and placement, restore normal geometry after fullscreen, and avoid treating compositor mapping events as user changes.",
+        "Hide both native and Discord titlebars on floating PiP windows, keep minimum-size changes in sync, and restore popout lifecycle behavior when closing or navigating.",
+        "Open ordinary web links in the system browser without replacing the Discord page, including links that navigate in the same window.",
+        "Resolve Discord protocol ownership from the actual desktop command and register the selected application or development profile reliably, including paths requiring desktop-entry escaping.",
+        "Recover interrupted source patch application on CI runners without a global Git identity and make capture descriptor-cleanup tests reliable when run in parallel."
+      ]
+    },
+    "8d8eb2c51b6d2f563b40246790d91ec7733a04ff": {
+      "Fixes": [
+        "Port the complete native binary patch chain to Canary 1.0.2483 and accept its sixth popout spellcheck callback argument.",
+        "Update the Electron alpha.10 audio/video dependency patch context while preserving the existing integration."
+      ]
+    },
+    "04cae47354f153f74b1bf4e8c990e71730896823": {
+      "Fixes": [
+        "Port the FFmpeg build changes to Electron alpha.10 while preserving upstream aligned frame sizes, plane layouts and Media Foundation buffer lifetimes."
+      ],
+      "Improvements": [
+        "Make downloading development runtime artifacts an explicit option."
+      ]
+    },
+    "759da24c70353ff93c388cd28b723984face3707": {
+      "Fixes": [
+        "Complete the remaining Chromium dependency patch ports and source preflight for Electron alpha.10."
+      ]
+    },
+    "ff76ecd324ab23b80bab370fcb62cb4aadfa97b2": {
+      "Improvements": [
+        "Detect updates from both Discord's Electron fork and upstream Electron, including fork changes when the upstream version has not changed.",
+        "Allow a one-off Electron workflow run on the self-hosted PC while keeping budgeted Blacksmith builds as the default.",
+        "Automatically merge main into dev after main changes, preserving development commits and reporting merge conflicts for a maintainer to resolve."
+      ]
+    },
+    "dc35bc0c7a0646156ee6a7be38db6b38dad45d75": {
+      "Improvements": [
+        "Advance the tracked upstream Electron source to 46.0.0-alpha.10."
+      ]
+    },
+    "1912233703fbe2249f01c0fbf8bd7e956d4a1526": {
+      "Improvements": [
+        "Package the completed, qualified Electron alpha.10 runtime from the local workflow build."
+      ]
+    }
+  }
+}

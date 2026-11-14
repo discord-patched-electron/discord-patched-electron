@@ -1,4 +1,5 @@
 import copy
+import json
 import subprocess
 import sys
 import tempfile
@@ -246,6 +247,97 @@ class ReleaseNotes(unittest.TestCase):
         self.assertIn("- Add internal test coverage", body)
         self.assertNotIn("@everyone", body)
         self.assertIn(r"\[choices\]", body)
+
+    def test_broad_merged_commits_expand_all_details_only_in_the_shipped_range(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args):
+                return subprocess.check_output(["git", "-C", str(root), *args], text=True).strip()
+
+            git("init", "--quiet")
+            git("config", "user.name", "Fixture")
+            git("config", "user.email", "fixture@example.invalid")
+
+            def commit(text, message):
+                target = root / "integration/desktop.cjs"
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(text)
+                git("add", ".")
+                git("commit", "--quiet", "-m", message)
+                return git("rev-parse", "HEAD")
+
+            baseline = commit("old", "Previous stable")
+            git("checkout", "--quiet", "-b", "desktop")
+            broad = commit("new", "fix: preserve desktop integration")
+            git("checkout", "--quiet", "-")
+            git("merge", "--quiet", "--no-ff", "desktop", "-m", "Merge desktop work")
+            shipped = git("rev-parse", "HEAD")
+            future = commit("future", "feat: Future work")
+            data = {
+                "schema": 1,
+                "commits": {
+                    baseline: {"New": ["Already shipped"]},
+                    broad: {
+                        "New": ["Choose a PiP corner"],
+                        "Fixes": ["Open web links externally", "Keep [choices] @everyone safe"],
+                    },
+                    future: {"New": ["Not yet shipped"]},
+                },
+            }
+            path = root / "config/release-notes.json"
+            path.parent.mkdir()
+            path.write_text(json.dumps(data))
+            current = manifest(source_commit=shipped)
+            previous = manifest("20261025.100000", source_commit=baseline)
+            with patch("releases.ROOT", root):
+                candidate = notes(current, previous)
+                approved = notes(current, previous, approved=True)
+                self.assertEqual(notes(current, previous, approved=True), approved)
+                # A client-only follow-up must not repeat code that already shipped.
+                followup = notes(manifest(source_commit=shipped), current)
+
+        for body in (candidate, approved):
+            summary, inventory = body.split("<details>", 1)
+            self.assertIn("**NEW** Choose a PiP corner", summary)
+            self.assertIn("Open web links externally", summary)
+            self.assertIn(r"Keep \[choices\] ＠everyone safe", summary)
+            self.assertEqual(summary.count("/commit/" + broad), 3)
+            self.assertNotIn("preserve desktop integration", summary)
+            self.assertIn("fix: preserve desktop integration", inventory)
+            self.assertIn("/commit/" + broad, inventory)
+            self.assertNotIn("Already shipped", body)
+            self.assertNotIn("Not yet shipped", body)
+            self.assertNotIn("Future work", body)
+            self.assertIn(manifest_tag(previous) + "..." + manifest_tag(current), body)
+        self.assertNotIn("Choose a PiP corner", followup)
+
+    def test_invalid_detailed_notes_fail_instead_of_silently_omitting_changes(self):
+        for data in (
+            [],
+            {"schema": 2, "commits": {}},
+            {"schema": 1, "commits": []},
+            {"schema": 1, "commits": {"abc1234": {"New": ["A change"]}}},
+            *[
+                {"schema": 1, "commits": {"a" * 40: groups}}
+                for groups in (
+                    {},
+                    {"Unknown": ["A change"]},
+                    {"Fixes": "A change"},
+                    {"New": []},
+                    {"New": [""]},
+                    {"New": [False]},
+                    {"New": ["First line\nSecond line"]},
+                )
+            ],
+        ):
+            with self.subTest(data=data), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                path = root / "config/release-notes.json"
+                path.parent.mkdir()
+                path.write_text(json.dumps(data))
+                with patch("releases.ROOT", root), self.assertRaises(ValueError):
+                    notes(manifest(), manifest())
 
     def test_refresh_only_patches_bodies_and_preserves_each_release_approval_state(self):
         old, preview, new = (manifest("20261025.100000"), manifest("20261026.110000"), manifest())

@@ -37,6 +37,7 @@ class CheckSelection(unittest.TestCase):
             "docs/agent/releases.md": set(),
             "agents/skills/dpe-upstream-review/SKILL.md": set(),
             "scripts/releases.py": {"unit"},
+            "config/release-notes.json": {"unit"},
             "scripts/check_desktop_launch.py": {"unit", "packaging"},
             "scripts/appimage.py": {"unit", "appimage"},
             "scripts/check_appimage.py": {"unit", "appimage"},
