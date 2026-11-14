@@ -37,11 +37,35 @@ module.exports = function measurePopout() {
       if (!candidates.length || (candidates[1] && candidates[0].area < candidates[1].area * 1.5))
         return;
       const { video, rect } = candidates[0];
+      let viewport = rect;
+      // A centered, aspect-fitted video can be smaller than its layout slot.
+      // Those letterbox bands disappear after resizing; they are not chrome.
+      for (
+        let parent = video.parentElement, depth = 0;
+        parent && depth < 4;
+        parent = parent.parentElement, depth++
+      ) {
+        if (parent.querySelectorAll("video").length !== 1) break;
+        const slot = parent.getBoundingClientRect();
+        const factor = Math.min(slot.width / video.videoWidth, slot.height / video.videoHeight);
+        if (
+          slot.width <= 0 ||
+          slot.height <= 0 ||
+          slot.width > innerWidth + 2 ||
+          slot.height > innerHeight + 2 ||
+          Math.abs(rect.width - video.videoWidth * factor) > 2 ||
+          Math.abs(rect.height - video.videoHeight * factor) > 2 ||
+          Math.abs(rect.left + rect.width / 2 - slot.left - slot.width / 2) > 2 ||
+          Math.abs(rect.top + rect.height / 2 - slot.top - slot.height / 2) > 2
+        )
+          break;
+        viewport = slot;
+      }
       finish({
         width: video.videoWidth,
         height: video.videoHeight,
-        chromeWidth: Math.max(0, innerWidth - rect.width),
-        chromeHeight: Math.max(0, innerHeight - rect.height),
+        chromeWidth: Math.max(0, innerWidth - viewport.width),
+        chromeHeight: Math.max(0, innerHeight - viewport.height),
       });
     };
     function changed() {

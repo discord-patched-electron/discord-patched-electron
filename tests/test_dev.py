@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import read_json, write_json
-from dev import Manager, copy_changed, lock, name, sync_sidecars
+from dev import Manager, copy_changed, disk_bytes, find_profiles, lock, main, name, sync_sidecars
 from dev_client import configure_installation, link_helpers
 
 
@@ -22,6 +22,116 @@ class DevTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.manager = Manager(Path(self.temporary.name) / "dev")
+
+    def test_default_profile_is_reused_and_temporary_is_explicit(self):
+        with patch("dev.Manager.run", return_value=0) as run:
+            for version in ("one", "two"):
+                main(["--home", str(self.manager.home), "run", version])
+            self.assertEqual([call.args[1] for call in run.call_args_list], ["dev", "dev"])
+        with self.assertRaises(SystemExit):
+            main(["run", "one", "--profile", "dev", "--temporary-profile"])
+
+    def test_doctor_scans_requested_external_root(self):
+        external = Path(self.temporary.name) / "external"
+        profile = external / "check/profile"
+        profile.mkdir(parents=True)
+        (profile / "Preferences").write_text("fixture")
+        with patch("builtins.print") as output:
+            self.assertEqual(
+                main(
+                    [
+                        "--home",
+                        str(self.manager.home),
+                        "doctor",
+                        "--root",
+                        str(external),
+                        "--profiles",
+                    ]
+                ),
+                0,
+            )
+        self.assertIn(str(profile), output.call_args_list[0].args[0])
+        self.assertTrue(profile.exists())
+
+    def test_temporary_profile_cleanup_on_success_and_failure(self):
+        persistent = self.manager.profile("dev")
+        (persistent / "settings.json").write_text("keep")
+        for failure in (False, True):
+
+            def run(label, profile, watch, sync, args, *, failure=failure):
+                data = self.manager.profile(profile)
+                self.assertNotEqual(data, persistent)
+                self.assertEqual(list(data.iterdir()), [])
+                (data / "payload").write_text("disposable")
+                (self.manager.home / "locks" / (profile + ".profile")).touch()
+                if failure:
+                    raise ValueError("launch failed")
+                return 7
+
+            with patch.object(self.manager, "run", side_effect=run):
+                if failure:
+                    with self.assertRaisesRegex(ValueError, "launch failed"):
+                        self.manager.run_temporary("one", False, False, [])
+                else:
+                    self.assertEqual(self.manager.run_temporary("one", False, False, []), 7)
+            self.assertEqual(list((self.manager.home / "profiles").iterdir()), [persistent])
+            self.assertEqual(list((self.manager.home / "locks").iterdir()), [])
+        self.assertEqual((persistent / "settings.json").read_text(), "keep")
+
+    def test_storage_counts_hardlinks_once_and_finds_profiles_without_following_links(self):
+        root = Path(self.temporary.name)
+        profile = self.manager.profile("dev")
+        marker = profile / "Preferences"
+        marker.write_bytes(b"x" * 8192)
+        before = disk_bytes([self.manager.home])
+        os.link(marker, profile / "copy")
+        self.assertEqual(disk_bytes([self.manager.home]), before)
+        (root / "alias").symlink_to(profile, target_is_directory=True)
+        nested = profile / "payload"
+        nested.mkdir()
+        (nested / "Preferences").write_text("not another profile")
+        self.assertEqual(list(find_profiles(root)), [profile])
+
+    def test_link_command_pins_manager_version_and_profile(self):
+        command = self.manager.link_command("current", "testing")
+        self.assertEqual(
+            command[2:],
+            ["--home", str(self.manager.home), "open", "current", "--profile", "testing", "--"],
+        )
+
+    def test_cold_link_activation_uses_normal_manager(self):
+        with patch.object(self.manager, "run", return_value=0) as run:
+            self.assertEqual(
+                self.manager.open_links("current", "testing", ["discord://invite/a"]), 0
+            )
+        run.assert_called_once_with("current", "testing", False, False, ["discord://invite/a"])
+
+    def test_live_link_activation_joins_only_the_selected_version(self):
+        app = self.manager.path("versions", "current")
+        app.mkdir()
+        write_json(app / "dev-version.json", {})
+        profile_lock = self.manager.home / "locks/testing.profile"
+        with lock(profile_lock):
+            profile_lock.write_text("current")
+            with patch("dev.subprocess.call", return_value=0) as call:
+                self.assertEqual(
+                    self.manager.open_links("current", "testing", ["discord://invite/a"]), 0
+                )
+            self.assertEqual(call.call_args.args[0], [str(app / "launch.sh"), "discord://invite/a"])
+            environment = call.call_args.kwargs["env"]
+            self.assertEqual(environment["DPE_PROFILE_DIR"], str(self.manager.profile("testing")))
+            self.assertEqual(
+                json.loads(environment["DPE_LINK_COMMAND"]),
+                self.manager.link_command("current", "testing"),
+            )
+            profile_lock.write_text("other")
+            with self.assertRaisesRegex(ValueError, "different development version"):
+                self.manager.open_links("current", "testing", ["discord://invite/a"])
+
+    def test_link_activation_rejects_flags_and_other_schemes(self):
+        for args in ([], ["--flag"], ["https://discord.com"], ["discord://invite/a", "--flag"]):
+            with self.subTest(args=args), self.assertRaises(ValueError):
+                self.manager.open_links("current", "testing", args)
 
     def test_names_cannot_escape_managed_home(self):
         for value in ("../profile", "/tmp/profile", ".", "a/b", "", "a b"):

@@ -1040,7 +1040,8 @@ test("occupied and unavailable vkcapture sources are hidden, with transition-onl
   }
 });
 
-test("persistent previews reuse source sessions, progress concurrently and stop on picker close", async () => {
+test("persistent previews reuse source sessions, progress concurrently and stop on picker close", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: 1000 });
   const jobs = [],
     signals = [];
   const r = rig({
@@ -1072,7 +1073,7 @@ test("persistent previews reuse source sessions, progress concurrently and stop 
     assert.ok((await second).url, "second source does not wait for first");
     jobs[0].resolve({});
     await first;
-    await new Promise((resolve) => setTimeout(resolve, 35));
+    t.mock.timers.tick(35);
     const next = request(0);
     await turn();
     assert.equal(signals[0], signals[2], "same AbortSignal retains the native session");

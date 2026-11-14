@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { Button, Switch, errorMessage } from "./primitives.jsx";
+import { Button, Select, Switch, SettingsDependents, errorMessage } from "./primitives.jsx";
 
 export function useDesktopPreferences() {
   const [state, setState] = useState();
@@ -214,11 +214,11 @@ export function NotificationPreferences({ model }) {
 
 export function PopoutPreferences({ model }) {
   const values = model.state?.values;
-  const canHide = values?.popoutFloating && values?.windowControls && !values?.nativeTitlebar;
+  const canHide = values?.popoutFloating;
   return (
     <section class="settings-group" aria-labelledby="desktop-popout-heading">
       <h3 class="section-label" id="desktop-popout-heading">
-        Video popouts
+        Picture-in-picture
       </h3>
       <DesktopSwitch
         model={model}
@@ -226,14 +226,46 @@ export function PopoutPreferences({ model }) {
         label="Float popouts by default"
         description="Ask tiling window managers to float new video and screenshare windows."
       />
+      <SettingsDependents>
+        <DesktopSwitch
+          model={model}
+          name="popoutAlwaysOnTop"
+          label="Keep PiP on top"
+          description="Keep floating PiP windows above other windows when supported by your window manager."
+          disabled={!canHide}
+          checked={Boolean(canHide && values?.popoutAlwaysOnTop)}
+        />
+        <DesktopSwitch
+          model={model}
+          name="popoutHideTitlebar"
+          label="Hide PiP titlebar"
+          description="Hide both native and Discord titlebars on floating PiP windows."
+          disabled={!canHide}
+          checked={Boolean(canHide && values?.popoutHideTitlebar)}
+        />
+      </SettingsDependents>
       <DesktopSwitch
         model={model}
-        name="popoutHideTitlebar"
-        label="Hide floating popout titlebar"
-        description="Discord window controls and Native titlebar take precedence."
-        disabled={!canHide}
-        checked={Boolean(canHide && values?.popoutHideTitlebar)}
+        name="popoutAutoPosition"
+        label="Automatically position PiP windows"
+        description="Place new video popouts in your selected corner. Turn off to let your window manager place them."
       />
+      <SettingsDependents>
+        <Select
+          id="desktop-popoutCorner"
+          label="PiP corner"
+          description="Choose where new PiP windows appear. An unchanged PiP moves when you change this."
+          value={values?.popoutCorner || "bottom-right"}
+          options={[
+            ["top-left", "Top left"],
+            ["top-right", "Top right"],
+            ["bottom-left", "Bottom left"],
+            ["bottom-right", "Bottom right"],
+          ]}
+          disabled={model.busy || !values || !values.popoutAutoPosition}
+          onChange={(popoutCorner) => model.save({ popoutCorner })}
+        />
+      </SettingsDependents>
       <DesktopSwitch
         model={model}
         name="popoutHideMembers"

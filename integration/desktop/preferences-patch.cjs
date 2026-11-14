@@ -13,6 +13,14 @@ function patch(source, adapter, replace) {
   const popoutSetup = matches[0] || popoutSignatures[0];
   const changes = [
     [
+      "let existingWindow=popoutWindows[key];",
+      `let existingWindow=popoutWindows[key];if(existingWindow&&!${load}.reusablePopout(existingWindow,key)){delete popoutWindows[key];existingWindow=undefined}`,
+    ],
+    [
+      "delete popoutWindows[popoutWindow.windowKey]",
+      "popoutWindows[popoutWindow.windowKey]===popoutWindow&&delete popoutWindows[popoutWindow.windowKey]",
+    ],
+    [
       "let{url,frameName,features}=details,frameViewResponse=",
       `${load}.tracePopoutRequest(details);let{url,frameName,features}=details,frameViewResponse=`,
     ],

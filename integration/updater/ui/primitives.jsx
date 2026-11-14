@@ -184,16 +184,30 @@ export function Select({
     control.current.sync();
   });
   return (
-    <div class="desktop-select-setting">
-      <label id={`${id}-label`} for={id}>
-        {label}
-      </label>
+    <SelectField id={id} label={label} description={description}>
       <div ref={host} />
-      {description && (
-        <p id={`${id}-help`} class="hint">
-          {description}
-        </p>
-      )}
+    </SelectField>
+  );
+}
+
+export function SettingsDependents({ children }) {
+  return <div class="dpe-dependent-settings">{children}</div>;
+}
+
+export function SelectField({ id, label, description, children }) {
+  return (
+    <div class={`flag-row dpe-select-field ${description ? "" : "dpe-select-field-compact"}`}>
+      <div>
+        <label id={`${id}-label`} for={id}>
+          {label}
+        </label>
+        {description && (
+          <p id={`${id}-help`} class="hint">
+            {description}
+          </p>
+        )}
+      </div>
+      {children}
     </div>
   );
 }

@@ -21,7 +21,7 @@ jobs:
       compiler: ${{ steps.scope.outputs.compiler }}
       camera: ${{ steps.scope.outputs.camera }}
       capture: ${{ steps.scope.outputs.capture }}
-      launcher: ${{ steps.scope.outputs.launcher }}
+      appimage: ${{ steps.scope.outputs.appimage }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -37,34 +37,17 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          python-version: "3.12"
-          activate-environment: true
-          enable-cache: true
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version-file: package.json
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'package.json') }}
-      - run: uv sync --locked
-      - run: bun install --frozen-lockfile --ignore-scripts
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv libclang-dev libpipewire-0.3-dev libgbm-dev libegl-dev libgles-dev libdrm-dev libva-dev nasm libcap-dev libwayland-dev libwayland-bin libvulkan-dev libgl-dev libx11-dev libxcb1-dev libxcb-xfixes0-dev cmake ninja-build
-      - run: rustup show
-      - run: bun run lint
+      - uses: ./.github/actions/setup-project
+      - if: needs.changes.outputs.unit == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv libclang-dev libpipewire-0.3-dev libgbm-dev libegl-dev libgles-dev libdrm-dev libva-dev nasm libcap-dev libwayland-dev libwayland-bin libvulkan-dev libgl-dev libx11-dev libxcb1-dev libxcb-xfixes0-dev cmake ninja-build
+      - run: bun run lint:source
+      - run: bun run lint:rust
+        if: needs.changes.outputs.unit == 'true'
       - run: bun run test
         if: needs.changes.outputs.unit == 'true'
       - name: Check real compiler cache hits and CPU/header invalidation
         if: needs.changes.outputs.compiler == 'true'
         run: python scripts/check_compiler_cache.py --compiler /usr/bin/clang
-      - name: Validate launcher syntax
-        if: needs.changes.outputs.launcher == 'true'
-        run: bash -n integration/launcher/discord-launcher.sh
       - name: Restore independent HEVC compiler objects
         if: needs.changes.outputs.camera == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -135,10 +118,32 @@ jobs:
       contents: read
       actions: read
     uses: ./.github/workflows/app-audio.yml
+  appimage:
+    needs: changes
+    if: needs.changes.outputs.appimage == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install checksum-pinned builder and runtime
+        run: python3 scripts/appimage.py --install out/appimage-tools --dependencies
+      - name: Build and launch an AppImage from this checkout without FUSE
+        run: python3 scripts/check_appimage.py --container
   complete:
     name: Checks complete
     if: always()
-    needs: [changes, tests, native-baselines, source-assembly, arch-packaging, application-audio]
+    needs:
+      [
+        changes,
+        tests,
+        native-baselines,
+        source-assembly,
+        arch-packaging,
+        application-audio,
+        appimage,
+      ]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every selected check to pass
@@ -155,6 +160,7 @@ jobs:
           for job, scope in {
               "native-baselines": "native", "source-assembly": "source",
               "arch-packaging": "packaging", "application-audio": "audio",
+              "appimage": "appimage",
           }.items():
               expected[job] = "success" if scopes.get(scope) == "true" else "skipped"
           failed = [job for job, result in expected.items() if jobs[job]["result"] != result]

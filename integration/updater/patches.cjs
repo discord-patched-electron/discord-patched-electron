@@ -62,6 +62,11 @@ function bootstrap(source, filename, desktopExec) {
 }
 
 function desktop(source, adapter) {
+  source = require("../desktop/external-links.cjs").patchDesktop(
+    source,
+    require("node:path").join(require("node:path").dirname(adapter), "external-links.cjs"),
+    replace,
+  );
   source = require("../desktop/preferences-patch.cjs").patch(
     source,
     require("node:path").join(require("node:path").dirname(adapter), "preferences.cjs"),

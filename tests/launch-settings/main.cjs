@@ -59,23 +59,29 @@ const openerDir = path.join(output, "desktop-opener");
 const protocolState = path.join(output, "discord-protocol.json");
 fs.writeFileSync(protocolState, JSON.stringify({ handler: "other-discord.desktop", fail: false }));
 const protocol = () => JSON.parse(fs.readFileSync(protocolState, "utf8"));
-app.isDefaultProtocolClient = () => protocol().handler === "discord-canary.desktop";
-app.setAsDefaultProtocolClient = () => {
-  const value = protocol();
-  if (value.fail) return false;
-  fs.writeFileSync(protocolState, JSON.stringify({ ...value, handler: "discord-canary.desktop" }));
-  return true;
-};
+// Exercise the real desktop entry verification in a private XDG data tree.
+process.env.XDG_DATA_HOME = path.join(output, "protocol-data");
+process.env.XDG_DATA_DIRS = path.join(output, "protocol-system");
+delete process.env.DPE_LINK_COMMAND;
+fs.writeFileSync(process.env.DPE_LAUNCHER, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
 const openerLog = path.join(output, "external-links.jsonl");
 fs.mkdirSync(openerDir);
 fs.writeFileSync(
   path.join(openerDir, "xdg-mime"),
-  `#!/usr/bin/node\nconst fs=require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync(${JSON.stringify(protocolState)},"utf8")).handler);\n`,
+  `#!/usr/bin/env node
+const fs=require("node:fs");
+const file=${JSON.stringify(protocolState)};
+const value=JSON.parse(fs.readFileSync(file,"utf8"));
+if(process.argv[2]==="default") {
+  if(value.fail) process.exit(1);
+  fs.writeFileSync(file,JSON.stringify({...value,handler:process.argv[3]}));
+} else process.stdout.write(value.handler);
+`,
   { mode: 0o755 },
 );
 fs.writeFileSync(
   path.join(openerDir, "xdg-open"),
-  `#!/usr/bin/node
+  `#!/usr/bin/env node
 const fs = require("node:fs");
 fs.appendFileSync(${JSON.stringify(openerLog)}, JSON.stringify({args: process.argv.slice(2), preload: process.env.LD_PRELOAD, libraries: process.env.LD_LIBRARY_PATH, node: process.env.ELECTRON_RUN_AS_NODE, options: process.env.NODE_OPTIONS}) + "\\n");
 process.exit(0);
@@ -205,6 +211,45 @@ function finish(error) {
 app
   .whenReady()
   .then(async () => {
+    if (process.env.DPE_SETTINGS_SCOPE === "external-links") {
+      await open();
+      await click("project-menu-trigger");
+      await evaluate('document.getElementById("config-github").focus()');
+      window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+      window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+      await until(() => externalURLs().length === 1);
+      assert.equal(
+        externalURLs()[0],
+        "https://github.com/discord-patched-electron/discord-patched-electron",
+      );
+      await assert.rejects(
+        () => evaluate('window.Native.openLink("https://example.com")'),
+        /Unknown project link/,
+      );
+      await click("config-github");
+      await until(() => externalURLs().length === 2);
+      assert.deepEqual(externalURLs(), [externalURLs()[0], externalURLs()[0]]);
+      assert.deepEqual(
+        externalCalls().map((call) => call.args.length),
+        [1, 1],
+      );
+      const events = fs
+        .readFileSync(path.join(profile, "logs/dpe/runtime.log"), "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line))
+        .filter((event) => event.event === "external-link");
+      assert.deepEqual(
+        events.map((event) => event.details.phase),
+        ["requested", "submitted", "requested", "submitted"],
+      );
+      assert.ok(!JSON.stringify(events).includes("github.com"));
+      checks.push(
+        "Keyboard and mouse project links reach the native opener exactly once; URL IPC is rejected; diagnostics omit URLs",
+      );
+      finish();
+      return;
+    }
     if (process.env.DPE_SETTINGS_SCOPE === "discord-links") {
       await open();
       await click("t_settings");
@@ -300,6 +345,7 @@ app
     if (process.env.DPE_SETTINGS_SCOPE === "popout") {
       await open();
       await require(path.join(root, "tests/launch-settings/popout.cjs"))({
+        capture,
         window,
         values,
         click,
@@ -315,6 +361,47 @@ app
       await require(path.join(root, "tests/discord-ui/popout-check.cjs"))(fixture);
       checks.push(
         "Legacy chrome preserves extra controls; metadata sizing selects the dominant video without capturing frames",
+      );
+      await fixture.loadURL(
+        "data:text/html,<style>html,body{margin:0;background:%231a1a1e;color:white;font:14px sans-serif}video{width:100vw;height:100vh}.pip-status-controls{position:absolute;right:12px;top:12px;transition:opacity 150ms ease-out,transform 150ms ease-out}</style><video></video><div class='pip-status-controls'><span class='streamStatus'>1080p 60 FPS</span></div>",
+      );
+      await fixture.webContents.insertCSS(
+        fs.readFileSync(path.join(root, "integration/discord-ui/components.css"), "utf8"),
+      );
+      await fixture.webContents.executeJavaScript(
+        `window.DPEPiP={state:async()=>({available:true,corner:"bottom-right",large:false}),choose:async(corner)=>({available:true,corner,large:false})};(${require(path.join(root, "integration/discord-ui/pip-corners.cjs")).toString()})();`,
+      );
+      await fixture.webContents.executeJavaScript(`new Promise(resolve=>setTimeout(resolve,60))`);
+      assert.equal(
+        await fixture.webContents.executeJavaScript(
+          'document.getElementById("dpe-pip-corners").dataset.nativeFade',
+        ),
+        "true",
+      );
+      const fade = await fixture.webContents.executeJavaScript(`(async()=>{
+        const parent=document.querySelector('.pip-status-controls'),picker=document.getElementById('dpe-pip-corners'),status=document.querySelector('.streamStatus');
+        const gap=()=>picker.getBoundingClientRect().top-status.getBoundingClientRect().bottom;
+        const initialGap=gap();parent.getBoundingClientRect();parent.style.opacity='0';parent.style.transform='translateY(-4px)';
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+        for(const animation of parent.getAnimations()) animation.updatePlaybackRate(0.1);
+        await new Promise(resolve=>setTimeout(resolve,80));
+        const result={opacity:Number(getComputedStyle(parent).opacity),pickerOpacity:getComputedStyle(picker).opacity,initialGap,gap:gap()};
+        parent.style.opacity='1';parent.style.transform='none';
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+        for(const animation of parent.getAnimations()) animation.finish();
+        return result;
+      })()`);
+      assert.ok(fade.opacity > 0 && fade.opacity < 1, JSON.stringify(fade));
+      assert.equal(fade.pickerOpacity, "1", "Only the Discord container fades");
+      assert.ok(
+        Math.abs(fade.initialGap - 8) < 1 && Math.abs(fade.gap - fade.initialGap) < 1,
+        JSON.stringify(fade),
+      );
+      fixture.webContents.sendInputEvent({ type: "mouseMove", x: 400, y: 200 });
+      await delay(150);
+      fs.writeFileSync(
+        path.join(output, "pip-hover-picker.png"),
+        (await fixture.webContents.capturePage()).toPNG(),
       );
       fixture.destroy();
       finish();

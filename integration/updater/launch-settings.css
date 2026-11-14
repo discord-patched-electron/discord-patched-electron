@@ -1503,3 +1503,11 @@ body[data-flags-changed="true"] #onboarding-close-note {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.dpe-select-field-compact {
+  align-items: center;
+}
+.dpe-dependent-settings {
+  padding-inline-start: var(--space-24, 24px);
+  margin-block-end: var(--space-24, 24px);
+}

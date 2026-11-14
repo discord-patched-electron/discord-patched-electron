@@ -17,12 +17,28 @@ SCOPES = (
     "compiler",
     "camera",
     "capture",
-    "launcher",
+    "appimage",
 )
 
 # First matching rule wins. Keep narrow exceptions above directory rules. Anything
 # unlisted (including new shared helpers) gets full coverage until explicitly scoped.
 RULES = (
+    (
+        (
+            "scripts/appimage.py",
+            "scripts/stage_appimage_dependencies.sh",
+            "ci/appimage/*",
+            "scripts/check_appimage.py",
+            "tests/fixtures/appimage-dependencies.py",
+            "tests/fixtures/appimage-SHA256SUMS*",
+            "config/appimage-tools.json",
+        ),
+        ("appimage",),
+    ),
+    (
+        ("scripts/package_release.py", "packaging/linux/appimage-apprun.sh"),
+        ("packaging", "appimage"),
+    ),
     (
         (
             "Cargo.toml",
@@ -198,7 +214,7 @@ RULES = (
         ),
         ("packaging", "camera"),
     ),
-    (("integration/launcher/*",), ("packaging", "launcher")),
+    (("integration/launcher/*",), ("packaging",)),
     (
         (
             "integration/bootstrap/*",
@@ -219,14 +235,6 @@ RULES = (
             "scripts/generate_package.py",
             "scripts/build_local_app.py",
             "scripts/package_release.py",
-            "scripts/appimage.py",
-            "scripts/stage_appimage_dependencies.sh",
-            "ci/appimage/*",
-            "scripts/check_appimage.py",
-            "tests/fixtures/appimage-dependencies.py",
-            "tests/fixtures/appimage-SHA256SUMS*",
-            "config/appimage-tools.json",
-            ".github/workflows/build-appimage.yml",
             "scripts/check_release_packages.py",
             "scripts/check_desktop_launch.py",
             "scripts/check_working_tree.py",

@@ -88,15 +88,16 @@ test("claiming requires an explicit action, verifies success and respects a late
   let current = false,
     claims = 0,
     succeed = true;
-  const app = {
-    isDefaultProtocolClient: () => current,
-    setAsDefaultProtocolClient: () => {
+  const linkRegistration = {
+    current: () => current,
+    claim: () => {
+      if (current) return;
       claims++;
       current = succeed;
-      return succeed;
+      if (!succeed) throw new Error("Could not make this app open Discord links.");
     },
   };
-  const controller = createController({ app }, () => ({}));
+  const controller = createController({}, () => ({}), { linkRegistration });
   assert.equal(claims, 0);
   controller.claimLinks();
   assert.equal(controller.linksDefault(), true);

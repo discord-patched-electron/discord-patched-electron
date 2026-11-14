@@ -15,6 +15,8 @@ makedepends=('asar')
 optdepends=('xdg-utils: open links and files'
             'polkit: authorize DPE direct screen capture from settings'
             'kdotool: KDE Plasma window labels in the audio picker'
+            'python-dbus: automatic PiP placement on KDE Wayland'
+            'python-gobject: automatic PiP placement on KDE Wayland'
             'wireplumber: audio routing when no PipeWire session manager is running'
             'xorg-xprop: selected-window identity for experimental application audio')
 source=(

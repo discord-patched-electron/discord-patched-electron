@@ -10,6 +10,20 @@ mod scene;
 pub mod server;
 #[cfg(test)]
 static FD_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+// Count aliases of the fixture's resource, not unrelated descriptors opened by
+// libtest while it starts parallel test threads (for example CPU topology files).
+#[cfg(test)]
+fn test_descriptor_count(target: &std::path::Path) -> usize {
+    std::fs::read_dir("/proc/self/fd")
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| match std::fs::read_link(path) {
+            Ok(link) => link == target,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+            Err(error) => panic!("Cannot inspect descriptor: {error}"),
+        })
+        .count()
+}
 #[cfg(test)]
 mod drm_fixture;
 mod startup;

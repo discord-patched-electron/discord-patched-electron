@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useLayoutEffect, useState } from "preact/hooks";
-import { Disclosure, RecoveryCommand } from "./primitives.jsx";
+import { Disclosure, RecoveryCommand, SelectField } from "./primitives.jsx";
 import { initializeFlags } from "../launch-settings.js";
 
 export function FlagsChangeNotice() {
@@ -57,17 +57,13 @@ export function FlagsView({ active }) {
         Loading…
       </p>
       <form id="settings" hidden>
-        <div class="flag-row">
-          <div>
-            <label for="display">Display</label>
-            <p class="hint">Choose Wayland or X11.</p>
-          </div>
+        <SelectField id="display" label="Display" description="Choose Wayland or X11.">
           <select id="display" name="display">
             <option value="auto">Automatic</option>
             <option value="wayland">Wayland</option>
             <option value="x11">X11</option>
           </select>
-        </div>
+        </SelectField>
         <section class="settings-group" aria-labelledby="input-options-heading">
           <h3 id="input-options-heading" class="section-label">
             Scrolling & mouse

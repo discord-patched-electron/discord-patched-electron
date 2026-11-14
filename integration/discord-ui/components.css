@@ -783,3 +783,112 @@
 .dpe-ui .dpe-setting-pending .dpe-switch:disabled + .dpe-switch-track {
   opacity: 1;
 }
+
+/* PiP controls share the stream status container's own fade/transform. */
+[data-dpe-pip-anchor] {
+  position: relative;
+}
+#dpe-pip-corners {
+  -webkit-app-region: no-drag;
+  position: fixed;
+  inset-inline-end: var(--space-12, 12px);
+  top: var(--dpe-pip-status-bottom, 48px);
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(2, 32px);
+  gap: 4px 10px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: var(--background-floating, var(--dpe-surface));
+  box-shadow: var(--elevation-medium, 0 2px 6px #0003);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+#dpe-pip-corners[data-anchored="true"] {
+  position: absolute;
+  inset-inline-end: 0;
+}
+#dpe-pip-corners:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+#dpe-pip-corners[hidden] {
+  display: none;
+}
+#dpe-pip-corners button {
+  display: block;
+  box-sizing: border-box;
+  width: 32px;
+  height: 24px;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#dpe-pip-corners button::after {
+  content: "";
+  display: block;
+  width: 32px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--control-secondary-background-default, rgb(151 151 159 / 0.12));
+}
+#dpe-pip-corners button[aria-pressed="true"]::after {
+  background: var(--dpe-brand);
+}
+#dpe-pip-corners button:focus-visible {
+  outline: 2px solid var(--dpe-focus);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  body:hover #dpe-pip-corners {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #dpe-pip-corners button:hover::after {
+    background: var(
+      --control-secondary-background-hover,
+      var(--button-secondary-background-hover, var(--background-modifier-hover, var(--dpe-hover)))
+    );
+  }
+  #dpe-pip-corners button[aria-pressed="true"]:hover::after {
+    background: var(--dpe-brand-hover);
+  }
+}
+@media (hover: none) {
+  #dpe-pip-corners {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  #dpe-pip-corners button {
+    transition: scale 150ms ease-out;
+  }
+  #dpe-pip-corners button:not(:disabled):active {
+    scale: 0.96;
+  }
+}
+
+/* When Discord already owns the fade, do not multiply it by another transition. */
+body #dpe-pip-corners[data-native-fade="true"] {
+  opacity: 1;
+  pointer-events: inherit;
+  transition: none;
+}
+
+@media (forced-colors: active) {
+  #dpe-pip-corners button::after {
+    forced-color-adjust: none;
+    background: ButtonFace;
+    border: 1px solid ButtonText;
+  }
+  #dpe-pip-corners button[aria-pressed="true"]::after {
+    background: Highlight;
+    border-color: Highlight;
+  }
+}

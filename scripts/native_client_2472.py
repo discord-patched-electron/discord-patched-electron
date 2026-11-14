@@ -1,4 +1,4 @@
-"""Reviewed Canary 1.0.2472 patch chain; see docs/agent/client-2472-compatibility.md."""
+"""Reviewed Canary 1.0.2472 patch chain; see docs/agent/upstream-update-review.md#reviewed-client-snapshots."""
 
 STAGES = {
     "hrd": (

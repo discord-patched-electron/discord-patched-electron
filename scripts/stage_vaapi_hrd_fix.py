@@ -4,7 +4,7 @@ The current native H.264 callers reverse EncMiscParameterHRD::new(fullness, size
 Correct HRD first, then preserve visible GPU capture dimensions. Validate both
 complete outputs before creating any candidate directory. Packaging uses these
 same corrections through patch_app_audio; this helper stages only a private copy.
-See docs/agent/screenshare-native-gpu-20261102.md for binary/source evidence.
+See docs/agent/native-media.md#native-patch-chain for binary/source evidence.
 """
 
 import argparse

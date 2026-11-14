@@ -2,7 +2,7 @@
 
 Patched functions have the same normalized bodies as pinned 1.0.2357;
 relative decoder operands were relocated against corresponding original targets.
-See docs/agent/client-2444-compatibility.md for review and runtime evidence.
+See docs/agent/upstream-update-review.md#reviewed-client-snapshots for review and runtime evidence.
 """
 
 STAGES = {

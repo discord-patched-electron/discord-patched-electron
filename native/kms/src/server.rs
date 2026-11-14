@@ -443,7 +443,9 @@ mod tests {
             bytes[4..8].copy_from_slice(&kind.to_ne_bytes());
             wire::send_raw(left.as_fd(), &bytes, descriptors).unwrap();
         };
-        let initial = std::fs::read_dir("/proc/self/fd").unwrap().count();
+        let transferred =
+            std::fs::read_link(format!("/proc/self/fd/{}", left.as_raw_fd())).unwrap();
+        let initial = crate::test_descriptor_count(&transferred);
         for (version, kind, descriptors) in [
             (5, 0, vec![left.as_fd()]),
             (6, 1, vec![left.as_fd()]),
@@ -452,7 +454,7 @@ mod tests {
         ] {
             send(version, kind, &descriptors);
             assert!(request(right.as_fd(), true, uid, pid).is_err());
-            assert_eq!(std::fs::read_dir("/proc/self/fd").unwrap().count(), initial);
+            assert_eq!(crate::test_descriptor_count(&transferred), initial);
         }
         send(6, 0, &[left.as_fd()]);
         assert!(request(right.as_fd(), true, uid, pid).is_err());

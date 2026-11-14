@@ -17,6 +17,9 @@ const tray =
 const spellcheck =
   "electron.session.defaultSession.setSpellCheckerLanguages([locale]);electron.session.defaultSession.setSpellCheckerLanguages([...languages])";
 const fixture = [
+  "electron_1.shell.openExternal(externalUrl)",
+  'mainWindow.webContents.on("will-navigate",(evt,url)=>{(0,securityUtils_1.checkUrlOriginMatches)(url,exports.WEBAPP_ENDPOINT)||evt.preventDefault()})',
+  'popoutWindow.webContents.on("will-navigate",(evt,url)=>{(0,securityUtils_1.checkUrlOriginMatches)(url,webappEndpoint)||evt.preventDefault()})',
   require("./desktop-preferences-fixture.cjs"),
   spellcheck,
   require("./spellcheck-menu-fixture.cjs"),
@@ -43,6 +46,7 @@ test("desktop transforms disable native migration, resolve modules and install s
 
 test("unknown or duplicated desktop patch sites fail before activation", () => {
   for (const site of [
+    "electron_1.shell.openExternal(externalUrl)",
     migration,
     modulePath,
     storage,

@@ -179,7 +179,9 @@ function open(tab = "settings", sourceContents, options = {}) {
         "https://github.com/discord-patched-electron/discord-patched-electron/blob/main/THIRD_PARTY.md",
     };
     if (!Object.hasOwn(links, name)) throw new Error("Unknown project link");
-    await shell.openExternal(links[name]);
+    await require("../desktop/external-links.cjs").openExternal(links[name], (url) =>
+      shell.openExternal(url),
+    );
   });
   handle("dpe-export-logs", () => require("./export-logs.cjs").exportLogs(window));
   handle("dpe-config-diagnostic", (name) => require("./diagnostics.cjs").open(name));
@@ -223,7 +225,10 @@ function open(tab = "settings", sourceContents, options = {}) {
       typeof patch !== "object" ||
       Array.isArray(patch) ||
       Object.entries(patch).some(
-        ([key, value]) => !Object.hasOwn(desktop.DEFAULTS, key) || typeof value !== "boolean",
+        ([key, value]) =>
+          !Object.hasOwn(desktop.DEFAULTS, key) ||
+          typeof value !== typeof desktop.DEFAULTS[key] ||
+          desktop.normalize({ [key]: value })[key] !== value,
       )
     )
       throw new Error("Choose supported desktop settings.");

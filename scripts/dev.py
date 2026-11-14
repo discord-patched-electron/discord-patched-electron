@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
+import json
 import os
 import re
 import shutil
@@ -60,9 +61,35 @@ def files(root: Path):
                 yield path
 
 
+def disk_bytes(roots) -> int:
+    seen = set()
+    total = 0
+    for root in roots:
+        for path in files(root):
+            stat = path.stat()
+            identity = (stat.st_dev, stat.st_ino)
+            if identity not in seen:
+                seen.add(identity)
+                total += stat.st_blocks * 512
+    return total
+
+
 def size(root: Path) -> str:
-    total = sum(p.stat().st_blocks * 512 for p in files(root))
-    return f"{total / 1024**3:.2f} GiB"
+    return f"{disk_bytes([root]) / 1024**3:.2f} GiB"
+
+
+def find_profiles(root: Path):
+    """Find Chromium/DPE profiles without descending into their payloads or links."""
+    for directory, dirs, names in os.walk(root, followlinks=False):
+        path = Path(directory)
+        dirs[:] = [d for d in dirs if not (path / d).is_symlink()]
+        if (
+            "Local State" in names
+            or "Preferences" in names
+            or ("dpe-updater" in dirs and (path / "dpe-updater/current.json").is_file())
+        ):
+            yield path
+            dirs.clear()
 
 
 def editable(path: Path) -> bool:
@@ -260,6 +287,60 @@ class Manager:
             if "__pycache__" not in p.parts and p.suffix != ".pyc"
         }
 
+    def link_command(self, label: str, profile: str):
+        return [
+            sys.executable,
+            str(ROOT / "scripts/dev.py"),
+            "--home",
+            str(self.home),
+            "open",
+            label,
+            "--profile",
+            profile,
+            "--",
+        ]
+
+    def open_links(self, label: str, profile: str, args: list[str]):
+        # A desktop activation joins the running profile without taking over its
+        # manager. Cold activation uses normal manager locking and cleanup.
+        if not args or any(not arg.lower().startswith("discord://") for arg in args):
+            raise ValueError("Desktop activation requires Discord links")
+        profile_lock = self.home / "locks" / (name(profile) + ".profile")
+        try:
+            with lock(profile_lock):
+                running = False
+        except ValueError:
+            running = True
+        if not running:
+            return self.run(label, profile, False, False, args)
+        if profile_lock.read_text() != label:
+            raise ValueError("This profile is running a different development version")
+        app = self.version(label)
+        with lock(self.home / "locks" / (label + ".version"), shared=True):
+            environment = dict(os.environ)
+            environment.update(
+                DPE_PROFILE_DIR=str(self.profile(profile)),
+                DPE_LAUNCHER=str(self.profile(profile) / "dev-relaunch.sh"),
+                DPE_LINK_COMMAND=json.dumps(self.link_command(label, profile)),
+                DPE_DEV_DOWNLOADS=str(self.home / "downloads"),
+                DPE_APPLICATION_UPDATES="0",
+                DPE_CLIENT_UPDATES="0",
+                DPE_RUNTIME_UPDATES="0",
+                DPE_RUNTIME_BUNDLED="1",
+                DPE_CLIENT_PINNED="1",
+            )
+            return subprocess.call([str(app / "launch.sh"), *args], env=environment)
+
+    def run_temporary(self, label: str, watch: bool, sync: bool, args: list[str]):
+        # Allocate inside the managed home so normal locking and shared caches apply.
+        # run() stops the entire process group before this context removes the data.
+        with tempfile.TemporaryDirectory(prefix="temporary-", dir=self.home / "profiles") as data:
+            profile = Path(data).name
+            try:
+                return self.run(label, profile, watch, sync, args)
+            finally:
+                (self.home / "locks" / (profile + ".profile")).unlink(missing_ok=True)
+
     def run(self, label: str, profile: str, watch: bool, sync: bool, args: list[str]):
         app = self.version(label)
         with (
@@ -268,6 +349,7 @@ class Manager:
         ):
             # Recheck after locking in case removal completed before lock acquisition.
             app = self.version(label)
+            (self.home / "locks" / (name(profile) + ".profile")).write_text(label)
             data = self.profile(profile)
             environment = dict(os.environ)
             environment.update(
@@ -292,6 +374,7 @@ class Manager:
             relaunch.write_text(f"#!/bin/sh\nkill -USR1 {os.getpid()}\n")
             relaunch.chmod(0o700)
             environment["DPE_LAUNCHER"] = str(relaunch)
+            environment["DPE_LINK_COMMAND"] = json.dumps(self.link_command(label, profile))
             previous = self.stamp()
             child = None
             interrupted = False
@@ -400,7 +483,8 @@ class Manager:
                 print("  None yet")
         print(f"\nDownloads: {size(self.home / 'downloads')}")
         print(f"Shared Electron objects: {size(self.home / 'objects')}")
-        print("Sizes include shared links; they must not be added together.")
+        print(f"Total allocated (shared inodes counted once): {size(self.home)}")
+        print("Category sizes share links; they must not be added together.")
         print("\nUse run VERSION --profile dev --watch, or --help for all commands.")
 
     def remove(self, kind: str, label: str):
@@ -438,9 +522,20 @@ def main(argv=None):
     adopt.add_argument("app", type=Path)
     run = commands.add_parser("run", help="Launch a version with an independent profile")
     run.add_argument("name")
-    run.add_argument("--profile", default="dev")
+    profiles = run.add_mutually_exclusive_group()
+    profiles.add_argument(
+        "--profile", default="dev", help="Reuse a persistent profile (default: dev)"
+    )
+    profiles.add_argument(
+        "--temporary-profile",
+        action="store_true",
+        help="Fresh test profile; delete on exit or failure",
+    )
     run.add_argument("--watch", action="store_true", help="Sync and restart when sources change")
     run.add_argument("--sync", action="store_true", help="Sync helper sources before launching")
+    activate = commands.add_parser("open", help="Open Discord links in a managed version/profile")
+    activate.add_argument("name")
+    activate.add_argument("--profile", default="dev")
     remove = commands.add_parser("remove", help="Delete one managed version or profile")
     remove.add_argument("kind", choices=("versions", "profiles"))
     remove.add_argument("name")
@@ -449,8 +544,12 @@ def main(argv=None):
     prune.add_argument(
         "--downloads", action="store_true", help="Also evict reusable download archives"
     )
-    commands.add_parser(
+    doctor = commands.add_parser(
         "doctor", help="Inventory historical out/ directories without deleting them"
+    )
+    doctor.add_argument("--root", type=Path, default=ROOT / "out", help="Output tree to inspect")
+    doctor.add_argument(
+        "--profiles", action="store_true", help="Find leftover test profiles in out/"
     )
     raw = list(argv) if argv is not None else sys.argv[1:]
     forwarded = []
@@ -459,8 +558,8 @@ def main(argv=None):
         forwarded, raw = raw[index + 1 :], raw[:index]
     args = parser.parse_args(raw)
     args.command = args.command or "list"
-    if forwarded and args.command != "run":
-        parser.error("Only run accepts Electron arguments after --")
+    if forwarded and args.command not in ("run", "open"):
+        parser.error("Only run and open accept arguments after --")
     try:
         manager = Manager(args.home)
         match args.command:
@@ -469,7 +568,11 @@ def main(argv=None):
             case "import":
                 manager.import_app(args.name, args.app)
             case "run":
+                if args.temporary_profile:
+                    return manager.run_temporary(args.name, args.watch, args.sync, forwarded)
                 return manager.run(args.name, args.profile, args.watch, args.sync, forwarded)
+            case "open":
+                return manager.open_links(args.name, args.profile, forwarded)
             case "list":
                 manager.inventory()
             case "remove":
@@ -477,7 +580,12 @@ def main(argv=None):
             case "prune":
                 manager.prune(args.apply, args.downloads)
             case "doctor":
-                for path in sorted((ROOT / "out").iterdir()):
+                if args.profiles:
+                    for path in find_profiles(args.root.resolve()):
+                        print(f"{size(path):>12}  {path}")
+                    print("Profiles may contain logins; inspect ownership before removing them.")
+                    return 0
+                for path in sorted(args.root.resolve().iterdir()):
                     if path.is_dir() and not path.is_symlink() and path.resolve() != manager.home:
                         print(f"{size(path):>12}  {path}")
                 print("Historical outputs are unmanaged; inspect them before manual removal.")

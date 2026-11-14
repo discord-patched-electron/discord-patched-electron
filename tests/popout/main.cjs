@@ -16,7 +16,7 @@ fs.mkdirSync(output, { recursive: true });
 app.setPath("userData", path.join(output, "profile"));
 process.env.DPE_PROFILE_DIR = path.join(output, "profile");
 app.on("window-all-closed", () => {});
-const timer = setTimeout(() => app.exit(1), 30000);
+const timer = setTimeout(() => app.exit(1), 55000);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const report = { passed: false, versions: process.versions, cases: [], realCallVerified: false };
 
@@ -112,10 +112,20 @@ app
     parent.webContents.on("did-create-window", (child, { options, frameName }) => {
       child.windowKey = frameName;
       popouts.setupPopout(child, frameName, options, url, parent.webContents);
+      // The production adapter is HTTPS-gated. This local HTTP fixture installs
+      // the same page-world lifecycle function explicitly on each new document.
+      child.webContents.on("dom-ready", () => {
+        void child.webContents.executeJavaScript(
+          `(${require("../../integration/discord-ui/popout-lifecycle.cjs").toString()})()`,
+        );
+      });
     });
     console.log("loading parent", url);
     await parent.loadURL(url);
     console.log("parent loaded");
+    await parent.webContents.executeJavaScript(
+      `(${require("../../integration/discord-ui/popout-lifecycle.cjs").toString()})()`,
+    );
     for (const key of [
       "DISCORD_CHANNEL_CALL_POPOUT",
       "DISCORD_CALL_TILE_POPOUT_123_stream:456",
@@ -176,6 +186,69 @@ app
       child.destroy();
       assert.equal(popouts.getWindow(key), undefined);
       await delay(250);
+    }
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const key =
+        attempt % 2 ? "DISCORD_CHANNEL_CALL_POPOUT" : "DISCORD_CALL_TILE_POPOUT_fixture-race";
+      const created = once(parent.webContents, "did-create-window");
+      await parent.webContents.executeJavaScript(
+        `window.race=window.open('/popout',${JSON.stringify(key)},'width=640,height=360');Boolean(race)`,
+      );
+      const [first] = await created;
+      await delay(150);
+      const result = await parent.webContents.executeJavaScript(
+        `race.close();window.reopened=window.open('/popout',${JSON.stringify(key)},'width=640,height=360');({returned:!!reopened,closed:reopened?.closed})`,
+      );
+      await delay(300);
+      const survivor = popouts.getWindow(key);
+      assert.ok(result.returned && !result.closed, "A fresh WindowProxy is returned synchronously");
+      assert.ok(first.isDestroyed(), "The old window completed closing");
+      assert.ok(
+        survivor && survivor !== first && !survivor.isDestroyed(),
+        "The replacement remains registered after the old close event",
+      );
+      const media = await survivor.webContents.executeJavaScript(
+        "({opener:!!opener,frames:receivedFrames||0,node:typeof process})",
+      );
+      assert.ok(media.opener && media.frames > 2, JSON.stringify(media));
+      assert.equal(media.node, "undefined");
+      report.cases.push({
+        scenario: "immediate-close-reopen",
+        attempt,
+        returned: result.returned,
+        survived: true,
+        ...media,
+      });
+      survivor.destroy();
+      await delay(50);
+    }
+    {
+      const key = "DISCORD_CALL_TILE_POPOUT_fixture-cancel";
+      const created = once(parent.webContents, "did-create-window");
+      await parent.webContents.executeJavaScript(
+        `window.cancelled=window.open('/popout',${JSON.stringify(key)},'width=640,height=360');Boolean(cancelled)`,
+      );
+      const [child] = await created;
+      await delay(150);
+      const prevent = (event) => event.preventDefault();
+      child.on("close", prevent);
+      await parent.webContents.executeJavaScript(
+        `cancelled.close();window.open('/popout',${JSON.stringify(key)},'width=640,height=360');true`,
+      );
+      await delay(200);
+      assert.equal(child.isDestroyed(), false);
+      assert.equal(popouts.getWindow(key), child, "A cancelled close retains the original window");
+      assert.equal(await child.webContents.executeJavaScript("window.name"), key);
+      assert.equal(
+        await parent.webContents.executeJavaScript(
+          `Boolean(window.open('/popout',${JSON.stringify(key)},'width=640,height=360'))`,
+        ),
+        true,
+      );
+      assert.equal(popouts.getWindow(key), child);
+      report.cases.push({ scenario: "cancelled-close", preserved: true });
+      child.removeListener("close", prevent);
+      child.destroy();
     }
     parent.destroy();
     server.close();

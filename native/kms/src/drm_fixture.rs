@@ -191,7 +191,7 @@ unsafe extern "C" fn export(_: i32, _: u32, flags: u32, output: *mut i32) -> i32
     // SAFETY: fake export creates a unique harmless fd and initializes exactly
     // the one declared output, matching PRIME's ownership contract.
     unsafe {
-        let raw = libc::open(c"/dev/null".as_ptr(), libc::O_RDONLY | libc::O_CLOEXEC);
+        let raw = libc::memfd_create(c"dpe-kms-export-fixture".as_ptr(), libc::MFD_CLOEXEC);
         assert!(raw >= 0);
         output.write(raw);
     }
@@ -204,7 +204,9 @@ fn exporter_caches_descriptions_but_refreshes_handles_and_releases_partial_expor
     let (left, right) = UnixDatagram::pair().unwrap();
     let node = drm::Node::new(left.as_fd().try_clone_to_owned().unwrap()).unwrap();
     let mut exporter = Exporter::new(node);
-    let initial = std::fs::read_dir("/proc/self/fd").unwrap().count();
+    let exported = std::path::Path::new("/memfd:dpe-kms-export-fixture (deleted)");
+    let initial = crate::test_descriptor_count(exported);
+    assert_eq!(initial, 0);
     let receive = |expected| {
         let mut response = ffi::gsr_kms_response::default();
         // SAFETY: retained socket and exclusive initialized output record.
@@ -225,10 +227,11 @@ fn exporter_caches_descriptions_but_refreshes_handles_and_releases_partial_expor
     };
     for _ in 0..3 {
         let packet = exporter.snapshot(None);
+        assert_eq!(crate::test_descriptor_count(exported), initial + 2);
         assert!(packet.send(left.as_fd()));
         drop(packet);
         receive(1);
-        assert_eq!(std::fs::read_dir("/proc/self/fd").unwrap().count(), initial);
+        assert_eq!(crate::test_descriptor_count(exported), initial);
     }
     assert_eq!(DESCRIPTIONS.load(Ordering::Relaxed), 15);
     assert_eq!(FRAMEBUFFERS.load(Ordering::Relaxed), 3);
@@ -238,7 +241,7 @@ fn exporter_caches_descriptions_but_refreshes_handles_and_releases_partial_expor
     assert!(packet.send(left.as_fd()));
     drop(packet);
     receive(-1);
-    assert_eq!(std::fs::read_dir("/proc/self/fd").unwrap().count(), initial);
+    assert_eq!(crate::test_descriptor_count(exported), initial);
     assert_eq!(HANDLES_CLOSED.load(Ordering::Relaxed), 4);
     FAIL_SECOND_EXPORT.store(false, Ordering::Relaxed);
     REMOVE_PROPERTY.store(true, Ordering::Relaxed);
@@ -255,7 +258,7 @@ fn exporter_caches_descriptions_but_refreshes_handles_and_releases_partial_expor
     assert!(DESCRIPTIONS.load(Ordering::Relaxed) > 15);
     assert_eq!(FRAMEBUFFERS.load(Ordering::Relaxed), 5);
     assert_eq!(HANDLES_CLOSED.load(Ordering::Relaxed), 5);
-    assert_eq!(std::fs::read_dir("/proc/self/fd").unwrap().count(), initial);
+    assert_eq!(crate::test_descriptor_count(exported), initial);
     SECOND_CONNECTOR.store(true, Ordering::Relaxed);
     let packet = exporter.snapshot(Some(33));
     assert!(packet.send(left.as_fd()));
@@ -282,5 +285,5 @@ fn exporter_caches_descriptions_but_refreshes_handles_and_releases_partial_expor
     receive(1);
     assert_eq!(FRAMEBUFFERS.load(Ordering::Relaxed), 6);
     assert_eq!(HANDLES_CLOSED.load(Ordering::Relaxed), 6);
-    assert_eq!(std::fs::read_dir("/proc/self/fd").unwrap().count(), initial);
+    assert_eq!(crate::test_descriptor_count(exported), initial);
 }

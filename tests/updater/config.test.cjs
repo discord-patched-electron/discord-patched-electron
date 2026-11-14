@@ -101,6 +101,8 @@ function fixture({ wayland = false, ozonePlatform = "", platform = "linux" } = {
         };
       if (name === "node:fs") return {};
       if (name === "node:path") return path;
+      if (name === "../desktop/external-links.cjs")
+        return require("../../integration/desktop/external-links.cjs");
       if (name === "../desktop/spellcheck.cjs") return spelling;
       if (name === "../desktop/preferences.cjs") {
         const desktop = require("../../integration/desktop/preferences.cjs");

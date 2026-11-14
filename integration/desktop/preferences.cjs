@@ -1,6 +1,6 @@
 // Native desktop behavior. The paired source transform calls these helpers at
 // Discord's existing integration points; no Electron prototypes are replaced.
-const { execFile } = require("node:child_process");
+const { createRegistration } = require("./link-registration.cjs");
 const DEFAULTS = Object.freeze({
   nativeTitlebar: false,
   windowControls: true,
@@ -9,6 +9,9 @@ const DEFAULTS = Object.freeze({
   closeButton: true,
   minimumWindowSize: true,
   popoutFloating: true,
+  popoutAutoPosition: true,
+  popoutAlwaysOnTop: true,
+  popoutCorner: "bottom-right",
   popoutHideTitlebar: true,
   popoutHideMembers: true,
   tray: true,
@@ -27,6 +30,8 @@ function normalize(value = {}) {
     if (!Object.hasOwn(value, key)) continue;
     if (typeof fallback === "boolean" && typeof value[key] === "boolean") result[key] = value[key];
   }
+  if (["top-left", "top-right", "bottom-left", "bottom-right"].includes(value.popoutCorner))
+    result.popoutCorner = value.popoutCorner;
   return result;
 }
 
@@ -101,7 +106,11 @@ function configureMediaControls(commandLine, config) {
   commandLine.appendSwitch("disable-features", disabled.join(","));
 }
 
-function createController(electron, getConfig, { argv = process.argv } = {}) {
+function createController(
+  electron,
+  getConfig,
+  { argv = process.argv, linkRegistration = createRegistration() } = {},
+) {
   let values = normalize(getConfig());
   const startupMediaControls = values.mediaControls;
   const windows = new Map();
@@ -122,7 +131,11 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
       restartRequired:
         startupMediaControls !== values.mediaControls ||
         [...windows.values()].some(
-          (state) => state.managed && state.nativeTitlebar !== values.nativeTitlebar,
+          (state) =>
+            state.managed &&
+            state.nativeTitlebar !==
+              (values.nativeTitlebar &&
+                !(state.video && state.floating && values.popoutHideTitlebar)),
         ),
     };
   }
@@ -150,9 +163,9 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
   }
 
   function effectiveControls(window) {
-    const nativeTitlebar = values.nativeTitlebar || windows.get(window)?.nativeTitlebar === true;
     const state = windows.get(window);
     const hidePopout = state?.video && state.floating && values.popoutHideTitlebar;
+    const nativeTitlebar = !hidePopout && (values.nativeTitlebar || state?.nativeTitlebar === true);
     const windowControls = !nativeTitlebar && values.windowControls && !hidePopout;
     return {
       nativeTitlebar,
@@ -189,11 +202,14 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
     // Native titlebars replace custom chrome and retain their own original
     // buttons. Other native-framed windows follow the same individual toggles.
     const original = state.nativeControls;
-    const enabled = values.nativeTitlebar || values.windowControls;
+    const hidePopout = state.video && state.floating && values.popoutHideTitlebar;
+    const enabled = !hidePopout && (values.nativeTitlebar || values.windowControls);
     const next = Object.fromEntries(
       ["minimize", "maximize", "close"].map((action) => [
         action,
-        original[action] && (values.nativeTitlebar || (enabled && values[action + "Button"])),
+        original[action] &&
+          !hidePopout &&
+          (values.nativeTitlebar || (enabled && values[action + "Button"])),
       ]),
     );
     const identity = JSON.stringify(next);
@@ -210,10 +226,19 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
       .then(async () => {
         const web = window.webContents;
         if (window.isDestroyed() || web.isDestroyed()) return;
-        const css =
+        let css =
           !state.excluded && web.getURL()
-            ? titlebarCSS({ ...values, ...effectiveControls(window) }, state.popout) + webcamCSS()
+            ? titlebarCSS({ ...values, ...effectiveControls(window) }, state.popout) +
+              webcamCSS() +
+              (state.video
+                ? require("node:fs").readFileSync(
+                    require("node:path").join(__dirname, "../discord-ui/components.css"),
+                    "utf8",
+                  )
+                : "")
             : "";
+        if (state.video && state.floating && values.popoutHideTitlebar)
+          css += `${token("titleBar")}{display:none!important}`;
         if (css === state.css) return;
         const previous = state.cssKey;
         const next = css ? await web.insertCSS(css) : undefined;
@@ -228,7 +253,16 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
     return state.cssTask;
   }
 
+  const preloadSessions = new WeakSet();
   function observeWindow(window) {
+    const session = window.webContents.session;
+    if (session?.registerPreloadScript && !preloadSessions.has(session)) {
+      session.registerPreloadScript({
+        type: "frame",
+        filePath: require("node:path").join(__dirname, "popout-preload.cjs"),
+      });
+      preloadSessions.add(session);
+    }
     if (windows.has(window)) return window;
     const state = {
       nativeTitlebar: false,
@@ -269,9 +303,12 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
       return;
     try {
       await web.executeJavaScript(
-        require("../discord-ui/source.cjs").call(require("../discord-ui/popout.cjs"), {
-          hideMembers: values.popoutHideMembers,
-        }) + ";void 0;",
+        `(${require("../discord-ui/popout-lifecycle.cjs").toString()})();` +
+          require("../discord-ui/source.cjs").call(require("../discord-ui/popout.cjs"), {
+            hideMembers: values.popoutHideMembers,
+          }) +
+          (state.video ? `;(${require("../discord-ui/pip-corners.cjs").toString()})();` : "") +
+          ";void 0;",
       );
     } catch {
       // Closing/navigating a window must not interfere with a settings save.
@@ -288,7 +325,7 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
       return window;
     }
     Object.assign(windows.get(window), {
-      nativeTitlebar: values.nativeTitlebar,
+      nativeTitlebar: windows.get(window)?.video ? options.frame === true : values.nativeTitlebar,
       managed: true,
       minimum: [options.minWidth || (main ? 940 : 1), options.minHeight || (main ? 500 : 1)],
       main,
@@ -323,35 +360,17 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
 
   function setMinimumSize(window, width, height) {
     const state = windows.get(window);
+    const pip = require("./popout.cjs").session(window);
+    if (state?.floating && pip?.setMinimum) {
+      pip.setMinimum(width, height);
+      return;
+    }
     if (state) state.minimum = [width, height];
     window.setMinimumSize(minimum(width), minimum(height));
   }
 
-  function claimLinks() {
-    if (
-      !electron.app.isDefaultProtocolClient("discord") &&
-      !electron.app.setAsDefaultProtocolClient("discord")
-    )
-      throw new Error("Could not make this app open Discord links.");
-    if (!electron.app.isDefaultProtocolClient("discord"))
-      throw new Error(
-        "Discord link registration did not take effect. Check your default applications.",
-      );
-  }
-
-  function linksElsewhere() {
-    if (electron.app.isDefaultProtocolClient("discord")) return Promise.resolve(false);
-    return new Promise((resolve) =>
-      execFile(
-        "xdg-mime",
-        ["query", "default", "x-scheme-handler/discord"],
-        { timeout: 5000 },
-        (error, stdout) => resolve(Boolean(error) || stdout.trim() !== ""),
-      ),
-    );
-  }
-
   async function apply(next) {
+    const previous = values;
     values = normalize(next);
     const updates = [];
     for (const [window, state] of windows) {
@@ -365,6 +384,7 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
       }
       if (!values.notificationFlash) window.flashFrame(false);
       if (!values.tray && state.main && !window.isVisible()) minimizeWithoutTray(window);
+      updates.push(require("./popout.cjs").session(window)?.apply(values, previous));
       updates.push(updateCSS(window, state));
       updates.push(updatePopoutRenderer(window, state));
       window.webContents.send?.("dpe-camera-flip", values.webcamFlip);
@@ -386,13 +406,38 @@ function createController(electron, getConfig, { argv = process.argv } = {}) {
   return {
     status,
     apply,
-    claimLinks,
-    linksDefault: () => electron.app.isDefaultProtocolClient("discord"),
-    linksElsewhere,
+    claimLinks: () => linkRegistration.claim(),
+    linksDefault: () => linkRegistration.current(),
+    linksElsewhere: () => Promise.resolve(linkRegistration.elsewhere()),
     cameraStatus: async (web, value) => {
       if (![...windows.keys()].some((window) => window.webContents === web)) return;
       if (typeof value?.supported !== "boolean" || typeof value?.active !== "boolean") return;
       cameraSupported = value.supported;
+    },
+    async pip(web, corner) {
+      const entry = [...windows].find(
+        ([window, state]) =>
+          window.webContents === web &&
+          state.video &&
+          state.floating &&
+          !state.excluded &&
+          !window.isDestroyed(),
+      );
+      if (!entry) return { available: false };
+      const url = new URL(web.getURL());
+      if (
+        url.protocol !== "https:" ||
+        !["discord.com", "canary.discord.com", "ptb.discord.com"].includes(url.hostname) ||
+        url.pathname !== "/popout"
+      )
+        return { available: false };
+      const session = require("./popout.cjs").session(entry[0]);
+      if (corner !== undefined) {
+        if (!["top-left", "top-right", "bottom-left", "bottom-right"].includes(corner))
+          return { available: false };
+        return session?.choose(corner);
+      }
+      return session?.state();
     },
     effectiveControls,
     subscribeControls,
@@ -479,6 +524,10 @@ function install(electron, { getConfig = storedConfig } = {}) {
   if (!installed) {
     installed = true;
     electron.app.on("browser-window-created", (_event, window) => controller.observeWindow(window));
+    electron.ipcMain?.handle("dpe-pip-corner", (event, corner) => {
+      if (event.senderFrame !== event.sender.mainFrame) return { available: false };
+      return controller.pip(event.sender, corner);
+    });
     electron.ipcMain?.handle("dpe-camera-flip-load", () => controller.status().values.webcamFlip);
     electron.ipcMain?.on("dpe-camera-flip-status", (event, value) => {
       if (event.senderFrame !== event.sender.mainFrame) return;
@@ -497,6 +546,7 @@ module.exports = {
   createController,
   install,
 };
+module.exports.reusablePopout = (window, key) => require("./popout.cjs").reusable(window, key);
 module.exports.focusPopout = (window, key) => require("./popout.cjs").focusExisting(window, key);
 module.exports.tracePopoutRequest = (details) => require("./popout.cjs").traceRequest(details);
 for (const name of [

@@ -33,7 +33,7 @@ module.exports = async function ({
       '$("desktop-discord-links").disabled && $("desktop-discord-links").textContent.trim() === "In use"',
     ),
   );
-  assert.equal(protocol().handler, "discord-canary.desktop");
+  assert.match(protocol().handler, /^dpe-links-[a-f0-9]+\.desktop$/);
   await until(() => evaluate('document.activeElement.id === "desktop-discord-links-help"'));
   assert.equal(values.openasar.desktop?.discordLinks, undefined);
   await capture("discord-links-selected");

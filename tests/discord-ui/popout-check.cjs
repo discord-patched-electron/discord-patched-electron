@@ -34,4 +34,16 @@ module.exports = async function check(window) {
   assert.equal(dimensions.height, 1920);
   assert.equal(dimensions.chromeWidth, await run("Math.max(0, innerWidth - 600)"));
   assert.equal(dimensions.chromeHeight, await run("Math.max(0, innerHeight - 400)"));
+  await window.loadURL(
+    "data:text/html," +
+      encodeURIComponent(`<!doctype html><style>
+    html,body{margin:0;height:100%}main{height:calc(100% - 28px);display:flex;align-items:center;justify-content:center}
+    video{width:100%;height:auto;aspect-ratio:16/9}
+    </style><header style="height:28px"></header><main><video></video></main>`),
+  );
+  const fitted = await run(
+    `Object.defineProperties(document.querySelector('video'),{videoWidth:{value:1920},videoHeight:{value:1080}});(${media.toString()})()`,
+  );
+  assert.equal(fitted.chromeWidth, 0, "Horizontal letterboxing is not chrome");
+  assert.equal(fitted.chromeHeight, 28, "Only the real titlebar is chrome");
 };

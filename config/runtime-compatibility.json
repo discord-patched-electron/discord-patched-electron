@@ -4,7 +4,7 @@
       "capacity_sha256": "37defb70f12c23fae2a25e635aab671bd87f8bbeb0ff78159f5b8d2fdcee6b72",
       "compiler_commit": "4c8eb42c0ce0ddd38b52752572043413938b17d9",
       "expected_runtime_key": "7bfce53f1da11bbba3dd12eaa8e8e689e03b57bfa692a305e458c76556824883",
-      "reason": "589bf9f changes scheduling, source preparation and incremental storage; native sources, patches, GN arguments and toolchain-generation functions are unchanged. See docs/agent/runtime-qualification-recovery-20261101.md.",
+      "reason": "589bf9f changes scheduling, source preparation and incremental storage; native sources, patches, GN arguments and toolchain-generation functions are unchanged. See docs/agent/releases.md#runtime-reuse.",
       "run": "41282631878",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde"
     }

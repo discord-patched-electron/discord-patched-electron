@@ -46,6 +46,9 @@ class Window extends EventEmitter {
   isDestroyed() {
     return false;
   }
+  isFullScreen() {
+    return false;
+  }
   isVisible() {
     return this.visible;
   }
@@ -70,6 +73,9 @@ class Window extends EventEmitter {
   setSkipTaskbar(value) {
     this.skipTaskbar = value;
   }
+  getBounds() {
+    return { x: 0, y: 0, width: this.size[0], height: this.size[1] };
+  }
   getWindowControls() {
     return { ...this.nativeControls };
   }
@@ -84,7 +90,22 @@ function fixture(value = {}, options) {
       app.badge = value;
     },
   });
-  const controller = createController({ app }, () => value, options);
+  const controller = createController(
+    {
+      app,
+      screen: {
+        getAllDisplays: () => [
+          { workArea: { x: 0, y: 0, width: 1280, height: 720 }, scaleFactor: 1 },
+        ],
+        getDisplayMatching: () => ({
+          workArea: { x: 0, y: 0, width: 1280, height: 720 },
+          scaleFactor: 1,
+        }),
+      },
+    },
+    () => value,
+    options,
+  );
   const create = () =>
     controller.createMainWindow(Window, {
       minWidth: 940,
@@ -464,4 +485,38 @@ test("desktop media controls default off, preserve flags and allow opting in", a
   const enabled = fixture({ mediaControls: true }).controller;
   await enabled.apply({ mediaControls: false });
   assert.equal(enabled.status().restartRequired, true);
+});
+
+test("PiP hides native frames independently and exposes only owned trusted corner actions", async (t) => {
+  const { controller } = fixture();
+  await controller.apply({ nativeTitlebar: true, popoutHideTitlebar: true });
+  const options = controller.popoutOptions(
+    { frame: false, width: 640, height: 360, minWidth: 320, minHeight: 180 },
+    "DISCORD_CHANNEL_CALL_POPOUT",
+    { isDestroyed: () => false, getBounds: () => ({ x: 0, y: 0, width: 900, height: 600 }) },
+  );
+  assert.equal(options.frame, false);
+  assert.equal(options.alwaysOnTop, true);
+  const window = new Window({ width: 512, height: 288 });
+  window.windowKey = "DISCORD_CHANNEL_CALL_POPOUT";
+  controller.attachPopout(window, { ...options, dpeVideo: false });
+  assert.equal(controller.effectiveControls(window).nativeTitlebar, false);
+  assert.equal(controller.status().restartRequired, false);
+  const calls = [];
+  t.mock.method(require("../../integration/desktop/popout.cjs"), "session", () => ({
+    state: async () => ({ available: true }),
+    choose: async (corner) => {
+      calls.push(corner);
+      return { corner };
+    },
+  }));
+  assert.deepEqual(await controller.pip({ getURL: () => "https://canary.discord.com/popout" }), {
+    available: false,
+  });
+  window.webContents.url = "https://example.com/popout";
+  assert.deepEqual(await controller.pip(window.webContents, "top-left"), { available: false });
+  window.webContents.url = "https://canary.discord.com/popout";
+  assert.deepEqual(await controller.pip(window.webContents, "center"), { available: false });
+  assert.deepEqual(await controller.pip(window.webContents, "top-left"), { corner: "top-left" });
+  assert.deepEqual(calls, ["top-left"]);
 });

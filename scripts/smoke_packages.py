@@ -31,7 +31,7 @@ def missing_libraries(relative: str, checksum: str, listing: str) -> list[str]:
     missing = sorted(set(re.findall(r"^\s*(\S+)\s+=> not found\s*$", listing, re.MULTILINE)))
     # Nixpkgs #517309 documents the shipped, effectively unused dispatch module.
     # Each exact reviewed revision retains the same optional OpenSSL dependency.
-    # See docs/agent/client-2472-compatibility.md for the latest module review.
+    # See docs/agent/upstream-update-review.md#reviewed-client-snapshots for the latest module review.
     exception = (
         relative == "discord_dispatch/discord_dispatch.node"
         and checksum

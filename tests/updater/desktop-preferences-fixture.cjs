@@ -1,6 +1,8 @@
 // The native integration sites retained from the pinned desktop-core bundle.
 // Other transform tests compose this with their own independent fixture sites.
 module.exports = [
+  "let existingWindow=popoutWindows[key];",
+  "delete popoutWindows[popoutWindow.windowKey]",
   "let{url,frameName,features}=details,frameViewResponse=",
   "existingWindow.setAlwaysOnTop(!0),existingWindow.focus(),existingWindow.setAlwaysOnTop(!1)",
   "new electron_1.BrowserWindow(mainWindowOptions)",

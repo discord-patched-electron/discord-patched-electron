@@ -1,5 +1,6 @@
 """Verify hook recovery cannot reset a repository outside the build workspace."""
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -70,6 +71,40 @@ class HookRecovery(unittest.TestCase):
             reset_patch_repositories(root, {"dependency": base})
             self.assertEqual((repo / "fixture").read_text(), "base\n")
             self.assertEqual(self.git(repo, "rev-parse", "HEAD"), base)
+
+    def test_interrupted_am_recovers_without_a_machine_git_identity(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            repo = root / "dependency"
+            base = self.repo(repo)
+            (repo / "fixture").write_text("patched\n")
+            self.git(repo, "commit", "-am", "patch")
+            mail = self.git(repo, "format-patch", "-1", "--stdout")
+            self.git(repo, "reset", "--hard", base)
+            (repo / "fixture").write_text("conflicting\n")
+            self.git(repo, "commit", "-am", "conflict")
+            patch_file = root / "change.patch"
+            patch_file.write_text(mail + "\n")
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.git(repo, "am", str(patch_file))
+            state = repo / ".git/rebase-apply"
+            self.assertTrue(state.is_dir())
+            retained = repo / "retained.o"
+            retained.write_bytes(b"compiled object")
+            # Hosted runners have no committer identity. Git requires one even
+            # to abort; never let the developer's global config hide that case.
+            environment = {
+                key: value
+                for key, value in os.environ.items()
+                if not key.startswith(("GIT_AUTHOR_", "GIT_COMMITTER_"))
+            }
+            environment.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+            with patch.dict(os.environ, environment, clear=True):
+                reset_patch_repositories(root, {"dependency": base})
+            self.assertFalse(state.exists())
+            self.assertEqual(self.git(repo, "rev-parse", "HEAD"), base)
+            self.assertEqual((repo / "fixture").read_text(), "base\n")
+            self.assertEqual(retained.read_bytes(), b"compiled object")
 
     def test_recovery_refuses_symlink_outside_workspace(self):
         with tempfile.TemporaryDirectory() as temp:

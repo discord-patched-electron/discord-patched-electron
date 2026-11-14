@@ -222,7 +222,19 @@ def reset_patch_repositories(source: Path, bases: dict):
             text=True,
         ).strip()
         if Path(am_state).exists():
-            run("git", "-C", repo, "am", "--abort")
+            # git am checks the committer identity even when aborting. Hosted
+            # runners need a command-scoped identity; do not mutate global config.
+            run(
+                "git",
+                "-C",
+                repo,
+                "-c",
+                "user.name=DPE build",
+                "-c",
+                "user.email=build@discord-patched-electron.invalid",
+                "am",
+                "--abort",
+            )
         run("git", "-C", repo, "reset", "--hard", commit)
 
 

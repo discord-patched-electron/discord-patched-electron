@@ -2,7 +2,7 @@
 
 Only the reviewed x86_64 controller layout is supported. Relocated addresses may
 change, but its instructions, buffer layout and lock/unlock targets must match.
-See docs/agent/audio-investigation.md for the reproduction and patch rationale.
+See docs/agent/audio.md#routing-and-teardown for the reproduction and patch rationale.
 """
 
 import hashlib

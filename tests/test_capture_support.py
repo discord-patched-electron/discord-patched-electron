@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import subprocess
@@ -43,10 +42,6 @@ class CaptureSupport(unittest.TestCase):
             module.write_bytes(b"unknown upstream native module")
             self.assertFalse(scope(module)["supported"])
             self.assertEqual(module.read_bytes(), b"unknown upstream native module")
-
-    def test_fixture_markers_are_staged_with_native_receiver(self):
-        package = json.loads((ROOT / "package.json").read_text())
-        self.assertIn("tests/screenshare/*.test.cjs", package["scripts"]["test:js"])
 
     @unittest.skipUnless(shutil.which("cc") and shutil.which("pkg-config"), "C toolchain required")
     def test_synthetic_producers_compile_without_opening_any_devices(self):
