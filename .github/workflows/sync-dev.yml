@@ -1,0 +1,29 @@
+name: Sync main into dev
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: sync-main-into-dev
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: github.repository == 'discord-patched-electron/discord-patched-electron'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: dev
+          fetch-depth: 0
+      - name: Merge main without rewriting dev
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main dev
+          git merge --no-edit origin/main
+          git push origin HEAD:dev
