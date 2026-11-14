@@ -16,7 +16,12 @@ const tray =
   'function getTrayIcon(){return "icon"}function create(){(tray).setToolTip(currentStrings.appName),setContextMenu()}';
 const spellcheck =
   "electron.session.defaultSession.setSpellCheckerLanguages([locale]);electron.session.defaultSession.setSpellCheckerLanguages([...languages])";
+const bootstrapLookup =
+  "if (parent?.paths?.length > 0) parent.paths = parent.paths.concat(M.globalPaths);";
+const coreLookup =
+  "let length=parent?.paths?.length;return null!=length&&0!==length?parent.paths=parent.paths.concat(module_1.default.globalPaths):parent.paths=module_1.default.globalPaths,resolveLookupPaths(request,parent)";
 const fixture = [
+  `module_1.default._resolveLookupPaths=(request,parent)=>{${coreLookup}}`,
   "electron_1.shell.openExternal(externalUrl)",
   'mainWindow.webContents.on("will-navigate",(evt,url)=>{(0,securityUtils_1.checkUrlOriginMatches)(url,exports.WEBAPP_ENDPOINT)||evt.preventDefault()})',
   'popoutWindow.webContents.on("will-navigate",(evt,url)=>{(0,securityUtils_1.checkUrlOriginMatches)(url,webappEndpoint)||evt.preventDefault()})',
@@ -47,6 +52,7 @@ test("desktop transforms disable native migration, resolve modules and install s
 test("unknown or duplicated desktop patch sites fail before activation", () => {
   for (const site of [
     "electron_1.shell.openExternal(externalUrl)",
+    coreLookup,
     migration,
     modulePath,
     storage,
@@ -88,7 +94,8 @@ test("autostart quotes portable paths and escapes desktop field codes", () => {
 
 test("bootstrap transforms restore settings through the renderer adapter and keep the package launcher", () => {
   const entry =
-    "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});";
+    "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});" +
+    `\n${bootstrapLookup}`;
   const source =
     "const startMin = process.argv?.includes?.('--start-minimized');\ndesktopCore.setMainWindowVisible(!startMin);\ndesktopCore?.handleOpenUrl?.(a.includes('--url') && a[a.indexOf('--') + 1]);\nbefore\n  app.on('browser-window-created', customize);\ncustomization();\n  desktopCore = require('discord_desktop_core');\nafter";
   const transformed = bootstrap(source, "bootstrap.js", "/desktop-exec.cjs");
@@ -122,6 +129,7 @@ test("first launch skips automatic OpenAsar settings while retaining manual acce
     let opened = 0;
     const context = {
       global: {},
+      parent: undefined,
       process: { env: { DPE_PROFILE_DIR: "/profile" } },
       join: (...parts) => parts.join("/"),
       require: () => ({ version: "1.0.123" }),
@@ -129,7 +137,8 @@ test("first launch skips automatic OpenAsar settings while retaining manual acce
       config: { open: () => opened++ },
     };
     const entry =
-      "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});";
+      "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});" +
+      `\n${bootstrapLookup}`;
     vm.runInNewContext(bootstrap(entry, "index.js"), context);
     vm.runInNewContext("if (global.oaConfig.setup !== true) config.open();", context);
     assert.equal(opened, 0);
@@ -177,4 +186,42 @@ test("module paths resolve with no legacy binding on first launch and relaunch",
     assert.equal(resolve("discord_voice"), newUpdater ? "/native/voice" : "/managed/voice");
     assert.equal(resolve("unknown"), null);
   }
+});
+
+test("combined bootstrap and core lookups remain bounded after repeated native helper loads", () => {
+  const Module = require("node:module");
+  const module = {
+    globalPaths: ["/global/native", "/global/native"],
+    _resolveLookupPaths: Module._resolveLookupPaths,
+  };
+  const entry =
+    "process.resourcesPath = join(__dirname, '..');\nglobal.oaConfig = settings.get('openasar', {});\n" +
+    `const rlp=M._resolveLookupPaths;M._resolveLookupPaths=(request,parent)=>{${bootstrapLookup}return rlp(request,parent);};`;
+  vm.runInNewContext(bootstrap(entry, "index.js"), {
+    M: module,
+    process: { env: { DPE_PROFILE_DIR: "/profile" } },
+    join: (...parts) => parts.join("/"),
+    require: () => ({ version: "1" }),
+    global: {},
+    settings: { get: () => ({}) },
+  });
+  const transformed = desktop(fixture, "/adapter");
+  const hook = transformed.split(";\n")[0];
+  vm.runInNewContext(`const resolveLookupPaths=module_1.default._resolveLookupPaths;${hook}`, {
+    module_1: { default: module },
+  });
+  for (const [parent, expected] of [
+    [{ paths: ["/local/native"] }, ["/local/native", "/global/native"]],
+    [{ paths: [] }, ["/global/native"]],
+    [{}, ["/global/native"]],
+  ]) {
+    for (let i = 0; i < 10000; i++) module._resolveLookupPaths("discord_voice", parent);
+    assert.deepEqual(Array.from(parent.paths), expected);
+    assert.deepEqual(
+      module._resolveLookupPaths("discord_voice", parent).slice(0, expected.length),
+      expected,
+    );
+  }
+  assert.doesNotThrow(() => module._resolveLookupPaths("discord_voice", undefined));
+  assert.deepEqual(module.globalPaths, ["/global/native", "/global/native"]);
 });

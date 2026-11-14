@@ -173,7 +173,7 @@ app
         assert.deepEqual(child.getSize(), [640, 360]);
         const preferences = require("../../integration/desktop/preferences.cjs");
         await preferences.apply({ minimumWindowSize: true });
-        assert.deepEqual(child.getMinimumSize(), [320, 180]);
+        assert.deepEqual(child.getMinimumSize(), [160, 90]);
         assert.deepEqual(child.getSize(), [640, 360]);
         await preferences.apply(JSON.parse(process.env.DPE_POPOUT_PREFS || "{}"));
         child.setAlwaysOnTop(true);

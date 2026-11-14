@@ -37,6 +37,12 @@ function bootstrap(source, filename, desktopExec) {
       "require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').receive(a);\n    require(process.env.DPE_APP_ROOT + '/integration/desktop/links.cjs').dispatch(desktopCore);",
     );
   } else if (filename === "index.js") {
+    // Both OpenAsar and desktop core extend lookups. Repeated appends grow a
+    // parent's paths until Node's native argument expansion overflows.
+    patch(
+      "if (parent?.paths?.length > 0) parent.paths = parent.paths.concat(M.globalPaths);",
+      "if (parent) parent.paths = [...new Set([...(parent.paths || []), ...M.globalPaths])];",
+    );
     patch(
       "process.resourcesPath = join(__dirname, '..');",
       "process.resourcesPath = join(process.env.DPE_PROFILE_DIR, 'app-' + require('./utils/buildInfo').version, 'resources');",
@@ -62,6 +68,11 @@ function bootstrap(source, filename, desktopExec) {
 }
 
 function desktop(source, adapter) {
+  source = replace(
+    source,
+    "let length=parent?.paths?.length;return null!=length&&0!==length?parent.paths=parent.paths.concat(module_1.default.globalPaths):parent.paths=module_1.default.globalPaths,resolveLookupPaths(request,parent)",
+    "if(parent)parent.paths=[...new Set([...(parent.paths||[]),...module_1.default.globalPaths])];return resolveLookupPaths(request,parent)",
+  );
   source = require("../desktop/external-links.cjs").patchDesktop(
     source,
     require("node:path").join(require("node:path").dirname(adapter), "external-links.cjs"),

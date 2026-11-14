@@ -170,6 +170,24 @@ The selected Electron is used for desktop-module preflight. Relaunch and autosta
 return through the package launcher. See [launcher settings](../linux-launcher.md#troubleshooting)
 for offline and runtime overrides.
 
+OpenAsar and Discord desktop core both extend Node module lookups with global
+paths. The in-memory transforms deduplicate these paths while preserving local
+precedence, handling empty parents and keeping the global list unchanged.
+Repeated concatenation grows each requesting module's search list until Node's
+argument expansion throws `RangeError`, breaking later native actions including
+popouts. Keep the combined-hook stress regression on the actual Electron runtime;
+isolated popout-module fixtures do not load both hooks.
+
+Coverage on Canary 1.0.2483 uses core ASAR SHA-256
+`a267c3dbdb27b5a446af94dd8375fd91db2b3a0963c260b0310ecbe27573ae93`
+and Electron 46.0.0-alpha.10 executable SHA-256
+`802ff9e279c229f100cea73fb3b2bb161f1a54139041c0b24bbe974cbed70d18`.
+The native lookup stress check and fresh-profile launch/relaunch exercise both
+hooks; the real login-page popout handshake covers call and tile close/reopen.
+Private Niri and X11/Openbox fixtures also deliver synthetic video frames.
+Evidence is under `out/pip-fix/`. These checks do not establish live self-share
+behavior in a signed-in call.
+
 ## Shared profile and installation recovery
 
 Canary uses `~/.config/discordcanary`, respecting `XDG_CONFIG_HOME`.
