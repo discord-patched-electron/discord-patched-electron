@@ -39,6 +39,7 @@ from stage_capture_backends import stage as stage_capture
 from updater_python import sources as python_sources
 
 SUPPORT = [
+    "scripts/asar_tool.py",
     "scripts/channels.py",
     "scripts/common.py",
     "scripts/desktop_identity.py",

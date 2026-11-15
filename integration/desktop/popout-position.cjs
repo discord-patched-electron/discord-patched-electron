@@ -1,12 +1,39 @@
 const { execFile } = require("node:child_process");
-const { promisify } = require("node:util");
-const execute = promisify(execFile);
+const execute = (command, args, { input, ...options } = {}) =>
+  new Promise((resolve, reject) => {
+    const child = execFile(command, args, options, (error, stdout, stderr) =>
+      error ? reject(error) : resolve({ stdout, stderr }),
+    );
+    child.stdin.on("error", () => {});
+    child.stdin.end(input || "");
+  });
 const pair = (value) => Array.isArray(value) && value.length === 2 && value.every(Number.isFinite);
 const rect = (value) =>
   value &&
   [value.x, value.y, value.width, value.height].every(Number.isFinite) &&
   value.width > 0 &&
   value.height > 0;
+
+// Use compositor logical coordinates. Mirrored/vertically stacked outputs do
+// not create a left/right target, and navigation never wraps around.
+function neighbor(outputs, current, direction) {
+  if (!["left", "right"].includes(direction)) return;
+  const source = outputs.find((output) => output.id === current && rect(output.bounds));
+  if (!source) return;
+  const a = source.bounds,
+    center = a.x + a.width / 2;
+  return outputs
+    .filter((output) => output.id !== current && rect(output.bounds))
+    .map((output) => {
+      const b = output.bounds,
+        delta = b.x + b.width / 2 - center;
+      const vertical = Math.max(0, a.y - b.y - b.height, b.y - a.y - a.height);
+      return { output, delta, score: Math.abs(delta) + vertical * 4 };
+    })
+    .filter((value) => (direction === "left" ? value.delta < -1 : value.delta > 1))
+    .sort((a, b) => a.score - b.score || String(a.output.id).localeCompare(String(b.output.id)))[0]
+    ?.output;
+}
 
 function corner(area, width, height, preferred = "bottom-right") {
   if (
@@ -20,19 +47,19 @@ function corner(area, width, height, preferred = "bottom-right") {
 
   const left = preferred === "top-left" || preferred === "bottom-left";
   const top = preferred === "top-left" || preferred === "top-right";
-  const topInset = area.pipInsets?.top ?? 16;
+  const inset = (side) => area.pipInsets?.[side] ?? 16;
   return {
     x: Math.round(
       area.x +
         (left
-          ? Math.min(16, Math.max(0, area.width - width))
-          : Math.max(0, area.width - width - 16)),
+          ? Math.min(inset("left"), Math.max(0, area.width - width))
+          : Math.max(0, area.width - width - inset("right"))),
     ),
     y: Math.round(
       area.y +
         (top
-          ? Math.min(topInset, Math.max(0, area.height - height))
-          : Math.max(0, area.height - height - 16)),
+          ? Math.min(inset("top"), Math.max(0, area.height - height))
+          : Math.max(0, area.height - height - inset("bottom"))),
     ),
   };
 }
@@ -119,6 +146,36 @@ function niri(run, env) {
       });
     },
     windows: () => query(),
+    async monitors(child) {
+      const [workspaces, outputs] = await Promise.all([query("workspaces"), query("outputs")]);
+      return {
+        current: workspaces.find((w) => w.id === child.workspace_id)?.output,
+        outputs: Object.entries(outputs)
+          .filter(([, o]) => rect(o.logical))
+          .map(([id, o]) => ({
+            id,
+            bounds: o.logical,
+            workspace: workspaces.find((w) => w.output === id && w.is_active)?.id,
+          })),
+      };
+    },
+    async transfer(child, target, allowed) {
+      if (Number.isSafeInteger(target.workspace) && (await allowed()))
+        await run("niri", ["msg", "--json", "raw-request"], {
+          timeout: 1500,
+          maxBuffer: 4096,
+          input:
+            JSON.stringify({
+              Action: {
+                MoveWindowToWorkspace: {
+                  window_id: child.id,
+                  reference: { Id: target.workspace },
+                  focus: false,
+                },
+              },
+            }) + "\n",
+        });
+    },
     async globalPosition(child) {
       const logical = await output(child);
       return (
@@ -153,7 +210,9 @@ function niri(run, env) {
         y: measured.y + extra.top,
         width: measured.width - extra.left - extra.right,
         height: measured.height - extra.top - extra.bottom,
-        ...(inset.top < 16 ? { pipInsets: { top: inset.top } } : {}),
+        pipInsets: Object.fromEntries(
+          Object.entries(inset).map(([side, value]) => [side, Math.min(16, value)]),
+        ),
       };
       if (measured && !rect(area)) return undefined;
       return {
@@ -206,20 +265,45 @@ function sway(run) {
         .stdout,
     );
     const windows = [];
-    function visit(node, workspace, floating = false, workspaceId) {
+    function visit(node, workspace, floating = false, workspaceId, output) {
+      if (node.type === "output") output = node.name;
       if (node.type === "workspace") {
         workspace = node.rect;
         workspaceId = node.id;
       }
-      if (node.pid) windows.push({ ...node, workspace, floating, workspaceId });
-      for (const child of node.nodes || []) visit(child, workspace, floating, workspaceId);
-      for (const child of node.floating_nodes || []) visit(child, workspace, true, workspaceId);
+      if (node.pid) windows.push({ ...node, workspace, floating, workspaceId, output });
+      for (const child of node.nodes || []) visit(child, workspace, floating, workspaceId, output);
+      for (const child of node.floating_nodes || [])
+        visit(child, workspace, true, workspaceId, output);
     }
     visit(tree);
     return windows;
   };
   return {
     windows: query,
+    async monitors(child) {
+      const outputs = JSON.parse(
+        (await run("swaymsg", ["-r", "-t", "get_outputs"], { timeout: 1500, maxBuffer: 65536 }))
+          .stdout,
+      );
+      return {
+        current: child.output,
+        outputs: outputs
+          .filter((o) => o.active && /^[\w.:-]+$/.test(o.name))
+          .map((o) => ({ id: o.name, bounds: o.rect, workspace: o.current_workspace })),
+      };
+    },
+    async transfer(child, target, allowed) {
+      if (await allowed())
+        await run(
+          "swaymsg",
+          [
+            "-r",
+            `[con_id=${child.id}] move --no-auto-back-and-forth container to workspace ${JSON.stringify(target.workspace)}`,
+          ],
+          { timeout: 1500, maxBuffer: 4096 },
+        );
+    },
     id: (item) => item.id,
     title: (item) => item.name,
     focused: (item) => item.focused,
@@ -350,6 +434,44 @@ function hyprland(run) {
         }),
       );
     },
+    async monitors(child) {
+      return {
+        current: child.monitor,
+        outputs: (await query("monitors"))
+          .filter((o) => !o.disabled && Number.isSafeInteger(o.id) && o.scale > 0)
+          .map((o) => ({
+            id: o.id,
+            workspace: o.activeWorkspace?.id,
+            bounds: {
+              x: o.x,
+              y: o.y,
+              width: ([1, 3, 5, 7].includes(o.transform) ? o.height : o.width) / o.scale,
+              height: ([1, 3, 5, 7].includes(o.transform) ? o.width : o.height) / o.scale,
+            },
+          })),
+      };
+    },
+    async transfer(child, target, allowed) {
+      if (!(await allowed())) return;
+      const options = { timeout: 1500, maxBuffer: 4096 };
+      const result =
+        Number.isSafeInteger(target.workspace) && target.workspace > 0
+          ? await run(
+              "hyprctl",
+              ["dispatch", "movetoworkspacesilent", `${target.workspace},address:${child.address}`],
+              options,
+            ).catch(() => ({ stdout: "" }))
+          : { stdout: "" };
+      if (result.stdout.trim() !== "ok" && (await allowed()))
+        await run(
+          "hyprctl",
+          [
+            "dispatch",
+            `hl.dsp.window.move({window="address:${child.address}",monitor=${target.id},follow=false})`,
+          ],
+          options,
+        );
+    },
     id: (item) => item.address,
     validId: (id) => typeof id === "string" && /^0x[0-9a-f]+$/i.test(id) && !/^0x0+$/i.test(id),
     title: (item) => item.title,
@@ -460,6 +582,10 @@ function kwin(run) {
     async windows(id) {
       const child = await query(id ? { id } : {});
       return child ? [child] : [];
+    },
+    monitors: async (child) => ({ current: child.outputName, outputs: child.outputs || [] }),
+    async transfer(child, target, allowed) {
+      if (await allowed()) await query({ id: child.id, before: child.bounds, output: target.id });
     },
     id: (item) => item.id,
     validId: (id) =>
@@ -581,6 +707,52 @@ function identify(window, run = execute, env = process.env, preferred = "bottom-
     };
   }
   return {
+    async monitors() {
+      try {
+        const child = await current(true);
+        return child && backend.monitors ? await backend.monitors(child) : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    async transferMonitor(direction) {
+      if (!backend.monitors || !backend.transfer) return false;
+      try {
+        const child = await current(true);
+        if (!child) return false;
+        const layout = await backend.monitors(child);
+        const target = neighbor(layout.outputs, layout.current, direction);
+        if (!target) return false;
+        await backend.transfer(child, target, async () => {
+          const check = await current(true);
+          if (
+            !check ||
+            backend.scope(check) !== backend.scope(child) ||
+            !near(backend.position(check), backend.position(child)) ||
+            !near(backend.size(check), backend.size(child))
+          )
+            return false;
+          const fresh = await backend.monitors(check);
+          return fresh.outputs.some(
+            (o) =>
+              o.id === target.id &&
+              ["x", "y", "width", "height"].every((k) => o.bounds[k] === target.bounds[k]),
+          );
+        });
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const check = await current(true);
+          if (!check) return false;
+          if ((await backend.monitors(check)).current === target.id) {
+            anchor = undefined;
+            return true;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 40));
+        }
+      } catch {
+        /* A removed output or unsupported IPC leaves native placement. */
+      }
+      return false;
+    },
     async prepare(preferred, allowed = () => true) {
       if (!backend.prepare) return;
       const child = await current(true);
@@ -866,4 +1038,4 @@ function identify(window, run = execute, env = process.env, preferred = "bottom-
 function near(a, b) {
   return pair(a) && pair(b) && a.every((value, index) => Math.abs(value - b[index]) <= 2);
 }
-module.exports = { identify, corner };
+module.exports = { identify, corner, neighbor };

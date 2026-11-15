@@ -46,9 +46,18 @@ For automated checks that require a fresh managed profile, use
 `run VERSION --temporary-profile --sync`. For harnesses needing multiple launches
 on one fresh identity, own the profile with a `TemporaryDirectory` around the
 entire sequence and pass its path explicitly. Remove it after success or failure; do not retain a numbered
-series of verification profiles. Create an additional persistent profile only
-when a distinct identity or concurrent run actually requires it. Never copy
-login data into another profile just to try a new build.
+series of verification profiles. Do not create extra named/persistent profiles
+for ordinary launches, branch switches or implementation work. Create one only
+when testing different versions requires isolation, or the user explicitly asks
+for a separate identity. Prefer sequential testing on `dev` when possible.
+Never copy login data into another profile just to try a new build.
+
+The agent that creates a test profile owns its cleanup. Remove disposable profiles
+as soon as their check/comparison ends, including on failure. If manual testing
+has added a login, a profile is still in use, or ownership is unclear, ask whether
+to keep or remove it at the next suitable stopping point, normally before the
+final handback. Do not interrupt calls to clean up, delete existing user-owned
+profiles, or leave cleanup as an indefinite offer for a future task.
 
 ## Pick the reload boundary
 

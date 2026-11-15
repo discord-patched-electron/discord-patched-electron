@@ -6,6 +6,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+from asar_tool import command as asar_command
 from build_rust_support import stage_source as stage_rust_source
 from build_ui import build as build_ui
 from common import ROOT, download, read_json, sha256, write_json
@@ -87,7 +88,9 @@ def stage(
         (loader / "main.cjs").write_text(
             'require(process.env.DPE_APP_ROOT + "/integration/updater/entry.cjs");\n'
         )
-        subprocess.run([asar, "pack", str(loader), str(resources / "app.asar")], check=True)
+        subprocess.run(
+            asar_command(asar, "pack", str(loader), str(resources / "app.asar")), check=True
+        )
     # Official mod installers use this to identify the installation. The loader
     # reads the live client metadata from Discord's per-user installation.
     write_json(resources / "build_info.json", {"releaseChannel": channel, "version": version})

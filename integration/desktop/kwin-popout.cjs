@@ -17,6 +17,19 @@ module.exports = function kwinPopout(request) {
     return null;
   const id = String(window.internalId);
   if (request.id && request.id !== id) return null;
+  if (request.output !== undefined) {
+    const before = request.before;
+    if (
+      !before ||
+      ["x", "y", "width", "height"].some(
+        (k) => !Number.isFinite(before[k]) || Math.abs(before[k] - window.frameGeometry[k]) > 2,
+      )
+    )
+      return null;
+    const target = (workspace.screens || []).filter((o) => o.name === request.output);
+    if (target.length !== 1) return null;
+    workspace.sendClientToScreen(window, target[0]);
+  }
   const geometry = window.frameGeometry;
   const copy = (r) => ({ x: r.x, y: r.y, width: r.width, height: r.height });
   const area = workspace.clientArea(KWin.MaximizeArea, window);
@@ -51,6 +64,8 @@ module.exports = function kwinPopout(request) {
     client: copy(window.clientGeometry),
     area: copy(area),
     output: copy(window.output.geometry),
+    outputName: window.output.name,
+    outputs: (workspace.screens || []).map((o) => ({ id: o.name, bounds: copy(o.geometry) })),
     scale: window.output.scale,
     workspace: window.desktops.map((desktop) => String(desktop.id)).join(":"),
   };

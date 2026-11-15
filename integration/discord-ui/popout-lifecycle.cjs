@@ -33,7 +33,25 @@ module.exports = function popoutLifecycle() {
   const open = globalThis.open;
   globalThis.open = function (...args) {
     const [url, name] = args;
+    let pip = false;
+    try {
+      const address = new URL(url, location.href);
+      if (address.origin === location.origin && address.pathname === "/popout")
+        pip = globalThis[Symbol.for("dpe.callPiP")]?.consume(name) === true;
+    } catch {
+      /* Invalid URLs remain native. */
+    }
+    if (pip) args[2] = `${args[2] || ""},dpe-pip=yes`;
     const child = Reflect.apply(open, this, args);
+    if (child && video(name)) {
+      try {
+        child[Symbol.for("dpe.pipWindow")] = pip;
+        if (pip && globalThis[Symbol.for("dpe.callPiP")])
+          globalThis[Symbol.for("dpe.callPiP")].activeWindow = child;
+      } catch {
+        /* Protected globals retain native behavior. */
+      }
+    }
     if (child && video(name)) {
       try {
         const address = new URL(url, location.href);

@@ -63,7 +63,7 @@ test("restore valid geometry on secondary displays and recover disconnected or o
     undefined,
     { popoutAutoPosition: false },
   );
-  assert.deepEqual([saved.x, saved.y, saved.width, saved.height], [-1800, 100, 640, 360]);
+  assert.deepEqual([saved.x, saved.y, saved.width, saved.height], [-656, 704, 640, 360]);
   const stale = windowOptions(
     { ...options, x: 50, y: 50, width: 640, height: 600 },
     key,
@@ -105,16 +105,16 @@ test("small work areas and undersized requests cannot violate size constraints",
   assert.equal(small.height, 288);
 });
 
-test("floating opt-out removes transient and fixed-size hints without losing bounded sizing", () => {
-  const result = windowOptions(options, key, parent, screen, options, { popoutFloating: false });
-  assert.equal(result.parent, undefined);
-  assert.equal(result.type, undefined);
-  assert.equal(result.resizable, true);
-  assert.equal(result.dpeMinimum, undefined);
-  assert.equal(result.dpeFloating, false);
-  assert.equal(result.minWidth, 320);
+test("legacy floating and topmost opt-outs cannot turn PiP into an ordinary popout", () => {
+  const result = windowOptions(options, key, parent, screen, options, {
+    popoutFloating: false,
+    popoutAlwaysOnTop: false,
+  });
+  assert.equal(result.parent, parent);
+  assert.equal(result.type, "dialog");
+  assert.equal(result.dpeFloating, true);
+  assert.equal(result.alwaysOnTop, true);
   assert.equal(result.width, 512);
-  assert.deepEqual([result.x, result.y], [752, 416]);
 });
 
 test("media sizing preserves portrait and ultrawide aspect, scaling once and accounting for chrome", () => {
@@ -286,7 +286,7 @@ test("reopening a hidden or minimized video popout shows it without clearing its
       focus: () => calls.push("focus"),
       setAlwaysOnTop: () => assert.fail("Must preserve the pin state"),
     };
-    focusExisting(window, key);
+    focusExisting(window, key, true);
     assert.deepEqual(calls, minimized ? ["restore", "show", "focus"] : ["show", "focus"]);
   }
 });
@@ -438,52 +438,14 @@ test("closing popouts stop being reusable; cancelled closes restore reuse", asyn
   assert.equal(reusable(window, "DISCORD_RTC_DEBUG_POPOUT"), true);
 });
 
-test("auto positioning can be disabled independently of floating and video sizing", async () => {
-  const { EventEmitter } = require("node:events");
-  const { attach } = require("../../integration/desktop/popout.cjs");
-  const defaults = windowOptions(options, key, parent, screen, options, {
+test("legacy auto-position opt-out is ignored while corner customization remains available", () => {
+  const result = windowOptions(options, key, parent, screen, options, {
     popoutAutoPosition: false,
+    popoutCorner: "top-left",
   });
-  assert.equal(defaults.dpeAutoPosition, false);
-  assert.equal(defaults.dpeFloating, true);
-  assert.equal(defaults.dpeAutoSize, true);
-  assert.equal(defaults.x, undefined);
-  assert.equal(defaults.y, undefined);
-  const saved = windowOptions({ ...options, x: 100, y: 100 }, key, parent, screen, options, {
-    popoutAutoPosition: false,
-  });
-  assert.deepEqual([saved.x, saved.y], [100, 100]);
-  let size;
-  const web = Object.assign(new EventEmitter(), {
-    getURL: () => "https://canary.discord.com/popout",
-    getZoomFactor: () => 1,
-    executeJavaScript: async () => ({ width: 360, height: 640, chromeWidth: 0, chromeHeight: 0 }),
-  });
-  const window = Object.assign(new EventEmitter(), {
-    windowKey: key,
-    webContents: web,
-    isDestroyed: () => false,
-    isMaximized: () => false,
-    isFullScreen: () => false,
-    getBounds: () => ({ x: 100, y: 120, width: 512, height: 288 }),
-    getContentBounds: () => ({ width: 512, height: 288 }),
-    setMinimumSize() {},
-    setSize: (width, height) => {
-      size = { width, height };
-    },
-    setBounds() {
-      assert.fail("Auto sizing must not set position when disabled");
-    },
-  });
-  attach(
-    window,
-    { dpeVideo: true, dpeAutoSize: true, dpeAutoPosition: false, minWidth: 320, minHeight: 180 },
-    () => {},
-    screen,
-  );
-  window.emit("focus");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.ok(size.width < size.height, "Portrait video still sizes automatically");
+  assert.equal(result.dpeAutoPosition, true);
+  assert.equal(result.dpeInitialPlace, true);
+  assert.deepEqual([result.x, result.y], [16, 46]);
 });
 
 test("PiP corner preferences validate all four corners and bound initial placement", () => {
@@ -660,4 +622,55 @@ test("a corner query finishing after close does not touch the destroyed native w
   window.emit("closed");
   finish(geometry);
   assert.deepEqual(await query, { available: false });
+});
+
+test("X11 monitor transfers preserve aspect ratio, fit smaller work areas and update disabled directions", async (t) => {
+  const { EventEmitter } = require("node:events");
+  const { attach, session } = require("../../integration/desktop/popout.cjs");
+  const old = process.env.WAYLAND_DISPLAY;
+  delete process.env.WAYLAND_DISPLAY;
+  t.after(() => {
+    if (old === undefined) delete process.env.WAYLAND_DISPLAY;
+    else process.env.WAYLAND_DISPLAY = old;
+  });
+  const first = {
+      id: 1,
+      bounds: { x: 0, y: 0, width: 1600, height: 900 },
+      workArea: { x: 0, y: 40, width: 1600, height: 860 },
+    },
+    second = {
+      id: 2,
+      bounds: { x: -400, y: 0, width: 400, height: 300 },
+      workArea: { x: -400, y: 30, width: 400, height: 270 },
+    };
+  let bounds = { x: 900, y: 400, width: 640, height: 360 };
+  const screen = {
+    getAllDisplays: () => [first, second],
+    getDisplayMatching: (b) => (b.x < 0 ? second : first),
+  };
+  const win = Object.assign(new EventEmitter(), {
+    windowKey: key,
+    webContents: new EventEmitter(),
+    isDestroyed: () => false,
+    isFullScreen: () => false,
+    isMaximized: () => false,
+    getBounds: () => ({ ...bounds }),
+    getSize: () => [bounds.width, bounds.height],
+    setPosition: (x, y) => {
+      bounds = { ...bounds, x, y };
+    },
+    setSize: (width, height) => {
+      bounds = { ...bounds, width, height };
+    },
+  });
+  attach(win, { dpeVideo: true }, () => {}, screen);
+  assert.deepEqual((await session(win).state()).monitors, { left: true, right: false });
+  const moved = await session(win).moveMonitor("left");
+  assert.deepEqual(moved.monitors, { left: false, right: true });
+  assert.ok(bounds.x >= second.workArea.x && bounds.y >= second.workArea.y);
+  assert.ok(bounds.width <= 368 && bounds.height <= 238);
+  assert.ok(Math.abs(bounds.width / bounds.height - 16 / 9) < 0.02);
+  const previous = { ...bounds };
+  await session(win).moveMonitor("left");
+  assert.deepEqual(bounds, previous);
 });

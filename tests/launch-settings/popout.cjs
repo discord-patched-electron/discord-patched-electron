@@ -2,24 +2,23 @@ const assert = require("node:assert/strict");
 module.exports = async function check({ window, values, click, get, until, evaluate, capture }) {
   await click("t_theming");
   const ready = () =>
-    until(() => get('$("desktop-popoutFloating") && !$("desktop-popoutFloating").disabled'));
+    until(() =>
+      get('$("desktop-popoutHideTitlebar") && !$("desktop-popoutHideTitlebar").disabled'),
+    );
   await ready();
-  for (const name of [
-    "popoutFloating",
-    "popoutAutoPosition",
-    "popoutAlwaysOnTop",
-    "popoutHideTitlebar",
-    "popoutHideMembers",
-  ])
+  for (const name of ["popoutHideTitlebar", "popoutHideMembers"])
     assert.equal(await get(`$("desktop-${name}").checked`), true);
   const toggle = async (name) => {
     await click(`desktop-${name}`);
     await ready();
   };
-  await toggle("popoutAlwaysOnTop");
-  assert.equal(values.openasar.desktop.popoutAlwaysOnTop, false);
-  await toggle("popoutAlwaysOnTop");
-  assert.equal(values.openasar.desktop.popoutAlwaysOnTop, true);
+  assert.equal(await get('$("desktop-popoutShowNonVideoParticipants").checked'), true);
+  await toggle("popoutShowNonVideoParticipants");
+  assert.equal(values.openasar.desktop.popoutShowNonVideoParticipants, false);
+  await toggle("popoutShowNonVideoParticipants");
+  assert.equal(values.openasar.desktop.popoutShowNonVideoParticipants, true);
+  for (const name of ["popoutFloating", "popoutAutoPosition", "popoutAlwaysOnTop"])
+    assert.equal(await get(`$("desktop-${name}")===null`), true);
   assert.equal(await get('$("desktop-popoutCorner").value'), "bottom-right");
   await evaluate(
     'document.getElementById("desktop-popoutCorner-trigger").scrollIntoView({block:"center"})',
@@ -49,17 +48,6 @@ module.exports = async function check({ window, values, click, get, until, evalu
     /Choose supported desktop settings/,
   );
   assert.equal(values.openasar.desktop.popoutCorner, "bottom-left");
-  await toggle("popoutAutoPosition");
-  assert.equal(await get('$("desktop-popoutCorner-trigger").disabled'), true);
-  assert.equal(values.openasar.desktop.popoutAutoPosition, false);
-  await toggle("popoutFloating");
-  assert.equal(values.openasar.desktop.popoutFloating, false);
-  assert.equal(await get('$("desktop-popoutAlwaysOnTop").disabled'), true);
-  assert.equal(await get('$("desktop-popoutAlwaysOnTop").checked'), false);
-  assert.equal(await get('$("desktop-popoutHideTitlebar").disabled'), true);
-  assert.equal(await get('$("desktop-popoutHideTitlebar").checked'), false);
-  await toggle("popoutFloating");
-  assert.equal(await get('$("desktop-popoutHideTitlebar").checked'), true);
   await toggle("popoutHideTitlebar");
   await toggle("windowControls");
   assert.equal(await get('$("desktop-popoutHideTitlebar").disabled'), false);
@@ -79,14 +67,16 @@ module.exports = async function check({ window, values, click, get, until, evalu
   await click("t_theming");
   await ready();
   assert.equal(await get('$("desktop-popoutHideMembers").checked'), false);
-  assert.equal(await get('$("desktop-popoutAutoPosition").checked'), false);
   assert.equal(await get('$("desktop-popoutCorner").value'), "bottom-left");
-  await toggle("popoutAutoPosition");
   assert.equal(await get('$("desktop-popoutCorner-trigger").disabled'), false);
   await evaluate(
     'document.getElementById("desktop-popout-heading").scrollIntoView({block:"start"})',
   );
   await capture("pip-preferences");
+  await evaluate(
+    'document.getElementById("desktop-popoutShowNonVideoParticipants").scrollIntoView({block:"center"})',
+  );
+  await capture("pip-participants");
   window.setMinimumSize(1, 1);
   window.setSize(720, 620);
   window.webContents.setZoomFactor(1.5);

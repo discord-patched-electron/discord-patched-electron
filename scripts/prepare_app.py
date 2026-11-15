@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from asar_tool import command as asar_command
 from channels import enabled_discord_channels
 from common import ROOT, enabled_electron_channels, package_name, read_json, write_json
 from desktop_identity import desktop_id
@@ -93,7 +94,7 @@ def prepare(
         raise ValueError("Discord releaseChannel differs from selected package")
     with tempfile.TemporaryDirectory(prefix="app-", dir=core) as work:
         extracted = Path(work) / "app"
-        subprocess.run([asar, "extract", str(archive), str(extracted)], check=True)
+        subprocess.run(asar_command(asar, "extract", str(archive), str(extracted)), check=True)
         bundle = extracted / "bundle.js"
         bundle.write_text(
             patch_bundle(bundle.read_text(), package, install_root, portable=portable)
@@ -110,7 +111,7 @@ def prepare(
         metadata["desktopName"] = desktop_id(discord) + ".desktop"
         write_json(extracted / "package.json", metadata)
         result = Path(work) / "app.asar"
-        subprocess.run([asar, "pack", str(extracted), str(result)], check=True)
+        subprocess.run(asar_command(asar, "pack", str(extracted), str(result)), check=True)
         result.replace(archive)
     info["newUpdater"] = False
     info["localModulesRoot"] = "modules" if portable else str(install_root / "modules")

@@ -35,8 +35,8 @@ function traceRequest(details) {
   trace("requested", details.frameName);
 }
 
-function focusExisting(window, key) {
-  if (!isVideo(key)) {
+function focusExisting(window, key, pip = sessions.has(window)) {
+  if (!isVideo(key) || !pip) {
     window.setAlwaysOnTop(true);
     window.focus();
     window.setAlwaysOnTop(false);
@@ -101,8 +101,6 @@ function windowOptions(options, key, parent, screen, original = options, prefere
   const minHeight = Math.min(maxHeight, requestedHeight, original.minHeight || 1);
   const width = Math.max(minWidth, Math.round(requestedWidth * scale));
   const height = Math.max(minHeight, Math.round(requestedHeight * scale));
-  const floating = preferences.popoutFloating !== false;
-  const autoPosition = preferences.popoutAutoPosition !== false;
   const gnome = Boolean(
     process.env.WAYLAND_DISPLAY &&
     /GNOME/i.test(process.env.XDG_CURRENT_DESKTOP || process.env.XDG_SESSION_DESKTOP || ""),
@@ -119,43 +117,33 @@ function windowOptions(options, key, parent, screen, original = options, prefere
     // parent to Wayland, so also advertise a fixed initial size until the first
     // focus (the compositor has mapped the surface by then). ready-to-show is
     // too early: lifting constraints there can make niri tile the window.
-    ...(floating
-      ? {
-          parent,
-          type: "dialog",
-          modal: false,
-          resizable: gnome ? true : false,
-          dpeResizable: true,
-          minWidth: gnome ? Math.min(minWidth, 160) : width,
-          minHeight: gnome ? Math.min(minHeight, 90) : height,
-          maxWidth: gnome ? 0 : width,
-          maxHeight: gnome ? 0 : height,
-          dpeMinimum: gnome ? undefined : [Math.min(minWidth, 160), Math.min(minHeight, 90)],
-          dpeMaximum: [0, 0],
-        }
-      : { minWidth, minHeight }),
+    parent,
+    type: "dialog",
+    modal: false,
+    resizable: gnome,
+    dpeResizable: true,
+    minWidth: gnome ? Math.min(minWidth, 160) : width,
+    minHeight: gnome ? Math.min(minHeight, 90) : height,
+    maxWidth: gnome ? 0 : width,
+    maxHeight: gnome ? 0 : height,
+    dpeMinimum: gnome ? undefined : [Math.min(minWidth, 160), Math.min(minHeight, 90)],
+    dpeMaximum: [0, 0],
     dpeVideo: true,
     dpeReadySizing: gnome,
     dpeAdjustMinimum: !!process.env.HYPRLAND_INSTANCE_SIGNATURE,
-    dpeFloating: floating,
+    dpeFloating: true,
     dpeAutoSize: true,
-    dpeInitialPlace: autoPosition,
-    alwaysOnTop: floating && preferences.popoutAlwaysOnTop !== false,
-    ...(floating && preferences.popoutHideTitlebar !== false
+    dpeInitialPlace: true,
+    alwaysOnTop: true,
+    ...(preferences.popoutHideTitlebar !== false
       ? { frame: false, titleBarStyle: "default", titleBarOverlay: false }
       : {}),
-    dpeAutoPosition: autoPosition,
+    dpeAutoPosition: true,
     dpeCorner: preferences.popoutCorner || "bottom-right",
     width,
     height,
-    x:
-      autoPosition || savedDisplay
-        ? clamp(autoPosition ? position.x : options.x, area.x, area.x + area.width - width)
-        : undefined,
-    y:
-      autoPosition || savedDisplay
-        ? clamp(autoPosition ? position.y : options.y, area.y, area.y + area.height - height)
-        : undefined,
+    x: clamp(position.x, area.x, area.x + area.width - width),
+    y: clamp(position.y, area.y, area.y + area.height - height),
     // The parent owns the React tree and media stream. Keep rendering the child
     // when another application is focused, just as Discord does for its overlay.
     webPreferences: { ...options.webPreferences, backgroundThrottling: false },
@@ -163,7 +151,7 @@ function windowOptions(options, key, parent, screen, original = options, prefere
 }
 
 function attach(window, options, onReady, screen) {
-  if (!isVideo(window.windowKey) || options.outOfProcessOverlay || !options.dpeVideo) return false;
+  if (!isVideo(window.windowKey) || options.outOfProcessOverlay) return false;
   trace("created", window.windowKey);
   const cancelledClose = () => {
     if (window.isDestroyed()) return;
@@ -193,6 +181,9 @@ function attach(window, options, onReady, screen) {
   window.webContents?.on("did-fail-load", (_event, code, _description, _url, mainFrame) => {
     if (mainFrame) trace("load-failed", window.windowKey, { code });
   });
+  // Close/reopen safety also applies to ordinary Discord video popouts.
+  // Geometry, pinning and content sizing remain exclusive to explicit PiP.
+  if (!options.dpeVideo) return false;
   let mapped = false,
     started = false;
   let touched = false;
@@ -234,6 +225,14 @@ function attach(window, options, onReady, screen) {
     }
     return window.isFullScreen() ? undefined : value;
   };
+  const monitors = async (bounds) => {
+    if (compositor) return compositor.monitors?.();
+    if (process.env.WAYLAND_DISPLAY) return;
+    return {
+      current: screen.getDisplayMatching(bounds).id,
+      outputs: screen.getAllDisplays().map((d) => ({ id: d.id, bounds: d.bounds || d.workArea })),
+    };
+  };
   const cornerState = async () => {
     const value = await snapshot();
     if (window.isDestroyed()) return { available: false };
@@ -261,8 +260,15 @@ function attach(window, options, onReady, screen) {
           return Math.abs(bounds.x - point.x) <= 2 && Math.abs(bounds.y - point.y) <= 2;
         })
       : undefined;
+    const layout = await monitors(bounds);
+    if (window.isDestroyed() || window.isFullScreen()) return { available: false };
+    const neighbor = require("./popout-position.cjs").neighbor;
     return {
       available: true,
+      monitors: {
+        left: !!(layout && neighbor(layout.outputs, layout.current, "left")),
+        right: !!(layout && neighbor(layout.outputs, layout.current, "right")),
+      },
       corner: selected || null,
       large: bounds.width * bounds.height >= area.width * area.height * 0.7,
       size: { width: window.getSize()[0], height: window.getSize()[1] },
@@ -334,9 +340,89 @@ function attach(window, options, onReady, screen) {
   };
   const choose = (name, automatic = false) =>
     (choices = choices.catch(() => {}).then(() => moveChoice(name, automatic)));
+  const moveMonitor = (direction) =>
+    (choices = choices
+      .catch(() => {})
+      .then(async () => {
+        if (!["left", "right"].includes(direction)) return { available: false };
+        await placement;
+        const before = await snapshot();
+        if (!before) return cornerState();
+        const layout = await monitors(before.bounds);
+        const target =
+          layout &&
+          require("./popout-position.cjs").neighbor(layout.outputs, layout.current, direction);
+        if (!target || window.isDestroyed()) return cornerState();
+        const name = (await cornerState()).corner || targetCorner;
+        if (window.isDestroyed() || window.isFullScreen()) return { available: false };
+        if (compositor) {
+          if (!(await compositor.transferMonitor(direction))) return cornerState();
+          await compositor.prepare?.(name, () => !window.isDestroyed() && !window.isFullScreen());
+        } else {
+          const display = screen.getAllDisplays().find((d) => d.id === target.id);
+          if (!display || window.isDestroyed()) return cornerState();
+          const point = require("./popout-position.cjs").corner(
+            display.workArea,
+            before.bounds.width,
+            before.bounds.height,
+            name,
+          );
+          window.setPosition(point.x, point.y);
+        }
+        let fresh = await snapshot();
+        if (!fresh || window.isDestroyed()) return cornerState();
+        const [width, height] = window.getSize();
+        const factor = Math.min(
+          1,
+          Math.max(1, fresh.area.width - 32 - (fresh.bounds.width - width)) / width,
+          Math.max(1, fresh.area.height - 32 - (fresh.bounds.height - height)) / height,
+        );
+        if (factor < 1) {
+          const size = {
+            width: Math.max(1, Math.floor(width * factor)),
+            height: Math.max(1, Math.floor(height * factor)),
+          };
+          window.setSize(size.width, size.height);
+          await compositor?.resizeTo?.(size, screen, fresh);
+          for (let attempt = 0; attempt < 10; attempt++) {
+            fresh = await snapshot();
+            if (!fresh || window.isDestroyed()) return cornerState();
+            const current = window.getSize();
+            if (Math.abs(current[0] - size.width) <= 2 && Math.abs(current[1] - size.height) <= 2)
+              break;
+            await new Promise((resolve) => setTimeout(resolve, 40));
+          }
+        }
+        fresh = await snapshot();
+        if (!fresh) return cornerState();
+        if (compositor) await compositor.moveTo(name, screen, fresh);
+        else {
+          const point = require("./popout-position.cjs").corner(
+            fresh.area,
+            fresh.bounds.width,
+            fresh.bounds.height,
+            name,
+          );
+          window.setPosition(point.x, point.y);
+        }
+        const after = await snapshot();
+        if (
+          after &&
+          baseline &&
+          Math.abs(before.bounds.width - baseline.width) <= 2 &&
+          Math.abs(before.bounds.height - baseline.height) <= 2
+        ) {
+          baseline = after.bounds;
+          baselineClient = { width: window.getSize()[0], height: window.getSize()[1] };
+        }
+        targetCorner = name;
+        return cornerState();
+      }));
   sessions.set(window, {
     state: cornerState,
     choose,
+    moveMonitor,
+    topmost: () => compositor?.topmost?.(true),
     setMinimum: (width, height) => {
       normalMinimum = [
         Math.max(1, Math.min(normalMinimum[0], 160, width)),
@@ -349,15 +435,7 @@ function attach(window, options, onReady, screen) {
       }
     },
     apply: async (values, previous) => {
-      options.dpeAutoPosition = values.popoutAutoPosition !== false;
-      if (values.popoutAlwaysOnTop !== previous.popoutAlwaysOnTop) {
-        const enabled = options.dpeFloating && values.popoutAlwaysOnTop !== false;
-        options.alwaysOnTop = enabled;
-        window.setAlwaysOnTop?.(enabled);
-        await compositor?.topmost?.(enabled);
-      }
-      if (values.popoutAutoPosition && values.popoutCorner !== previous.popoutCorner)
-        await choose(values.popoutCorner, true);
+      if (values.popoutCorner !== previous.popoutCorner) await choose(values.popoutCorner, true);
     },
   });
   const enterFullscreen = () => {

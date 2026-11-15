@@ -472,7 +472,7 @@ test("Niri calibrates panel-reserved area using only the owned floating window",
   await controller.prepare("top-right");
   assert.deepEqual(
     (await controller.display({ getDisplayMatching: () => ({ workArea: area }) })).workArea,
-    reserved,
+    { ...reserved, pipInsets: { left: 16, right: 16, top: 16, bottom: 16 } },
   );
   const total = commands.length;
   await controller.prepare("bottom-left");
@@ -488,9 +488,9 @@ test("Niri compact top spacing respects negative struts without reducing bottom/
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   for (const [top, expected] of [
     [-30, 0],
-    [-10, 0],
-    [0, 10],
-    [30, 40],
+    [-10, 6],
+    [0, 16],
+    [30, 46],
   ]) {
     const file = path.join(directory, `${top}.kdl`);
     fs.writeFileSync(file, `layout { gaps 10; struts { top ${top}; }; }`);
@@ -501,6 +501,16 @@ test("Niri compact top spacing respects negative struts without reducing bottom/
       bottom: 16,
     });
   }
+  for (const gap of [0, 2, 24]) {
+    const file = path.join(directory, `gap-${gap}.kdl`);
+    fs.writeFileSync(file, `layout { gaps ${gap}; }`);
+    assert.deepEqual(insets(undefined, { NIRI_CONFIG: file }), {
+      left: gap + 6,
+      right: gap + 6,
+      top: gap + 6,
+      bottom: gap + 6,
+    });
+  }
   assert.deepEqual(insets(undefined, { NIRI_CONFIG: path.join(directory, "missing") }), {
     left: 16,
     right: 16,
@@ -508,9 +518,140 @@ test("Niri compact top spacing respects negative struts without reducing bottom/
     bottom: 16,
   });
   const { corner } = require("../../integration/desktop/popout-position.cjs");
-  const usable = { x: 0, y: 64, width: 1280, height: 656, pipInsets: { top: 0 } };
-  assert.deepEqual(corner(usable, 400, 300, "top-left"), { x: 16, y: 64 });
-  assert.deepEqual(corner(usable, 400, 300, "top-right"), { x: 864, y: 64 });
+  const usable = { x: 0, y: 64, width: 1280, height: 656, pipInsets: { top: 6 } };
+  assert.deepEqual(corner(usable, 400, 300, "top-left"), { x: 16, y: 70 });
+  assert.deepEqual(corner(usable, 400, 300, "top-right"), { x: 864, y: 70 });
   assert.deepEqual(corner(usable, 400, 300, "bottom-left"), { x: 16, y: 404 });
   assert.deepEqual(corner(usable, 400, 300, "bottom-right"), { x: 864, y: 404 });
+});
+
+test("monitor neighbors use logical geometry, exclude mirrors/vertical stacks and never wrap", () => {
+  const { neighbor } = require("../../integration/desktop/popout-position.cjs");
+  const outputs = [
+    { id: "main", bounds: area },
+    { id: "left", bounds: { x: -800, y: 100, width: 800, height: 600 } },
+    { id: "above", bounds: { ...area, y: -720 } },
+    { id: "mirror", bounds: area },
+    { id: "right", bounds: { ...area, x: 1280 } },
+  ];
+  assert.equal(neighbor(outputs, "main", "left").id, "left");
+  assert.equal(neighbor(outputs, "main", "right").id, "right");
+  assert.equal(neighbor(outputs, "left", "left"), undefined);
+  assert.equal(neighbor(outputs, "main", "invalid"), undefined);
+});
+test("Niri monitor transfers address only the identified window and reject missing/changed targets", async () => {
+  for (const change of ["none", "unplug", "foreign"]) {
+    const child = {
+      id: 21,
+      pid: process.pid,
+      title: "PiP",
+      is_floating: true,
+      is_focused: true,
+      workspace_id: 7,
+      layout: {
+        window_size: [512, 288],
+        tile_size: [520, 296],
+        tile_pos_in_workspace_view: [300, 200],
+      },
+    };
+    let outputQueries = 0,
+      moves = 0;
+    const outputs = {
+      "DP-1": { logical: { ...area, scale: 1 } },
+      "DP-2": { logical: { ...area, x: 1280, scale: 1 } },
+    };
+    const run = async (_cmd, args, options) => {
+      if (args[2] === "windows") return { stdout: JSON.stringify([child]) };
+      if (args[2] === "workspaces")
+        return {
+          stdout: JSON.stringify([
+            { id: 7, output: "DP-1", is_active: true },
+            { id: 8, output: "DP-2", is_active: true },
+          ]),
+        };
+      if (args[2] === "outputs") {
+        outputQueries++;
+        if (outputQueries > 1 && change === "unplug") delete outputs["DP-2"];
+        if (change === "foreign") child.pid++;
+        return { stdout: JSON.stringify(outputs) };
+      }
+      if (args[2] === "raw-request") {
+        assert.deepEqual(JSON.parse(options.input), {
+          Action: { MoveWindowToWorkspace: { window_id: 21, reference: { Id: 8 }, focus: false } },
+        });
+        moves++;
+        child.workspace_id = 8;
+      }
+      return { stdout: "" };
+    };
+    const ctl = identify(window, run, { NIRI_SOCKET: "fixture" });
+    assert.equal(await ctl.transferMonitor("right"), change === "none");
+    assert.equal(moves, change === "none" ? 1 : 0);
+  }
+});
+
+test("Hyprland transfers by the destination workspace on older releases or the addressed Lua dispatcher", async () => {
+  for (const lua of [false, true]) {
+    const child = {
+      address: "0xabcdef",
+      pid: process.pid,
+      title: "PiP",
+      floating: true,
+      mapped: true,
+      monitor: 1,
+      workspace: { id: 7 },
+      at: [100, 100],
+      size: [400, 225],
+    };
+    const monitors = [
+      {
+        id: 1,
+        x: 0,
+        y: 0,
+        width: 1600,
+        height: 900,
+        scale: 1,
+        reserved: [0, 0, 0, 0],
+        activeWorkspace: { id: 7 },
+      },
+      {
+        id: 2,
+        x: 1600,
+        y: 100,
+        width: 1800,
+        height: 1200,
+        scale: 1.5,
+        reserved: [0, 30, 0, 0],
+        activeWorkspace: { id: 8 },
+      },
+    ];
+    const dispatches = [];
+    const run = async (_cmd, args) => {
+      if (args[0] === "-j")
+        return {
+          stdout: JSON.stringify(
+            {
+              clients: [child],
+              activewindow: child,
+              monitors,
+              getoption: { int: 0, css: "0 0 0 0" },
+              getprop: { border_size: 0 },
+            }[args[1]],
+          ),
+        };
+      dispatches.push(args);
+      if (lua && args[1] === "movetoworkspacesilent") return { stdout: "unknown dispatcher" };
+      child.monitor = 2;
+      child.workspace.id = 8;
+      return { stdout: "ok" };
+    };
+    const ctl = identify(window, run, { HYPRLAND_INSTANCE_SIGNATURE: "fixture" });
+    assert.equal(await ctl.transferMonitor("right"), true);
+    assert.deepEqual(dispatches[0], ["dispatch", "movetoworkspacesilent", "8,address:0xabcdef"]);
+    if (lua)
+      assert.deepEqual(dispatches[1], [
+        "dispatch",
+        'hl.dsp.window.move({window="address:0xabcdef",monitor=2,follow=false})',
+      ]);
+  }
 });

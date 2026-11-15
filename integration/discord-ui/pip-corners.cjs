@@ -1,15 +1,17 @@
 "use strict";
 // One DOM adapter in the PiP document. No React factories or stream-store hooks.
-module.exports = function pipCorners() {
+module.exports = function pipCorners(request = {}) {
   if (!window.DPEPiP || document.getElementById("dpe-pip-corners")) return;
   const host = document.createElement("div");
   host.id = "dpe-pip-corners";
   host.className = "dpe-ui";
   host.setAttribute("role", "group");
-  host.setAttribute("aria-label", "PiP corner");
+  host.setAttribute("aria-label", "PiP position");
+  let moving = false;
   const buttons = ["top-left", "top-right", "bottom-left", "bottom-right"].map((corner) => {
     const button = document.createElement("button");
     button.type = "button";
+    button.className = "dpe-pip-corner";
     button.title = button.ariaLabel = `Restore PiP to ${corner.replace("-", " ")}`;
     button.setAttribute("aria-pressed", "false");
     button.addEventListener("click", async () => {
@@ -22,13 +24,56 @@ module.exports = function pipCorners() {
     host.append(button);
     return [corner, button];
   });
-  let anchor;
-  function render(state) {
-    const videos = [...document.querySelectorAll("video")].filter((video) => {
-      const r = video.getBoundingClientRect();
-      return r.width > 0 && r.height > 0;
+  const monitorButtons = ["left", "right"].map((direction) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dpe-pip-monitor";
+    button.dataset.direction = direction;
+    button.title = button.ariaLabel = `Move PiP to the monitor on the ${direction}`;
+    const icon = document.createElement("span");
+    icon.className = "dpe-icon";
+    icon.dataset.dpeIcon = "chevron";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML =
+      globalThis[Symbol.for("dpe.discordPresentation")]?.icons?.chevron ||
+      request.icons?.chevron ||
+      "";
+    button.append(icon);
+    button.disabled = true;
+    button.addEventListener("click", async () => {
+      if (moving || button.disabled) return;
+      moving = true;
+      render(lastState);
+      try {
+        render(await window.DPEPiP.monitor(direction));
+      } catch {
+        void refresh();
+      } finally {
+        moving = false;
+        render(lastState);
+      }
     });
-    host.hidden = !state?.available || state.large || videos.length !== 1;
+    host.append(button);
+    return [direction, button];
+  });
+  let anchor;
+  let lastState;
+  const visible = (node) => {
+    for (let item = node; item && item !== document.body; item = item.parentElement) {
+      const css = getComputedStyle(item);
+      if (css.display === "none" || css.visibility === "hidden") return false;
+      if (Number(css.opacity) === 0 && !item.getAnimations().some((a) => a.playState === "running"))
+        return false;
+    }
+    return true;
+  };
+  function render(state) {
+    lastState = state;
+    for (const [direction, button] of monitorButtons)
+      button.disabled = moving || state?.monitors?.[direction] !== true;
+    host.hidden = !state?.available || state.large;
+    const hasMonitors = state?.monitors?.left === true || state?.monitors?.right === true;
+    for (const [, button] of monitorButtons) button.hidden = !hasMonitors;
     for (const [corner, button] of buttons)
       button.setAttribute("aria-pressed", String(state?.corner === corner));
     // Discord's stream status is optional. Only use a unique visible status
@@ -43,9 +88,12 @@ module.exports = function pipCorners() {
     });
     const parent = statuses.length === 1 ? statuses[0].parentElement : undefined;
     const candidate =
-      parent && parent !== document.body && !parent.closest('button,a,[role="button"]')
+      parent &&
+      visible(parent) &&
+      parent !== document.body &&
+      !parent.closest('button,a,[role="button"]')
         ? parent
-        : anchor?.isConnected
+        : anchor?.isConnected && visible(anchor)
           ? anchor
           : undefined;
     if (anchor !== candidate || !host.isConnected) {
@@ -99,23 +147,47 @@ module.exports = function pipCorners() {
   document.body.append(host);
   // Poll only while hovered/focused; compositor geometry is authoritative on Wayland.
   const timer = setInterval(() => {
-    if (
-      document.body.matches(":hover") ||
-      (document.hasFocus() && document.activeElement !== document.body)
-    )
-      void refresh();
+    if (document.body.matches(":hover") || document.hasFocus() || !host.isConnected) void refresh();
   }, 750);
   document.addEventListener("pointerover", refresh);
   document.addEventListener("focusin", refresh);
   window.addEventListener("resize", refresh);
+  window.addEventListener("focus", refresh);
+  document.addEventListener("visibilitychange", refresh);
+  let repairPending = false;
+  const observer = new MutationObserver((changes) => {
+    if (
+      repairPending ||
+      !changes.some(
+        (change) =>
+          change.type === "childList" ||
+          (anchor && (change.target === anchor || change.target.contains(anchor))),
+      )
+    )
+      return;
+    repairPending = true;
+    queueMicrotask(() => {
+      repairPending = false;
+      if (lastState) render(lastState);
+    });
+  });
+  observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["class", "style", "hidden"],
+  });
   window.addEventListener(
     "pagehide",
     () => {
       clearInterval(timer);
+      observer.disconnect();
       anchor?.removeAttribute("data-dpe-pip-anchor");
       document.removeEventListener("pointerover", refresh);
       document.removeEventListener("focusin", refresh);
       window.removeEventListener("resize", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     },
     { once: true },
   );

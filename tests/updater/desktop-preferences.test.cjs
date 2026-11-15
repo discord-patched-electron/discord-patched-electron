@@ -143,6 +143,11 @@ test("webcam flip changes capture while the preview always keeps the same orient
 
 test("desktop settings normalize only supported values and preserve saved button preferences", async () => {
   assert.deepEqual(normalize(), DEFAULTS);
+  assert.deepEqual(
+    normalize({ popoutFloating: false, popoutAutoPosition: false, popoutAlwaysOnTop: false }),
+    DEFAULTS,
+    "Removed core PiP opt-outs are not restored from old settings",
+  );
   assert.deepEqual(normalize(null), DEFAULTS);
   assert.deepEqual(
     normalize({ nativeTitlebar: "yes", tray: 0, webRtcIPHandlingPolicy: "unsafe", extra: true }),
@@ -504,12 +509,14 @@ test("PiP hides native frames independently and exposes only owned trusted corne
     { frame: false, width: 640, height: 360, minWidth: 320, minHeight: 180 },
     "DISCORD_CHANNEL_CALL_POPOUT",
     { isDestroyed: () => false, getBounds: () => ({ x: 0, y: 0, width: 900, height: 600 }) },
+    "dpe-pip=yes",
   );
   assert.equal(options.frame, false);
   assert.equal(options.alwaysOnTop, true);
   const window = new Window({ width: 512, height: 288 });
   window.windowKey = "DISCORD_CHANNEL_CALL_POPOUT";
-  controller.attachPopout(window, { ...options, dpeVideo: false });
+  t.mock.method(require("../../integration/desktop/popout.cjs"), "attach", () => false);
+  controller.attachPopout(window, options);
   assert.equal(controller.effectiveControls(window).nativeTitlebar, false);
   assert.equal(controller.status().restartRequired, false);
   const calls = [];
@@ -518,6 +525,10 @@ test("PiP hides native frames independently and exposes only owned trusted corne
     choose: async (corner) => {
       calls.push(corner);
       return { corner };
+    },
+    moveMonitor: async (direction) => {
+      calls.push(direction);
+      return { monitor: direction };
     },
   }));
   assert.deepEqual(await controller.pip({ getURL: () => "https://canary.discord.com/popout" }), {
@@ -528,5 +539,72 @@ test("PiP hides native frames independently and exposes only owned trusted corne
   window.webContents.url = "https://canary.discord.com/popout";
   assert.deepEqual(await controller.pip(window.webContents, "center"), { available: false });
   assert.deepEqual(await controller.pip(window.webContents, "top-left"), { corner: "top-left" });
-  assert.deepEqual(calls, ["top-left"]);
+  assert.deepEqual(await controller.pip(window.webContents, "monitor-up"), { available: false });
+  assert.deepEqual(await controller.pip(window.webContents, "monitor-left"), { monitor: "left" });
+  window.webContents.url = "https://example.com/popout";
+  assert.deepEqual(await controller.pip(window.webContents, "monitor-right"), { available: false });
+  assert.deepEqual(calls, ["top-left", "left"]);
+});
+
+test("ordinary call popouts keep Discord geometry; only the PiP entry enables compact behavior", () => {
+  const { controller } = fixture();
+  const original = {
+    frame: false,
+    width: 854,
+    height: 480,
+    minWidth: 320,
+    minHeight: 180,
+    resizable: true,
+  };
+  const parent = {
+    isDestroyed: () => false,
+    getBounds: () => ({ x: 0, y: 0, width: 900, height: 600 }),
+  };
+  for (const features of [undefined, "width=854,height=480", "dpe-pip=no", "dpe-pip=maybe"]) {
+    const stock = controller.popoutOptions(
+      original,
+      "DISCORD_CHANNEL_CALL_POPOUT",
+      parent,
+      features,
+    );
+    assert.equal(stock.width, 854);
+    assert.equal(stock.height, 480);
+    assert.equal(stock.dpeVideo, undefined);
+    assert.equal(stock.parent, undefined);
+    assert.equal(stock.alwaysOnTop, undefined);
+  }
+  const pip = controller.popoutOptions(
+    original,
+    "DISCORD_CHANNEL_CALL_POPOUT",
+    parent,
+    "width=854,dpe-pip=yes",
+  );
+  assert.equal(pip.dpeVideo, true);
+  assert.equal(pip.parent, parent);
+  assert.equal(pip.alwaysOnTop, true);
+  assert.ok(pip.width < 854);
+});
+
+test("native pin requests preserve PiP's required topmost mode without affecting normal popouts", (t) => {
+  const { controller } = fixture();
+  t.mock.method(require("../../integration/desktop/popout.cjs"), "attach", () => false);
+  const pip = new Window({ width: 512, height: 288 });
+  pip.windowKey = "DISCORD_CHANNEL_CALL_POPOUT";
+  let value;
+  pip.setAlwaysOnTop = (enabled) => {
+    value = enabled;
+  };
+  controller.attachPopout(pip, { dpeVideo: true, dpeFloating: true });
+  controller.setPopoutAlwaysOnTop(pip, false);
+  assert.equal(value, true);
+  const normal = new Window({ width: 854, height: 480 });
+  normal.windowKey = "DISCORD_CHANNEL_CALL_POPOUT";
+  normal.setAlwaysOnTop = (enabled) => {
+    value = enabled;
+  };
+  controller.attachPopout(normal, {});
+  controller.setPopoutAlwaysOnTop(normal, false);
+  assert.equal(value, false);
+  controller.setPopoutAlwaysOnTop(normal, true);
+  assert.equal(value, true);
 });

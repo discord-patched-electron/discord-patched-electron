@@ -29,6 +29,7 @@ module.exports = function presentation(request, ui) {
     experimental: ["FlaskIcon", "BeakerIcon"],
     warning: ["WarningIcon", "WarningTriangleIcon", "TriangleExclamationIcon"],
     copy: ["CopyIcon"],
+    pip: ["PictureInPictureIcon", "PictureInPictureEnterIcon"],
     chevron: ["ChevronSmallDownIcon", "ChevronDownSmallIcon", "ChevronDownIcon"],
   };
   const tags = new Set([

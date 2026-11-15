@@ -141,3 +141,25 @@ test("missing KDE bridge dependencies leave compositor placement alone", async (
   assert.equal(await controller.display({}), undefined);
   await controller.place({ x: 0, y: 0, width: 1000, height: 800 });
 });
+
+test("KWin transfers only the owned window to an existing output and rejects stale geometry", () => {
+  for (const mode of ["valid", "unplugged", "stale"]) {
+    const f = fixture(),
+      target = { name: "DP-2", geometry: { x: 1600, y: 0, width: 1200, height: 800 }, scale: 1 };
+    f.window.output.name = "DP-1";
+    f.workspace.screens = [f.window.output, ...(mode === "unplugged" ? [] : [target])];
+    let transfers = 0;
+    f.workspace.sendClientToScreen = (window, output) => {
+      assert.equal(window, f.window);
+      assert.equal(output, target);
+      transfers++;
+      window.output = output;
+    };
+    const before = { ...f.window.frameGeometry };
+    if (mode === "stale") before.x += 30;
+    const result = f.run({ pid: process.pid, id: f.window.internalId, before, output: "DP-2" });
+    assert.equal(transfers, mode === "valid" ? 1 : 0);
+    if (mode === "valid") assert.equal(result.outputName, "DP-2");
+    else assert.equal(result, null);
+  }
+});

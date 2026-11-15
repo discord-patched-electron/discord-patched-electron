@@ -154,17 +154,17 @@ app
             display: {
               ...display,
               workArea: {
-                x: display.bounds.x + 28,
-                y: display.bounds.y + 38 + Number(process.env.DPE_POPOUT_PANEL || 0),
-                width: display.bounds.width - 86,
-                height: display.bounds.height - 86 - Number(process.env.DPE_POPOUT_PANEL || 0),
+                x: display.bounds.x + 34,
+                y: display.bounds.y + 44 + Number(process.env.DPE_POPOUT_PANEL || 0),
+                width: display.bounds.width - 98,
+                height: display.bounds.height - 98 - Number(process.env.DPE_POPOUT_PANEL || 0),
                 ...(process.env.DPE_POPOUT_COMPACT_TOP === "1"
                   ? {
                       x: display.bounds.x,
                       y: display.bounds.y + Number(process.env.DPE_POPOUT_PANEL || 0),
                       width: display.bounds.width,
                       height: display.bounds.height - Number(process.env.DPE_POPOUT_PANEL || 0),
-                      pipInsets: { top: 0 },
+                      pipInsets: { top: 6 },
                     }
                   : {}),
               },
@@ -262,10 +262,7 @@ app
       }
       function checkCorner(stage) {
         const { bounds, display } = geometry();
-        if (
-          process.env.DPE_POPOUT_BACKEND === "gnome" ||
-          preferences.popoutAutoPosition === false
-        ) {
+        if (process.env.DPE_POPOUT_BACKEND === "gnome") {
           assert.ok(
             bounds.width <= display.workArea.width && bounds.height <= display.workArea.height,
           );
@@ -405,7 +402,7 @@ app
         const pip = require("../../integration/desktop/popout.cjs").session(child);
         assert.equal((await pip.state()).corner, null);
         await pip.apply(
-          { ...preferences, popoutAutoPosition: true, popoutCorner: "top-right" },
+          { ...preferences, popoutCorner: "top-right" },
           { popoutCorner: preferences.popoutCorner },
         );
         assert.deepEqual(geometry().bounds, preserved, "Settings preserve a manually changed PiP");
@@ -451,10 +448,7 @@ app
         );
         const actual = geometry().bounds;
         assert.ok(actual.width < actual.height, JSON.stringify(actual));
-        if (
-          process.env.DPE_POPOUT_BACKEND !== "gnome" &&
-          preferences.popoutAutoPosition !== false
-        ) {
+        if (process.env.DPE_POPOUT_BACKEND !== "gnome") {
           const normal = geometry().bounds;
           const selected = await child.webContents.executeJavaScript(
             "window.DPEPiP.state().then(value=>value.corner)",
@@ -500,10 +494,7 @@ app
           const pip = require("../../integration/desktop/popout.cjs").session(child);
           for (const next of ["top-left", "bottom-right"]) {
             const previous = preferences.popoutCorner || "bottom-right";
-            await pip.apply(
-              { ...preferences, popoutAutoPosition: true, popoutCorner: next },
-              { popoutCorner: previous },
-            );
+            await pip.apply({ ...preferences, popoutCorner: next }, { popoutCorner: previous });
             preferences.popoutCorner = next;
             checkCorner("live-setting");
           }
@@ -534,12 +525,43 @@ app
                 ? geometry().alwaysOnTop
                 : child.isAlwaysOnTop();
             assert.equal(onTop(), true, "PiP starts topmost");
-            await controller.apply({ ...preferences, popoutAlwaysOnTop: false });
-            assert.equal(onTop(), false, "Topmost can be disabled live");
-            await controller.apply({ ...preferences, popoutAlwaysOnTop: true });
-            assert.equal(onTop(), true, "Topmost can be enabled live");
           }
         }
+      }
+      if (mode === "saved-geometry" && process.env.NIRI_SOCKET) {
+        const item = JSON.parse(
+          execFileSync("niri", ["msg", "--json", "windows"], { encoding: "utf8" }),
+        ).find((w) => w.pid === process.pid && w.title === child.getTitle());
+        const result = JSON.parse(
+          execFileSync("niri", ["msg", "--json", "raw-request"], {
+            input:
+              JSON.stringify({
+                Action: {
+                  MoveWindowToWorkspace: {
+                    window_id: item.id,
+                    reference: { Id: item.workspace_id },
+                    focus: false,
+                  },
+                },
+              }) + "\n",
+            encoding: "utf8",
+          }),
+        );
+        assert.ok(result === "Handled" || result.Ok !== undefined, JSON.stringify(result));
+      }
+      if (mode === "saved-geometry" && process.env.DPE_POPOUT_SECOND_OUTPUT) {
+        const state = await child.webContents.executeJavaScript("window.DPEPiP.state()");
+        assert.deepEqual(state.monitors, { left: false, right: true });
+        const originalSize = child.getSize();
+        const moved = await child.webContents.executeJavaScript('window.DPEPiP.monitor("right")');
+        assert.deepEqual(moved.monitors, { left: true, right: false });
+        assert.equal(moved.corner, state.corner, "Monitor transfer retains the selected corner");
+        assert.deepEqual(child.getSize(), originalSize);
+        const returned = await child.webContents.executeJavaScript('window.DPEPiP.monitor("left")');
+        assert.deepEqual(returned.monitors, { left: false, right: true });
+        assert.equal(returned.corner, state.corner);
+        checkCorner("monitor-return");
+        report.cases.push({ mode, stage: "monitor-roundtrip", size: child.getSize() });
       }
       child.destroy();
     }

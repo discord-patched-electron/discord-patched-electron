@@ -126,6 +126,34 @@ uncertain reported click. Evidence:
 
 ## Popout placement
 
+`call-pip.cjs` adds a separate PiP control immediately before the native call
+popout control. Reuse the validated native control element (including tooltip,
+classes, focus and disabled styling) and the original call open callback, retaining
+native activity confirmation/ticket refresh. The regular control clears pending
+PiP intent and invokes its native action. Omit the extra control for unrelated
+activity/debug callbacks; disable it while a call popout is already open.
+
+An explicit PiP click arms a one-use, 60-second call-window intent in the opener.
+The existing same-origin /popout lifecycle wrapper consumes it only for the call
+window key, appends `dpe-pip=yes` to that exact window.open request and marks the
+returned WindowProxy. Native `popoutOptions` receives the original feature string
+separately from Discord’s parsed/allowlisted features. Without that marker it
+returns the ordinary global window options, without PiP geometry, pinning or
+floating hints. Main-frame injection confirms the page-world PiP marker from the
+owned native window options. Portal filtering/autofocus and hover controls require
+that explicit mode. Normal button clicks, errors, pagehide, consumption and expiry
+clear pending intent. Callbacks from a cancelled native confirmation expire; native
+confirmations left open beyond the bound retain ordinary popout behavior.
+
+PiP automatic fullscreen and member-bar changes restore the previous native
+POPOUT layout/member state on close when those values still match the automatic
+changes. Keep close/reopen identity safety for ordinary and PiP call windows.
+The account-free real desktop-core fixtures cover normal/PiP creation and rapid
+close/reopen on private Niri and X11 displays in `out/pip-required-native-*`.
+`out/pip-button-settings-final/` covers the separate controls’ real component
+rendering, keyboard activation, spacing and disabled state. Live-call toolbar
+appearance remains unverified by those synthetic controls.
+
 Default placement anchors independently of media discovery, then refits after
 metadata/committed resizing. Resolve the owned child's actual output; fit small
 outputs and account for visible borders. Revalidate identity, PID, focus, normal
@@ -139,10 +167,12 @@ Centered aspect-fit letterboxing is part of the available video slot, not fixed
 chrome; subtract only actual surrounding UI and native decorations when fitting
 source dimensions. Never capture pixels to determine the aspect ratio.
 
-`popoutAutoPosition` defaults true; disabling it bypasses automatic moves while
-retaining sizing and saved coordinates. `popoutCorner` validates four corner names,
-with bottom-right default. Automatic placement also runs when reopening saved
-sizes; saved coordinates apply when automatic placement is disabled. Corner
+PiP always requests floating, automatic corner placement and topmost behavior.
+The former `popoutFloating`, `popoutAutoPosition` and `popoutAlwaysOnTop` options
+are removed from settings/IPC normalization; old saved false values are ignored.
+The regular popout provides the normal-window alternative. `popoutCorner`
+validates four corner names, with bottom-right default. Reopened PiP windows also
+anchor automatically. Corner
 saves move an open PiP only while it still matches its previous corner and
 baseline size. Explicit picker actions may move a manually placed window;
 geometry is revalidated before dispatch. Stable owned IDs allow these checks
@@ -153,7 +183,12 @@ Revalidate window lifetime after each awaited compositor snapshot before calling
 native window methods. A corner query that completes after the PiP closes returns
 `available: false`; stale geometry must not reach a destroyed BrowserWindow.
 
-`popoutAlwaysOnTop` defaults true. Electron supplies X11 stacking; KWin uses
+PiP always requests topmost; its native optional pin control is hidden only in
+PiP through the WindowContext boundary. Ordinary popouts retain that control.
+The validated native setAlwaysOnTop IPC call site also passes through the desktop
+controller: force true only for an owned explicit PiP, retaining native values for
+ordinary windows. This prevents Discord’s initial regular-window pin preference
+from undoing PiP’s required pin after construction. Electron supplies X11 stacking; KWin uses
 `keepAbove` on the verified window. Native Wayland compositors without a stacking
 API retain their policy; do not repeatedly raise/focus windows to emulate it.
 `popoutHideTitlebar` overrides native titlebars for floating video windows.
@@ -174,8 +209,70 @@ owned PID/address after native exit, then restore committed geometry. Do not
 infer a new window from focus/title while recovering.
 
 The PiP hover picker uses a frame-local, origin-checked preload bridge with only
-state/choose methods. Main-frame IPC accepts only registered owned floating
+state/choose/settings methods. Main-frame IPC accepts only registered owned floating
 video popouts at trusted Discord `/popout` URLs and four validated corner names.
+The parent renderer owns Discord’s call PiP React portal. Inject
+`pip-participants.cjs` in the parent and identify the native WindowContext by its
+renderWindow/appContext/windowDispatch contract. Apply filtering only when that
+context is POPOUT and its live renderWindow has the native windowKey (or browsing
+context name) DISCORD_CHANNEL_CALL_POPOUT.
+A child-document store override cannot affect the parent’s portal render.
+
+Wrap the validated native participant view’s exported sizing wrapper and adjust
+only its returned participant element. Keep native hooks, sizing and unrelated
+exports. Native export namespaces may contain frozen data properties as well as
+getters: use a separate proxy target with delegated descriptors, not a proxy that
+violates frozen-property invariants. Reject ambiguous stores/contexts/actions and
+unknown view trees; do not rewrite React factories or inspect private fibers.
+`popoutShowNonVideoParticipants` defaults true. Build PiP’s participant arrays
+from the full native participant collection, retaining cameras, shares and
+activities; omit voice-only participants when disabled and always omit items
+popped out elsewhere. Keep the regular store/getters/persisted toggle intact.
+The native `no-video-hide` menu item uses the same WindowContext-scoped local
+value/action. DPE saves update mounted boundaries through local subscriptions;
+unrelated saves preserve the window-local override. Unmount removes subscriptions.
+
+Auto-focus runs after the validated PiP view mounts/updates, once per window and
+channel, and stops on pointer/keyboard input or pagehide. Deduplicate eligible
+IDs, explicitly select even an automatically resolved grid participant and set
+the native `full-screen` layout in POPOUT only. Preserve existing fullscreen
+views. Exclude the current user’s screenshare using UserStore identity and stream
+ownership; unknown identity/ownership leaves native selection intact. Cameras
+(including self-camera), remote shares and activities count toward the sole-item
+decision. This changes Discord’s content layout, not Electron/OS fullscreen.
+
+The public signed-out shell and its call-PiP static chunk graph supplied the
+current view, sizing-wrapper, context and checkbox contracts without account or
+call actions (`out/pip-participant-contract/video-factories.json`). Adapter tests
+cover parent/PiP isolation, frozen exports, the sizing wrapper, live/local saves,
+activity retention and own-share exclusion. The real settings/DOM harness checks
+controls, prompt layout and monitor-arrow states in `out/pip-monitor-settings-verified/`.
+Live-call rendering remains unverified by the synthetic fixtures.
+
+Monitor arrows expose only left/right operations through the frame-local bridge.
+IPC accepts `monitor-left`/`monitor-right` only for an owned floating PiP at the
+trusted /popout origin. Determine neighbors in logical output coordinates, skip
+mirrors and aligned vertical stacks, and never wrap. Native Niri/Sway/Hyprland/KWin
+output lists take precedence over Electron’s Wayland screen coordinates. Move only
+the previously identified owned window, revalidate output/geometry before transfer,
+then fit without stretching and apply the same corner using the destination’s
+reserved area/insets. X11 uses Electron’s logical displays/work areas. Unsupported
+Wayland placement (including GNOME) disables both arrows. Compositor IPC failures,
+removed outputs, fullscreen and closed windows leave native placement intact.
+The private mixed-scale Sway check exercises a monitor roundtrip through the real
+preload/IPC bridge (`out/pip-monitor-sway-verified/`); unit checks cover Niri output
+identity/revalidation and X11 shrinking/directional state. KDE’s transfer uses
+[sendClientToScreen](https://develop.kde.org/docs/plasma/kwin/api/).
+
+The paired empty Invite to Voice/Choose Activity tile is hidden only in video
+popouts. Require both prompt controls in one tile and no active media/participant
+content; collapse its outer single-child tile wrapper. Reflow only an identified
+sibling media grid, retaining the native gap and updating on resize; restore native
+layout when activity/media content mounts or the prompts disappear. Prefer semantic
+`data-action` markers; the bounded text fallback currently recognizes English.
+Other localized unmarked placeholders retain native behavior. No React factories
+or controls outside the PiP are hidden for this cosmetic adapter.
+
 One DOM adapter displays four 16:9 rectangles using shared component CSS/tokens;
 it avoids React/webpack hooks. Attach beside a unique status within its existing
 noninteractive container so offsets do not chase animated screen coordinates.
@@ -183,6 +280,10 @@ If that container owns an opacity transition, inherit its fade rather than
 multiplying it by another transition. The standalone fallback uses a reversible
 150 ms opacity transition. Borderless rectangles use the shared secondary/brand
 control tokens; keep visible insets even around expanded hit targets.
+Recover a removed/hidden status anchor into the body, reattach when it returns,
+and recover state on focus/fullscreen exit. A bounded DOM repair uses the last
+state without extra compositor IPC. Ignore offscreen/hidden videos and allow a
+dominant video with a thumbnail; ambiguous equal tiles still hide the picker.
 It polls geometry only while hovered/focused,
 clears highlighting after size/position changes, and hides for ambiguous media
 or windows covering at least 70% of usable display area. Display flags and PiP
@@ -193,22 +294,20 @@ Explicit corner clicks restore that size before moving and highlighting; setting
 changes still preserve manual sizing/placement. Late Discord minimum-size IPC
 must not stretch floating PiP beyond its bounded minimum or invalidate its baseline.
 
-The default margin is a bounded 16 logical pixels inside the usable area,
-including visible outer frames, not invisible shadows/resize handles. Niri
-allows a smaller top margin to follow its configured gaps plus top strut; keep
-side/bottom margins at least 16. Preserve the true panel-reserved work area and
-carry the smaller top margin as `workArea.pipInsets.top`, so placement, snapshots
-and corner highlighting use the same geometry without moving the work area
-above the panel.
+The default margin on other backends is 16 logical pixels inside the usable
+area. Niri uses `max(0, gap + side strut + 6)` on every edge: six pixels keep
+separation from normal window edges, without imposing a minimum configured gap.
+The zero clamp protects panel reservations. Carry per-edge values through
+`workArea.pipInsets` so placement and highlighting share the same geometry.
 
-| Backend       | Placement contract and limit                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Niri          | Decorated tile size/output-local relative moves; preserve sign of fractional negative zero. Calibrate the panel-reserved working area through bounded center/fixed moves of only the verified owned PiP, then cache per output geometry. Read active config gaps/struts with ordered includes/workspace overrides; top inset is max(0, gap + top strut); side/bottom insets remain max(16, gap + strut). Initial map/calibration may show before final placement. |
-| Sway          | Containing workspace rectangle includes gaps/panel reservations; accept our own resize/move notifications. Negative/fractional output origins are covered.                                                                                                                                                                                                                                                                                                        |
-| Hyprland      | Revalidate owned floating/fullscreen state rather than Wayland's maximized hint. Wait for committed resize; account for monitor reservations, rotation, scale and global float gaps/borders. Support validated older commands/current Lua dispatchers. Per-workspace extensions remain outside the global query.                                                                                                                                                  |
-| KDE Plasma 6  | Bounded temporary KWin script identifies the initial active PID/stable UUID, then reads only that owned UUID for background controls; checks previous decorated frame and MaximizeArea. Authenticate D-Bus callbacks against KWin's unique owner; unload scripts/remove temporary files. Optional dbus-python/PyGObject absence falls back to compositor placement.                                                                                               |
-| GNOME Wayland | Resizable-dialog sizing begins at ready-to-show without initial focus; subsequent real blur/resize cancels it. Shell owns position. Do not enable unsafe Eval or install an extension.                                                                                                                                                                                                                                                                            |
-| X11           | Electron/EWMH work area and WM panel reservations; real WM testing matters beyond bare Xvfb.                                                                                                                                                                                                                                                                                                                                                                      |
+| Backend       | Placement contract and limit                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Niri          | Decorated tile size/output-local relative moves; preserve sign of fractional negative zero. Calibrate the panel-reserved working area through bounded center/fixed moves of only the verified owned PiP, then cache per output geometry. Read active config gaps/struts with ordered includes/workspace overrides; each inset is max(0, gap + side strut + 6), without a minimum gap. Initial map/calibration may show before final placement. |
+| Sway          | Containing workspace rectangle includes gaps/panel reservations; accept our own resize/move notifications. Negative/fractional output origins are covered.                                                                                                                                                                                                                                                                                     |
+| Hyprland      | Revalidate owned floating/fullscreen state rather than Wayland's maximized hint. Wait for committed resize; account for monitor reservations, rotation, scale and global float gaps/borders. Support validated older commands/current Lua dispatchers. Per-workspace extensions remain outside the global query.                                                                                                                               |
+| KDE Plasma 6  | Bounded temporary KWin script identifies the initial active PID/stable UUID, then reads only that owned UUID for background controls; checks previous decorated frame and MaximizeArea. Authenticate D-Bus callbacks against KWin's unique owner; unload scripts/remove temporary files. Optional dbus-python/PyGObject absence falls back to compositor placement.                                                                            |
+| GNOME Wayland | Resizable-dialog sizing begins at ready-to-show without initial focus; subsequent real blur/resize cancels it. Shell owns position. Do not enable unsafe Eval or install an extension.                                                                                                                                                                                                                                                         |
+| X11           | Electron/EWMH work area and WM panel reservations; real WM testing matters beyond bare Xvfb.                                                                                                                                                                                                                                                                                                                                                   |
 
 Private Niri/Sway/Openbox fixtures cover animation, 125%/150% scale, negative
 origins, 640×480 secondary output and panel reservations. KWin 6.8.2, GNOME 51.1
@@ -220,7 +319,7 @@ coverage. No real call was needed. Reports live under
 `out/popout-gnome-startup-*`, `out/popout-hyprland-*` and
 `out/pip-corner-settings-final-20261112/`. Use `scripts/check_popout.py --help`
 for `--placement-only`, `--compositor`, `--scale`, `--corner`,
-`--no-auto-position`, `--panel` (private Niri layer-shell panel),
+`--panel` (private Niri layer-shell panel),
 `--compact-top` (gaps 10/top strut -10), `--tools-prefix`
 and real X11 WM options. Niri configuration reads are bounded and fail back to
 the measured working area when the supported KDL subset cannot be parsed. Changes
@@ -236,10 +335,12 @@ absence of custom resize controls/IPC. The same checks pass on KWin 6.8.2 and
 Hyprland 0.57.2; X11/KWin verify default topmost and live opt-out.
 Reports: `out/pip-native-resize-{niri,x11}-checked-20261114/result/report.json`
 and `out/pip-native-resize-{kwin,hyprland}-20261114/result/report.json`.
-Private panel checks at 125% scale also cover zero top spacing with unchanged
+Private panel checks on Electron 46.0.0-alpha.10
+(`802ff9e279c229f100cea73fb3b2bb161f1a54139041c0b24bbe974cbed70d18`)
+at 125% scale also cover a 6px top inset with unchanged
 side/bottom margins and the existing larger positive-strut placement:
-`out/pip-niri-compact-top-20261114/result/report.json` and
-`out/pip-niri-standard-insets-20261114/result/report.json`.
+`out/pip-gap-controls-niri/result/report.json` and
+`out/pip-gap-controls-standard/result/report.json`.
 The settings harness covers default-on topmost, shared selects, titlebar controls,
 keyboard/narrow/zoomed layout and letterboxing versus actual titlebar measurements
 in `out/pip-native-resize-settings-final-20261114/`. These synthetic checks do not
@@ -274,3 +375,21 @@ Export performs no upload. Diagnostics must identify absent evidence rather than
 invent clean results. Real worker/settings coverage is in
 `out/export-logs-redaction-final/`; `DPE_SETTINGS_SCOPE=troubleshooting` exercises
 IPC, cancellation, ownership, errors and focus without an account.
+
+PiP refinements use the shared interactive icon color token rather than an icon
+component’s literal fallback color. The call entry is omitted inside a PiP
+WindowContext. A single visible participant uses the native focused tile without
+a duplicate participant strip. The recognized hidden-video placeholder names
+PiP explicitly and its capture-phase button opens the trusted PiP-only settings
+IPC alias; Settings maps `pip` to Appearance and focuses the PiP heading.
+Niri monitor transfers address the destination active workspace by IPC Id with
+`focus:false`; Hyprland uses silent/follow-false transfers, and Sway moves to the
+destination workspace without following it. No cursor restoration command or
+user compositor configuration changes are made.
+
+The corner picker is available throughout PiP, including empty participant
+screens, and no longer depends on mounted media. Hide the monitor-arrow row when
+both directional targets are unavailable (single output or unsupported compositor),
+while retaining corner controls. The opener tracks its live PiP WindowProxy so
+the PiP entry is omitted in all call toolbars until that window closes; the
+ordinary return-to-call control remains native.
