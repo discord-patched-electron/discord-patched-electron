@@ -945,3 +945,14 @@ body #dpe-pip-corners[data-native-fade="true"] {
 #dpe-pip-corners .dpe-pip-monitor[hidden] {
   display: none;
 }
+
+.dpe-ui .dpe-button[data-dpe-pip-settings] {
+  width: max-content !important;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap !important;
+  padding: calc(var(--space-8, 8px) - 1px) calc(var(--space-16, 16px) - 1px) !important;
+}
+.dpe-ui .dpe-button[data-dpe-pip-settings] * {
+  white-space: nowrap !important;
+}

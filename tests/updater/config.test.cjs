@@ -211,7 +211,7 @@ test("replacement Settings never inherits explicit or source-window native owner
     independent: true,
   });
   assert.equal(settings.options.parent, undefined);
-  assert.equal(settings.options.type, "dialog");
+  assert.equal(settings.options.type, "normal");
   assert.equal(settings.options.resizable, true);
   assert.equal(settings.options.width, 1100);
   assert.equal(settings.options.height, 800);

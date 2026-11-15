@@ -673,4 +673,25 @@ test("X11 monitor transfers preserve aspect ratio, fit smaller work areas and up
   const previous = { ...bounds };
   await session(win).moveMonitor("left");
   assert.deepEqual(bounds, previous);
+  await session(win).moveMonitor("right");
+  assert.deepEqual(
+    bounds,
+    { x: 900, y: 400, width: 640, height: 360 },
+    "Returning from a smaller monitor restores the preferred size and relative position",
+  );
+  bounds = { x: 200, y: 150, width: 320, height: 180 };
+  await session(win).moveMonitor("left");
+  assert.deepEqual(
+    [bounds.width, bounds.height],
+    [320, 180],
+    "Manual sizes are preserved on a monitor that can contain them",
+  );
+  await session(win).moveMonitor("right");
+  assert.ok(Math.abs(bounds.x - 200) <= 2 && Math.abs(bounds.y - 150) <= 2);
+  bounds = { x: 300, y: 100, width: 1200, height: 675 };
+  await session(win).moveMonitor("left");
+  assert.ok(bounds.x < 0 && bounds.width <= 368);
+  await session(win).moveMonitor("right");
+  assert.ok(Math.abs(bounds.x - 300) <= 2 && Math.abs(bounds.y - 100) <= 2);
+  assert.deepEqual([bounds.width, bounds.height], [1200, 675]);
 });

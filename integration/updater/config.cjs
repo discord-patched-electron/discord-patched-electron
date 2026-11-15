@@ -65,7 +65,7 @@ function open(tab = "settings", sourceContents, options = {}) {
     title: mode === "welcome" ? "Welcome to DPE" : "DPE Settings",
     width,
     height,
-    type: "dialog",
+    type: mode === "settings" ? "normal" : "dialog",
     ...(parent && !parent.isDestroyed() ? { parent, modal: false } : {}),
     frame: false,
     show: false,

@@ -438,7 +438,7 @@ function createController(
       )
         return { available: false };
       if (corner === "settings") {
-        require("../updater/config.cjs").open("pip", web);
+        require("../updater/config.cjs").open("pip", web, { independent: true });
         return { opened: true };
       }
       const session = require("./popout.cjs").session(entry[0]);
