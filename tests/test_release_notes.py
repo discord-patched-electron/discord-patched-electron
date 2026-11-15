@@ -177,8 +177,29 @@ class ReleaseNotes(unittest.TestCase):
             body = notes(manifest(clients_state="f" * 40), None)
             log.assert_not_called()
         self.assertIn("No earlier stable release", body)
-        self.assertIn("No earlier pre-release", body)
+        self.assertNotIn("Changes since last pre-release", body)
         self.assertIn("[Client snapshot]", body)
+
+    def test_first_prerelease_after_stable_uses_plain_stable_changes(self):
+        current = manifest()
+        stable = manifest("20261025.120000", client_version="1.0.2373")
+        for preview in (None, manifest("20261024.120000", client_version="1.0.2372")):
+            with self.subTest(preview=preview):
+                body = notes(current, stable, previous_prerelease=preview)
+                self.assertNotIn("<details", body)
+                self.assertNotIn("Changes since last pre-release", body)
+                self.assertIn("1.0.2373 → 1.0.2374", body)
+                self.assertIn(manifest_tag(stable) + "..." + manifest_tag(current), body)
+                if preview:
+                    self.assertNotIn(manifest_tag(preview) + "...", body)
+
+    def test_followup_prerelease_expands_incremental_changes_and_collapses_stable_rollup(self):
+        stable = manifest("20261024.120000")
+        preview = manifest("20261025.120000")
+        body = notes(manifest(), stable, previous_prerelease=preview)
+        self.assertIn("<details>\n<summary>Changes since last stable release</summary>", body)
+        self.assertIn("<details open>\n<summary>Changes since last pre-release</summary>", body)
+        self.assertEqual(body.count("<details open>"), 1)
 
     def test_same_version_module_hash_changes_and_electron_rebuild_are_visible(self):
         old = manifest(client={"modules": {"discord_voice": {"full": {"package_sha256": "a"}}}})
@@ -382,13 +403,15 @@ class ReleaseNotes(unittest.TestCase):
     def test_refresh_only_patches_bodies_and_preserves_each_release_approval_state(self):
         old, preview, new = (manifest("20261025.100000"), manifest("20261026.110000"), manifest())
         latest = manifest("20261027.120000")
+        followup = manifest("20261028.120000")
         entries = [
             release(old, id=1, prerelease=False, body="old notes"),
             release(preview, id=2, body="preview notes"),
             release(new, id=3, prerelease=False, body="new notes"),
             release(latest, id=4, body="latest preview"),
+            release(followup, id=5, body="followup preview"),
         ]
-        by_tag = {manifest_tag(item): item for item in (old, preview, new, latest)}
+        by_tag = {manifest_tag(item): item for item in (old, preview, new, latest, followup)}
         writes = []
 
         def api(endpoint, **kwargs):
@@ -412,7 +435,7 @@ class ReleaseNotes(unittest.TestCase):
             count = len(writes)
             refresh_notes(None, apply=True)
             self.assertEqual(len(writes), count, "Applying unchanged descriptions is idempotent")
-        self.assertEqual(len(writes), 4)
+        self.assertEqual(len(writes), 5)
         self.assertTrue(all(set(data) == {"body"} for _, data in writes))
         self.assertIn("approved as stable", writes[0][1]["body"])
         self.assertIn("hasn't been approved", writes[1][1]["body"])
@@ -422,7 +445,14 @@ class ReleaseNotes(unittest.TestCase):
         self.assertIn(manifest_tag(old) + "..." + manifest_tag(new), stable_body)
         self.assertNotIn(manifest_tag(preview) + "...", stable_body)
         latest_body = writes[3][1]["body"]
-        self.assertIn("<summary>Changes since last stable release</summary>", latest_body)
-        self.assertIn("<summary>Changes since last pre-release</summary>", latest_body)
+        self.assertNotIn("<details", latest_body)
         self.assertIn(manifest_tag(new) + "..." + manifest_tag(latest), latest_body)
-        self.assertIn(manifest_tag(preview) + "..." + manifest_tag(latest), latest_body)
+        self.assertNotIn(manifest_tag(preview) + "..." + manifest_tag(latest), latest_body)
+        followup_body = writes[4][1]["body"]
+        self.assertIn(
+            "<details>\n<summary>Changes since last stable release</summary>", followup_body
+        )
+        self.assertIn(
+            "<details open>\n<summary>Changes since last pre-release</summary>", followup_body
+        )
+        self.assertIn(manifest_tag(latest) + "..." + manifest_tag(followup), followup_body)
