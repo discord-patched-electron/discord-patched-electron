@@ -244,7 +244,8 @@ module.exports = function callPiP(request, ui) {
                 constructor(...args) {
                   super(...args);
                   const render = this.renderBottomRightControls,
-                    settings = this.renderSettingsIcon;
+                    settings = this.renderSettingsIcon,
+                    disconnect = this.renderDisconnectButton;
                   if (
                     typeof render !== "function" ||
                     typeof settings !== "function" ||
@@ -252,13 +253,19 @@ module.exports = function callPiP(request, ui) {
                     typeof this.handleOpenPopout !== "function"
                   )
                     return;
-                  let settingsNode;
+                  let settingsNode, disconnectNode;
                   this.renderSettingsIcon = (...args) => {
                     settingsNode = Reflect.apply(settings, this, args);
                     return settingsNode;
                   };
+                  if (typeof disconnect === "function")
+                    this.renderDisconnectButton = (...args) => {
+                      disconnectNode = Reflect.apply(disconnect, this, args);
+                      return disconnectNode;
+                    };
                   this.renderBottomRightControls = (...args) => {
                     settingsNode = null;
+                    disconnectNode = null;
                     const controls = Reflect.apply(render, this, args);
                     if (unavailable() || !Array.isArray(controls?.props?.children)) return controls;
                     const children = [...controls.props.children],
@@ -270,8 +277,8 @@ module.exports = function callPiP(request, ui) {
                     )
                       return controls;
                     const index = settingsNode ? children.indexOf(settingsNode) : -1;
-                    // Place it after the actual cog when present, otherwise next
-                    // to the native popout; retain all native controls and nulls.
+                    // Camera/activity PiP has neither cog nor popout. Anchor its
+                    // entry before the native disconnect, preserving that action.
                     const popout = children.findIndex(
                       (child) => child?.props?.onOpenPopout === this.handleOpenPopout,
                     );
@@ -286,7 +293,12 @@ module.exports = function callPiP(request, ui) {
                         id: "dpe-overlay-pip",
                         ...(settingsNode
                           ? { after: (child) => child === settingsNode }
-                          : { before: (child) => child?.props?.onOpenPopout === nativeOpen }),
+                          : {
+                              before: (child) =>
+                                popout >= 0
+                                  ? child === children[popout]
+                                  : !!disconnectNode && child === disconnectNode,
+                            }),
                         context: {
                           template,
                           open: this.handleOpenPopout,

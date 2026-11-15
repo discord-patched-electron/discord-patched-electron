@@ -105,15 +105,30 @@ function fixture() {
         onOpenPopout: this.handleOpenPopout,
         onClosePopout: () => {},
       });
+    renderDisconnectButton = () =>
+      React.createElement("disconnect", {
+        className: "overlay-control",
+        onClick: () => "native-disconnect",
+      });
     renderBottomRightControls = () =>
-      React.createElement(
-        React.Fragment,
-        null,
-        React.createElement("viewers"),
-        this.props.settings ? this.renderSettingsIcon() : null,
-        this.props.popout ? this.renderPopoutIcon() : null,
-        React.createElement("stop"),
-      );
+      this.props.disconnectOnly
+        ? React.createElement(
+            React.Fragment,
+            null,
+            null,
+            null,
+            null,
+            null,
+            this.renderDisconnectButton(),
+          )
+        : React.createElement(
+            React.Fragment,
+            null,
+            React.createElement("viewers"),
+            this.props.settings ? this.renderSettingsIcon() : null,
+            this.props.popout ? this.renderPopoutIcon() : null,
+            React.createElement("stop"),
+          );
   }
   const overlay = {
     A: function Overlay({
@@ -246,6 +261,45 @@ test("in-app controls survive provider wrappers and native remounts without dupl
       );
       assert.equal(buttons[1].type, "settings-cog");
     }
+  }
+});
+
+test("camera/activity in-app PiP adds its entry before the sole native disconnect control", () => {
+  for (const type of ["camera", "activity"]) {
+    const f = fixture();
+    const props = {
+      disconnectOnly: true,
+      channel: { id: "call" },
+      participantOnScreen: { id: "media", type },
+    };
+    const element = f.renderOverlay(props),
+      overlay = new element.type(element.props);
+    const controls = () => overlay.renderBottomRightControls().props.children.filter(Boolean);
+    for (let rerender = 0; rerender < 3; rerender++) {
+      const [pip, disconnect] = controls();
+      assert.equal(controls().length, 2);
+      assert.equal(pip.props.label, "Picture-in-picture");
+      assert.equal(pip.props.className, disconnect.props.className);
+      assert.equal(disconnect.type, "disconnect");
+      assert.equal(disconnect.props.onClick(), "native-disconnect");
+      assert.equal(f.requests.length, 0, "disconnect never opens PiP");
+    }
+    const pip = controls()[0];
+    pip.type(pip.props).props.onClick();
+    assert.match(f.requests[0].features, /dpe-pip=yes/);
+    assert.match(f.requests[0].features, /dpe-pip-corner=top-left/);
+    assert.equal(
+      vm.runInContext('globalThis[Symbol.for("dpe.callPiP")].origin.participantId', f.context),
+      "media",
+    );
+    assert.equal(controls().length, 1, "active floating PiP suppresses the extra entry");
+    assert.equal(controls()[0].type, "disconnect");
+    f.requests[0].child.closed = true;
+    f.expire();
+    assert.equal(controls().length, 2, "returning restores the camera/activity entry");
+    overlay.props = { settings: true, popout: false };
+    assert.equal(controls()[1].type, "settings-cog");
+    assert.equal(controls()[2].props.label, "Picture-in-picture");
   }
 });
 

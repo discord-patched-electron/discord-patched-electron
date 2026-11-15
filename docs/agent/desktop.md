@@ -134,7 +134,11 @@ PiP intent and invokes its native action. Omit the extra control for unrelated
 activity/debug callbacks; disable it while a call popout is already open.
 
 The in-app video PiP tray also offers PiP immediately after its native settings
-cog (beside the native popout when the cog is absent). Discover the native view
+cog (beside the native popout when the cog is absent). Camera/activity layouts
+with only Disconnect place PiP before that native action, using the same popout
+control template and open callback. Capture the actual disconnect node during
+render; never guess an anchor from translated text or reuse its destructive style.
+Discover the native view
 export and validate its returned class/control methods before extending that
 instance's tray. Preserve the native controls, callback and class lifetime; use
 their existing icon classes/colors on video rather than the main toolbar color.

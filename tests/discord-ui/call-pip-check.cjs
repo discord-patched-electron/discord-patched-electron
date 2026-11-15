@@ -33,12 +33,15 @@ module.exports = async function check(window, root) {
       handleOpenPopout=()=>{const pip=globalThis[Symbol.for('dpe.callPiP')].consume('DISCORD_CHANNEL_CALL_POPOUT');entryClicks.push(pip?'overlay-pip':'overlay-stock');};
       renderSettingsIcon=()=>React.createElement(Control,{label:'Stream settings',iconComponent:SettingsIcon,className:'call-control overlay-control'});
       renderPopoutIcon=()=>React.createElement(runtime.c.control.exports.A,{popoutOpen:false,onOpenPopout:this.handleOpenPopout,className:'call-control overlay-control'});
-      renderBottomRightControls=()=>React.createElement(React.Fragment,null,this.renderSettingsIcon(),this.renderPopoutIcon());
+      renderDisconnectButton=()=>React.createElement(Control,{label:'Disconnect',iconComponent:SettingsIcon,className:'call-control overlay-control',onClick:()=>entryClicks.push('disconnect')});
+      renderBottomRightControls=()=>this.props.videoOnly
+        ?React.createElement(React.Fragment,null,null,null,null,null,this.renderDisconnectButton())
+        :React.createElement(React.Fragment,null,this.renderSettingsIcon(),this.renderPopoutIcon());
       render(){return this.renderBottomRightControls();}
     }
-    const overlay={A:function({participantOnScreen,isMainWindowFocused,activeSelfStream,width}){return React.createElement(Overlay,{participantOnScreen,isMainWindowFocused,activeSelfStream,width});}};
+    const overlay={A:function({participantOnScreen,isMainWindowFocused,activeSelfStream,width,...props}){return React.createElement(Overlay,{participantOnScreen,isMainWindowFocused,activeSelfStream,width,...props});}};
     runtime.c.overlay={exports:overlay};visit(overlay,runtime);
-    window.renderOverlay=()=>React.render(React.createElement(runtime.c.overlay.exports.A,{}),document.getElementById('overlay'));
+    window.renderOverlay=(videoOnly=false)=>React.render(React.createElement(runtime.c.overlay.exports.A,{videoOnly}),document.getElementById('overlay'));
     renderOverlay();
   })()`);
   const layout = await window.webContents.executeJavaScript(
@@ -117,6 +120,60 @@ module.exports = async function check(window, root) {
     2,
   );
   return {
+    assertVideoOnly: async () => {
+      await window.webContents.executeJavaScript("renderOverlay(true)");
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      const controls = await window.webContents.executeJavaScript(`(()=>{
+        const [pip,disconnect]=document.querySelectorAll('#overlay button');
+        return {labels:[pip.ariaLabel,disconnect.ariaLabel],color:getComputedStyle(pip.querySelector('span')).color,
+          gap:disconnect.getBoundingClientRect().left-pip.getBoundingClientRect().right};
+      })()`);
+      assert.deepEqual(controls, {
+        labels: ["Picture-in-picture", "Disconnect"],
+        color: "rgb(244, 245, 246)",
+        gap: 8,
+      });
+      await window.webContents.executeJavaScript(
+        "document.querySelector('#overlay button').focus()",
+      );
+      window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+      window.webContents.sendInputEvent({ type: "char", keyCode: "\r" });
+      window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+      await new Promise((resolve) => setTimeout(resolve, 70));
+      assert.equal(await window.webContents.executeJavaScript("entryClicks.at(-1)"), "overlay-pip");
+      await window.webContents.executeJavaScript(
+        "document.querySelectorAll('#overlay button')[1].click()",
+      );
+      assert.equal(await window.webContents.executeJavaScript("entryClicks.at(-1)"), "disconnect");
+      await window.webContents.executeJavaScript(
+        "testPiP.closed=false;globalThis[Symbol.for('dpe.callPiP')].opened(testPiP)",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      assert.equal(
+        await window.webContents.executeJavaScript(
+          "document.querySelectorAll('#overlay button').length",
+        ),
+        1,
+      );
+      assert.equal(
+        await window.webContents.executeJavaScript(
+          "document.querySelector('#overlay button').ariaLabel",
+        ),
+        "Disconnect",
+      );
+      await window.webContents.executeJavaScript(
+        "testPiP.closed=true;new Promise(resolve=>setTimeout(resolve,350))",
+      );
+      await window.webContents.executeJavaScript(
+        "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
+      );
+      assert.equal(
+        await window.webContents.executeJavaScript(
+          "document.querySelectorAll('#overlay button').length",
+        ),
+        2,
+      );
+    },
     assertDisabled: async () => {
       await window.webContents.executeJavaScript("renderEntry(true)");
       await new Promise((resolve) => setTimeout(resolve, 40));

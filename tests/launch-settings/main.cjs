@@ -373,6 +373,7 @@ app
         (await fixture.webContents.capturePage()).toPNG(),
       );
       await callEntry.assertDisabled();
+      await callEntry.assertVideoOnly();
       checks.push(
         "Separate native call PiP/popout controls retain spacing, keyboard activation and ordinary popout behavior",
       );
