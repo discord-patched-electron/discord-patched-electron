@@ -23,6 +23,7 @@ from releases import (
     notes,
     prepare,
     publish,
+    qualification_candidate,
     release_for_tag,
     release_tag,
     reserve_tag,
@@ -192,6 +193,20 @@ class ReleaseApproval(unittest.TestCase):
             "head_sha": "a" * 40,
             "path": ".github/workflows/release.yml",
         }
+
+    def test_full_qualification_has_a_separate_retryable_identity_after_skipped_tests(self):
+        untested = {"draft": False, "tag_name": "untested"}
+        qualified = {"draft": True, "tag_name": "qualified"}
+        with patch("releases.existing_candidate", side_effect=[untested, qualified]) as find:
+            with patch("releases.published_manifest", return_value={"tests_skipped": True}):
+                key, candidate = qualification_candidate("1.0.2483", "b" * 64, "canary")
+        self.assertNotEqual(key, "b" * 64)
+        self.assertEqual(candidate, qualified)
+        self.assertEqual(find.call_args.args[1], key)
+        with self.assertRaisesRegex(ValueError, "full release qualification"):
+            validate_approval(
+                self.release, {**self.manifest, "tests_skipped": True}, self.workflow, None
+            )
 
     def test_rejects_failed_foreign_or_mismatched_release_evidence(self):
         validate_approval(self.release, self.manifest, self.workflow, None)
@@ -467,6 +482,7 @@ class ReleaseApproval(unittest.TestCase):
                         },
                     ),
                     patch("releases.integration_key", return_value=key),
+                    patch("releases.published_manifest", return_value={"tests_skipped": False}),
                     patch("releases.api", side_effect=api),
                     patch("releases.reserve_tag") as reserve,
                     patch("releases.record_proposal", return_value="9" * 40) as proposal,

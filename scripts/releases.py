@@ -102,6 +102,21 @@ def existing_candidate(client_version, key, channel):
     return None
 
 
+def qualification_candidate(client_version, key, channel, *, skip_tests=False):
+    existing = existing_candidate(client_version, key, channel)
+    if (
+        existing
+        and not existing["draft"]
+        and not skip_tests
+        and published_manifest(existing).get("tests_skipped")
+    ):
+        # Published assets are immutable. Full qualification needs a separate
+        # candidate, while retries must resolve to that same candidate identity.
+        key = digest({"integration": key, "qualification": "full"})
+        existing = existing_candidate(client_version, key, channel)
+    return key, existing
+
+
 def release_for_tag(tag: str, *, repository=PROJECT):
     release = api("releases/tags/" + tag, missing=True, repository=repository)
     if release:
@@ -148,7 +163,12 @@ def prepare():
     electron = capacity["source"]["target"]
     require_enabled_electron(electron)
     key = integration_key(runtime, client, electron)
-    existing = existing_candidate(client["version"], key, channel)
+    key, existing = qualification_candidate(
+        client["version"],
+        key,
+        channel,
+        skip_tests=os.environ.get("DPE_RELEASE_TESTS_SKIPPED") == "1",
+    )
     # Run creation time survives retries. A partial draft also retains its version.
     timestamp = (existing or api("actions/runs/" + os.environ["GITHUB_RUN_ID"]))["created_at"]
     now = (
@@ -783,6 +803,8 @@ def publish(directory: Path):
 
 
 def validate_approval(release: dict, manifest: dict, workflow: dict, approved: dict | None):
+    if manifest.get("tests_skipped"):
+        raise ValueError("Run full release qualification before approving a skipped-test candidate")
     if release["draft"] or release["tag_name"] != manifest_tag(manifest):
         raise ValueError("Select a published test release")
     if (

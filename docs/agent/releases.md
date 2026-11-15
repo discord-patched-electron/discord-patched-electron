@@ -27,6 +27,10 @@ video/Krisp and isolated audio. Public test releases remain unapproved until
 manual testing. Failed runs keep the last qualified release available; retries
 resume drafts without overwriting public assets.
 
+A full qualification after a skipped-test publication creates a separate candidate
+identity; retries reuse that identity. Published assets are never overwritten.
+Skipped-test manifests cannot be approved directly.
+
 ## Test and approve
 
 1. Verify the candidate’s signatures and checksums using the
