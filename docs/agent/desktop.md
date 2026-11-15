@@ -156,13 +156,22 @@ media target for that owned window and channel, validated against eligible RTC
 media before selection. Own shares remain excluded. Clear this transient origin
 on close; ordinary overlay popout clicks clear any unfinished PiP intent.
 
-The opt-in **Follow in-app PiP position** preference snapshots the native
+The default-on **Follow in-app PiP position** preference snapshots the native
 PictureInPictureStore's visible video-window corner when its PiP entry is clicked.
 Only the four known logical corners are forwarded with the consumed PiP intent.
 Main-frame window options validate the hint and require the preference to be
 enabled before using it. This is a per-launch override; the saved default corner
 remains available for main-call launches and unavailable/ambiguous native state.
 No overlay DOM coordinates or compositor-specific pixel offsets are used.
+
+PiP's native whole-call view keeps Discord's pop-in control visible even in its
+fullscreen media layout. Both entry points use Discord's existing call-popout
+action; the native close callback returns to Discord. The member bar starts
+minimized when enabled and collapses again on participant selection or layout
+changes, including cameras and activities. Manual Show Members remains usable
+until the next selection/layout change. A manual sole-tile deselection is not
+overridden. The PiP-only non-video checkbox is omitted while DPE's corresponding
+preference is off; stale menu callbacks cannot re-enable that content.
 
 The native participant sizing wrapper permits shrinking below its media's
 minimum content size in explicit PiP, so the header cannot push its measured

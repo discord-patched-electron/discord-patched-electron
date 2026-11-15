@@ -25,7 +25,10 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 
 - Native titlebars and individually configurable window buttons.
 - Resizable windows without Discord’s minimum-size limit.
-- Floating video popouts with optional titlebars and member lists.
+- Dedicated, always-on-top picture-in-picture for videos, screenshares and
+  activities, alongside Discord's regular popouts and pop-in controls.
+- PiP corner and monitor controls on supported desktops, with automatic in-app
+  corner following, stream sizing and separate participant preferences.
 - Notification flashing and optional mention-only app badges.
 - Custom tray icons and minimized startup.
 - Optional desktop media controls.
@@ -36,7 +39,7 @@ support. Uses the desktop client, rather than a web wrapper like Vesktop or Equi
 - Multilingual spell checking with Chromium dictionaries.
 - Graphics presets and custom Electron flags.
 - Autoscroll and middle-click paste controls.
-- Built-in GPU, media and WebRTC diagnostics.
+- Built-in GPU, media and WebRTC diagnostics, with redacted diagnostic ZIP export.
 - [Vencord or Equicord](docs/client-mods.md), preserved across updates.
 - Automatic, verified Discord and patched Electron updates.
 

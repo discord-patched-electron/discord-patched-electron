@@ -14,7 +14,8 @@ module.exports = function pipParticipants(request, ui) {
     actions = new Set(),
     contexts = new Set();
   const wrapped = new WeakSet(),
-    windows = new WeakMap();
+    windows = new WeakMap(),
+    callViews = new WeakMap();
   let React;
   let revision = 0;
   let hideMembers = request.hideMembers === true;
@@ -50,7 +51,15 @@ module.exports = function pipParticipants(request, ui) {
   function settings(target) {
     let value = windows.get(target);
     if (!value) {
-      value = { show: saved, revision, attempted: new Set(), stopped: false, restore: [] };
+      value = {
+        show: saved,
+        revision,
+        attempted: new Set(),
+        stopped: false,
+        restore: [],
+        memberSelections: new Map(),
+        restoreMemberChannels: new Set(),
+      };
       windows.set(target, value);
       const stop = () => {
         value.stopped = true;
@@ -84,6 +93,38 @@ module.exports = function pipParticipants(request, ui) {
       ...store.getVideoParticipants(channel),
       ...store.getActivityParticipants(channel),
     ];
+  }
+  function minimizeMembers(target, channel) {
+    const local = settings(target);
+    if (!hideMembers) {
+      local.memberSelections.delete(channel);
+      return;
+    }
+    if (target.closed || stores.size !== 1 || actions.size !== 1) return;
+    const store = [...stores][0],
+      action = [...actions][0];
+    if (
+      typeof store.getSelectedParticipant !== "function" ||
+      typeof store.getParticipantsOpen !== "function"
+    )
+      return;
+    const selected = JSON.stringify([
+      store.getSelectedParticipant(channel)?.id ?? null,
+      store.getLayout?.(channel, "POPOUT"),
+    ]);
+    if (local.memberSelections.has(channel) && local.memberSelections.get(channel) === selected)
+      return;
+    const sig = ui.signature(action.toggleParticipants);
+    if (!sig || !ui.has(sig, "CHANNEL_RTC_UPDATE_PARTICIPANTS_OPEN", "channelId")) return;
+    local.memberSelections.set(channel, selected);
+    if (!store.getParticipantsOpen(channel)) return;
+    if (!local.restoreMemberChannels.has(channel)) {
+      local.restoreMemberChannels.add(channel);
+      local.restore.push(() => {
+        if (store.getParticipantsOpen(channel) === false) action.toggleParticipants(channel, true);
+      });
+    }
+    action.toggleParticipants(channel, false);
   }
   function focus(target, channel) {
     const local = settings(target);
@@ -248,6 +289,7 @@ module.exports = function pipParticipants(request, ui) {
               timer = setTimeout(() => {
                 try {
                   focus(context.renderWindow, props.channel.id);
+                  minimizeMembers(context.renderWindow, props.channel.id);
                 } catch {
                   /* Changed native contracts keep their selection. */
                 }
@@ -263,40 +305,14 @@ module.exports = function pipParticipants(request, ui) {
               clearTimeout(timer);
               if (subscribable) store.removeChangeListener(run);
             };
-          }, [enabled, props.channel?.id, props.participantsVersion, props.participants]);
-          React.useEffect(() => {
-            if (
-              !view ||
-              !enabled ||
-              !hideMembers ||
-              stores.size !== 1 ||
-              actions.size !== 1 ||
-              !props.channel?.id ||
-              !props.selectedParticipant?.id
-            )
-              return;
-            const store = [...stores][0],
-              action = [...actions][0];
-            const selected = props.selectedParticipant.id;
-            if (!store.getStreamParticipants(props.channel.id).some((p) => p.id === selected))
-              return;
-            const sig = ui.signature(action.toggleParticipants);
-            if (
-              sig &&
-              ui.has(sig, "CHANNEL_RTC_UPDATE_PARTICIPANTS_OPEN", "channelId") &&
-              store.getParticipantsOpen?.(props.channel.id)
-            ) {
-              if (!local.restoreMembers) {
-                local.restoreMembers = true;
-                const channel = props.channel.id;
-                local.restore.push(() => {
-                  if (store.getParticipantsOpen?.(channel) === false)
-                    action.toggleParticipants(channel, true);
-                });
-              }
-              action.toggleParticipants(props.channel.id, false);
-            }
-          }, [enabled, hideMembers, props.channel?.id, props.selectedParticipant?.id]);
+          }, [
+            enabled,
+            hideMembers,
+            props.channel?.id,
+            props.participantsVersion,
+            props.participants,
+            props.selectedParticipant?.id,
+          ]);
           if (call) {
             const tree = Reflect.apply(original, this, [props]);
             // Guild room state is shared with the app and can bypass the tile
@@ -308,14 +324,41 @@ module.exports = function pipParticipants(request, ui) {
               typeof tree.props.guildRoomVisible !== "boolean"
             )
               return tree;
+            const getter =
+              typeof tree.type === "function" &&
+              tree.type.prototype &&
+              Object.getOwnPropertyDescriptor(tree.type.prototype, "viewProperties")?.get;
+            const sig = getter && ui.signature(getter);
+            if (sig && ui.has(sig, "canPopout", "canFullscreen", "canStayOnTop")) {
+              let View = callViews.get(tree.type);
+              if (!View) {
+                View = class extends tree.type {
+                  get viewProperties() {
+                    const native = Reflect.apply(getter, this, []);
+                    return this.inPopout && this.popoutOpen
+                      ? { ...native, canPopout: true }
+                      : native;
+                  }
+                };
+                callViews.set(tree.type, View);
+              }
+              return React.createElement(View, {
+                ...tree.props,
+                guildRoomVisible: false,
+                key: tree.key,
+                ref: tree.ref,
+              });
+            }
             return React.cloneElement(tree, { guildRoomVisible: false });
           }
           if (menu) {
             const tree = Reflect.apply(original, this, [props]);
             if (!enabled || tree?.props?.id !== "no-video-hide") return tree;
+            if (!saved) return null;
             return React.cloneElement(tree, {
               checked: local.show,
               action: () => {
+                if (!saved) return;
                 local.show = !local.show;
                 for (const refresh of listeners) refresh();
               },
@@ -332,7 +375,7 @@ module.exports = function pipParticipants(request, ui) {
               return props;
             const ids = new Set(media([...stores][0], channel).map((p) => p.id));
             const participants = props.participants.filter(
-              (p) => !p.isPoppedOut && (local.show || ids.has(p.id)),
+              (p) => !p.isPoppedOut && ((saved && local.show) || ids.has(p.id)),
             );
             const sole = participants.length === 1 ? participants[0] : null;
             const stream =
@@ -340,13 +383,36 @@ module.exports = function pipParticipants(request, ui) {
             const me = users.size === 1 ? [...users][0].getCurrentUser()?.id : undefined;
             const owner = stream?.stream?.ownerId || stream?.user?.id;
             const focusSole =
+              !local.stopped &&
               sole &&
               (!stream || (typeof me === "string" && typeof owner === "string" && owner !== me));
+            const callbacks = {};
+            for (const name of ["onSelectParticipant", "onFullscreenParticipant"]) {
+              if (typeof props[name] !== "function") continue;
+              callbacks[name] = (...args) => {
+                local.stopped = true;
+                const result = props[name](...args);
+                if (hideMembers) {
+                  local.memberSelections.delete(channel);
+                  setTimeout(() => {
+                    try {
+                      minimizeMembers(context.renderWindow, channel);
+                    } catch {
+                      /* Native selection remains intact. */
+                    }
+                  }, 0);
+                }
+                return result;
+              };
+            }
             return {
               ...props,
+              ...callbacks,
               participants,
               filteredParticipants: participants,
-              ...(focusSole ? { selectedParticipant: sole, showParticipants: false } : {}),
+              ...(focusSole
+                ? { selectedParticipant: sole, ...(hideMembers ? { showParticipants: false } : {}) }
+                : {}),
             };
           };
           if (nativeView) return React.createElement(original, adjust(props));
