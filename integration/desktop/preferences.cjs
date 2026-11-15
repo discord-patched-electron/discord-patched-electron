@@ -9,7 +9,7 @@ const DEFAULTS = Object.freeze({
   closeButton: true,
   minimumWindowSize: true,
   popoutCorner: "bottom-right",
-  popoutFollowInAppPosition: false,
+  popoutFollowInAppPosition: true,
   popoutHideTitlebar: true,
   popoutHideMembers: true,
   popoutShowNonVideoParticipants: true,

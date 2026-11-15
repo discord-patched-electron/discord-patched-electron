@@ -4,14 +4,14 @@
 module.exports = function callPiP(request, ui) {
   const key = Symbol.for("dpe.callPiP");
   if (globalThis[key]) {
-    globalThis[key].followInAppPosition = request.followInAppPosition === true;
+    globalThis[key].followInAppPosition = request.followInAppPosition !== false;
     return;
   }
   const listeners = new Set();
   const state = {
     pending: false,
     timer: undefined,
-    followInAppPosition: request.followInAppPosition === true,
+    followInAppPosition: request.followInAppPosition !== false,
   };
   const positions = new Set();
   const notify = () => {

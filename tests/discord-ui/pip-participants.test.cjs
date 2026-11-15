@@ -10,7 +10,8 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     nativeToggles = 0,
     rerenders = 0,
     layout = "normal",
-    selected = null;
+    selected = null,
+    membersOpen = false;
   const timers = new Set(),
     changes = new Set(),
     calls = [];
@@ -46,6 +47,7 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     getVoiceParticipantsHidden: () => persistedHidden,
     getLayout: () => layout,
     getSelectedParticipant: () => selected,
+    getParticipantsOpen: () => membersOpen,
     addChangeListener: (fn) => changes.add(fn),
     removeChangeListener: (fn) => changes.delete(fn),
   };
@@ -61,6 +63,10 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     toggleVoiceParticipantsHidden(_channel, hidden) {
       nativeToggles++;
       persistedHidden = hidden;
+    },
+    toggleParticipants(channelId, participantsOpen) {
+      membersOpen = participantsOpen;
+      calls.push({ type: "CHANNEL_RTC_UPDATE_PARTICIPANTS_OPEN", channelId, participantsOpen });
     },
   };
   const view = {
@@ -119,12 +125,41 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
       visit = fn;
     },
   };
+  class NativeCall {
+    constructor(props) {
+      this.props = props;
+    }
+    get inPopout() {
+      return this.props.appContext === "POPOUT";
+    }
+    get popoutOpen() {
+      return !target.closed;
+    }
+    get viewProperties() {
+      return {
+        canFullscreen: true,
+        canStayOnTop: true,
+        canPopout: this.props.layout !== "full-screen",
+      };
+    }
+    handleClosePopout = () => {
+      target.closed = true;
+    };
+    renderBottomRight() {
+      return this.viewProperties.canPopout
+        ? {
+            label: this.popoutOpen ? "Return to Discord" : "Pop out",
+            onClick: this.handleClosePopout,
+          }
+        : null;
+    }
+  }
   const callExports = {
     default: function nativeCall({ channel, popoutType }) {
       const layout = store.getLayout(channel.id),
         selectedParticipant = store.getSelectedParticipant(channel.id);
       const getMode = () => "video";
-      return React.createElement("native-call", {
+      return React.createElement(NativeCall, {
         channel,
         layout,
         selectedParticipant,
@@ -147,8 +182,11 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     },
     clearTimeout: (fn) => timers.delete(fn),
   });
-  const install = (show) =>
-    vm.runInContext(`(${adapter.toString()})({showNonVideoParticipants:${show}},ui)`, realm);
+  const install = (show, hide = true) =>
+    vm.runInContext(
+      `(${adapter.toString()})({showNonVideoParticipants:${show},hideMembers:${hide}},ui)`,
+      realm,
+    );
   install(false);
   visit({ Context }, runtime);
   visit({ store, actions, user: { getCurrentUser: () => ({ id: "me" }), getUser() {} } }, runtime);
@@ -162,6 +200,9 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     target,
     calls,
     install,
+    setMembers(open) {
+      membersOpen = open;
+    },
     menu: () => runtime.c.menu.exports.A("call"),
     renderCall: () =>
       runtime.c.call.exports.default({ channel: { id: "call" }, popoutType: "voice" }),
@@ -225,6 +266,13 @@ test("portal participant view and checkbox keep PiP visibility independent of re
   f.target.windowKey = "DISCORD_CHANNEL_CALL_POPOUT";
   f.target.name = "";
   assert.deepEqual(Array.from(f.render(props).props.participants), [camera, activity]);
+  assert.equal(
+    f.menu(),
+    null,
+    "DPE-disabled non-video participants cannot be enabled from PiP's menu",
+  );
+  f.install(true);
+  f.menu().props.action();
   assert.equal(f.menu().props.checked, false);
   f.menu().props.action();
   assert.ok(f.rerenders > 0);
@@ -240,11 +288,13 @@ test("portal participant view and checkbox keep PiP visibility independent of re
   assert.equal(f.nativeToggles, 1);
   f.pip();
   assert.equal(f.menu().props.checked, true, "Main-call changes do not affect the PiP toggle");
-  f.install(false);
-  assert.equal(f.menu().props.checked, true, "Unrelated saves preserve local checkbox changes");
   f.install(true);
+  assert.equal(f.menu().props.checked, true, "Unrelated saves preserve local checkbox changes");
+  const staleMenu = f.menu();
   f.install(false);
-  assert.equal(f.menu().props.checked, false, "Actual saved changes update open PiP views");
+  staleMenu.props.action();
+  assert.equal(f.menu(), null, "Actual saved changes remove the disabled control");
+  assert.deepEqual(Array.from(f.render(props).props.participants), [camera, activity]);
   assert.equal(f.view.type, original, "Settings updates never rewrap the component");
 });
 test("automatic full PiP view excludes own shares, retains activities and stops after interaction", () => {
@@ -377,4 +427,95 @@ test("the native measured PiP wrapper can shrink below media minimum size withou
   assert.equal(style.minWidth, 0);
   assert.equal(style.height, "100%");
   assert.equal(style.display, "flex");
+});
+
+test("PiP minimizes members initially and on selection changes while honoring manual Show Members until then", () => {
+  const f = fixture({
+    streams: [{ id: "share", stream: { ownerId: "other" } }],
+    videos: [{ id: "camera" }],
+    activities: [{ id: "activity" }],
+  });
+  f.pip();
+  f.setMembers(true);
+  f.renderCall();
+  f.flush();
+  assert.equal(f.store.getParticipantsOpen(), false);
+  for (const id of ["share", null, "share", "camera", "activity"]) {
+    f.setMembers(true);
+    f.changed();
+    f.flush();
+    assert.equal(
+      f.store.getParticipantsOpen(),
+      true,
+      "Show Members is respected without a selection change",
+    );
+    f.actions.selectParticipant("call", id);
+    f.changed();
+    f.flush();
+    assert.equal(f.store.getParticipantsOpen(), false);
+  }
+  f.install(false, false);
+  f.setMembers(true);
+  f.actions.selectParticipant("call", "camera");
+  f.renderCall();
+  f.flush();
+  assert.equal(f.store.getParticipantsOpen(), true, "The opt-out retains the member bar");
+});
+
+test("PiP fullscreen keeps the native pop-in control and regular Discord retains its own visibility rules", () => {
+  const f = fixture();
+  f.actions.updateLayout("call", "full-screen", "POPOUT");
+  let tree = f.renderCall();
+  assert.equal(new tree.type(tree.props).renderBottomRight(), null);
+  f.pip();
+  tree = f.renderCall();
+  const view = new tree.type(tree.props);
+  assert.equal(f.renderCall().type, tree.type, "Native class state survives rerenders");
+  const control = view.renderBottomRight();
+  assert.equal(control.label, "Return to Discord");
+  control.onClick();
+  assert.equal(f.target.closed, true);
+});
+
+test("manual deselection of a sole tile stays deselected", () => {
+  const camera = { id: "camera" },
+    f = fixture({ streams: [], videos: [camera], activities: [] });
+  f.pip();
+  f.render({ participants: [camera] });
+  f.flush();
+  f.target.events.pointerdown();
+  f.actions.selectParticipant("call", null);
+  const view = f.render({
+    participants: [camera],
+    selectedParticipant: null,
+    showParticipants: true,
+  });
+  assert.equal(view.props.selectedParticipant, null);
+});
+
+test("manual media callbacks minimize members even when the selected ID stays the same", () => {
+  const camera = { id: "camera" },
+    f = fixture({ streams: [], videos: [camera], activities: [] });
+  f.pip();
+  f.renderCall();
+  f.flush();
+  f.setMembers(true);
+  const view = f.render({
+    participants: [camera],
+    selectedParticipant: camera,
+    onSelectParticipant: () => "selected",
+    onFullscreenParticipant: () => "expanded",
+  });
+  assert.equal(view.props.onSelectParticipant(camera), "selected");
+  f.flush();
+  assert.equal(f.store.getParticipantsOpen(), false);
+  f.setMembers(true);
+  assert.equal(view.props.onFullscreenParticipant(camera), "expanded");
+  f.flush();
+  assert.equal(f.store.getParticipantsOpen(), false);
+  f.setMembers(true);
+  f.actions.updateLayout("call", "normal", "POPOUT");
+  f.changed();
+  f.flush();
+  assert.equal(f.store.getParticipantsOpen(), false);
 });

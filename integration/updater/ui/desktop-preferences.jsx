@@ -248,8 +248,8 @@ export function PopoutPreferences({ model }) {
       <DesktopSwitch
         model={model}
         name="popoutHideMembers"
-        label="Hide members when expanding a screenshare"
-        description="Collapse the members bar for the selected stream. You can still use Show Members to reopen it."
+        label="Keep PiP members minimized by default"
+        description="Minimize the members bar when PiP opens and when selecting a video, screenshare or activity. You can still use Show Members to reopen it."
       />
       <DesktopSwitch
         model={model}
