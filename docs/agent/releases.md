@@ -166,15 +166,19 @@ Candidate proposals record exact client/runtime/source identities in
 `config/update-proposals/`; they do not approve anything. Reserve the source tag
 before a proposal metadata write and verify it still pins qualified source.
 Retries resume drafts and reuse identical public candidates; never overwrite
-public assets. Build-version ordering determines release order. Notes compare
-against the prior approved release for the same channel/track, including merged
-code and helper changes, rather than the preceding test release.
+public assets. Build-version ordering determines release order. Prerelease notes
+have separate collapsed sections for changes since the previous stable release
+and since the previous published prerelease of the same channel/track. Each shows
+its complete source range, including merged code and helper changes, input
+changes and its own comparison link. Missing baselines are stated explicitly;
+never substitute a newer stable release when repairing older notes. Approval
+retains the complete stable-to-stable changelog.
 
 Detailed descriptions live in [`config/release-notes.json`](../../config/release-notes.json),
 keyed by the full introducing commit ID and grouped as `New`, `Improvements` or
 `Fixes`. Expand broad commits into concrete behavior changes; reserve `New` for
 new features. Candidate publication, approval and note repairs use the same
-renderer. It selects entries from the exact previous-approved-source-to-tested-source
+renderer. It selects entries from each exact baseline-source-to-tested-source
 Git range, falls back to subjects for commits without descriptions, and retains
 the complete commit list when expanding descriptions. Later and already shipped
 changes stay out of the summary. Keep older entries so repairs remain repeatable.
