@@ -462,13 +462,13 @@ def change_line(sha: str, subject: str, category: str = "") -> str:
     return f"- {badge}{subject} ([{sha[:7]}]({URL}/commit/{sha}))"
 
 
-def changelog_link(manifest: dict, previous: dict | None) -> str:
+def changelog_link(manifest: dict, previous: dict | None, *, label: str = "Full changelog") -> str:
     target = (
         f"{URL}/compare/{manifest_tag(previous)}...{manifest_tag(manifest)}"
         if previous
         else f"{URL}/commits/{manifest['source_commit']}"
     )
-    return f"[Full changelog]({target})"
+    return f"[{label}]({target})"
 
 
 def changes_since(
@@ -506,6 +506,7 @@ def changes_since(
                 ".cargo",
                 ":(exclude)config/update-proposals/**",
                 ":(exclude)config/approved*.json",
+                ":(exclude)config/release-notes.json",
             ],
             cwd=ROOT,
             text=True,
@@ -550,7 +551,8 @@ def changes_since(
             if approved
             else f"- No earlier {baseline} is available for comparison."
         )
-    return "\n".join(changes) + "\n\n" + changelog_link(manifest, previous)
+    label = "Compare with previous pre-release" if baseline == "pre-release" else "Full changelog"
+    return "\n".join(changes) + "\n\n" + changelog_link(manifest, previous, label=label)
 
 
 def notes(
@@ -625,9 +627,13 @@ def refresh_notes(tag: str | None, *, apply: bool = False):
         body = notes(manifest, previous, approved=approved, previous_prerelease=preview)
         (output / (release["tag_name"] + ".before.md")).write_text(current.get("body") or "")
         (output / (release["tag_name"] + ".md")).write_text(body)
-        if apply and body != current.get("body"):
-            api("releases/" + str(release["id"]), method="PATCH", data={"body": body})
-        print(("Updated" if apply else "Previewed") + " notes: " + release["tag_name"])
+        status = "Previewed"
+        if apply:
+            status = "Unchanged"
+            if body != current.get("body"):
+                api("releases/" + str(release["id"]), method="PATCH", data={"body": body})
+                status = "Updated"
+        print(status + " notes: " + release["tag_name"])
 
 
 def cache_runtime(manifest: dict):
