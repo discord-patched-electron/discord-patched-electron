@@ -14,7 +14,8 @@ bun dev run current
 `current` resolves your current Git branch and working tree automatically,
 including uncommitted and untracked build inputs. It reuses a cached payload,
 refreshes changed helpers/UI, or assembles a new payload when build inputs change.
-No `--sync` flag is needed. Runs reuse `dev` by default, including across versions.
+No `--sync` flag is needed. Assembly runs the pinned ASAR CLI through Bun,
+so an unrelated system Node executable is not used for archive packaging. Runs reuse `dev` by default, including across versions.
 Other version names shown by `list` remain pinned to their staged sources. `--profile` selects an independent login, settings
 and mods; log in manually on first use. Reuse that profile when switching versions.
 Stop with **Ctrl+C**. Concurrent runs need different profiles; they can share the same version.

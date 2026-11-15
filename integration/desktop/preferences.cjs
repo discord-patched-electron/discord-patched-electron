@@ -8,12 +8,10 @@ const DEFAULTS = Object.freeze({
   maximizeButton: true,
   closeButton: true,
   minimumWindowSize: true,
-  popoutFloating: true,
-  popoutAutoPosition: true,
-  popoutAlwaysOnTop: true,
   popoutCorner: "bottom-right",
   popoutHideTitlebar: true,
   popoutHideMembers: true,
+  popoutShowNonVideoParticipants: true,
   tray: true,
   notificationFlash: true,
   mediaControls: false,
@@ -303,11 +301,19 @@ function createController(
       return;
     try {
       await web.executeJavaScript(
-        `(${require("../discord-ui/popout-lifecycle.cjs").toString()})();` +
-          require("../discord-ui/source.cjs").call(require("../discord-ui/popout.cjs"), {
+        (state.popout ? `globalThis[Symbol.for("dpe.pipWindow")]=${state.video === true};` : "") +
+          `(${require("../discord-ui/popout-lifecycle.cjs").toString()})();` +
+          require("../discord-ui/source.cjs").call(require("../discord-ui/call-pip.cjs"), {
+            icons: { pip: require("../discord-ui/icons.cjs")().pip },
+          }) +
+          ";" +
+          require("../discord-ui/source.cjs").call(require("../discord-ui/pip-participants.cjs"), {
+            showNonVideoParticipants: values.popoutShowNonVideoParticipants,
             hideMembers: values.popoutHideMembers,
           }) +
-          (state.video ? `;(${require("../discord-ui/pip-corners.cjs").toString()})();` : "") +
+          (state.video
+            ? `;(${require("../discord-ui/pip-corners.cjs").toString()})(${JSON.stringify({ icons: { chevron: require("../discord-ui/icons.cjs")().chevron } })});(${require("../discord-ui/pip-prompts.cjs").toString()})();`
+            : "") +
           ";void 0;",
       );
     } catch {
@@ -431,8 +437,14 @@ function createController(
         url.pathname !== "/popout"
       )
         return { available: false };
+      if (corner === "settings") {
+        require("../updater/config.cjs").open("pip", web);
+        return { opened: true };
+      }
       const session = require("./popout.cjs").session(entry[0]);
       if (corner !== undefined) {
+        if (["monitor-left", "monitor-right"].includes(corner))
+          return session?.moveMonitor(corner.slice(8));
         if (!["top-left", "top-right", "bottom-left", "bottom-right"].includes(corner))
           return { available: false };
         return session?.choose(corner);
@@ -446,15 +458,20 @@ function createController(
     badgeCount,
     trayStates,
     windowOptions,
-    popoutOptions: (options, key, parent) =>
-      require("./popout.cjs").windowOptions(
-        windowOptions(options),
-        key,
-        parent,
-        electron.screen,
-        options,
-        values,
-      ),
+    popoutOptions: (options, key, parent, features = "") => {
+      const base = windowOptions(options);
+      const pip =
+        typeof features === "string" &&
+        features.split(",").some((feature) => feature.trim() === "dpe-pip=yes");
+      return pip
+        ? require("./popout.cjs").windowOptions(base, key, parent, electron.screen, options, values)
+        : base;
+    },
+    setPopoutAlwaysOnTop: (window, enabled) => {
+      const pip = windows.get(window)?.video === true;
+      window.setAlwaysOnTop(pip ? true : enabled);
+      if (pip) return require("./popout.cjs").session(window)?.topmost?.();
+    },
     minimizeWithoutTray,
     startMinimized: () => values.startMinimized || argv.includes("--start-minimized"),
     createMainWindow: (BrowserWindow, options) =>
@@ -465,7 +482,7 @@ function createController(
       observeWindow(window);
       Object.assign(windows.get(window), {
         popout: !options.outOfProcessOverlay,
-        video: require("./popout.cjs").isVideo(window.windowKey),
+        video: options.dpeVideo === true && require("./popout.cjs").isVideo(window.windowKey),
         floating: options.dpeFloating === true,
       });
       const finish = (restored) =>
@@ -562,6 +579,7 @@ for (const name of [
   "trayStates",
   "windowOptions",
   "popoutOptions",
+  "setPopoutAlwaysOnTop",
   "minimizeWithoutTray",
   "startMinimized",
   "createMainWindow",

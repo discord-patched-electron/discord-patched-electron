@@ -207,9 +207,9 @@ function insets(workspace, env = process.env) {
     return Object.fromEntries(
       ["left", "right", "top", "bottom"].map((side) => [
         side,
-        // Keep the PiP's side/bottom breathing room, but let a compact top
-        // strut align with normal windows instead of adding another 16px.
-        Math.max(side === "top" ? 0 : 16, cache.value.gaps + cache.value.struts[side]),
+        // Six pixels separate the PiP from normal window edges. The configured
+        // gap itself has no minimum; only the reserved panel boundary clamps it.
+        Math.max(0, cache.value.gaps + cache.value.struts[side] + 6),
       ]),
     );
   } catch {

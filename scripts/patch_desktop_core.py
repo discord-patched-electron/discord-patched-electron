@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from asar_tool import command as asar_command
 from common import sha256
 
 BEFORE = (
@@ -20,7 +21,7 @@ def patch(directory: Path, adapter: Path, asar: str) -> dict:
     before = sha256(archive)
     with tempfile.TemporaryDirectory(prefix="desktop-", dir=directory) as work:
         extracted = Path(work) / "core"
-        subprocess.run([asar, "extract", str(archive), str(extracted)], check=True)
+        subprocess.run(asar_command(asar, "extract", str(archive), str(extracted)), check=True)
         bundle = extracted / "bundle.js"
         source = bundle.read_text()
         if source.count(BEFORE) == 1 and AFTER not in source:
@@ -29,7 +30,7 @@ def patch(directory: Path, adapter: Path, asar: str) -> dict:
             raise ValueError("Unknown desktop safeStorage IPC layout")
         shutil.copy2(adapter, extracted / "dpe-safe-storage.cjs")
         result = Path(work) / "core.asar"
-        subprocess.run([asar, "pack", str(extracted), str(result)], check=True)
+        subprocess.run(asar_command(asar, "pack", str(extracted), str(result)), check=True)
         result.replace(archive)
     return {
         "before_sha256": before,

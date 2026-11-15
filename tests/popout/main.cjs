@@ -126,17 +126,17 @@ app
     await parent.webContents.executeJavaScript(
       `(${require("../../integration/discord-ui/popout-lifecycle.cjs").toString()})()`,
     );
-    for (const key of [
-      "DISCORD_CHANNEL_CALL_POPOUT",
-      "DISCORD_CALL_TILE_POPOUT_123_stream:456",
-      "DISCORD_CALL_TILE_POPOUT_123_stream:456",
-      "DISCORD_RTC_DEBUG_POPOUT",
+    for (const [key, video] of [
+      ["DISCORD_CHANNEL_CALL_POPOUT", false],
+      ["DISCORD_CHANNEL_CALL_POPOUT", true],
+      ["DISCORD_CALL_TILE_POPOUT_123_stream:456", true],
+      ["DISCORD_CALL_TILE_POPOUT_123_stream:456", true],
+      ["DISCORD_RTC_DEBUG_POPOUT", false],
     ]) {
-      const video = key !== "DISCORD_RTC_DEBUG_POPOUT";
       console.log("opening", key);
       const created = once(parent.webContents, "did-create-window");
       await parent.webContents.executeJavaScript(
-        `window.child=window.open('/popout',${JSON.stringify(key)},'menubar=no,toolbar=no,location=no,directories=no,width=854,height=480,');Boolean(child)`,
+        `window.child=window.open('/popout',${JSON.stringify(key)},'menubar=no,toolbar=no,location=no,directories=no,width=854,height=480,${video ? "dpe-pip=yes" : ""}');Boolean(child)`,
       );
       const [child] = await created;
       console.log("created", key);
@@ -182,7 +182,15 @@ app
         await delay(200);
         assert.ok(await child.webContents.executeJavaScript(`receivedFrames>${result.frames}`));
       }
-      report.cases.push({ key, ...result, size: child.getSize() });
+      if (!video) {
+        assert.equal(
+          require("../../integration/desktop/popout.cjs").session(child),
+          undefined,
+          "Ordinary popouts have no PiP placement session",
+        );
+        assert.equal(child.isAlwaysOnTop(), false);
+      }
+      report.cases.push({ key, pip: video, ...result, size: child.getSize() });
       child.destroy();
       assert.equal(popouts.getWindow(key), undefined);
       await delay(250);
@@ -190,14 +198,15 @@ app
     for (let attempt = 0; attempt < 12; attempt++) {
       const key =
         attempt % 2 ? "DISCORD_CHANNEL_CALL_POPOUT" : "DISCORD_CALL_TILE_POPOUT_fixture-race";
+      const feature = attempt % 4 >= 2 ? ",dpe-pip=yes" : "";
       const created = once(parent.webContents, "did-create-window");
       await parent.webContents.executeJavaScript(
-        `window.race=window.open('/popout',${JSON.stringify(key)},'width=640,height=360');Boolean(race)`,
+        `window.race=window.open('/popout',${JSON.stringify(key)},'width=640,height=360${feature}');Boolean(race)`,
       );
       const [first] = await created;
       await delay(150);
       const result = await parent.webContents.executeJavaScript(
-        `race.close();window.reopened=window.open('/popout',${JSON.stringify(key)},'width=640,height=360');({returned:!!reopened,closed:reopened?.closed})`,
+        `race.close();window.reopened=window.open('/popout',${JSON.stringify(key)},'width=640,height=360${feature}');({returned:!!reopened,closed:reopened?.closed})`,
       );
       await delay(300);
       const survivor = popouts.getWindow(key);
@@ -207,6 +216,7 @@ app
         survivor && survivor !== first && !survivor.isDestroyed(),
         "The replacement remains registered after the old close event",
       );
+      assert.equal(!!require("../../integration/desktop/popout.cjs").session(survivor), !!feature);
       const media = await survivor.webContents.executeJavaScript(
         "({opener:!!opener,frames:receivedFrames||0,node:typeof process})",
       );
@@ -226,14 +236,14 @@ app
       const key = "DISCORD_CALL_TILE_POPOUT_fixture-cancel";
       const created = once(parent.webContents, "did-create-window");
       await parent.webContents.executeJavaScript(
-        `window.cancelled=window.open('/popout',${JSON.stringify(key)},'width=640,height=360');Boolean(cancelled)`,
+        `window.cancelled=window.open('/popout',${JSON.stringify(key)},'width=640,height=360,dpe-pip=yes');Boolean(cancelled)`,
       );
       const [child] = await created;
       await delay(150);
       const prevent = (event) => event.preventDefault();
       child.on("close", prevent);
       await parent.webContents.executeJavaScript(
-        `cancelled.close();window.open('/popout',${JSON.stringify(key)},'width=640,height=360');true`,
+        `cancelled.close();window.open('/popout',${JSON.stringify(key)},'width=640,height=360,dpe-pip=yes');true`,
       );
       await delay(200);
       assert.equal(child.isDestroyed(), false);
@@ -241,7 +251,7 @@ app
       assert.equal(await child.webContents.executeJavaScript("window.name"), key);
       assert.equal(
         await parent.webContents.executeJavaScript(
-          `Boolean(window.open('/popout',${JSON.stringify(key)},'width=640,height=360'))`,
+          `Boolean(window.open('/popout',${JSON.stringify(key)},'width=640,height=360,dpe-pip=yes'))`,
         ),
         true,
       );

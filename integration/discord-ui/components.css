@@ -829,7 +829,7 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-#dpe-pip-corners button::after {
+#dpe-pip-corners .dpe-pip-corner::after {
   content: "";
   display: block;
   width: 32px;
@@ -837,25 +837,53 @@
   border-radius: 4px;
   background: var(--control-secondary-background-default, rgb(151 151 159 / 0.12));
 }
-#dpe-pip-corners button[aria-pressed="true"]::after {
+#dpe-pip-corners .dpe-pip-corner[aria-pressed="true"]::after {
   background: var(--dpe-brand);
 }
 #dpe-pip-corners button:focus-visible {
   outline: 2px solid var(--dpe-focus);
   outline-offset: 2px;
 }
+#dpe-pip-corners .dpe-pip-monitor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--interactive-normal, var(--dpe-muted));
+}
+#dpe-pip-corners .dpe-pip-monitor .dpe-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  transform: rotate(90deg);
+}
+#dpe-pip-corners .dpe-pip-monitor[data-direction="right"] .dpe-icon {
+  transform: rotate(-90deg);
+}
+#dpe-pip-corners .dpe-pip-monitor svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#dpe-pip-corners .dpe-pip-monitor:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+#dpe-pip-corners .dpe-pip-monitor:not(:disabled):hover {
+  color: var(--interactive-hover, var(--dpe-text));
+  background: var(--background-modifier-hover, var(--dpe-hover));
+}
 @media (hover: hover) {
   body:hover #dpe-pip-corners {
     opacity: 1;
     pointer-events: auto;
   }
-  #dpe-pip-corners button:hover::after {
+  #dpe-pip-corners .dpe-pip-corner:hover::after {
     background: var(
       --control-secondary-background-hover,
       var(--button-secondary-background-hover, var(--background-modifier-hover, var(--dpe-hover)))
     );
   }
-  #dpe-pip-corners button[aria-pressed="true"]:hover::after {
+  #dpe-pip-corners .dpe-pip-corner[aria-pressed="true"]:hover::after {
     background: var(--dpe-brand-hover);
   }
 }
@@ -882,13 +910,38 @@ body #dpe-pip-corners[data-native-fade="true"] {
 }
 
 @media (forced-colors: active) {
-  #dpe-pip-corners button::after {
+  #dpe-pip-corners .dpe-pip-corner::after {
     forced-color-adjust: none;
     background: ButtonFace;
     border: 1px solid ButtonText;
   }
-  #dpe-pip-corners button[aria-pressed="true"]::after {
+  #dpe-pip-corners .dpe-pip-corner[aria-pressed="true"]::after {
     background: Highlight;
     border-color: Highlight;
   }
+}
+
+/* Only the paired, empty PiP invitation/activity placeholder is marked. */
+[data-dpe-pip-prompt] {
+  display: none !important;
+}
+[data-dpe-pip-grid] {
+  display: grid !important;
+  grid-template-columns: repeat(var(--dpe-pip-columns), minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(var(--dpe-pip-rows), minmax(0, 1fr)) !important;
+}
+[data-dpe-pip-cell] {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+#dpe-pip-corners .dpe-pip-monitor[hidden] {
+  display: none;
 }

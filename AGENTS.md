@@ -104,7 +104,18 @@ docs before declaring completion.
 - Preserve pinned upstream files and patches; don't format them.
 - Reuse verified runtimes for packaging. New CI compilations use the budgeted
   Blacksmith workflow. Don't restart a healthy compiler or discard retained local objects.
-- Test Discord with fresh profiles. No unattended account login, messages or calls.
+- Reuse the existing `dev` profile for ordinary manual launches, edits, rebuilds,
+  retries and branch switches. Do not create extra named/persistent profiles
+  unless testing different versions requires isolation, or the user explicitly
+  requests a separate identity. Never copy login data between profiles.
+- Automated Discord checks use fresh disposable profiles (`--temporary-profile`
+  or a harness-owned temporary directory), cleaned up on success and failure.
+  Agents own cleanup of profiles they create. Remove disposable test profiles
+  when the comparison/check ends; do not leave a series of profiles behind.
+  If a profile contains a manual login, is still in use, or its ownership is
+  unclear, ask about cleanup at the next suitable stopping point, normally before
+  the final handback. Do not interrupt a call or delete user-owned profile data.
+  No unattended account login, messages or calls.
 - Never save or upload webcam images/video, or screenshot the desktop during
   physical camera tests.
 - Treat old agent notes as historical evidence; consult current code and locks

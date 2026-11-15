@@ -396,7 +396,6 @@ def main():
     parser.add_argument("--core", type=Path, help="Extracted desktop-core bundle.js")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--no-minimum-size", action="store_true")
-    parser.add_argument("--no-auto-position", action="store_true")
     parser.add_argument(
         "--compact-top", action="store_true", help="Test Niri gaps 10 with a -10 top strut"
     )
@@ -455,7 +454,6 @@ def main():
         args.output,
         {
             "minimumWindowSize": not args.no_minimum_size,
-            "popoutAutoPosition": not args.no_auto_position,
             "popoutCorner": args.corner,
         },
         placement=args.placement_only,

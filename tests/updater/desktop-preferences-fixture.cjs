@@ -10,6 +10,7 @@ module.exports = [
   "exports.openOrFocusWindow=function(windowURL,key,features){",
   'return{action:"allow",overrideBrowserWindowOptions:windowOptions}',
   "exports.setupPopout=function(popoutWindow,key,options,webappEndpoint,openerWebContents){",
+  "null!=win&&win.setAlwaysOnTop(enabled)",
   "win.setMinimumSize(width,height)",
   "Math.max(MIN_WIDTH,bounds.width)",
   "Math.max(MIN_HEIGHT,bounds.height)",

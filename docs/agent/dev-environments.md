@@ -14,6 +14,11 @@ branch and checkout path separate caches. Editable helper contents have their ow
 fingerprint; their inventory is a frozen build input so removals cannot leave
 stale packaged files. Commit IDs alone are not cache identities.
 
+ASAR assembly uses `asar_tool.command` to run only the repository-pinned ASAR
+entry point through `bun --bun`, bypassing its system-Node shebang. Explicit
+external ASAR executables/wrappers retain their original invocation. The helper
+is included in application fingerprints; installed applications do not need Bun.
+
 The selector validates retained prerelease compiler provenance, current runtime
 fingerprints (or exact reviewed compatibility), and archive SHA-256 before reuse.
 The last-good-runtime packaging exception alone cannot authorize stale native
@@ -64,6 +69,18 @@ production profiles, source portable apps, native binaries or running modules.
 ## Profile lifetime and storage accounting
 
 `run` defaults to the persistent `dev` identity independently of version selection.
+Ordinary manual launches, edits, retries and branch switches reuse that profile.
+Agents create extra named/persistent profiles only for necessary isolation while
+testing different versions, or at the user's explicit request for a separate
+identity. Prefer sequential version tests on `dev` when isolation is unnecessary;
+never copy login data. Automated checks still use disposable fresh identities.
+
+Agents own cleanup of their test profiles when checks/comparisons finish, on
+success or failure. If manual login data has been added, the profile is still in
+use, or ownership is uncertain, ask about retention at the next suitable stopping
+point (normally before final handback). Do not interrupt calls, delete user-owned
+profiles, or leave disposable profile series for someone else to clean up.
+
 `--temporary-profile` instead owns a unique managed profile for one manager run;
 normal return, launch failure, Ctrl+C and SIGTERM remove it after the child process
 group stops. SIGKILL or power loss can leave it behind. Temporary profiles use

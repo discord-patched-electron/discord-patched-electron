@@ -198,10 +198,13 @@ export function SettingsNavigation({ tab, compact = false, onSelect }) {
 export function SettingsShell({ model, error, onError }) {
   const desktop = useDesktopPreferences();
   const [tab, setTab] = useState("settings");
+  const [pipSection, setPipSection] = useState(false);
   const [compact, setCompact] = useState(matchMedia("(max-width: 440px)").matches);
   const [config] = useState(() => window.Native.get());
   const [onboarding] = useState(() => Boolean(window.Native.isOnboardingSettings?.()));
   const select = (name) => {
+    setPipSection(name === "pip");
+    if (name === "pip") name = "theming";
     if (tabs.some(([key]) => key === name)) setTab(name);
   };
   useLayoutEffect(() => {
@@ -225,6 +228,16 @@ export function SettingsShell({ model, error, onError }) {
       .forEach((input) => window.DPEControls.upgradeSelect(input).close());
     if (tab === "mods") void model.load();
   }, [tab]);
+  useLayoutEffect(() => {
+    if (!pipSection || tab !== "theming") return;
+    const heading = document.getElementById("desktop-popout-heading");
+    if (heading) {
+      heading.scrollIntoView({ block: "start" });
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+      setPipSection(false);
+    }
+  }, [pipSection, tab, desktop.state]);
   useEffect(() => {
     const media = matchMedia("(max-width: 440px)");
     const changed = () => setCompact(media.matches);

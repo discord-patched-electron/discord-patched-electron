@@ -35,7 +35,7 @@ function patch(source, adapter, replace) {
     ],
     [
       "overrideBrowserWindowOptions:windowOptions}",
-      `overrideBrowserWindowOptions:${load}.popoutOptions(windowOptions,key,parentWindow)}`,
+      `overrideBrowserWindowOptions:${load}.popoutOptions(windowOptions,key,parentWindow,features)}`,
     ],
     [
       "popoutWindows.openOrFocusWindow(url,frameName,features)",
@@ -46,6 +46,10 @@ function patch(source, adapter, replace) {
       "exports.openOrFocusWindow=function(windowURL,key,features,parentWindow){",
     ],
     [popoutSetup, `${popoutSetup}${load}.attachPopout(popoutWindow,options);`],
+    [
+      "null!=win&&win.setAlwaysOnTop(enabled)",
+      `null!=win&&${load}.setPopoutAlwaysOnTop(win,enabled)`,
+    ],
     ["win.setMinimumSize(width,height)", `${load}.setMinimumSize(win,width,height)`],
     ["Math.max(MIN_WIDTH,bounds.width)", `Math.max(${load}.minimum(MIN_WIDTH),bounds.width)`],
     ["Math.max(MIN_HEIGHT,bounds.height)", `Math.max(${load}.minimum(MIN_HEIGHT),bounds.height)`],

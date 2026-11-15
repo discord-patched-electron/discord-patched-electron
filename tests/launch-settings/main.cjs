@@ -344,6 +344,12 @@ app
     }
     if (process.env.DPE_SETTINGS_SCOPE === "popout") {
       await open();
+      window.webContents.send("dpe-config-tab", "pip");
+      await until(() =>
+        evaluate(
+          'document.body.dataset.settingsTab==="theming" && document.activeElement?.id==="desktop-popout-heading"',
+        ),
+      );
       await require(path.join(root, "tests/launch-settings/popout.cjs"))({
         capture,
         window,
@@ -358,6 +364,18 @@ app
       );
       window.destroy();
       const fixture = new BrowserWindow({ show: true, frame: false, width: 640, height: 480 });
+      const callEntry = await require(path.join(root, "tests/discord-ui/call-pip-check.cjs"))(
+        fixture,
+        root,
+      );
+      fs.writeFileSync(
+        path.join(output, "pip-call-entry.png"),
+        (await fixture.webContents.capturePage()).toPNG(),
+      );
+      await callEntry.assertDisabled();
+      checks.push(
+        "Separate native call PiP/popout controls retain spacing, keyboard activation and ordinary popout behavior",
+      );
       await require(path.join(root, "tests/discord-ui/popout-check.cjs"))(fixture);
       checks.push(
         "Legacy chrome preserves extra controls; metadata sizing selects the dominant video without capturing frames",
@@ -369,7 +387,7 @@ app
         fs.readFileSync(path.join(root, "integration/discord-ui/components.css"), "utf8"),
       );
       await fixture.webContents.executeJavaScript(
-        `window.DPEPiP={state:async()=>({available:true,corner:"bottom-right",large:false}),choose:async(corner)=>({available:true,corner,large:false})};(${require(path.join(root, "integration/discord-ui/pip-corners.cjs")).toString()})();`,
+        `window.pipState={available:true,corner:"bottom-right",large:false,monitors:{left:false,right:true}};window.monitorMoves=[];window.DPEPiP={state:async()=>pipState,choose:async(corner)=>(pipState={...pipState,corner}),monitor:async(direction)=>{monitorMoves.push(direction);return pipState={...pipState,monitors:{left:true,right:false}};}};(${require(path.join(root, "integration/discord-ui/pip-corners.cjs")).toString()})(${JSON.stringify({ icons: { chevron: require(path.join(root, "integration/discord-ui/icons.cjs"))().chevron } })});`,
       );
       await fixture.webContents.executeJavaScript(`new Promise(resolve=>setTimeout(resolve,60))`);
       assert.equal(
@@ -403,6 +421,111 @@ app
         path.join(output, "pip-hover-picker.png"),
         (await fixture.webContents.capturePage()).toPNG(),
       );
+      const monitorUI = await fixture.webContents.executeJavaScript(`(async()=>{
+        const picker=document.getElementById('dpe-pip-corners'),left=picker.querySelector('[data-direction="left"]'),right=picker.querySelector('[data-direction="right"]');
+        const initial={left:left.disabled,right:right.disabled,below:left.getBoundingClientRect().top>=picker.querySelectorAll('.dpe-pip-corner')[3].getBoundingClientRect().bottom,icons:!!left.querySelector('svg')&&!!right.querySelector('svg'),noText:left.textContent.trim()===''&&right.textContent.trim()===''};
+        left.click();right.click();await new Promise(resolve=>setTimeout(resolve,60));
+        return {initial,moves:monitorMoves,left:left.disabled,right:right.disabled};
+      })()`);
+      assert.deepEqual(monitorUI, {
+        initial: { left: true, right: false, below: true, icons: true, noText: true },
+        moves: ["right"],
+        left: false,
+        right: true,
+      });
+      checks.push(
+        "PiP monitor arrows use icons beneath the corners, ignore disabled clicks and update directional availability",
+      );
+      const recovery = await fixture.webContents.executeJavaScript(`(async()=>{
+        const pause=()=>new Promise(resolve=>setTimeout(resolve,80));
+        const picker=document.getElementById('dpe-pip-corners');
+        document.querySelector('.pip-status-controls').remove();await pause();
+        const reattached=picker.isConnected && picker.parentElement===document.body && !picker.hidden;
+        const wrapper=document.createElement('div');wrapper.style.cssText='position:absolute;right:12px;top:12px';wrapper.innerHTML='<span class="streamStatus">Status</span>';document.body.append(wrapper);await pause();
+        wrapper.style.display='none';await pause();
+        const fallback=picker.parentElement===document.body && !picker.hidden;
+        const thumbnail=document.createElement('video');thumbnail.style.cssText='position:absolute;width:80px;height:45px;bottom:0;left:0';document.body.append(thumbnail);await pause();
+        const dominantVisible=!picker.hidden;
+        thumbnail.style.cssText='position:absolute;width:100vw;height:100vh';await pause();
+        // A DOM change repairs media visibility without requiring mouse movement.
+        thumbnail.remove();await pause();
+        return {reattached,fallback,dominantVisible,recovered:!picker.hidden};
+      })()`);
+      assert.deepEqual(recovery, {
+        reattached: true,
+        fallback: true,
+        dominantVisible: true,
+        recovered: true,
+      });
+      await fixture.webContents.executeJavaScript(
+        `(${require(path.join(root, "integration/discord-ui/pip-prompts.cjs")).toString()})();`,
+      );
+      const prompts = await fixture.webContents.executeJavaScript(`(async()=>{
+        const pause=()=>new Promise(resolve=>setTimeout(resolve,60));
+        const tile=document.createElement('div');tile.className='tile_fixture';tile.innerHTML='<button>Invite to Voice</button><button>Choose Activity</button>';document.body.append(tile);await pause();
+        const hidden=getComputedStyle(tile).display==='none';
+        tile.append(document.createElement('iframe'));await pause();
+        const activePreserved=getComputedStyle(tile).display!=='none';tile.remove();await pause();
+        const translated=document.createElement('div');translated.className='tile_fixture';translated.innerHTML='<button data-action="invite-to-voice">Inviter</button><button data-action="choose-activity">Activité</button>';document.body.append(translated);await pause();
+        const localized=getComputedStyle(translated).display==='none';translated.remove();await pause();
+        const grid=document.createElement('div');grid.style.cssText='position:fixed;left:0;top:0;width:500px;height:280px;gap:8px';
+        grid.innerHTML='<div style="position:absolute;left:0;top:0;width:246px;height:280px"><div class="tile_fixture" style="width:100%;height:100%"><video style="width:100%;height:100%"></video></div></div><div style="position:absolute;left:254px;top:0;width:246px;height:280px"><div><div class="tile_fixture"><button>Invite to Voice</button><button>Choose Activity</button></div></div></div>';
+        document.body.append(grid);await pause();
+        const [media,slot]=grid.children;
+        const bounds=()=>({media:media.getBoundingClientRect().toJSON(),slot:slot.getBoundingClientRect().toJSON()});
+        const collapsed=bounds();
+        grid.style.width='420px';await pause();const resized=bounds();
+        const extra=media.cloneNode(true);grid.insertBefore(extra,slot);grid.style.height='200px';await pause();
+        const multiple=[media,extra].map(node=>node.getBoundingClientRect().toJSON());
+        const frame=document.createElement('iframe');slot.querySelector('.tile_fixture').append(frame);await pause();
+        const restored=!grid.hasAttribute('data-dpe-pip-grid') && slot.getBoundingClientRect().width===246 && media.getBoundingClientRect().width===246;
+        grid.remove();await pause();
+        return {hidden,activePreserved,translated:localized,collapsed,resized,multiple,restored};
+      })()`);
+      assert.equal(prompts.hidden, true);
+      assert.equal(prompts.activePreserved, true);
+      assert.equal(prompts.translated, true);
+      assert.equal(
+        prompts.collapsed.slot.width,
+        0,
+        "The invitation's outer slot occupies no space",
+      );
+      assert.equal(prompts.collapsed.media.width, 500, "Sole media fills the reclaimed slot");
+      assert.equal(prompts.collapsed.media.height, 280);
+      assert.equal(prompts.resized.media.width, 420, "The reclaimed grid follows resizing");
+      assert.equal(prompts.multiple[0].width, 206);
+      assert.equal(
+        prompts.multiple[1].x - prompts.multiple[0].right,
+        8,
+        "Native grid gap is retained",
+      );
+      assert.equal(prompts.restored, true, "Active content restores native tile layout");
+      checks.push(
+        "PiP invitation slot collapses, media reflows on resize, and active content restores native layout",
+      );
+      const emptyPicker = await fixture.webContents.executeJavaScript(`(async()=>{
+        for(const node of document.querySelectorAll('video,iframe'))node.remove();window.pipState={...pipState,monitors:{left:false,right:false}};window.dispatchEvent(new Event('resize'));await new Promise(resolve=>setTimeout(resolve,70));
+        const picker=document.getElementById('dpe-pip-corners');return {visible:!picker.hidden,arrows:[...picker.querySelectorAll('.dpe-pip-monitor')].every(node=>getComputedStyle(node).display==='none')};
+      })()`);
+      assert.deepEqual(emptyPicker, { visible: true, arrows: true });
+      const notice = await fixture.webContents.executeJavaScript(`(async()=>{
+        let opened=0;window.DPEPiP.openSettings=async()=>{opened++;};
+        const box=document.createElement('section');box.innerHTML='<p>Participants without video are currently hidden</p><button>Show participants</button>';document.body.append(box);
+        await new Promise(resolve=>setTimeout(resolve,70));box.querySelector('button').click();
+        const result={text:box.querySelector('p').textContent,button:box.querySelector('button').textContent,opened};box.remove();return result;
+      })()`);
+      assert.deepEqual(notice, {
+        text: "Participants without video are currently hidden in PiP.",
+        button: "Open DPE Settings",
+        opened: 1,
+      });
+      const activityPicker = await fixture.webContents.executeJavaScript(`(async()=>{
+        for(const node of document.querySelectorAll('video'))node.remove();
+        const frame=document.createElement('iframe');frame.style.cssText='position:fixed;inset:0;width:100%;height:100%';document.body.append(frame);
+        await new Promise(resolve=>setTimeout(resolve,80));
+        return !document.getElementById('dpe-pip-corners').hidden;
+      })()`);
+      assert.equal(activityPicker, true, "An activity iframe retains PiP corner controls");
       fixture.destroy();
       finish();
       return;

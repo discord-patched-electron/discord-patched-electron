@@ -51,22 +51,35 @@ Welcome offers the same choice and leaves it unchecked when
 another app handles them. To choose a different handler later, use your system’s
 default applications. Opening Settings or restarting DPE does not reclaim links.
 
-**Appearance → Picture-in-picture** controls floating video windows, automatic
-positioning, titlebar visibility and member-bar collapse. Choose **PiP corner**
-for any of the four screen corners. Turn off **Automatically position PiP windows**
-to let your window manager place new popouts; video sizing still works. Changing
-corners also moves an open PiP that remains at its previous corner and size.
+Calls have a separate **Picture-in-picture** button beside Discord’s pop-out
+button. Use PiP for the compact floating window; the original pop-out button
+keeps Discord’s normal behavior. Close an open pop-out before switching modes.
+
+**Appearance → Picture-in-picture** controls PiP’s corner, titlebar, participant
+visibility and member-bar collapse. Choose **PiP corner**
+for any of the four screen corners. PiP always requests floating, automatic corner
+placement and topmost behavior. Changing corners also moves an open PiP that
+remains at its previous corner and size.
 **Hide PiP titlebar** hides both Discord and native titlebars on floating popouts;
-reopen the PiP after changing a native frame. **Keep PiP on top** defaults on;
-some native Wayland compositors retain their own stacking policy.
+reopen the PiP after changing a native frame. Some native Wayland compositors
+retain their own stacking policy.
 
 Hover over a PiP video to choose a corner using four small rectangles. A rectangle
 highlights only when the window matches that corner and its automatic size.
+The arrows below the corner buttons move PiP to the monitor on the left or right,
+keeping its corner and fitting it within the destination’s usable space. Monitor
+transfers keep focus on the source monitor to avoid cursor warping. An arrow
+is greyed out when no supported monitor is available in that direction.
 The picker hides when the window occupies at least 70% of the usable screen.
 Resize using your compositor’s regular window edges and corners. Fullscreen restores
 the previous normal size and position when you exit.
 New and reopened PiP windows fit the currently watched video’s aspect ratio,
 with a 16:9 default when no video is available.
+A sole camera, remote screenshare or activity fills the call PiP automatically.
+Your own screenshare is excluded from automatic selection. **Show non-video participants in PiP** defaults on and is independent
+of the regular call's setting. Its native PiP checkbox changes only that window;
+the DPE setting controls the saved default. Empty invitation/activity prompts are
+hidden when recognized, while active activities remain visible.
 Use **Show Members** to reopen the members bar.
 
 Automatic corners work on X11 and native Wayland with Niri, Sway, Hyprland and
@@ -75,9 +88,9 @@ Placement leaves 16 logical pixels inside the reported usable area, accounting
 for Sway workspace gaps, KDE panels and Hyprland floating gaps and borders.
 Niri placement measures its panel-reserved area using the PiP itself and reads
 the active configuration's gaps and struts, including ordered includes and named
-workspace overrides. Top spacing follows the gap plus top strut, bounded at
-zero so it stays below panel reservations. Side and bottom spacing retain at
-least 16 logical pixels, or the configured gap plus strut when larger. It does not create window rules. A corner
+workspace overrides. Each edge uses the configured gap plus its strut, with
+6 logical pixels of separation from normal window edges and no minimum gap.
+Panel reservations remain protected. It does not create window rules. A corner
 button restores the automatic size and position after manual resizing.
 KDE placement needs the system Python D-Bus and
 GObject bindings (`python-dbus`/`python-gobject` on Arch,
