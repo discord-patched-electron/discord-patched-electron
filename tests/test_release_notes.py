@@ -236,11 +236,18 @@ class ReleaseNotes(unittest.TestCase):
                 if index == 29:
                     preview = manifest("20261026.110000", source_commit=sha)
             git("checkout", "--quiet", "-b", "native-change")
+            metadata = root / "config/release-notes.json"
+            metadata.parent.mkdir(parents=True, exist_ok=True)
+            metadata.write_text('{ "schema": 1, "commits": {} }\n')
+            git("add", "config/release-notes.json")
             commit("native/bridge/src/lib.rs", "fixture", "Fix native-only merged behavior")
             commit("Cargo.toml", "fixture", "Update Rust dependency policy")
             git("checkout", "--quiet", "-")
             git("merge", "--quiet", "--no-ff", "native-change", "-m", "Merge native work")
             commit("docs/install.md", "docs", "Documentation only")
+            commit(
+                "config/release-notes.json", '{"schema":1,"commits":{}}', "Describe release changes"
+            )
             commit("config/update-policy.json", "{}", "Approve tested Canary release")
             head = commit(
                 "config/update-proposals/canary-prerelease.json", "{}", "Propose Discord Canary"
@@ -280,6 +287,7 @@ class ReleaseNotes(unittest.TestCase):
         for excluded in (
             "Old shipped behavior",
             "Documentation only",
+            "Describe release changes",
             "Approve tested",
             "Propose Discord",
         ):
@@ -428,13 +436,19 @@ class ReleaseNotes(unittest.TestCase):
             patch("releases.published_manifest", side_effect=lambda item: by_tag[item["tag_name"]]),
             patch("releases.api", side_effect=api),
             patch("releases.subprocess.check_output", return_value=""),
+            patch("builtins.print") as status,
         ):
             refresh_notes(None)
             self.assertFalse(writes)
             refresh_notes(None, apply=True)
             count = len(writes)
+            status.reset_mock()
             refresh_notes(None, apply=True)
             self.assertEqual(len(writes), count, "Applying unchanged descriptions is idempotent")
+            self.assertEqual(len(status.call_args_list), len(entries))
+            self.assertTrue(
+                all(call.args[0].startswith("Unchanged notes: ") for call in status.call_args_list)
+            )
         self.assertEqual(len(writes), 5)
         self.assertTrue(all(set(data) == {"body"} for _, data in writes))
         self.assertIn("approved as stable", writes[0][1]["body"])
@@ -456,3 +470,4 @@ class ReleaseNotes(unittest.TestCase):
             "<details open>\n<summary>Changes since last pre-release</summary>", followup_body
         )
         self.assertIn(manifest_tag(latest) + "..." + manifest_tag(followup), followup_body)
+        self.assertIn("[Compare with previous pre-release]", followup_body)

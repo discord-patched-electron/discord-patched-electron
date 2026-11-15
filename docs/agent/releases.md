@@ -184,6 +184,10 @@ renderer. It selects entries from each exact baseline-source-to-tested-source
 Git range, falls back to subjects for commits without descriptions, and retains
 the complete commit list when expanding descriptions. Later and already shipped
 changes stay out of the summary. Keep older entries so repairs remain repeatable.
+Notes-only metadata commits stay out of the changelog; maintained descriptions
+still expand the actual code commits they describe. Incremental comparison links
+identify the previous prerelease as their destination. Repairs report whether
+each description was updated or already unchanged.
 Descriptions come from the workflow checkout, allowing a notes-only fix without
 changing tested package inputs. Invalid description data stops approval before
 approval state is written.
