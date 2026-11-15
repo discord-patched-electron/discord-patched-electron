@@ -133,6 +133,16 @@ native activity confirmation/ticket refresh. The regular control clears pending
 PiP intent and invokes its native action. Omit the extra control for unrelated
 activity/debug callbacks; disable it while a call popout is already open.
 
+The in-app video PiP tray also offers PiP immediately after its native settings
+cog (beside the native popout when the cog is absent). Discover the native view
+export and validate its returned class/control methods before extending that
+instance's tray. Preserve the native controls, callback and class lifetime; use
+their existing icon classes/colors on video rather than the main toolbar color.
+Both entry points disappear while the separate PiP is active. Unknown view
+structures remain native. The component harness covers ordering, inherited
+color, keyboard activation and ordinary popout behavior; it is not a live-call
+visual qualification.
+
 An explicit PiP click arms a one-use, 60-second call-window intent in the opener.
 The existing same-origin /popout lifecycle wrapper consumes it only for the call
 window key, appends `dpe-pip=yes` to that exact window.open request and marks the

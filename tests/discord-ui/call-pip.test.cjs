@@ -85,6 +85,49 @@ function fixture() {
   };
   runtime.c.pin = { exports: pin };
   visit(pin, runtime);
+  class NativeOverlay {
+    constructor(props) {
+      this.props = props;
+    }
+    handleOpenPopout = () => open();
+    renderSettingsIcon = () =>
+      React.createElement("settings-cog", { className: "overlay-control" });
+    renderPopoutIcon = () =>
+      React.createElement(runtime.c.button.exports.A, {
+        className: "overlay-control",
+        popoutOpen: false,
+        onOpenPopout: this.handleOpenPopout,
+        onClosePopout: () => {},
+      });
+    renderBottomRightControls = () =>
+      React.createElement(
+        React.Fragment,
+        null,
+        React.createElement("viewers"),
+        this.props.settings ? this.renderSettingsIcon() : null,
+        this.props.popout ? this.renderPopoutIcon() : null,
+        React.createElement("stop"),
+      );
+  }
+  const overlay = {
+    A: function Overlay({
+      participantOnScreen,
+      isMainWindowFocused,
+      activeSelfStream,
+      width,
+      ...props
+    }) {
+      return React.createElement(NativeOverlay, {
+        participantOnScreen,
+        isMainWindowFocused,
+        activeSelfStream,
+        width,
+        ...props,
+      });
+    },
+  };
+  runtime.c.overlay = { exports: overlay };
+  visit(overlay, runtime);
   return {
     nativeContext,
     renderPin: () =>
@@ -93,6 +136,8 @@ function fixture() {
     requests,
     handlers,
     render,
+    renderOverlay: (props = { settings: true, popout: false }) =>
+      runtime.c.overlay.exports.A(props),
     expire() {
       for (const fn of timers) fn();
     },
@@ -125,6 +170,44 @@ test("call toolbar adds native-styled PiP beside the unchanged popout, opting in
   assert.equal(f.requests.length, 2);
   const activity = f.render({ onOpenPopout: () => "activity" });
   assert.equal(activity.type, "native-button", "Other popout controls stay native");
+});
+
+test("in-app PiP adds its native-styled entry after the cog, preserving other controls and active-PiP suppression", () => {
+  const f = fixture(),
+    element = f.renderOverlay(),
+    overlay = new element.type(element.props),
+    controls = overlay.renderBottomRightControls(),
+    [viewers, cog, pip, popout, stop] = controls.props.children;
+  assert.equal(viewers.type, "viewers");
+  assert.equal(cog.type, "settings-cog");
+  assert.equal(popout, null);
+  assert.equal(stop.type, "stop");
+  assert.equal(pip.props.label, "Picture-in-picture");
+  assert.equal(pip.props.className, cog.props.className);
+  assert.equal(
+    f.renderOverlay().type,
+    element.type,
+    "Keep the native overlay mounted across renders",
+  );
+  const native = pip.type(pip.props);
+  assert.equal(native.type, "native-button", "No second toolbar entry around the overlay control");
+  const icon = native.props.iconComponent({ color: "#000000", className: "native-icon" });
+  const svg = icon.type(icon.props);
+  assert.equal(svg.props.className, "native-icon");
+  assert.equal(svg.props.style.color, undefined, "Native overlay icon CSS supplies its color");
+  native.props.onClick();
+  assert.match(f.requests[0].features, /dpe-pip=yes/);
+  assert.equal(overlay.renderBottomRightControls().props.children.length, 4);
+  assert.equal(f.render().type, "native-button");
+  f.requests[0].child.closed = true;
+  assert.equal(overlay.renderBottomRightControls().props.children.length, 5);
+  const remote = f.renderOverlay({ settings: false, popout: true });
+  const children = new remote.type(remote.props).renderBottomRightControls().props.children;
+  assert.equal(children[2].props.label, "Picture-in-picture");
+  assert.equal(children[3].props.onOpenPopout instanceof Function, true);
+  const ordinary = children[3].type(children[3].props);
+  ordinary.props.onClick();
+  assert.doesNotMatch(f.requests[1].features, /dpe-pip/);
 });
 test("native asynchronous opens consume PiP once; normal clicks, failures and expiry clear the intent", async () => {
   const f = fixture();
