@@ -17,13 +17,42 @@ module.exports = function callPiP(request, ui) {
   globalThis[key] = state;
   window.addEventListener("pagehide", clear, { once: true });
   const installed = new WeakSet();
+  const overlays = new WeakMap();
   let React;
+  const unavailable = () =>
+    globalThis[Symbol.for("dpe.pipWindow")] === true ||
+    (state.activeWindow && !state.activeWindow.closed);
+  const openPiP = (open, args) => {
+    clear();
+    state.pending = true;
+    state.timer = setTimeout(clear, 60000);
+    try {
+      const result = open(...args);
+      if (result?.catch)
+        return result.catch((error) => {
+          clear();
+          throw error;
+        });
+      return result;
+    } catch (error) {
+      clear();
+      throw error;
+    }
+  };
+  const pipCallback =
+    (open) =>
+    (...args) =>
+      openPiP(open, args);
   ui.watch(
     "call-pip-button",
     (source) =>
       ["popoutOpen", "onClosePopout", "onOpenPopout", "WindowLaunchIcon"].every((word) =>
         source.includes(word),
-      ) || ["popoutWindowAlwaysOnTop", "onToggleStayOnTop"].every((word) => source.includes(word)),
+      ) ||
+      ["popoutWindowAlwaysOnTop", "onToggleStayOnTop"].every((word) => source.includes(word)) ||
+      ["renderBottomRightControls", "renderSettingsIcon", "renderPopoutIcon", "VIDEO_PIP"].every(
+        (word) => source.includes(word),
+      ),
     (exports, runtime) => {
       React ||= ui.inspect(runtime).React;
       if (!React) return;
@@ -34,7 +63,8 @@ module.exports = function callPiP(request, ui) {
           typeof value === "function" &&
           sig &&
           (ui.has(sig, "popoutOpen", "onClosePopout", "onOpenPopout", "iconComponent", "label") ||
-            ui.has(sig, "popoutWindowAlwaysOnTop", "onToggleStayOnTop"))
+            ui.has(sig, "popoutWindowAlwaysOnTop", "onToggleStayOnTop") ||
+            ui.has(sig, "participantOnScreen", "isMainWindowFocused", "activeSelfStream", "width"))
         );
       });
       const entries = Object.values(runtime.c || {}).filter((entry) => entry?.exports === exports);
@@ -50,12 +80,21 @@ module.exports = function callPiP(request, ui) {
             display: "inline-flex",
             width: props.width || 24,
             height: props.height || 24,
-            color: "var(--interactive-normal, var(--interactive-text-default, currentColor))",
+            // Overlay controls already carry Discord's light-on-video icon
+            // classes. Let those resolve their color just like the native cog.
+            ...(props.nativeColor
+              ? {}
+              : {
+                  color: "var(--interactive-normal, var(--interactive-text-default, currentColor))",
+                }),
           },
           dangerouslySetInnerHTML: {
             __html: svg.replace(/<svg /, '<svg style="width:100%;height:100%" '),
           },
         });
+      }
+      function OverlayIcon(props) {
+        return React.createElement(PiPIcon, { ...props, nativeColor: true });
       }
       const contexts = (ui.inspect(runtime).objects || []).filter(
         (value) =>
@@ -83,15 +122,88 @@ module.exports = function callPiP(request, ui) {
             return null;
           return React.createElement(original, props);
         };
+      } else if (
+        ui.has(
+          ui.signature(original),
+          "participantOnScreen",
+          "isMainWindowFocused",
+          "activeSelfStream",
+          "width",
+        )
+      ) {
+        Wrapper = function (props) {
+          const tree = Reflect.apply(original, this, [props]);
+          const sig = typeof tree?.type === "function" && ui.signature(tree.type);
+          if (
+            !sig ||
+            !ui.has(
+              sig,
+              "renderBottomRightControls",
+              "renderSettingsIcon",
+              "renderPopoutIcon",
+              "handleOpenPopout",
+            )
+          )
+            return tree;
+          let Overlay = overlays.get(tree.type);
+          if (!Overlay) {
+            Overlay = class extends tree.type {
+              constructor(...args) {
+                super(...args);
+                const render = this.renderBottomRightControls,
+                  settings = this.renderSettingsIcon;
+                if (
+                  typeof render !== "function" ||
+                  typeof settings !== "function" ||
+                  typeof this.renderPopoutIcon !== "function" ||
+                  typeof this.handleOpenPopout !== "function"
+                )
+                  return;
+                let settingsNode;
+                this.renderSettingsIcon = (...args) => {
+                  settingsNode = Reflect.apply(settings, this, args);
+                  return settingsNode;
+                };
+                this.renderBottomRightControls = (...args) => {
+                  settingsNode = null;
+                  const controls = Reflect.apply(render, this, args);
+                  if (unavailable() || !Array.isArray(controls?.props?.children)) return controls;
+                  const children = [...controls.props.children],
+                    template = this.renderPopoutIcon();
+                  if (
+                    !template?.props ||
+                    template.props.onOpenPopout !== this.handleOpenPopout ||
+                    template.props.popoutOpen !== false
+                  )
+                    return controls;
+                  const pip = React.cloneElement(template, {
+                    key: "dpe-overlay-pip",
+                    label: "Picture-in-picture",
+                    iconComponent: OverlayIcon,
+                    iconClassName: undefined,
+                    onOpenPopout: pipCallback(this.handleOpenPopout),
+                  });
+                  const index = settingsNode ? children.indexOf(settingsNode) : -1;
+                  // Place it after the actual cog when present, otherwise next
+                  // to the native popout; retain all native controls and nulls.
+                  const popout = children.findIndex(
+                    (child) => child?.props?.onOpenPopout === this.handleOpenPopout,
+                  );
+                  if (settingsNode && index < 0) return controls;
+                  children.splice(index >= 0 ? index + 1 : popout >= 0 ? popout : 0, 0, pip);
+                  return React.cloneElement(controls, { children });
+                };
+              }
+            };
+            overlays.set(tree.type, Overlay);
+          }
+          return React.createElement(Overlay, { ...tree.props, key: tree.key, ref: tree.ref });
+        };
       } else
         Wrapper = function (props) {
           const tree = Reflect.apply(original, this, [props]);
           const context = contexts.length === 1 ? React.useContext(contexts[0]) : null;
-          if (
-            context?.renderWindow?.[Symbol.for("dpe.pipWindow")] === true ||
-            globalThis[Symbol.for("dpe.pipWindow")] === true ||
-            (state.activeWindow && !state.activeWindow.closed)
-          )
+          if (context?.renderWindow?.[Symbol.for("dpe.pipWindow")] === true || unavailable())
             return tree;
           const open = ui.signature(props.onOpenPopout);
           // Activity/debug controls share this component. Add PiP only to the
@@ -117,21 +229,7 @@ module.exports = function callPiP(request, ui) {
             disabled: props.popoutOpen === true,
             onClick: (...args) => {
               if (props.popoutOpen) return;
-              clear();
-              state.pending = true;
-              state.timer = setTimeout(clear, 60000);
-              try {
-                const result = props.onOpenPopout(...args);
-                if (result?.catch)
-                  return result.catch((error) => {
-                    clear();
-                    throw error;
-                  });
-                return result;
-              } catch (error) {
-                clear();
-                throw error;
-              }
+              return openPiP(props.onOpenPopout, args);
             },
           });
           return React.createElement(React.Fragment, null, pip, stock);
