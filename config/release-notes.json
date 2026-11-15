@@ -90,6 +90,11 @@
         "Keep Open DPE Settings on one line with the shared button padding and preserved native label markup. Open the normal independent Settings window directly at PiP settings instead of a child dialog.",
         "Preserve PiP client size and relative position when switching monitors. Keep exact corners anchored, fit only when required by a smaller display, and restore the preferred size and placement on return."
       ]
+    },
+    "4dcd774be6ed866ad9a013fae678e13e588f5c54": {
+      "Improvements": [
+        "Add Picture-in-picture after the settings cog in Discord\u2019s in-app video overlay, using its native icon colors, spacing and keyboard behavior. Keep the ordinary popout control and hide the extra entry while a separate PiP is active."
+      ]
     }
   }
 }
