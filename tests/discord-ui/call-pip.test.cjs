@@ -123,13 +123,18 @@ function fixture() {
       width,
       ...props
     }) {
-      return React.createElement(NativeOverlay, {
+      const node = React.createElement(NativeOverlay, {
         participantOnScreen,
         isMainWindowFocused,
         activeSelfStream,
         width,
         ...props,
       });
+      return props.providers
+        ? React.createElement("provider", {
+            children: [node, { type: "unrelated", props: {} }],
+          })
+        : node;
     },
   };
   runtime.c.overlay = { exports: overlay };
@@ -224,6 +229,26 @@ test("in-app PiP adds its native-styled entry after the cog, preserving other co
   ordinary.props.onClick();
   assert.doesNotMatch(f.requests[1].features, /dpe-pip/);
 });
+test("in-app controls survive provider wrappers and native remounts without duplicating PiP", () => {
+  const f = fixture();
+  const render = () => f.renderOverlay({ providers: true, settings: true, popout: false });
+  const tree = render(),
+    node = tree.props.children[0];
+  assert.equal(tree.props.children[1].type, "unrelated");
+  assert.equal(render().props.children[0].type, node.type);
+  for (let remount = 0; remount < 3; remount++) {
+    const instance = new node.type(node.props);
+    for (let rerender = 0; rerender < 3; rerender++) {
+      const buttons = instance.renderBottomRightControls().props.children;
+      assert.equal(
+        buttons.filter((button) => button?.props?.label === "Picture-in-picture").length,
+        1,
+      );
+      assert.equal(buttons[1].type, "settings-cog");
+    }
+  }
+});
+
 test("pop-in refreshes unchanged overlay controls after the native window finishes closing", () => {
   const f = fixture(),
     element = f.renderOverlay({

@@ -206,91 +206,120 @@ module.exports = function callPiP(request, ui) {
           "width",
         )
       ) {
+        ui.controls.register("dpe-overlay-pip", ({ template, open, origin }) =>
+          React.cloneElement(template, {
+            key: "dpe-overlay-pip",
+            label: "Picture-in-picture",
+            iconComponent: OverlayIcon,
+            iconClassName: undefined,
+            onOpenPopout: pipCallback(open, origin),
+          }),
+        );
         Wrapper = function (props) {
           const tree = Reflect.apply(original, this, [props]);
-          const sig = typeof tree?.type === "function" && ui.signature(tree.type);
-          if (
-            !sig ||
-            !ui.has(
-              sig,
-              "renderBottomRightControls",
-              "renderSettingsIcon",
-              "renderPopoutIcon",
-              "handleOpenPopout",
+          return ui.controls.tree(React, tree, (node) => {
+            const sig = typeof node?.type === "function" && ui.signature(node.type);
+            if (
+              !sig ||
+              !ui.has(
+                sig,
+                "renderBottomRightControls",
+                "renderSettingsIcon",
+                "renderPopoutIcon",
+                "handleOpenPopout",
+              )
             )
-          )
-            return tree;
-          let Overlay = overlays.get(tree.type);
-          if (!Overlay) {
-            Overlay = class extends tree.type {
-              componentDidMount() {
-                super.componentDidMount?.();
-                this.unsubscribePiP = state.subscribe(() => this.forceUpdate());
-              }
-              componentWillUnmount() {
-                this.unsubscribePiP?.();
-                super.componentWillUnmount?.();
-              }
-              constructor(...args) {
-                super(...args);
-                const render = this.renderBottomRightControls,
-                  settings = this.renderSettingsIcon;
-                if (
-                  typeof render !== "function" ||
-                  typeof settings !== "function" ||
-                  typeof this.renderPopoutIcon !== "function" ||
-                  typeof this.handleOpenPopout !== "function"
-                )
-                  return;
-                let settingsNode;
-                this.renderSettingsIcon = (...args) => {
-                  settingsNode = Reflect.apply(settings, this, args);
-                  return settingsNode;
-                };
-                this.renderBottomRightControls = (...args) => {
-                  settingsNode = null;
-                  const controls = Reflect.apply(render, this, args);
-                  if (unavailable() || !Array.isArray(controls?.props?.children)) return controls;
-                  const children = [...controls.props.children],
-                    template = this.renderPopoutIcon();
+              return node;
+            let Overlay = overlays.get(node.type);
+            if (!Overlay) {
+              Overlay = class extends node.type {
+                componentDidMount() {
+                  super.componentDidMount?.();
+                  this.unsubscribePiP = state.subscribe(() => this.forceUpdate());
+                }
+                componentWillUnmount() {
+                  this.unsubscribePiP?.();
+                  super.componentWillUnmount?.();
+                }
+                constructor(...args) {
+                  super(...args);
+                  const render = this.renderBottomRightControls,
+                    settings = this.renderSettingsIcon;
                   if (
-                    !template?.props ||
-                    template.props.onOpenPopout !== this.handleOpenPopout ||
-                    template.props.popoutOpen !== false
+                    typeof render !== "function" ||
+                    typeof settings !== "function" ||
+                    typeof this.renderPopoutIcon !== "function" ||
+                    typeof this.handleOpenPopout !== "function"
                   )
-                    return controls;
-                  const pip = React.cloneElement(template, {
-                    key: "dpe-overlay-pip",
-                    label: "Picture-in-picture",
-                    iconComponent: OverlayIcon,
-                    iconClassName: undefined,
-                    onOpenPopout: pipCallback(this.handleOpenPopout, {
-                      inApp: true,
-                      channelId: this.props.channel?.id,
-                      participantId: this.props.participantOnScreen?.id,
-                    }),
-                  });
-                  const index = settingsNode ? children.indexOf(settingsNode) : -1;
-                  // Place it after the actual cog when present, otherwise next
-                  // to the native popout; retain all native controls and nulls.
-                  const popout = children.findIndex(
-                    (child) => child?.props?.onOpenPopout === this.handleOpenPopout,
-                  );
-                  if (settingsNode && index < 0) return controls;
-                  if (popout >= 0)
-                    children[popout] = React.cloneElement(children[popout], {
-                      onOpenPopout: nativeCallback(this.handleOpenPopout),
+                    return;
+                  let settingsNode;
+                  this.renderSettingsIcon = (...args) => {
+                    settingsNode = Reflect.apply(settings, this, args);
+                    return settingsNode;
+                  };
+                  this.renderBottomRightControls = (...args) => {
+                    settingsNode = null;
+                    const controls = Reflect.apply(render, this, args);
+                    if (unavailable() || !Array.isArray(controls?.props?.children)) return controls;
+                    const children = [...controls.props.children],
+                      template = this.renderPopoutIcon();
+                    if (
+                      !template?.props ||
+                      template.props.onOpenPopout !== this.handleOpenPopout ||
+                      template.props.popoutOpen !== false
+                    )
+                      return controls;
+                    const index = settingsNode ? children.indexOf(settingsNode) : -1;
+                    // Place it after the actual cog when present, otherwise next
+                    // to the native popout; retain all native controls and nulls.
+                    const popout = children.findIndex(
+                      (child) => child?.props?.onOpenPopout === this.handleOpenPopout,
+                    );
+                    if (settingsNode && index < 0) return controls;
+                    const nativeOpen = nativeCallback(this.handleOpenPopout);
+                    if (popout >= 0)
+                      children[popout] = React.cloneElement(children[popout], {
+                        onOpenPopout: nativeOpen,
+                      });
+                    return React.cloneElement(controls, {
+                      children: ui.controls.insert(children, {
+                        id: "dpe-overlay-pip",
+                        ...(settingsNode
+                          ? { after: (child) => child === settingsNode }
+                          : { before: (child) => child?.props?.onOpenPopout === nativeOpen }),
+                        context: {
+                          template,
+                          open: this.handleOpenPopout,
+                          origin: {
+                            inApp: true,
+                            channelId: this.props.channel?.id,
+                            participantId: this.props.participantOnScreen?.id,
+                          },
+                        },
+                      }),
                     });
-                  children.splice(index >= 0 ? index + 1 : popout >= 0 ? popout : 0, 0, pip);
-                  return React.cloneElement(controls, { children });
-                };
-              }
-            };
-            overlays.set(tree.type, Overlay);
-          }
-          return React.createElement(Overlay, { ...tree.props, key: tree.key, ref: tree.ref });
+                  };
+                }
+              };
+              overlays.set(node.type, Overlay);
+            }
+            return React.createElement(Overlay, { ...node.props, key: node.key, ref: node.ref });
+          });
         };
-      } else
+      } else {
+        ui.controls.register("dpe-call-pip", ({ tree, props }) =>
+          React.cloneElement(tree, {
+            key: "dpe-call-pip",
+            label: "Picture-in-picture",
+            iconComponent: PiPIcon,
+            iconClassName: undefined,
+            disabled: props.popoutOpen === true,
+            onClick: (...args) => {
+              if (props.popoutOpen) return;
+              return openPiP(props.onOpenPopout, args);
+            },
+          }),
+        );
         Wrapper = function (props) {
           const tree = Reflect.apply(original, this, [props]);
           const context = contexts.length === 1 ? React.useContext(contexts[0]) : null;
@@ -314,31 +343,20 @@ module.exports = function callPiP(request, ui) {
               return tree.props.onClick(...args);
             },
           });
-          const pip = React.cloneElement(tree, {
-            key: "dpe-call-pip",
-            label: "Picture-in-picture",
-            iconComponent: PiPIcon,
-            iconClassName: undefined,
-            disabled: props.popoutOpen === true,
-            onClick: (...args) => {
-              if (props.popoutOpen) return;
-              return openPiP(props.onOpenPopout, args);
-            },
-          });
-          return React.createElement(React.Fragment, null, pip, stock);
+          return React.createElement(
+            React.Fragment,
+            null,
+            ...ui.controls.insert([stock], {
+              id: "dpe-call-pip",
+              before: (child) => child === stock,
+              context: { tree, props },
+            }),
+          );
         };
+      }
       installed.add(original);
       installed.add(Wrapper);
-      entries[0].exports = new Proxy(Object.create(null), {
-        get: (_target, property, receiver) =>
-          property === name ? Wrapper : Reflect.get(exports, property, receiver),
-        ownKeys: () => Reflect.ownKeys(exports),
-        has: (_target, property) => Reflect.has(exports, property),
-        getOwnPropertyDescriptor: (_target, property) => {
-          const d = Reflect.getOwnPropertyDescriptor(exports, property);
-          return d ? { ...d, configurable: true } : undefined;
-        },
-      });
+      ui.controls.replaceExport(runtime, exports, name, Wrapper);
     },
   );
 };

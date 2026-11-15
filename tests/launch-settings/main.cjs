@@ -376,6 +376,10 @@ app
       checks.push(
         "Separate native call PiP/popout controls retain spacing, keyboard activation and ordinary popout behavior",
       );
+      await require(path.join(root, "tests/discord-ui/pip-controls-check.cjs"))(fixture, root);
+      checks.push(
+        "PiP pop-in is visible before fullscreen and survives layout transitions through native provider wrappers, without duplicate entry buttons",
+      );
       await require(path.join(root, "tests/discord-ui/popout-check.cjs"))(fixture);
       checks.push(
         "Legacy chrome preserves extra controls; metadata sizing selects the dominant video without capturing frames",
@@ -387,7 +391,7 @@ app
         fs.readFileSync(path.join(root, "integration/discord-ui/components.css"), "utf8"),
       );
       await fixture.webContents.executeJavaScript(
-        `window.pipState={available:true,corner:"bottom-right",large:false,monitors:{left:false,right:true}};window.monitorMoves=[];window.DPEPiP={state:async()=>pipState,choose:async(corner)=>(pipState={...pipState,corner}),monitor:async(direction)=>{monitorMoves.push(direction);return pipState={...pipState,monitors:{left:true,right:false}};}};(${require(path.join(root, "integration/discord-ui/pip-corners.cjs")).toString()})(${JSON.stringify({ icons: { chevron: require(path.join(root, "integration/discord-ui/icons.cjs"))().chevron } })});`,
+        `window.pipState={available:true,corner:"bottom-right",large:false,monitors:{left:false,right:true}};window.monitorMoves=[];window.DPEPiP={state:async()=>pipState,choose:async(corner)=>(pipState={...pipState,corner}),monitor:async(direction)=>{monitorMoves.push(direction);return pipState={...pipState,monitors:{left:true,right:false}};}};${require(path.join(root, "integration/discord-ui/source.cjs")).call(require(path.join(root, "integration/discord-ui/pip-corners.cjs")), { icons: { chevron: require(path.join(root, "integration/discord-ui/icons.cjs"))().chevron } })};`,
       );
       await fixture.webContents.executeJavaScript(`new Promise(resolve=>setTimeout(resolve,60))`);
       assert.equal(
@@ -458,7 +462,10 @@ app
         recovered: true,
       });
       await fixture.webContents.executeJavaScript(
-        `(${require(path.join(root, "integration/discord-ui/pip-prompts.cjs")).toString()})();`,
+        require(path.join(root, "integration/discord-ui/source.cjs")).call(
+          require(path.join(root, "integration/discord-ui/pip-prompts.cjs")),
+          {},
+        ),
       );
       const prompts = await fixture.webContents.executeJavaScript(`(async()=>{
         const pause=()=>new Promise(resolve=>setTimeout(resolve,60));

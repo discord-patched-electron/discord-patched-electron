@@ -4,7 +4,9 @@ const settings = require("../../integration/discord-ui/settings.cjs");
 module.exports = async function checkFooter(window) {
   const run = (code) => window.webContents.executeJavaScript(code);
   const install = (request = {}) =>
-    run(`(${settings.toString()})(${JSON.stringify(request)}, {watch(){}})`);
+    run(
+      `(${settings.toString()})(${JSON.stringify(request)}, {...(${require("../../integration/discord-ui/runtime.cjs")})(),watch(){}})`,
+    );
   const settle = () =>
     run("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
   const count = () => run('document.querySelectorAll("[data-dpe-settings-version]").length');

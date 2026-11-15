@@ -144,6 +144,7 @@ test("the native settings footer receives release, local and development version
     fs.writeFileSync(policy, JSON.stringify({ release_version: release }));
     fs.writeFileSync(local, JSON.stringify(build));
     const context = vm.createContext({
+      queueMicrotask,
       document: { documentElement: {}, querySelectorAll: () => [], createElement: () => ({}) },
       MutationObserver: class {
         observe() {}

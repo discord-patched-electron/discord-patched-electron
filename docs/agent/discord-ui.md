@@ -40,7 +40,7 @@ a disposable profile instead of silently testing only system-font fallbacks.
 The page-world integration remains responsible for the native settings entry:
 
 - `runtime.cjs` owns webpack discovery, component signatures, safe export traversal,
-  ambiguity checks and module lifecycle hooks. One runtime instance is shared per
+  ambiguity checks, control registrations and module lifecycle hooks. One runtime instance is shared per
   page through `Symbol.for("dpe.discordUI")`.
 - `source.cjs` serializes adapter requests and supplies that shared runtime. It
   exposes no Node bridge or general IPC interface to the page.
@@ -73,6 +73,71 @@ The settings layout approach was checked against
 [Vencord's settings integration](https://github.com/Vendicated/Vencord/blob/main/src/plugins/_core/settings.tsx)
 and current Canary's native layout builder and sidebar renderer. The implementation
 does not require Vencord and does not replace its sections.
+
+## Injecting native controls
+
+Use `ui.controls` from the shared runtime for native page extensions. Its named
+registrations follow the pattern of Vencord's
+[message popover](https://github.com/Vendicated/Vencord/blob/main/src/api/MessagePopover.tsx)
+and [chat buttons](https://github.com/Vendicated/Vencord/blob/main/src/api/ChatButtons.tsx)
+APIs. DPE discovers its own native extension points and works without a mod.
+Registrations last for the document; bootstrap reinstalls them after navigation.
+
+| Method                                                  | Contract                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `register(id, factory)`                                 | Replace a named factory; return an unregister callback that cannot remove a newer registration. Factories create native elements or layout entries; render components through React so their hooks remain valid.                                                             |
+| `render(id, context)`                                   | Render one registration; an unavailable or throwing factory contributes nothing.                                                                                                                                                                                             |
+| `insert(items, {id, before, after, context, key})`      | Return a fresh native list with at most one entry for that ID. Require a native anchor, preserve unrelated entries and pass the anchor to the factory. The factory sets the same stable key as its ID. Default key lookup supports native layout entries and React elements. |
+| `tree(React, root, visit, maxDepth)`                    | Visit existing elements and child arrays without invoking components or reading fibers. Clone only changed ancestors; preserve providers, keys, refs and siblings. Depth and node budgets bound discovery; a failed visitor leaves the original tree intact.                 |
+| `replaceExport(runtime, exports, name, value)`          | Replace one unambiguous cached namespace export. A shared shadow proxy supports frozen exports, preserves unrelated getters, and combines replacements from different adapters.                                                                                              |
+| `observe(id, {root, repair, options, filter, cleanup})` | Own one DOM repair observer per ID, coalesce mutations, and repair subsequent native mounts. Return `refresh()` and `dispose()`; page hide disconnects observers, cancels pending repairs and runs cleanup. Observe the document element when the body can be replaced.      |
+
+For example, register a native menu action once, then insert it during every
+native menu render:
+
+```js
+ui.controls.register("dpe-action", ({ anchor, onClick }) =>
+  React.createElement(anchor.type, {
+    key: "dpe-action",
+    id: "dpe-action",
+    label: "DPE action",
+    action: onClick,
+  }),
+);
+const children = ui.controls.insert(nativeChildren, {
+  id: "dpe-action",
+  before: (node) => node?.props?.id === "native-anchor",
+  context: { onClick },
+});
+```
+
+Keep native discovery and scoped eligibility in the adapter. Reuse Discord's
+control, tooltip, classes, icon resolver and callback path; the registry supplies
+lifecycle behavior, not a new button design. Cache wrapper/subclass types so
+rerenders preserve component state and focus. Subscribe mounted controls to
+feature-state changes and unsubscribe on unmount, including PureComponents.
+Use DOM repair only for surfaces without a validated native extension point.
+Repair must converge: write text and move nodes only when their values change.
+Cleanup must release listeners/timers and ignore late asynchronous results.
+
+The settings sidebar, call toolbar, in-app PiP overlay and capture menu use named
+registrations. The version footer, PiP position/monitor controls and empty-call
+settings action share observer ownership, as do the custom and legacy native
+audio picker hosts. The participant adapter uses the same
+tree/export helpers to retain Discord's native return control through providers
+and layout changes. Standalone DPE settings buttons render through their owned Preact roots.
+The audio pickers retain their existing selection, cancellation and focus
+lifecycles; host removal and page teardown use shared observer ownership.
+
+Behavior tests cover repeated insertion, callback updates, immutable lists,
+provider traversal, frozen exports and cleanup. The rendered PiP fixture checks
+the return control before WindowStore registration, layout transitions and
+keyboard activation; footer and PiP DOM checks exercise native remounts.
+Synthetic checks do not establish live-call parity after an upstream UI change.
+The legacy native settings/audio probe also depends on presentation chunks
+available from Discord's public login shell. If that shell omits its settings
+lazy entry point, the probe stops before exercising native controls; rendered
+fixtures and mod-hook unit checks do not replace that missing coverage.
 
 ## Packaging
 

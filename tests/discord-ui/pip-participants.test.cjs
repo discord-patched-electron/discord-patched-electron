@@ -28,6 +28,7 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     $$typeof: Symbol.for("react.context"),
     _currentValue: { appContext: "APP", renderWindow: {}, windowDispatch: {} },
   };
+  let registeredWindow = target;
   context = Context._currentValue;
   const React = {
     useContext: () => context,
@@ -133,7 +134,7 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
       return this.props.appContext === "POPOUT";
     }
     get popoutOpen() {
-      return !target.closed;
+      return !!this.props.popoutWindow && !this.props.popoutWindow.closed;
     }
     get viewProperties() {
       return {
@@ -159,16 +160,24 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
       const layout = store.getLayout(channel.id),
         selectedParticipant = store.getSelectedParticipant(channel.id);
       const getMode = () => "video";
-      return React.createElement(NativeCall, {
+      const call = React.createElement(NativeCall, {
         channel,
         layout,
         selectedParticipant,
         mode: getMode(),
         appContext: context.appContext,
+        popoutWindow: registeredWindow,
         participants: store.getParticipants(channel.id),
         guildRoomVisible: true,
         callContainerDimensions: { width: 320, height: 180 },
         popoutType,
+      });
+      return React.createElement("Analytics", {
+        children: React.createElement("PageContext", {
+          children: React.createElement("CallProviders", {
+            children: [call, React.createElement("Footer", {})],
+          }),
+        }),
       });
     },
   };
@@ -203,9 +212,18 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     setMembers(open) {
       membersOpen = open;
     },
+    setRegisteredWindow(value) {
+      registeredWindow = value;
+    },
     menu: () => runtime.c.menu.exports.A("call"),
-    renderCall: () =>
-      runtime.c.call.exports.default({ channel: { id: "call" }, popoutType: "voice" }),
+    renderCall: () => {
+      const tree = runtime.c.call.exports.default({ channel: { id: "call" }, popoutType: "voice" });
+      assert.equal(tree.type, "Analytics");
+      assert.equal(tree.props.children.type, "PageContext");
+      const children = tree.props.children.props.children.props.children;
+      assert.equal(children[1].type, "Footer");
+      return children[0];
+    },
     renderMeasured: (props) => runtime.c.view.exports.A({ channel: { id: "call" }, ...props }),
     origin(participantId) {
       vm.runInContext(
@@ -491,6 +509,22 @@ test("manual deselection of a sole tile stays deselected", () => {
     showParticipants: true,
   });
   assert.equal(view.props.selectedParticipant, null);
+});
+
+test("PiP return is present before WindowStore registers the guest and after registration", () => {
+  const f = fixture();
+  f.setRegisteredWindow(null);
+  f.pip();
+  for (const layout of ["normal", "no-chat", "full-screen", "normal"]) {
+    f.actions.updateLayout("call", layout, "POPOUT");
+    const tree = f.renderCall(),
+      view = new tree.type(tree.props);
+    assert.equal(tree.props.popoutWindow, f.target);
+    assert.equal(view.renderBottomRight().label, "Return to Discord", layout);
+  }
+  f.setRegisteredWindow(f.target);
+  const tree = f.renderCall();
+  assert.equal(new tree.type(tree.props).renderBottomRight().label, "Return to Discord");
 });
 
 test("manual media callbacks minimize members even when the selected ID stays the same", () => {

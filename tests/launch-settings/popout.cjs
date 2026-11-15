@@ -101,7 +101,7 @@ module.exports = async function check({ window, values, click, get, until, evalu
   );
   await evaluate(`window.DPEPiP={state:async()=>({available:true,corner:"bottom-right",large:false}),choose:async(corner)=>({available:true,corner,large:false})};
     const video=document.createElement('video');video.id='pip-test-video';video.style.cssText='position:fixed;width:200px;height:120px';document.body.append(video);
-    (${picker.toString()})();`);
+    ${require("../../integration/discord-ui/source.cjs").call(picker, {})};`);
   await until(() =>
     get('document.querySelectorAll("#dpe-pip-corners button[aria-pressed=true]").length===1'),
   );

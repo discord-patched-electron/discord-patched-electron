@@ -314,7 +314,12 @@ function createController(
             hideMembers: values.popoutHideMembers,
           }) +
           (state.video
-            ? `;(${require("../discord-ui/pip-corners.cjs").toString()})(${JSON.stringify({ icons: { chevron: require("../discord-ui/icons.cjs")().chevron } })});(${require("../discord-ui/pip-prompts.cjs").toString()})();`
+            ? ";" +
+              require("../discord-ui/source.cjs").call(require("../discord-ui/pip-corners.cjs"), {
+                icons: { chevron: require("../discord-ui/icons.cjs")().chevron },
+              }) +
+              ";" +
+              require("../discord-ui/source.cjs").call(require("../discord-ui/pip-prompts.cjs"), {})
             : "") +
           ";void 0;",
       );

@@ -233,6 +233,12 @@ function show(
   resolveIcon = createResolver(),
   presentation = readOfficialIcons,
 ) {
+  const controls = require(
+    require.resolve("./discord-ui/runtime.cjs", {
+      paths: [__dirname, path.dirname(__dirname)],
+    }),
+  )().controls;
+  let mount;
   const previous = document.activeElement;
   const host = document.createElement("div");
   const root = host.attachShadow({ mode: "closed" });
@@ -424,7 +430,7 @@ function show(
     document.defaultView.cancelAnimationFrame(enterFrame);
     clearTimeout(exitTimer);
     clearTimeout(entranceTimer);
-    observer?.disconnect();
+    mount?.dispose();
     dialog.close();
     host.remove();
     if (previous?.isConnected) previous.focus();
@@ -487,17 +493,22 @@ function show(
     backdropPressed = false;
   });
   // A host rerender must not leave the audio helper waiting for an invisible picker.
-  const Observer = document.defaultView?.MutationObserver;
-  const observer = Observer
-    ? new Observer(() => {
-        if (!host.isConnected) finish("none");
-      })
-    : null;
   // Native modal dialog supplies focus containment and makes Discord inert.
   // Append inside its theme scope, without depending on hashed class names.
   (document.querySelector("#app-mount") || document.body).append(host);
   try {
-    observer?.observe(document.body, { childList: true, subtree: true });
+    mount = controls.observe(Symbol("audio-picker-host"), {
+      root: document.documentElement,
+      repair: () => {
+        if (!host.isConnected) finish("none");
+      },
+      cleanup: () => {
+        if (closed) return;
+        const reply = respond;
+        close();
+        reply("none");
+      },
+    });
     dialog.dataset.state = "entering";
     dialog.showModal();
     const startEntrance = () => {
@@ -551,8 +562,7 @@ function show(
       })
       .catch(fallbackEntrance);
   } catch (error) {
-    observer?.disconnect();
-    host.remove();
+    close();
     throw error;
   }
   close.update = (nextOptions, nextRespond = respond) => {

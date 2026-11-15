@@ -1,20 +1,14 @@
 "use strict";
 // Remove only the paired empty-call prompts, never active activity/media tiles.
-module.exports = function pipPrompts() {
+module.exports = function pipPrompts(_request, ui) {
   if (document.documentElement.hasAttribute("data-dpe-pip-prompts")) return;
   document.documentElement.setAttribute("data-dpe-pip-prompts", "");
   const marked = new Set();
   const layouts = new Set();
   let observedGrid = null;
-  let scheduled = false;
-  const resize = new ResizeObserver(() => schedule());
-  const schedule = () => {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(repair);
-  };
+  let mount;
+  const resize = new ResizeObserver(() => mount?.refresh());
   function repair() {
-    scheduled = false;
     const previousGrid = observedGrid;
     observedGrid = null;
     try {
@@ -26,8 +20,13 @@ module.exports = function pipPrompts() {
       }
     }
   }
-  const noticeButtons = new WeakSet();
+  const noticeButtons = new Map();
   function repairNotice() {
+    for (const [button, handler] of noticeButtons)
+      if (!button.isConnected) {
+        button.removeEventListener("click", handler, true);
+        noticeButtons.delete(button);
+      }
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
       const text = walker.currentNode;
@@ -54,16 +53,13 @@ module.exports = function pipPrompts() {
           else button.textContent = "Open DPE Settings";
         }
         if (!noticeButtons.has(button)) {
-          noticeButtons.add(button);
-          button.addEventListener(
-            "click",
-            (event) => {
-              event.preventDefault();
-              event.stopImmediatePropagation();
-              void window.DPEPiP?.openSettings?.();
-            },
-            true,
-          );
+          const openSettings = (event) => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            void window.DPEPiP?.openSettings?.();
+          };
+          noticeButtons.set(button, openSettings);
+          button.addEventListener("click", openSettings, true);
         }
         break;
       }
@@ -152,22 +148,22 @@ module.exports = function pipPrompts() {
     }
     observedGrid = grid;
   }
-  const observer = new MutationObserver(() => {
-    schedule();
-  });
-  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
-  repair();
-  window.addEventListener(
-    "pagehide",
-    () => {
-      observer.disconnect();
+  mount = ui.controls.observe("pip-prompts", {
+    root: document.documentElement,
+    repair,
+    options: { subtree: true, childList: true, characterData: true },
+    cleanup: () => {
       resize.disconnect();
+      for (const [button, handler] of noticeButtons)
+        button.removeEventListener("click", handler, true);
+      noticeButtons.clear();
+      document.documentElement.removeAttribute("data-dpe-pip-prompts");
       for (const node of marked) node.removeAttribute("data-dpe-pip-prompt");
       for (const node of layouts) {
         node.removeAttribute("data-dpe-pip-grid");
         node.removeAttribute("data-dpe-pip-cell");
       }
     },
-    { once: true },
-  );
+  });
+  repair();
 };

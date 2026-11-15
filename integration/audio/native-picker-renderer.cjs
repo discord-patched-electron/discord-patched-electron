@@ -69,7 +69,7 @@ module.exports = function nativePicker(request, ui, discover) {
           result = { ...unavailable, reason: "premature-reply" };
         finished = true;
         clearTimeout(mountTimeout);
-        observer?.disconnect();
+        observer?.dispose();
         sessions.delete(request.key);
         session.update = null;
         try {
@@ -171,10 +171,13 @@ module.exports = function nativePicker(request, ui, discover) {
           clearTimeout(mountTimeout);
           session.mounted = true;
           if (!observer) {
-            observer = new MutationObserver(() => {
-              if (!layout.isConnected) session.finish({ ...unavailable, reason: "host-removed" });
+            observer = ui.controls.observe(request.key, {
+              root: document.documentElement,
+              repair: () => {
+                if (!layout.isConnected) session.finish({ ...unavailable, reason: "host-removed" });
+              },
+              cleanup: () => session.finish({ ...unavailable, reason: "host-removed" }),
             });
-            observer.observe(document.body, { childList: true, subtree: true });
           }
         }
         // Let native child effects complete before checking the actual DOM.

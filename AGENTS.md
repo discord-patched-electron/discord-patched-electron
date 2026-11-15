@@ -41,6 +41,12 @@ user-facing explanations. Use the
 
 ## Discord replica UI
 
+- UI injected into Discord must use the shared page-world runtime and
+  `ui.controls` interface in `integration/discord-ui/runtime.cjs` for named
+  registrations, immutable insertion/tree traversal, export replacement and DOM
+  observer ownership as applicable. Reuse native controls and callback paths;
+  preserve rerenders, remounts, focus and other mods. Release subscriptions,
+  timers and observers on teardown. See [injection contracts](docs/agent/discord-ui.md#injecting-native-controls).
 - DPE surfaces must look like Discord's current settings and dialogs. Reuse the
   local replica components; do not introduce generic browser controls or a new
   visual design for a feature. Keep new settings in the separate DPE window.

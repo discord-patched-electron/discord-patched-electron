@@ -172,6 +172,14 @@ changes, including cameras and activities. Manual Show Members remains usable
 until the next selection/layout change. A manual sole-tile deselection is not
 overridden. The PiP-only non-video checkbox is omitted while DPE's corresponding
 preference is off; stale menu callbacks cannot re-enable that content.
+Discover the call class beneath the native analytics/context provider children,
+including arrays, with bounded immutable traversal. The exported call function
+does not return that class directly. Preserve provider context, sibling elements
+and the class type across rerenders; check the return control in the initial
+normal layout as well as fullscreen transitions.
+If WindowStore has not registered the guest yet, use the owned live window from
+WindowContext for the native call's popout handle, without waiting for a layout
+change to refresh its return icon.
 
 The native participant sizing wrapper permits shrinking below its media's
 minimum content size in explicit PiP, so the header cannot push its measured

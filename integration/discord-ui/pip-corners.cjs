@@ -1,13 +1,14 @@
 "use strict";
 // One DOM adapter in the PiP document. No React factories or stream-store hooks.
-module.exports = function pipCorners(request = {}) {
+module.exports = function pipCorners(request = {}, ui) {
   if (!window.DPEPiP || document.getElementById("dpe-pip-corners")) return;
   const host = document.createElement("div");
   host.id = "dpe-pip-corners";
   host.className = "dpe-ui";
   host.setAttribute("role", "group");
   host.setAttribute("aria-label", "PiP position");
-  let moving = false;
+  let moving = false,
+    disposed = false;
   const buttons = ["top-left", "top-right", "bottom-left", "bottom-right"].map((corner) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -68,6 +69,7 @@ module.exports = function pipCorners(request = {}) {
     return true;
   };
   function render(state) {
+    if (disposed) return;
     lastState = state;
     for (const [direction, button] of monitorButtons)
       button.disabled = moving || state?.monitors?.[direction] !== true;
@@ -133,7 +135,7 @@ module.exports = function pipCorners(request = {}) {
   }
   let busy = false;
   async function refresh() {
-    if (busy || document.hidden) return;
+    if (disposed || busy || document.hidden) return;
     busy = true;
     try {
       render(await window.DPEPiP.state());
@@ -154,42 +156,34 @@ module.exports = function pipCorners(request = {}) {
   window.addEventListener("resize", refresh);
   window.addEventListener("focus", refresh);
   document.addEventListener("visibilitychange", refresh);
-  let repairPending = false;
-  const observer = new MutationObserver((changes) => {
-    if (
-      repairPending ||
-      !changes.some(
+  ui.controls.observe("pip-corners", {
+    root: document.documentElement,
+    repair: () => {
+      if (lastState) render(lastState);
+    },
+    filter: (changes) =>
+      changes.some(
         (change) =>
           change.type === "childList" ||
           (anchor && (change.target === anchor || change.target.contains(anchor))),
-      )
-    )
-      return;
-    repairPending = true;
-    queueMicrotask(() => {
-      repairPending = false;
-      if (lastState) render(lastState);
-    });
-  });
-  observer.observe(document.body, {
-    subtree: true,
-    childList: true,
-    attributes: true,
-    attributeFilter: ["class", "style", "hidden"],
-  });
-  window.addEventListener(
-    "pagehide",
-    () => {
+      ),
+    options: {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["class", "style", "hidden"],
+    },
+    cleanup: () => {
+      disposed = true;
       clearInterval(timer);
-      observer.disconnect();
       anchor?.removeAttribute("data-dpe-pip-anchor");
+      host.remove();
       document.removeEventListener("pointerover", refresh);
       document.removeEventListener("focusin", refresh);
       window.removeEventListener("resize", refresh);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     },
-    { once: true },
-  );
+  });
   void refresh();
 };

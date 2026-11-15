@@ -197,6 +197,9 @@ module.exports = function pipParticipants(request, ui) {
       ),
     (exports, runtime) => {
       React ||= ui.inspect(runtime).React;
+      const entries = Object.entries(runtime.c || {}).filter(
+        ([, entry]) => entry?.exports === exports,
+      );
       for (const value of [exports, ...Object.values(exports || {})]) {
         if (!value || !["object", "function"].includes(typeof value)) continue;
         if (
@@ -240,9 +243,6 @@ module.exports = function pipParticipants(request, ui) {
           "participantsVersion",
           "totalNumberOfParticipants",
           "getVoiceParticipantsHidden",
-        );
-        const entries = Object.entries(runtime.c || {}).filter(
-          ([, entry]) => entry?.exports === exports,
         );
         const factory = entries.length === 1 ? String(runtime.m?.[entries[0][0]] || "") : "";
         const view =
@@ -315,41 +315,51 @@ module.exports = function pipParticipants(request, ui) {
           ]);
           if (call) {
             const tree = Reflect.apply(original, this, [props]);
-            // Guild room state is shared with the app and can bypass the tile
-            // view entirely when PiP opens from Discord's in-app overlay.
-            if (
-              !enabled ||
-              tree?.props?.appContext !== "POPOUT" ||
-              !Array.isArray(tree.props.participants) ||
-              typeof tree.props.guildRoomVisible !== "boolean"
-            )
-              return tree;
-            const getter =
-              typeof tree.type === "function" &&
-              tree.type.prototype &&
-              Object.getOwnPropertyDescriptor(tree.type.prototype, "viewProperties")?.get;
-            const sig = getter && ui.signature(getter);
-            if (sig && ui.has(sig, "canPopout", "canFullscreen", "canStayOnTop")) {
-              let View = callViews.get(tree.type);
-              if (!View) {
-                View = class extends tree.type {
-                  get viewProperties() {
-                    const native = Reflect.apply(getter, this, []);
-                    return this.inPopout && this.popoutOpen
-                      ? { ...native, canPopout: true }
-                      : native;
-                  }
-                };
-                callViews.set(tree.type, View);
+            if (!enabled) return tree;
+            return ui.controls.tree(React, tree, (node) => {
+              // Guild room state is shared with the app and can bypass the tile
+              // view entirely when PiP opens from Discord's in-app overlay.
+              if (
+                node.props.appContext !== "POPOUT" ||
+                node.props.channel?.id !== props.channel?.id ||
+                !Array.isArray(node.props.participants) ||
+                typeof node.props.guildRoomVisible !== "boolean"
+              )
+                return node;
+              const getter =
+                typeof node.type === "function" &&
+                node.type.prototype &&
+                Object.getOwnPropertyDescriptor(node.type.prototype, "viewProperties")?.get;
+              // The portal can mount before WindowStore publishes its handle.
+              // Its trusted WindowContext already identifies the live guest.
+              const popoutWindow =
+                !node.props.popoutWindow || node.props.popoutWindow.closed
+                  ? context.renderWindow
+                  : node.props.popoutWindow;
+              const sig = getter && ui.signature(getter);
+              if (sig && ui.has(sig, "canPopout", "canFullscreen", "canStayOnTop")) {
+                let View = callViews.get(node.type);
+                if (!View) {
+                  View = class extends node.type {
+                    get viewProperties() {
+                      const native = Reflect.apply(getter, this, []);
+                      return this.inPopout && this.popoutOpen
+                        ? { ...native, canPopout: true }
+                        : native;
+                    }
+                  };
+                  callViews.set(node.type, View);
+                }
+                return React.createElement(View, {
+                  ...node.props,
+                  guildRoomVisible: false,
+                  popoutWindow,
+                  key: node.key,
+                  ref: node.ref,
+                });
               }
-              return React.createElement(View, {
-                ...tree.props,
-                guildRoomVisible: false,
-                key: tree.key,
-                ref: tree.ref,
-              });
-            }
-            return React.cloneElement(tree, { guildRoomVisible: false });
+              return React.cloneElement(node, { guildRoomVisible: false, popoutWindow });
+            });
           }
           if (menu) {
             const tree = Reflect.apply(original, this, [props]);
@@ -429,45 +439,34 @@ module.exports = function pipParticipants(request, ui) {
             tree = React.cloneElement(tree, {
               style: { ...tree.props.style, minWidth: 0, minHeight: 0 },
             });
-          function transform(node, depth = 0) {
-            if (depth > 8 || !node) return node;
-            if (Array.isArray(node)) return node.map((child) => transform(child, depth + 1));
-            if (!node.props) return node;
-            const inner = ui.unwrap(node.type),
-              signature = inner && ui.signature(inner);
-            if (
-              signature &&
-              ui.has(
-                signature,
-                "filteredParticipants",
-                "participantsVersion",
-                "totalNumberOfParticipants",
-                "getVoiceParticipantsHidden",
+          return ui.controls.tree(
+            React,
+            tree,
+            (node) => {
+              const inner = ui.unwrap(node.type),
+                signature = inner && ui.signature(inner);
+              if (
+                signature &&
+                ui.has(
+                  signature,
+                  "filteredParticipants",
+                  "participantsVersion",
+                  "totalNumberOfParticipants",
+                  "getVoiceParticipantsHidden",
+                )
               )
-            )
-              return React.cloneElement(node, adjust(node.props));
-            return node.props.children
-              ? React.cloneElement(node, undefined, transform(node.props.children, depth + 1))
-              : node;
-          }
-          return transform(tree);
+                return React.cloneElement(node, adjust(node.props));
+              return node;
+            },
+            8,
+          );
         };
         if (value.$$typeof === Symbol.for("react.memo") && typeof value.type === "function")
           value.type = Wrapper;
         else {
           const keys = Object.keys(exports).filter((name) => exports[name] === value);
           if (entries.length !== 1 || keys.length !== 1) continue;
-          entries[0][1].exports = new Proxy(Object.create(null), {
-            get(target, name, receiver) {
-              return name === keys[0] ? Wrapper : Reflect.get(exports, name, receiver);
-            },
-            ownKeys: () => Reflect.ownKeys(exports),
-            has: (_target, name) => Reflect.has(exports, name),
-            getOwnPropertyDescriptor: (_target, name) => {
-              const descriptor = Reflect.getOwnPropertyDescriptor(exports, name);
-              return descriptor ? { ...descriptor, configurable: true } : undefined;
-            },
-          });
+          if (!ui.controls.replaceExport(runtime, exports, keys[0], Wrapper)) continue;
         }
         wrapped.add(value);
         wrapped.add(Wrapper);

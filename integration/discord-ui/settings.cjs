@@ -82,8 +82,16 @@ module.exports = function settingsEntry(request, ui) {
         },
       };
       globalThis[key] = footer;
-      footer.observer = new MutationObserver(() => footer.refresh());
-      footer.observer.observe(document.documentElement, { childList: true, subtree: true });
+      footer.mount = ui.controls.observe("settings-version", {
+        root: document.documentElement,
+        repair: () => footer.refresh(),
+        cleanup: () => {
+          focusStyle.remove();
+          for (const node of document.querySelectorAll("[data-dpe-settings-version]"))
+            node.remove();
+          delete globalThis[key];
+        },
+      });
     }
     if (typeof request?.version === "string" && request.version.trim())
       footer.version = request.version.trim().slice(0, 128);
@@ -109,6 +117,14 @@ module.exports = function settingsEntry(request, ui) {
           (signature, names) => names.has("SettingsIcon") && ui.has(signature, "svg"),
         );
       if (!icon) return;
+      ui.controls.register("dpe_openasar", ({ anchor }) => ({
+        key: "dpe_openasar",
+        type: anchor.type,
+        useTitle: () => "DPE Settings",
+        icon,
+        onClick: open,
+        buildLayout: () => [],
+      }));
       const build = root.buildLayout;
       root.buildLayout = function (...args) {
         const layout = Reflect.apply(build, this, args);
@@ -120,19 +136,10 @@ module.exports = function settingsEntry(request, ui) {
             ...section,
             buildLayout(...args) {
               const items = Reflect.apply(section.buildLayout, section, args);
-              if (!Array.isArray(items) || items.some((item) => item?.key === "dpe_openasar"))
-                return items;
-              const index = items.findIndex((item) => item?.key === "logout_sidebar_item");
-              if (index < 0) return items;
-              const entry = {
-                key: "dpe_openasar",
-                type: items[index].type,
-                useTitle: () => "DPE Settings",
-                icon,
-                onClick: open,
-                buildLayout: () => [],
-              };
-              return [...items.slice(0, index), entry, ...items.slice(index)];
+              return ui.controls.insert(items, {
+                id: "dpe_openasar",
+                before: (item) => item?.key === "logout_sidebar_item",
+              });
             },
           };
         });

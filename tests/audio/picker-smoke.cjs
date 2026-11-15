@@ -546,6 +546,19 @@ app.whenReady().then(async () => {
       dismiss();return {liveGeometry,bounded,inherited,inheritedSpacing,inheritedRadius};
     })()`);
     for (const [name, value] of Object.entries(nativeTokens)) assert.equal(value, true, name);
+    const teardown = await run(`(() => {
+      const before=replies.length;
+      openPicker();
+      window.dispatchEvent(new Event('pagehide'));
+      const cancelledImmediately=replies.length===before+1&&replies.at(-1)==='none'&&!document.querySelector('#app-mount > div');
+      dismiss();
+      const once=replies.length===before+1;
+      openPicker();
+      const reopened=!!document.querySelector('#app-mount > div')&&pickerRoot.querySelector('dialog').open;
+      dismiss();
+      return {cancelledImmediately,once,reopened};
+    })()`);
+    for (const [name, value] of Object.entries(teardown)) assert.equal(value, true, name);
     fs.writeFileSync(
       path.join(output, "result.json"),
       JSON.stringify(
@@ -560,6 +573,7 @@ app.whenReady().then(async () => {
           reducedMotion,
           glyphs,
           nativeTokens,
+          teardown,
           keyboardContained,
           escapeKey,
           dragOutKeptOpen,

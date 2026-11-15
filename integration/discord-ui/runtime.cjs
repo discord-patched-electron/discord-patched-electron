@@ -1,5 +1,5 @@
 "use strict";
-// One page-world runtime shared by native UI adapters. No Node APIs or DOM edits.
+// One page-world runtime shared by native UI adapters. No Node capabilities.
 module.exports = function discordUI() {
   const key = Symbol.for("dpe.discordUI");
   if (globalThis[key]) return globalThis[key];
@@ -302,7 +302,148 @@ module.exports = function discordUI() {
       React: reacts.length === 1 ? reacts[0] : undefined,
     };
   }
-  const api = { safe, unwrap, signature, has, runtimes: discover, inspect, watch };
+  // Named extension points keep feature code independent of where Discord puts
+  // its controls. Factories return native elements/layout entries; never call a
+  // React component here (it may use hooks). No native arrays/elements are mutated.
+  const controls = (() => {
+    const factories = new Map(),
+      mounts = new Map(),
+      namespaces = new WeakMap();
+    const report = (id, error) => console.warn(`[DPE Discord UI] ${String(id)}`, error);
+    function register(id, factory) {
+      factories.set(id, factory);
+      return () => {
+        if (factories.get(id) === factory) factories.delete(id);
+      };
+    }
+    function render(id, context) {
+      try {
+        return factories.get(id)?.(context) ?? null;
+      } catch (error) {
+        report(id, error);
+        return null;
+      }
+    }
+    function insert(
+      items,
+      { id, before, after, context, key = (item) => item?.key ?? item?.props?.key },
+    ) {
+      if (!Array.isArray(items)) return items;
+      const clean = items.filter((item) => key(item) !== id);
+      const index = clean.findIndex(before || after || (() => false));
+      // A missing native anchor is an upstream change, not permission to place
+      // a control elsewhere in an unrelated toolbar/menu.
+      if (index < 0) return clean.length === items.length ? items : clean;
+      const node = render(id, { ...context, anchor: clean[index] });
+      if (node == null) return clean.length === items.length ? items : clean;
+      const at = index + (after ? 1 : 0);
+      return [...clean.slice(0, at), node, ...clean.slice(at)];
+    }
+    function tree(React, root, visit, maxDepth = 12) {
+      let remaining = 2000;
+      function walk(node, depth) {
+        if (!node || depth > maxDepth || --remaining < 0) return node;
+        if (Array.isArray(node)) {
+          const children = node.map((child) => walk(child, depth + 1));
+          return children.some((child, i) => child !== node[i]) ? children : node;
+        }
+        if (!node.props) return node;
+        const replacement = visit(node);
+        if (replacement !== node) return replacement;
+        const children = walk(node.props.children, depth + 1);
+        return children === node.props.children ? node : React.cloneElement(node, { children });
+      }
+      try {
+        const result = walk(root, 0);
+        return remaining < 0 ? root : result;
+      } catch (error) {
+        report("control tree", error);
+        return root;
+      }
+    }
+    function replaceExport(runtime, exports, name, value) {
+      const entries = Object.values(runtime.c || {}).filter(
+        (entry) => entry?.exports === exports || namespaces.get(entry)?.source === exports,
+      );
+      if (entries.length !== 1 || !Reflect.has(exports, name)) return false;
+      const entry = entries[0];
+      let record = namespaces.get(entry);
+      if (!record || (entry.exports !== record.proxy && entry.exports !== record.source)) {
+        record = { source: entry.exports, values: new Map() };
+        // A shadow target also supports frozen, non-configurable data exports.
+        // A proxy over the original namespace would violate Proxy invariants.
+        record.proxy = new Proxy(Object.create(null), {
+          get: (_target, property) =>
+            record.values.has(property)
+              ? record.values.get(property)
+              : Reflect.get(record.source, property),
+          ownKeys: () => Reflect.ownKeys(record.source),
+          has: (_target, property) => Reflect.has(record.source, property),
+          getOwnPropertyDescriptor: (_target, property) => {
+            const d = Reflect.getOwnPropertyDescriptor(record.source, property);
+            return d
+              ? {
+                  ...d,
+                  ...(Object.hasOwn(d, "value") && record.values.has(property)
+                    ? { value: record.values.get(property) }
+                    : {}),
+                  configurable: true,
+                }
+              : undefined;
+          },
+        });
+        namespaces.set(entry, record);
+      }
+      record.values.set(name, value);
+      entry.exports = record.proxy;
+      return true;
+    }
+    function observe(
+      id,
+      { root, repair, options = { childList: true, subtree: true }, filter, cleanup },
+    ) {
+      if (mounts.has(id)) return mounts.get(id);
+      let pending = false,
+        disposed = false;
+      const refresh = () => {
+        if (pending || disposed) return;
+        pending = true;
+        queueMicrotask(() => {
+          pending = false;
+          if (!disposed) {
+            try {
+              repair();
+            } catch (error) {
+              report(id, error);
+            }
+          }
+        });
+      };
+      const observer = new MutationObserver((changes) => {
+        if (!filter || filter(changes)) refresh();
+      });
+      const dispose = () => {
+        if (disposed) return;
+        disposed = true;
+        observer.disconnect();
+        mounts.delete(id);
+        globalThis.removeEventListener?.("pagehide", dispose);
+        try {
+          cleanup?.();
+        } catch (error) {
+          report(id, error);
+        }
+      };
+      const mount = { refresh, dispose };
+      observer.observe(root, options);
+      mounts.set(id, mount);
+      globalThis.addEventListener?.("pagehide", dispose, { once: true });
+      refresh();
+      return mount;
+    }
+    return { register, render, insert, tree, replaceExport, observe };
+  })();
+  const api = { safe, unwrap, signature, has, runtimes: discover, inspect, watch, controls };
   globalThis[key] = api;
   return api;
 };

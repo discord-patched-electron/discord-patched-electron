@@ -20,6 +20,7 @@ function nodes(tree, predicate) {
 
 function fixture({
   cached = false,
+  frozenExports = false,
   ambiguous = false,
   contract = "native",
   enabled = true,
@@ -214,8 +215,10 @@ function fixture({
       void useCreateGoLiveModalState; void actions; void props;
       return fixtureTree;
     }
-    Object.defineProperty(module.exports,"default",{enumerable:true,configurable:false,get:()=>Original});
+    Object.defineProperty(module.exports,"default",{enumerable:true,configurable:false,${frozenExports ? "value:Original" : "get:()=>Original"}});
     module.exports.marker = Object.freeze({native:true});
+    globalThis.originalExports = module.exports;
+    ${frozenExports ? "Object.freeze(module.exports);" : ""}
     ${
       ambiguous
         ? `module.exports.another = function Other() {
@@ -339,13 +342,29 @@ for (const cached of [false, true]) {
     assert.equal(f.context.options[0].name, "Applications");
     assert.equal(originalTree, f.context.fixtureTree);
     const exports = f.runtime("picker");
-    assert.equal(Object.getOwnPropertyDescriptor(exports, "default").configurable, false);
+    assert.equal(
+      Object.getOwnPropertyDescriptor(f.context.originalExports, "default").configurable,
+      false,
+    );
     assert.equal(exports.marker.native, true);
     const wrapped = exports.default;
     f.install();
     assert.equal(f.runtime("picker").default, wrapped);
   });
 }
+
+test("frozen native data exports retain the optimized picker and unrelated exports", () => {
+  const f = fixture({ cached: true, frozenExports: true });
+  f.install();
+  const tree = f.render();
+  assert.equal(
+    nodes(tree, (node) => node.props.role === "tablist")[0].props.value,
+    "dpe-optimized",
+  );
+  assert.equal(Object.isFrozen(f.context.originalExports), true);
+  assert.notEqual(f.runtime("picker").default, f.context.originalExports.default);
+  assert.equal(f.runtime("picker").marker, f.context.originalExports.marker);
+});
 
 test("Vanilla and Devices retain original callbacks and device pane", async () => {
   const f = fixture();

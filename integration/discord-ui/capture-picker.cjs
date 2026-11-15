@@ -173,6 +173,17 @@ module.exports = function capturePicker(request, ui, makeView) {
     }
     const cogWrappers = new WeakMap(),
       menuWrappers = new WeakMap();
+    ui.controls.register("dpe-open-screensharing", ({ anchor, props }) =>
+      h(anchor.type, {
+        key: "dpe-open-screensharing",
+        id: "dpe-open-screensharing",
+        label: "Open DPE settings",
+        action: () => {
+          props.onClose?.();
+          void rpc("open-settings").catch(() => {});
+        },
+      }),
+    );
     function menuWrapper(original) {
       if (!menuWrappers.has(original))
         menuWrappers.set(original, function Menu(props) {
@@ -182,26 +193,19 @@ module.exports = function capturePicker(request, ui, makeView) {
             if (node.props.id === "advanced-items") advanced = node;
           });
           if (!advanced) return tree;
-          function insert(node) {
-            if (node === advanced)
-              return h(
-                React.Fragment,
-                null,
-                h(advanced.type, {
-                  id: "dpe-open-screensharing",
-                  label: "Open DPE settings",
-                  action: () => {
-                    props.onClose?.();
-                    void rpc("open-settings").catch(() => {});
-                  },
-                }),
-                node,
-              );
-            if (Array.isArray(node)) return node.map(insert);
-            if (!node?.props?.children) return node;
-            return React.cloneElement(node, undefined, insert(node.props.children));
-          }
-          return insert(tree);
+          const insert = (children) =>
+            ui.controls.insert(children, {
+              id: "dpe-open-screensharing",
+              before: (node) => node === advanced,
+              context: { props },
+            });
+          if (tree === advanced) return h(React.Fragment, null, ...insert([tree]));
+          return ui.controls.tree(React, tree, (node) => {
+            const children = node.props.children;
+            return Array.isArray(children) && children.includes(advanced)
+              ? React.cloneElement(node, { children: insert(children) })
+              : node;
+          });
         });
       return menuWrappers.get(original);
     }
@@ -525,13 +529,7 @@ module.exports = function capturePicker(request, ui, makeView) {
         return React.createElement(Boundary, { tree });
       };
       wrapped.toString = () => original.toString();
-      // Webpack's non-configurable export getters cannot be assigned. A proxy
-      // preserves every other export without evaluating private presentation modules.
-      entries[0].exports = new Proxy(exports, {
-        get(target, name, receiver) {
-          return name === keys[0] ? wrapped : Reflect.get(target, name, receiver);
-        },
-      });
+      if (!ui.controls.replaceExport(runtime, exports, keys[0], wrapped)) return;
       installed.add(original);
       installed.add(wrapped);
     },
