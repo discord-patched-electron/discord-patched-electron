@@ -95,6 +95,12 @@
       "Improvements": [
         "Add Picture-in-picture after the settings cog in Discord\u2019s in-app video overlay, using its native icon colors, spacing and keyboard behavior. Keep the ordinary popout control and hide the extra entry while a separate PiP is active."
       ]
+    },
+    "3d5f7f20e3a8d8041f26280efe736223149a226e": {
+      "Fixes": [
+        "Initialize PiP selection and fullscreen from the outer native call view, bypassing shared guild-room content only in explicit PiP. Retry when media arrives, select media even in an empty fullscreen layout, and preserve the media shown by an explicit in-app PiP click while excluding own screenshares.",
+        "Refresh call and in-app overlay PiP entries when native close completes after returning to Discord, including unchanged native PureComponents. Restore unchanged automatic selection on close and keep ordinary overlay popout clicks separate from unfinished PiP requests."
+      ]
     }
   }
 }
