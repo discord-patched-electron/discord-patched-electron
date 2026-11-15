@@ -350,8 +350,19 @@ module.exports = function pipParticipants(request, ui) {
             };
           };
           if (nativeView) return React.createElement(original, adjust(props));
-          const tree = Reflect.apply(original, this, [props]);
+          let tree = Reflect.apply(original, this, [props]);
           if (!enabled || stores.size !== 1) return tree;
+          // Discord's measured flex wrapper otherwise keeps the media's
+          // minimum content height, overflowing the space below the call header.
+          if (
+            tree?.type === "div" &&
+            tree.props?.style?.display === "flex" &&
+            tree.props.style.height === "100%" &&
+            tree.props.style.width === "100%"
+          )
+            tree = React.cloneElement(tree, {
+              style: { ...tree.props.style, minWidth: 0, minHeight: 0 },
+            });
           function transform(node, depth = 0) {
             if (depth > 8 || !node) return node;
             if (Array.isArray(node)) return node.map((child) => transform(child, depth + 1));

@@ -96,7 +96,10 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
   });
   const viewExports = {
     A: function sizingWrapper(props) {
-      return React.createElement("div", { children: React.createElement(view.type, props) });
+      return React.createElement("div", {
+        style: { width: "100%", height: "100%", display: "flex" },
+        children: React.createElement(view.type, props),
+      });
     },
   };
   Object.defineProperty(viewExports, "A", {
@@ -162,6 +165,7 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     menu: () => runtime.c.menu.exports.A("call"),
     renderCall: () =>
       runtime.c.call.exports.default({ channel: { id: "call" }, popoutType: "voice" }),
+    renderMeasured: (props) => runtime.c.view.exports.A({ channel: { id: "call" }, ...props }),
     origin(participantId) {
       vm.runInContext(
         `globalThis[Symbol.for("dpe.callPiP")]={activeWindow:target,origin:{channelId:"call",participantId:${JSON.stringify(participantId)}}}`,
@@ -361,4 +365,16 @@ test("a sole PiP tile uses the native focused view without a duplicate participa
   const view = f.render({ participants: [camera], showParticipants: true });
   assert.equal(view.props.selectedParticipant, camera);
   assert.equal(view.props.showParticipants, false);
+});
+
+test("the native measured PiP wrapper can shrink below media minimum size without changing normal calls", () => {
+  const f = fixture(),
+    props = { participants: [] };
+  assert.equal(f.renderMeasured(props).props.style.minHeight, undefined);
+  f.pip();
+  const style = f.renderMeasured(props).props.style;
+  assert.equal(style.minHeight, 0);
+  assert.equal(style.minWidth, 0);
+  assert.equal(style.height, "100%");
+  assert.equal(style.display, "flex");
 });
