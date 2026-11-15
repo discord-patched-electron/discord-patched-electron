@@ -4,7 +4,6 @@ Discord's official Canary desktop client with the latest Electron for better Lin
 support. Uses the desktop client, rather than a web wrapper like Vesktop or Equibop.
 
 > [!WARNING]
-> Experimental. Testing is limited, and bugs are expected.
 >
 > [Using this project breaks Discord TOS](#discord-terms-of-service).
 
