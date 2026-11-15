@@ -941,6 +941,19 @@ body #dpe-pip-corners[data-native-fade="true"] {
   max-width: none !important;
   max-height: none !important;
 }
+[data-dpe-pip-cell] > * {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+[data-dpe-pip-cell] video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain !important;
+}
 
 #dpe-pip-corners .dpe-pip-monitor[hidden] {
   display: none;

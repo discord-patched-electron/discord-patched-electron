@@ -469,17 +469,21 @@ app
         const translated=document.createElement('div');translated.className='tile_fixture';translated.innerHTML='<button data-action="invite-to-voice">Inviter</button><button data-action="choose-activity">Activité</button>';document.body.append(translated);await pause();
         const localized=getComputedStyle(translated).display==='none';translated.remove();await pause();
         const grid=document.createElement('div');grid.style.cssText='position:fixed;left:0;top:0;width:500px;height:280px;gap:8px';
-        grid.innerHTML='<div style="position:absolute;left:0;top:0;width:246px;height:280px"><div class="tile_fixture" style="width:100%;height:100%"><video style="width:100%;height:100%"></video></div></div><div style="position:absolute;left:254px;top:0;width:246px;height:280px"><div><div class="tile_fixture"><button>Invite to Voice</button><button>Choose Activity</button></div></div></div>';
+        grid.innerHTML='<div style="position:absolute;left:0;top:0;width:246px;height:280px"><div class="tile_fixture" style="width:1000px;height:562px"><video style="width:100%;height:100%;object-fit:cover"></video></div></div><div style="position:absolute;left:254px;top:0;width:246px;height:280px"><div><div class="tile_fixture"><button>Invite to Voice</button><button>Choose Activity</button></div></div></div>';
         document.body.append(grid);await pause();
         const [media,slot]=grid.children;
-        const bounds=()=>({media:media.getBoundingClientRect().toJSON(),slot:slot.getBoundingClientRect().toJSON()});
+        const bounds=()=>({media:media.getBoundingClientRect().toJSON(),slot:slot.getBoundingClientRect().toJSON(),tile:media.firstElementChild.getBoundingClientRect().toJSON(),video:media.querySelector('video').getBoundingClientRect().toJSON(),fit:getComputedStyle(media.querySelector('video')).objectFit});
         const collapsed=bounds();
         grid.style.width='420px';await pause();const resized=bounds();
         const extra=media.cloneNode(true);grid.insertBefore(extra,slot);grid.style.height='200px';await pause();
         const multiple=[media,extra].map(node=>node.getBoundingClientRect().toJSON());
         const frame=document.createElement('iframe');slot.querySelector('.tile_fixture').append(frame);await pause();
         const restored=!grid.hasAttribute('data-dpe-pip-grid') && slot.getBoundingClientRect().width===246 && media.getBoundingClientRect().width===246;
-        grid.remove();await pause();
+        frame.remove();extra.remove();grid.style.width='500px';grid.style.height='200px';await pause();
+        const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=900;
+        const ctx=canvas.getContext('2d');ctx.fillStyle='#24344f';ctx.fillRect(0,0,1600,900);ctx.strokeStyle='#56d998';ctx.lineWidth=40;ctx.strokeRect(20,20,1560,860);ctx.fillStyle='white';ctx.font='72px sans-serif';ctx.fillText('Synthetic 16:9 stream',100,470);
+        const video=media.querySelector('video');video.muted=true;video.srcObject=canvas.captureStream(1);await video.play();await pause();
+        window.dpePipSizingGrid=grid;
         return {hidden,activePreserved,translated:localized,collapsed,resized,multiple,restored};
       })()`);
       assert.equal(prompts.hidden, true);
@@ -493,6 +497,19 @@ app
       assert.equal(prompts.collapsed.media.width, 500, "Sole media fills the reclaimed slot");
       assert.equal(prompts.collapsed.media.height, 280);
       assert.equal(prompts.resized.media.width, 420, "The reclaimed grid follows resizing");
+      for (const state of [prompts.collapsed, prompts.resized]) {
+        assert.equal(
+          state.tile.width,
+          state.media.width,
+          "Stale native tile dimensions fit the actual cell",
+        );
+        assert.equal(
+          state.video.height,
+          state.media.height,
+          "The stream stays inside the available height",
+        );
+        assert.equal(state.fit, "contain", "The stream retains its aspect ratio without cropping");
+      }
       assert.equal(prompts.multiple[0].width, 206);
       assert.equal(
         prompts.multiple[1].x - prompts.multiple[0].right,
@@ -500,6 +517,13 @@ app
         "Native grid gap is retained",
       );
       assert.equal(prompts.restored, true, "Active content restores native tile layout");
+      fs.writeFileSync(
+        path.join(output, "pip-single-stream-fit.png"),
+        (await fixture.webContents.capturePage()).toPNG(),
+      );
+      await fixture.webContents.executeJavaScript(
+        'dpePipSizingGrid.querySelector("video").srcObject.getTracks().forEach(track=>track.stop());dpePipSizingGrid.remove();delete window.dpePipSizingGrid',
+      );
       checks.push(
         "PiP invitation slot collapses, media reflows on resize, and active content restores native layout",
       );

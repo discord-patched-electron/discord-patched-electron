@@ -156,6 +156,13 @@ media target for that owned window and channel, validated against eligible RTC
 media before selection. Own shares remain excluded. Clear this transient origin
 on close; ordinary overlay popout clicks clear any unfinished PiP intent.
 
+The native participant sizing wrapper permits shrinking below its media's
+minimum content size in explicit PiP, so the header cannot push its measured
+height beyond the viewport. When removing an empty invitation slot, bound both
+the remaining grid cell and its native tile child to the available dimensions;
+fit its video with `contain` rather than cropping stale pixel-sized media.
+Ordinary call sizing and active invitation/activity slots retain native layout.
+
 An explicit PiP click arms a one-use, 60-second call-window intent in the opener.
 The existing same-origin /popout lifecycle wrapper consumes it only for the call
 window key, appends `dpe-pip=yes` to that exact window.open request and marks the
