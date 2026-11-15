@@ -249,8 +249,9 @@ function attach(window, options, onReady, screen) {
       Math.abs(bounds.width - baseline.width) <= 2 &&
       Math.abs(bounds.height - baseline.height) <= 2;
     const corners = ["top-left", "top-right", "bottom-left", "bottom-right"];
-    const selected = sameSize
-      ? corners.find((name) => {
+    const returnCorner = value.unknownPosition
+      ? undefined
+      : corners.find((name) => {
           const point = require("./popout-position.cjs").corner(
             area,
             bounds.width,
@@ -258,8 +259,7 @@ function attach(window, options, onReady, screen) {
             name,
           );
           return Math.abs(bounds.x - point.x) <= 2 && Math.abs(bounds.y - point.y) <= 2;
-        })
-      : undefined;
+        });
     const layout = await monitors(bounds);
     if (window.isDestroyed() || window.isFullScreen()) return { available: false };
     const neighbor = require("./popout-position.cjs").neighbor;
@@ -269,7 +269,8 @@ function attach(window, options, onReady, screen) {
         left: !!(layout && neighbor(layout.outputs, layout.current, "left")),
         right: !!(layout && neighbor(layout.outputs, layout.current, "right")),
       },
-      corner: selected || null,
+      corner: sameSize ? returnCorner || null : null,
+      returnCorner: returnCorner || null,
       large: bounds.width * bounds.height >= area.width * area.height * 0.7,
       size: { width: window.getSize()[0], height: window.getSize()[1] },
     };

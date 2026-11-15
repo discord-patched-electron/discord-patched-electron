@@ -13,7 +13,96 @@ module.exports = function callPiP(request, ui) {
     timer: undefined,
     followInAppPosition: request.followInAppPosition !== false,
   };
-  const positions = new Set();
+  const positions = new Set(),
+    moveActions = new Set(),
+    returns = new WeakMap();
+  const isCorner = (value) =>
+    ["top-left", "top-right", "bottom-left", "bottom-right"].includes(value);
+  let restoring,
+    disposed = false;
+  function cancelRestore() {
+    clearTimeout(restoring?.timer);
+    restoring?.unsubscribe?.();
+    restoring = null;
+  }
+  function restoreCorner(corner) {
+    cancelRestore();
+    if (positions.size !== 1 || moveActions.size !== 1) return;
+    const store = [...positions][0],
+      pending = { corner };
+    restoring = pending;
+    const apply = () =>
+      queueMicrotask(() => {
+        if (restoring !== pending) return;
+        if (positions.size !== 1 || moveActions.size !== 1) {
+          cancelRestore();
+          return;
+        }
+        try {
+          const native = store.pipVideoWindow;
+          if (!native || typeof native.id !== "string" || !native.id) return;
+          cancelRestore();
+          [...moveActions][0](native.id, corner);
+        } catch {
+          cancelRestore();
+        }
+      });
+    // The native close action may remount the in-app PiP after its portal closes.
+    // Dispatch outside Flux's change notification, then release this subscription.
+    if (
+      typeof store.addChangeListener === "function" &&
+      typeof store.removeChangeListener === "function"
+    ) {
+      store.addChangeListener(apply);
+      pending.unsubscribe = () => store.removeChangeListener(apply);
+    }
+    pending.timer = setTimeout(cancelRestore, 2000);
+    apply();
+  }
+  state.returnToDiscord = (child, close, args) => {
+    let bridge, read, query;
+    try {
+      if (state.activeWindow === child && !child.closed) {
+        bridge = child.DPEPiP;
+        read = bridge?.state;
+      }
+    } catch {
+      /* Protected or closing guests retain their native return action. */
+    }
+    if (typeof read !== "function") return close(...args);
+    if (returns.has(child)) return returns.get(child);
+    try {
+      query = Reflect.apply(read, bridge, []);
+    } catch {
+      return close(...args);
+    }
+    let timer;
+    const operation = Promise.race([
+      Promise.resolve(query).catch(() => null),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), 300);
+      }),
+    ])
+      .then((value) => {
+        clearTimeout(timer);
+        if (disposed || state.activeWindow !== child || child.closed) return;
+        const corner = value?.available === true ? (value.returnCorner ?? value.corner) : null;
+        const result = close(...args);
+        return Promise.resolve(result).then((value) => {
+          if (
+            !disposed &&
+            !state.pending &&
+            (!state.activeWindow || state.activeWindow === child) &&
+            isCorner(corner)
+          )
+            restoreCorner(corner);
+          return value;
+        });
+      })
+      .finally(() => returns.delete(child));
+    returns.set(child, operation);
+    return operation;
+  };
   const notify = () => {
     for (const refresh of listeners) refresh();
   };
@@ -22,6 +111,7 @@ module.exports = function callPiP(request, ui) {
     return () => listeners.delete(refresh);
   };
   state.opened = (child) => {
+    cancelRestore();
     clearTimeout(state.closeTimer);
     state.activeWindow = child;
     state.origin = state.openingOrigin;
@@ -54,8 +144,10 @@ module.exports = function callPiP(request, ui) {
   window.addEventListener(
     "pagehide",
     () => {
+      disposed = true;
       clear();
       clearTimeout(state.closeTimer);
+      cancelRestore();
       listeners.clear();
     },
     { once: true },
@@ -68,6 +160,7 @@ module.exports = function callPiP(request, ui) {
     (state.activeWindow && !state.activeWindow.closed);
   const openPiP = (open, args, origin) => {
     clear();
+    cancelRestore();
     state.pending = true;
     let corner;
     try {
@@ -118,7 +211,8 @@ module.exports = function callPiP(request, ui) {
       ["renderBottomRightControls", "renderSettingsIcon", "renderPopoutIcon", "VIDEO_PIP"].every(
         (word) => source.includes(word),
       ) ||
-      source.includes("PictureInPictureStore"),
+      source.includes("PictureInPictureStore") ||
+      source.includes("PICTURE_IN_PICTURE_MOVE"),
     (exports, runtime) => {
       for (const value of [exports, ...Object.values(exports || {})])
         if (
@@ -129,6 +223,11 @@ module.exports = function callPiP(request, ui) {
           typeof value.pipWidth === "function"
         )
           positions.add(value);
+      for (const value of Object.values(exports || {})) {
+        const sig = typeof value === "function" && ui.signature(value);
+        if (sig && ui.has(sig, "PICTURE_IN_PICTURE_MOVE", "dispatch", "id", "position"))
+          moveActions.add(value);
+      }
       React ||= ui.inspect(runtime).React;
       if (!React) return;
       const matches = Object.entries(exports || {}).filter(([, value]) => {
@@ -337,6 +436,16 @@ module.exports = function callPiP(request, ui) {
           const context = contexts.length === 1 ? React.useContext(contexts[0]) : null;
           const [, update] = React.useState(0);
           React.useEffect(() => state.subscribe(() => update((n) => n + 1)), []);
+          if (
+            context?.appContext === "POPOUT" &&
+            context.renderWindow?.[Symbol.for("dpe.pipWindow")] === true &&
+            props.popoutOpen === true &&
+            typeof tree?.props?.onClick === "function"
+          )
+            return React.cloneElement(tree, {
+              onClick: (...args) =>
+                state.returnToDiscord(context.renderWindow, tree.props.onClick, args),
+            });
           if (context?.renderWindow?.[Symbol.for("dpe.pipWindow")] === true || unavailable())
             return tree;
           const open = ui.signature(props.onOpenPopout);

@@ -38,6 +38,7 @@ function fixture() {
   const runtime = { c: { button: { exports } } };
   const context = vm.createContext({
     URL,
+    queueMicrotask,
     location: {
       href: "https://canary.discord.com/channels/@me",
       origin: "https://canary.discord.com",
@@ -154,11 +155,36 @@ function fixture() {
   };
   runtime.c.overlay = { exports: overlay };
   visit(overlay, runtime);
-  const position = { pipVideoWindow: { position: "top-left" }, getDockedRect() {}, pipWidth() {} };
+  const changes = new Set(),
+    moves = [];
+  const position = {
+    pipVideoWindow: { id: "native-pip", position: "top-left" },
+    getDockedRect() {},
+    pipWidth() {},
+    addChangeListener: (fn) => changes.add(fn),
+    removeChangeListener: (fn) => changes.delete(fn),
+  };
+  const nativeActions = {
+    move(id, position) {
+      const dispatch = (event) => moves.push(event);
+      dispatch({ type: "PICTURE_IN_PICTURE_MOVE", id, position });
+    },
+  };
   visit({ position }, runtime);
+  visit(nativeActions, runtime);
   return {
     nativeContext,
     position,
+    moves,
+    changes,
+    renderReturn(child, close) {
+      nativeContext._currentValue = {
+        appContext: "POPOUT",
+        renderWindow: child,
+        windowDispatch: {},
+      };
+      return render({ popoutOpen: true, onClosePopout: close });
+    },
     follow(enabled) {
       vm.runInContext(`(${adapter})({followInAppPosition:${enabled}},ui)`, context);
     },
@@ -347,6 +373,7 @@ test("ordinary overlay popout clicks clear an unfinished PiP request", () => {
 test("following reads the current native overlay corner at click time and leaves main-call launches on their default", () => {
   for (const corner of ["top-left", "top-right", "bottom-left", "bottom-right"]) {
     const f = fixture();
+    f.follow(false);
     f.follow(true);
     const element = f.renderOverlay(),
       overlay = new element.type(element.props);
@@ -420,4 +447,143 @@ test("PiP omits its own entry button and the icon follows Discord's interactive 
   assert.match(icon.props.style.color, /var\(--interactive-normal/);
   f.nativeContext._currentValue.renderWindow[Symbol.for("dpe.pipWindow")] = true;
   assert.equal(f.render().type, "native-button");
+});
+
+test("returning transfers the floating PiP corner through the native move action", async () => {
+  for (const corner of ["top-left", "top-right", "bottom-left", "bottom-right"]) {
+    const f = fixture();
+    f.render().props.children[0].props.onClick();
+    const child = f.requests[0].child;
+    let closed = 0,
+      queried = 0;
+    child.DPEPiP = {
+      state: async () => {
+        queried++;
+        return { available: true, corner: null, returnCorner: corner };
+      },
+    };
+    const button = f.renderReturn(child, () => {
+      closed++;
+      child.closed = true;
+      return 42;
+    });
+    const first = button.props.onClick(),
+      second = button.props.onClick();
+    assert.equal(first, second, "rapid clicks share one pending return");
+    assert.equal(await first, 42);
+    assert.equal(closed, 1);
+    assert.equal(queried, 1);
+    assert.deepEqual(f.moves, [
+      { type: "PICTURE_IN_PICTURE_MOVE", id: "native-pip", position: corner },
+    ]);
+    assert.equal(f.changes.size, 0);
+  }
+});
+
+test("return corner waits for Discord to remount video PiP and dispatches outside a store notification", async () => {
+  const f = fixture();
+  f.render().props.children[0].props.onClick();
+  const child = f.requests[0].child;
+  child.DPEPiP = { state: async () => ({ available: true, corner: "bottom-left" }) };
+  f.position.pipVideoWindow = null;
+  await f
+    .renderReturn(child, () => {
+      child.closed = true;
+    })
+    .props.onClick();
+  assert.equal(f.moves.length, 0);
+  assert.equal(f.changes.size, 1);
+  f.position.pipVideoWindow = { id: "remounted", position: "top-right" };
+  for (const listener of f.changes) listener();
+  assert.equal(f.moves.length, 0, "never dispatch inside the Flux change listener");
+  await new Promise(setImmediate);
+  assert.equal(f.moves[0].position, "bottom-left");
+  assert.equal(f.moves[0].id, "remounted");
+  assert.equal(f.changes.size, 0);
+});
+
+test("unknown, failing and timed-out corner queries retain native return without moving Discord", async () => {
+  for (const mode of [
+    "free",
+    "invalid",
+    "unavailable",
+    "reject",
+    "throw",
+    "getter",
+    "timeout",
+    "missing",
+  ]) {
+    const f = fixture();
+    f.render().props.children[0].props.onClick();
+    const child = f.requests[0].child;
+    let closed = 0;
+    if (mode !== "missing")
+      child.DPEPiP = {
+        state() {
+          if (mode === "throw") throw Error("closing");
+          if (mode === "reject") return Promise.reject(Error("IPC closed"));
+          if (mode === "timeout") return new Promise(() => {});
+          return Promise.resolve({
+            available: mode !== "unavailable",
+            corner: mode === "free" ? null : "center",
+          });
+        },
+      };
+    if (mode === "getter")
+      Object.defineProperty(child.DPEPiP, "state", {
+        get() {
+          throw Error("protected");
+        },
+      });
+    const result = f
+      .renderReturn(child, () => {
+        closed++;
+        child.closed = true;
+        return "native";
+      })
+      .props.onClick();
+    if (mode === "timeout") f.expire();
+    assert.equal(await result, "native");
+    assert.equal(closed, 1, mode);
+    assert.equal(f.moves.length, 0, mode);
+  }
+});
+
+test("a failed native return is not repeated and never changes the in-app corner", async () => {
+  for (const bridge of [false, true]) {
+    const f = fixture();
+    f.render().props.children[0].props.onClick();
+    const child = f.requests[0].child;
+    if (bridge) child.DPEPiP = { state: async () => ({ available: true, corner: "top-left" }) };
+    let calls = 0;
+    const button = f.renderReturn(child, () => {
+      calls++;
+      throw Error("native failure");
+    });
+    if (bridge) await assert.rejects(button.props.onClick(), /native failure/);
+    else assert.throws(() => button.props.onClick(), /native failure/);
+    assert.equal(calls, 1);
+    assert.equal(f.moves.length, 0);
+  }
+});
+
+test("a stale return query cannot close or reposition a replacement PiP", async () => {
+  const f = fixture();
+  f.render().props.children[0].props.onClick();
+  const child = f.requests[0].child;
+  let resolve,
+    closed = 0;
+  child.DPEPiP = {
+    state: () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  };
+  const result = f.renderReturn(child, () => closed++).props.onClick();
+  f.context.replacement = { closed: false };
+  vm.runInContext("globalThis[Symbol.for('dpe.callPiP')].opened(replacement)", f.context);
+  resolve({ available: true, corner: "top-right" });
+  await result;
+  assert.equal(closed, 0);
+  assert.equal(f.moves.length, 0);
 });

@@ -624,6 +624,64 @@ test("a corner query finishing after close does not touch the destroyed native w
   assert.deepEqual(await query, { available: false });
 });
 
+test("return corner uses actual compositor edges after resizing and leaves free/fullscreen placement unknown", async (t) => {
+  const { EventEmitter } = require("node:events");
+  const { attach, session } = require("../../integration/desktop/popout.cjs");
+  const position = require("../../integration/desktop/popout-position.cjs");
+  const geometry = { area: display.workArea, bounds: { x: 0, y: 0, width: 512, height: 288 } };
+  let fullscreen = false;
+  t.mock.method(position, "identify", () => ({
+    display: async () => undefined,
+    snapshot: async () => geometry,
+  }));
+  const window = Object.assign(new EventEmitter(), {
+    windowKey: key,
+    webContents: new EventEmitter(),
+    isDestroyed: () => false,
+    isFullScreen: () => fullscreen,
+    isFocused: () => true,
+    getBounds: () => geometry.bounds,
+    getSize: () => [geometry.bounds.width, geometry.bounds.height],
+  });
+  attach(window, { dpeVideo: true, dpeFloating: true }, () => {}, screen);
+  window.emit("focus");
+  await new Promise(setImmediate);
+  for (const name of ["top-left", "top-right", "bottom-left", "bottom-right"]) {
+    geometry.bounds = {
+      ...position.corner(geometry.area, 320, 180, name),
+      width: 320,
+      height: 180,
+    };
+    const state = await session(window).state();
+    assert.equal(state.returnCorner, name);
+    assert.equal(
+      state.corner,
+      null,
+      "resized windows still do not highlight the default-size corner control",
+    );
+  }
+  geometry.bounds.x = 200;
+  geometry.bounds.y = 200;
+  assert.equal((await session(window).state()).returnCorner, null);
+  geometry.unknownPosition = true;
+  geometry.bounds = {
+    ...position.corner(geometry.area, 320, 180, "top-left"),
+    width: 320,
+    height: 180,
+  };
+  assert.equal(
+    (await session(window).state()).returnCorner,
+    null,
+    "unknown Wayland coordinates are never treated as a real corner",
+  );
+  fullscreen = true;
+  assert.deepEqual(await session(window).state(), {
+    available: false,
+    size: { width: 320, height: 180 },
+  });
+  window.emit("closed");
+});
+
 test("X11 monitor transfers preserve aspect ratio, fit smaller work areas and update disabled directions", async (t) => {
   const { EventEmitter } = require("node:events");
   const { attach, session } = require("../../integration/desktop/popout.cjs");

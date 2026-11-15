@@ -168,6 +168,16 @@ enabled before using it. This is a per-launch override; the saved default corner
 remains available for main-call launches and unavailable/ambiguous native state.
 No overlay DOM coordinates or compositor-specific pixel offsets are used.
 
+**Return to Discord** reads the owned floating window's current corner through
+its frame-local bridge before invoking the native close callback. Apply that
+corner through the discovered `PICTURE_IN_PICTURE_MOVE` action, outside Flux's
+change notification; a bounded store subscription handles delayed in-app PiP
+remounting. This return direction also works when following the in-app position
+on launch is disabled, and never changes the saved default corner. Resized
+windows use their actual compositor edges without changing default-size corner
+highlighting. Free placement, fullscreen and unknown Wayland coordinates leave
+the in-app position unchanged. A failed or slow query cannot prevent returning.
+
 PiP's native whole-call view keeps Discord's pop-in control visible even in its
 fullscreen media layout. Both entry points use Discord's existing call-popout
 action; the native close callback returns to Discord. The member bar starts
