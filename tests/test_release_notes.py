@@ -110,7 +110,7 @@ class ReleaseNotes(unittest.TestCase):
                 current,
                 [*entries, release(current, prerelease=not already_promoted)],
                 lambda item: by_tag[item["tag_name"]],
-                approved_only=True,
+                prerelease=False,
             )
             self.assertEqual(baseline, stable)
         self.assertIsNone(
@@ -118,7 +118,7 @@ class ReleaseNotes(unittest.TestCase):
                 current,
                 [release(preview)],
                 lambda _: self.fail("Fetched a prerelease"),
-                approved_only=True,
+                prerelease=False,
             )
         )
 
@@ -135,6 +135,32 @@ class ReleaseNotes(unittest.TestCase):
             self.assertEqual(published_releases(), [first, second])
             self.assertEqual(api.call_args.args[0], "releases?per_page=100&page=3")
 
+    def test_prerelease_baseline_skips_newer_stable_releases_and_publication_order(self):
+        old = manifest("20261023.100000")
+        preview = manifest("20261024.100000")
+        stable = manifest("20261025.100000")
+        current = manifest()
+        future = manifest("20261027.100000")
+        other = manifest("20261026.115900", channel="ptb")
+        other_track = manifest("20261026.115800", electron_version="45.0.0")
+        entries = [release(item) for item in (future, old, other, current, other_track, preview)]
+        entries += [
+            release(stable, prerelease=False),
+            release(manifest("20261026.115700"), draft=True),
+        ]
+        by_tag = {
+            manifest_tag(item): item for item in (old, preview, current, future, other, other_track)
+        }
+        self.assertEqual(
+            previous_release(
+                current, entries, lambda item: by_tag[item["tag_name"]], prerelease=True
+            ),
+            preview,
+        )
+        self.assertIsNone(
+            previous_release(old, entries, lambda item: by_tag[item["tag_name"]], prerelease=True)
+        )
+
     def test_client_only_release_explains_changed_inputs_even_with_identical_source(self):
         old = manifest("20261026.110000", client_version="1.0.2369")
         current = manifest(proposal_commit="e" * 40)
@@ -150,7 +176,8 @@ class ReleaseNotes(unittest.TestCase):
         with patch("releases.subprocess.check_output") as log:
             body = notes(manifest(clients_state="f" * 40), None)
             log.assert_not_called()
-        self.assertIn("No earlier published baseline", body)
+        self.assertIn("No earlier stable release", body)
+        self.assertIn("No earlier pre-release", body)
         self.assertIn("[Client snapshot]", body)
 
     def test_same_version_module_hash_changes_and_electron_rebuild_are_visible(self):
@@ -184,7 +211,9 @@ class ReleaseNotes(unittest.TestCase):
             baseline = commit("scripts/app.py", "old", "Old shipped behavior")
             # Candidates and stable releases both retain the full history.
             for index in range(35):
-                commit("scripts/app.py", str(index), f"Fix behavior {index}")
+                sha = commit("scripts/app.py", str(index), f"Fix behavior {index}")
+                if index == 29:
+                    preview = manifest("20261026.110000", source_commit=sha)
             git("checkout", "--quiet", "-b", "native-change")
             commit("native/bridge/src/lib.rs", "fixture", "Fix native-only merged behavior")
             commit("Cargo.toml", "fixture", "Update Rust dependency policy")
@@ -199,6 +228,7 @@ class ReleaseNotes(unittest.TestCase):
                 body = notes(
                     manifest(source_commit=head),
                     manifest("20261025.100000", source_commit=baseline),
+                    previous_prerelease=preview,
                 )
                 stable_body = notes(
                     manifest(source_commit=head),
@@ -206,7 +236,16 @@ class ReleaseNotes(unittest.TestCase):
                     approved=True,
                 )
                 first_stable = notes(manifest(source_commit=head), None, approved=True)
-        self.assertEqual(body.count("- Fix behavior"), 35)
+        stable_changes, preview_changes = body.split(
+            "<summary>Changes since last pre-release</summary>"
+        )
+        self.assertEqual(stable_changes.count("- Fix behavior"), 35)
+        self.assertEqual(preview_changes.count("- Fix behavior"), 5)
+        self.assertIn(
+            manifest_tag(preview) + "..." + manifest_tag(manifest(source_commit=head)),
+            preview_changes,
+        )
+        self.assertNotIn("Fix behavior 29", preview_changes)
         self.assertEqual(stable_body.count("- Fix behavior"), 35)
         self.assertEqual(first_stable.count("- Fix behavior"), 35)
         self.assertIn("Old shipped behavior", first_stable)
@@ -298,7 +337,8 @@ class ReleaseNotes(unittest.TestCase):
                 followup = notes(manifest(source_commit=shipped), current)
 
         for body in (candidate, approved):
-            summary, inventory = body.split("<details>", 1)
+            comparison = body.split("<summary>Changes since last stable release</summary>\n\n")[-1]
+            summary, inventory = comparison.split("<details>", 1)
             self.assertIn("**NEW** Choose a PiP corner", summary)
             self.assertIn("Open web links externally", summary)
             self.assertIn(r"Keep \[choices\] ＠everyone safe", summary)
@@ -341,17 +381,20 @@ class ReleaseNotes(unittest.TestCase):
 
     def test_refresh_only_patches_bodies_and_preserves_each_release_approval_state(self):
         old, preview, new = (manifest("20261025.100000"), manifest("20261026.110000"), manifest())
+        latest = manifest("20261027.120000")
         entries = [
             release(old, id=1, prerelease=False, body="old notes"),
             release(preview, id=2, body="preview notes"),
             release(new, id=3, prerelease=False, body="new notes"),
+            release(latest, id=4, body="latest preview"),
         ]
-        by_tag = {manifest_tag(item): item for item in (old, preview, new)}
+        by_tag = {manifest_tag(item): item for item in (old, preview, new, latest)}
         writes = []
 
         def api(endpoint, **kwargs):
             if kwargs.get("method") == "PATCH":
                 writes.append((endpoint, kwargs["data"]))
+                entries[int(endpoint.rsplit("/", 1)[-1]) - 1].update(kwargs["data"])
             else:
                 return entries[int(endpoint.rsplit("/", 1)[-1]) - 1]
 
@@ -366,7 +409,10 @@ class ReleaseNotes(unittest.TestCase):
             refresh_notes(None)
             self.assertFalse(writes)
             refresh_notes(None, apply=True)
-        self.assertEqual(len(writes), 3)
+            count = len(writes)
+            refresh_notes(None, apply=True)
+            self.assertEqual(len(writes), count, "Applying unchanged descriptions is idempotent")
+        self.assertEqual(len(writes), 4)
         self.assertTrue(all(set(data) == {"body"} for _, data in writes))
         self.assertIn("approved as stable", writes[0][1]["body"])
         self.assertIn("hasn't been approved", writes[1][1]["body"])
@@ -375,3 +421,8 @@ class ReleaseNotes(unittest.TestCase):
         stable_body = writes[2][1]["body"]
         self.assertIn(manifest_tag(old) + "..." + manifest_tag(new), stable_body)
         self.assertNotIn(manifest_tag(preview) + "...", stable_body)
+        latest_body = writes[3][1]["body"]
+        self.assertIn("<summary>Changes since last stable release</summary>", latest_body)
+        self.assertIn("<summary>Changes since last pre-release</summary>", latest_body)
+        self.assertIn(manifest_tag(new) + "..." + manifest_tag(latest), latest_body)
+        self.assertIn(manifest_tag(preview) + "..." + manifest_tag(latest), latest_body)

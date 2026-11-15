@@ -352,14 +352,14 @@ def published_manifest(release: dict) -> dict:
 
 
 def previous_release(
-    manifest: dict, releases: list[dict], fetch=None, *, approved_only: bool = False
+    manifest: dict, releases: list[dict], fetch=None, *, prerelease: bool | None = None
 ) -> dict | None:
     fetch = fetch or published_manifest
     candidates = []
     for release in releases:
         if (
             release["draft"]
-            or (approved_only and release.get("prerelease") is not False)
+            or (prerelease is not None and release.get("prerelease") is not prerelease)
             or app_release_channel(release["tag_name"]) != manifest["channel"]
             or release["tag_name"] == manifest_tag(manifest)
         ):
@@ -462,7 +462,22 @@ def change_line(sha: str, subject: str, category: str = "") -> str:
     return f"- {badge}{subject} ([{sha[:7]}]({URL}/commit/{sha}))"
 
 
-def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
+def changelog_link(manifest: dict, previous: dict | None) -> str:
+    target = (
+        f"{URL}/compare/{manifest_tag(previous)}...{manifest_tag(manifest)}"
+        if previous
+        else f"{URL}/commits/{manifest['source_commit']}"
+    )
+    return f"[Full changelog]({target})"
+
+
+def changes_since(
+    manifest: dict,
+    previous: dict | None,
+    *,
+    approved: bool = False,
+    baseline: str = "stable release",
+) -> str:
     commit = manifest["source_commit"]
     log = ""
     if (previous and previous["source_commit"] != commit) or (approved and previous is None):
@@ -522,7 +537,7 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
             changes.extend(["", "### " + category, "", *entries])
     if expanded:
         label = (
-            "All project commits since the previous stable release"
+            f"All project commits since the previous {baseline}"
             if previous
             else "All project commits in this build"
         )
@@ -533,13 +548,30 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
         changes.append(
             "- First stable release. Project changes include the history through this build."
             if approved
-            else "- No earlier published baseline is available for comparison."
+            else f"- No earlier {baseline} is available for comparison."
         )
-    comparison = (
-        f"\n\n[Full changelog]({URL}/compare/{manifest_tag(previous)}...{manifest_tag(manifest)})"
-        if previous
-        else f"\n\n[Full changelog]({URL}/commits/{commit})"
-    )
+    return "\n".join(changes) + "\n\n" + changelog_link(manifest, previous)
+
+
+def notes(
+    manifest: dict,
+    previous: dict | None,
+    *,
+    approved: bool = False,
+    previous_prerelease: dict | None = None,
+):
+    if approved:
+        changes = changes_since(manifest, previous, approved=True)
+    else:
+        changes = "\n\n".join(
+            f"<details>\n<summary>Changes since last {baseline}</summary>\n\n"
+            + changes_since(manifest, before, baseline=baseline)
+            + "\n\n</details>"
+            for baseline, before in (
+                ("stable release", previous),
+                ("pre-release", previous_prerelease),
+            )
+        )
     proposal = manifest.get("proposal_commit")
     snapshot = manifest.get("clients_state")
     provenance = ""
@@ -553,8 +585,8 @@ def notes(manifest: dict, previous: dict | None, *, approved: bool = False):
         + f"\n\nRequires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
         + install_notes(manifest, approved=approved)
         + "## Changes\n\n"
-        + "\n".join(changes)
-        + comparison
+        + changes
+        + ("\n\n" + changelog_link(manifest, previous) if not approved else "")
         + provenance
         + f" · [✅ Test results]({URL}/actions/runs/{manifest['workflow_run']})"
         + "\n"
@@ -580,8 +612,11 @@ def refresh_notes(tag: str | None, *, apply: bool = False):
         manifest = fetch(release)
         current = api("releases/" + str(release["id"])) if apply else release
         approved = not current["prerelease"]
-        previous = previous_release(manifest, releases, fetch, approved_only=True)
-        body = notes(manifest, previous, approved=approved)
+        previous = previous_release(manifest, releases, fetch, prerelease=False)
+        preview = (
+            previous_release(manifest, releases, fetch, prerelease=True) if not approved else None
+        )
+        body = notes(manifest, previous, approved=approved, previous_prerelease=preview)
         (output / (release["tag_name"] + ".before.md")).write_text(current.get("body") or "")
         (output / (release["tag_name"] + ".md")).write_text(body)
         if apply and body != current.get("body"):
@@ -671,9 +706,11 @@ def publish(directory: Path):
     if existing and not existing["draft"]:
         return
     cache_runtime(manifest)
-    previous = previous_release(manifest, published_releases(), approved_only=True)
+    releases = published_releases()
+    previous = previous_release(manifest, releases, prerelease=False)
+    preview = previous_release(manifest, releases, prerelease=True)
     body = directory.parent / "release-notes.md"
-    body.write_text(notes(manifest, previous))
+    body.write_text(notes(manifest, previous, previous_prerelease=preview))
     title = f"Discord {manifest['channel'].title()} {manifest['client_version']} / Electron {manifest['electron_version']} ({manifest['version']})"
     if not existing:
         run(
@@ -831,7 +868,7 @@ def approve(tag: str, *, check_only=False):
     # Compute the complete stable-to-stable changelog before writing approval
     # state. Excluding the candidate itself also makes approval retries stable
     # after the approval record or GitHub release has already been promoted.
-    previous = previous_release(manifest, published_releases(), approved_only=True)
+    previous = previous_release(manifest, published_releases(), prerelease=False)
     body = notes(manifest, previous, approved=True)
     policy["last_good_runtime"] = {**runtime, "completed_at": compiler["updated_at"]}
     write_json(policy_path, policy)
