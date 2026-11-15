@@ -67,6 +67,23 @@
       "Improvements": [
         "Package the completed, qualified Electron alpha.10 runtime from the local workflow build."
       ]
+    },
+    "c75b0bfeab5e2ceeb4fe3e07c5f8b36c5d24a7b9": {
+      "New": [
+        "Add a separate Picture-in-picture button beside Discord\u2019s normal call pop-out control. Normal pop-outs retain Discord\u2019s behavior; PiP always requests compact floating, corner placement and topmost behavior.",
+        "Add monitor arrows below the PiP corner picker. Transfer the owned PiP between monitors without following focus; hide monitor navigation when no supported neighbor exists."
+      ],
+      "Improvements": [
+        "Show non-video participants in PiP by default, independently of the regular call preference. Retain cameras, remote screenshares and activities, and use the native focused view for a sole visible tile.",
+        "Keep the corner picker available on empty PiP screens. Hide the PiP entry throughout Discord while PiP is active and use Discord\u2019s interactive color tokens for its icon.",
+        "Link the PiP hidden-participants message directly to its settings section with an Open DPE Settings button."
+      ],
+      "Fixes": [
+        "Apply participant visibility to Discord\u2019s parent-rendered PiP portal instead of overriding a child-window store. Keep PiP-only checkbox changes separate from regular calls, exclude the current user\u2019s share from automatic focus, and restore automatic layout changes when PiP closes.",
+        "Reclaim the layout slot of the empty invitation/activity card, recover missing corner controls, preserve native compositor resizing, and keep monitor moves inside each destination\u2019s usable area.",
+        "Respect Niri\u2019s configured gap and struts on each edge without a minimum inset, while retaining panel reservations and corner highlighting.",
+        "Assemble application archives with the pinned ASAR tool under Bun so a broken system Node shared-library dependency does not prevent development builds."
+      ]
     }
   }
 }
