@@ -101,6 +101,16 @@
         "Initialize PiP selection and fullscreen from the outer native call view, bypassing shared guild-room content only in explicit PiP. Retry when media arrives, select media even in an empty fullscreen layout, and preserve the media shown by an explicit in-app PiP click while excluding own screenshares.",
         "Refresh call and in-app overlay PiP entries when native close completes after returning to Discord, including unchanged native PureComponents. Restore unchanged automatic selection on close and keep ordinary overlay popout clicks separate from unfinished PiP requests."
       ]
+    },
+    "cc16538328a4fb528d6776256a41c62fb35b1f72": {
+      "Improvements": [
+        "Follow Discord\u2019s in-app PiP corner by default while retaining the configured fallback corner for main-call launches. Summarize PiP controls and diagnostic ZIP export in the README."
+      ],
+      "Fixes": [
+        "Hide the PiP non-video-participant menu control when its DPE preference is disabled, including protection against stale menu actions.",
+        "Minimize PiP members on launch and on video, screenshare or activity selection and layout changes. Preserve manual Show Members until the next transition and honor manual deselection of a sole tile.",
+        "Keep Discord\u2019s native pop-in control visible in fullscreen PiP, using its regular whole-call close action for returning to Discord."
+      ]
     }
   }
 }
