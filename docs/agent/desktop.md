@@ -195,6 +195,11 @@ If WindowStore has not registered the guest yet, use the owned live window from
 WindowContext for the native call's popout handle, without waiting for a layout
 change to refresh its return icon.
 
+Opening size uses a fixed share of the monitor work area and only the media's
+aspect ratio. Adaptive decoded resolution and display scaling cannot ratchet
+that size down, and saved popout dimensions do not seed the next launch. Manual
+resizing remains respected for the lifetime of the open window.
+
 The native participant sizing wrapper permits shrinking below its media's
 minimum content size in explicit PiP, so the header cannot push its measured
 height beyond the viewport. When removing an empty invitation slot, bound both

@@ -54,16 +54,16 @@ const clamp = (value, min, max) => Math.round(Math.max(min, Math.min(value, max)
 
 function mediaSize(display, media = { width: 1280, height: 720 }, chrome = {}) {
   const area = display.workArea;
-  const scaleFactor = positive(display.scaleFactor) ? display.scaleFactor : 1;
   const extraWidth = Math.max(0, Math.min(chrome.width || 0, area.width / 3));
   const extraHeight = Math.max(0, Math.min(chrome.height || 0, area.height / 3));
   const width = positive(media.width) ? media.width : 1280;
   const height = positive(media.height) ? media.height : 720;
-  // Work areas are logical pixels; only source video pixels need conversion.
+  // Work areas are logical pixels. Decoded resolution supplies only the aspect
+  // ratio: adaptive low-resolution frames must never shrink the window budget.
   // Bound the default to a useful fraction of the display, including chrome.
   const maxWidth = Math.max(1, Math.min(854, area.width * 0.4, area.width - 32) - extraWidth);
   const maxHeight = Math.max(1, Math.min(640, area.height * 0.45, area.height - 32) - extraHeight);
-  const factor = Math.min(1 / scaleFactor, maxWidth / width, maxHeight / height);
+  const factor = Math.min(maxWidth / width, maxHeight / height);
   return {
     width: Math.max(1, Math.round(width * factor + extraWidth)),
     height: Math.max(1, Math.round(height * factor + extraHeight)),
@@ -92,7 +92,7 @@ function windowOptions(options, key, parent, screen, original = options, prefere
   const maxWidth = Math.max(1, area.width - 32);
   const maxHeight = Math.max(1, area.height - 32);
   const fallback = mediaSize({ ...display, scaleFactor: 1 });
-  const requestedWidth = savedDisplay && positive(options.width) ? options.width : fallback.width;
+  const requestedWidth = fallback.width;
   // Stored geometry may belong to a different stream or a manual resize. Start
   // at 16:9, then measure the video currently mounted in this popout.
   const requestedHeight = (requestedWidth * 9) / 16;

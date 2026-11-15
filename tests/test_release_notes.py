@@ -294,6 +294,13 @@ class ReleaseNotes(unittest.TestCase):
             self.assertNotIn(excluded, body)
             self.assertNotIn(excluded, stable_body)
 
+    def test_skipped_tests_are_visible_in_release_notes(self):
+        with patch("releases.changes_since", return_value="Hotfix"):
+            body = notes(manifest(tests_skipped=True), None)
+        self.assertIn("Qualification tests were skipped", body)
+        self.assertIn("Packaging run (tests skipped)", body)
+        self.assertNotIn("✅ Test results", body)
+
     def test_categories_reserve_new_for_explicit_features_and_escape_subjects(self):
         commits = [
             "feat(mods): Choose a client mod",

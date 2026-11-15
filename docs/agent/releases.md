@@ -15,11 +15,12 @@ workflow below without allocating a compiler runner.
 Discovery normally starts qualification automatically. For a manual candidate,
 run [Release Linux packages](https://github.com/discord-patched-electron/discord-patched-electron/actions/workflows/release.yml):
 
-| Input           | Selection                                                        |
-| --------------- | ---------------------------------------------------------------- |
-| `clients_state` | Full immutable `ci-state` commit, or blank for latest discovery. |
-| `reference_run` | Successful compiler run, or blank for the approved runtime.      |
-| `publish`       | Off for artifacts only; on for a public test release.            |
+| Input           | Selection                                                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `clients_state` | Full immutable `ci-state` commit, or blank for latest discovery.                                                                                                          |
+| `reference_run` | Successful compiler run, or blank for the approved runtime.                                                                                                               |
+| `publish`       | Off for artifacts only; on for a public test release.                                                                                                                     |
+| `skip_tests`    | Manual emergency prerelease only; defaults off. Skips qualification suites, retains package-integrity checks and signing, and records the omission in the manifest/notes. |
 
 Qualification checks packages, fresh-profile launch/relaunch, mods, native
 video/Krisp and isolated audio. Public test releases remain unapproved until

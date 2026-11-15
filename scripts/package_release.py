@@ -434,6 +434,7 @@ def package(
                 "cache_release": "runtime-cache-" + build["capacity"]["runtime_key"],
             },
             "workflow_run": os.environ.get("GITHUB_RUN_ID"),
+            "tests_skipped": os.environ.get("DPE_RELEASE_TESTS_SKIPPED") == "1",
             "clients_state": os.environ.get("CLIENTS_STATE"),
             "proposal_commit": os.environ.get("PROPOSAL_COMMIT"),
             "release_key": release_key,

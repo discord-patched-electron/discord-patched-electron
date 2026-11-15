@@ -589,6 +589,11 @@ def notes(
         provenance = f" · [Client snapshot]({URL}/commit/{snapshot})"
     return (
         ("**This build has been approved as stable.**" if approved else PENDING)
+        + (
+            "\n\n**Qualification tests were skipped for this release.**"
+            if manifest.get("tests_skipped")
+            else ""
+        )
         + ("" if approved else approval_action(manifest))
         + f"\n\nRequires **x86-64-v3 (AVX2)** and glibc **{manifest['minimum_glibc']}** or newer.\n\n"
         + install_notes(manifest, approved=approved)
@@ -596,7 +601,7 @@ def notes(
         + changes
         + ("\n\n" + changelog_link(manifest, previous) if separate_comparisons else "")
         + provenance
-        + f" · [✅ Test results]({URL}/actions/runs/{manifest['workflow_run']})"
+        + f" · [{'Packaging run (tests skipped)' if manifest.get('tests_skipped') else '✅ Test results'}]({URL}/actions/runs/{manifest['workflow_run']})"
         + "\n"
     )
 

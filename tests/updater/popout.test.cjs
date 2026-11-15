@@ -63,7 +63,7 @@ test("restore valid geometry on secondary displays and recover disconnected or o
     undefined,
     { popoutAutoPosition: false },
   );
-  assert.deepEqual([saved.x, saved.y, saved.width, saved.height], [-656, 704, 640, 360]);
+  assert.deepEqual([saved.x, saved.y, saved.width, saved.height], [-784, 632, 768, 432]);
   const stale = windowOptions(
     { ...options, x: 50, y: 50, width: 640, height: 600 },
     key,
@@ -71,7 +71,7 @@ test("restore valid geometry on secondary displays and recover disconnected or o
     screen,
   );
   assert.equal(stale.dpeAutoSize, true, "Reopening still measures the current stream");
-  assert.deepEqual([stale.width, stale.height], [640, 360], "No stream starts at 16:9");
+  assert.deepEqual([stale.width, stale.height], [512, 288], "No stream starts at 16:9");
   const large = windowOptions(
     { ...options, x: 9000, y: 9000, width: 3840, height: 2160 },
     key,
@@ -117,7 +117,7 @@ test("legacy floating and topmost opt-outs cannot turn PiP into an ordinary popo
   assert.equal(result.width, 512);
 });
 
-test("media sizing preserves portrait and ultrawide aspect, scaling once and accounting for chrome", () => {
+test("media sizing preserves portrait and ultrawide aspect independent of decoded resolution", () => {
   for (const [width, height] of [
     [1920, 1080],
     [1080, 1920],
@@ -128,7 +128,7 @@ test("media sizing preserves portrait and ultrawide aspect, scaling once and acc
     assert.ok(Math.abs(size.width / (size.height - 28) - width / height) < 0.02);
     assert.ok(size.width <= 512 && size.height <= 311);
   }
-  assert.deepEqual(mediaSize(display, { width: 640, height: 360 }), { width: 320, height: 180 });
+  assert.deepEqual(mediaSize(display, { width: 640, height: 360 }), { width: 512, height: 288 });
   assert.deepEqual(mediaSize({ ...display, scaleFactor: 1 }, { width: 640, height: 360 }), {
     width: 512,
     height: 288,
@@ -752,4 +752,17 @@ test("X11 monitor transfers preserve aspect ratio, fit smaller work areas and up
   await session(win).moveMonitor("right");
   assert.ok(Math.abs(bounds.x - 300) <= 2 && Math.abs(bounds.y - 100) <= 2);
   assert.deepEqual([bounds.width, bounds.height], [1200, 675]);
+});
+
+test("adaptive resolution and repeated reopening never ratchet PiP down", () => {
+  const sizes = [1920, 1280, 640, 320, 160].map((width) =>
+    mediaSize(display, { width, height: (width * 9) / 16 }),
+  );
+  for (const size of sizes) assert.deepEqual(size, { width: 512, height: 288 });
+  let saved = { ...options, x: 50, y: 50, width: 160, height: 90 };
+  for (let attempt = 0; attempt < 5; attempt++) {
+    saved = windowOptions(saved, key, parent, screen);
+    assert.equal(saved.width, 512);
+    assert.equal(saved.height, 288);
+  }
 });
