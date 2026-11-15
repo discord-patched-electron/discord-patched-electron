@@ -84,6 +84,12 @@
         "Respect Niri\u2019s configured gap and struts on each edge without a minimum inset, while retaining panel reservations and corner highlighting.",
         "Assemble application archives with the pinned ASAR tool under Bun so a broken system Node shared-library dependency does not prevent development builds."
       ]
+    },
+    "b8bd1fb82a5ec4e073fa97cc694a4971fb4d7847": {
+      "Fixes": [
+        "Keep Open DPE Settings on one line with the shared button padding and preserved native label markup. Open the normal independent Settings window directly at PiP settings instead of a child dialog.",
+        "Preserve PiP client size and relative position when switching monitors. Keep exact corners anchored, fit only when required by a smaller display, and restore the preferred size and placement on return."
+      ]
     }
   }
 }
