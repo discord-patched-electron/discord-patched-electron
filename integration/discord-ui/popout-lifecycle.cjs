@@ -46,8 +46,7 @@ module.exports = function popoutLifecycle() {
     if (child && video(name)) {
       try {
         child[Symbol.for("dpe.pipWindow")] = pip;
-        if (pip && globalThis[Symbol.for("dpe.callPiP")])
-          globalThis[Symbol.for("dpe.callPiP")].activeWindow = child;
+        if (pip) globalThis[Symbol.for("dpe.callPiP")]?.opened(child);
       } catch {
         /* Protected globals retain native behavior. */
       }

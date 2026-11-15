@@ -4,27 +4,64 @@
 module.exports = function callPiP(request, ui) {
   const key = Symbol.for("dpe.callPiP");
   if (globalThis[key]) return;
+  const listeners = new Set();
   const state = { pending: false, timer: undefined };
+  const notify = () => {
+    for (const refresh of listeners) refresh();
+  };
+  state.subscribe = (refresh) => {
+    listeners.add(refresh);
+    return () => listeners.delete(refresh);
+  };
+  state.opened = (child) => {
+    clearTimeout(state.closeTimer);
+    state.activeWindow = child;
+    state.origin = state.openingOrigin;
+    state.openingOrigin = null;
+    notify();
+    // The native pop-in transition can render before WindowProxy.closed flips.
+    // Watch only the owned active PiP, then notify even unchanged PureComponents.
+    const check = () => {
+      if (state.activeWindow !== child) return;
+      if (child.closed) {
+        state.activeWindow = null;
+        state.origin = null;
+        notify();
+      } else state.closeTimer = setTimeout(check, 250);
+    };
+    state.closeTimer = setTimeout(check, 250);
+  };
   const clear = () => {
     state.pending = false;
+    state.pendingOrigin = null;
     clearTimeout(state.timer);
   };
   state.consume = (name) => {
     if (name !== "DISCORD_CHANNEL_CALL_POPOUT" || !state.pending) return false;
+    state.openingOrigin = state.pendingOrigin;
     clear();
     return true;
   };
   globalThis[key] = state;
-  window.addEventListener("pagehide", clear, { once: true });
+  window.addEventListener(
+    "pagehide",
+    () => {
+      clear();
+      clearTimeout(state.closeTimer);
+      listeners.clear();
+    },
+    { once: true },
+  );
   const installed = new WeakSet();
   const overlays = new WeakMap();
   let React;
   const unavailable = () =>
     globalThis[Symbol.for("dpe.pipWindow")] === true ||
     (state.activeWindow && !state.activeWindow.closed);
-  const openPiP = (open, args) => {
+  const openPiP = (open, args, origin) => {
     clear();
     state.pending = true;
+    state.pendingOrigin = origin;
     state.timer = setTimeout(clear, 60000);
     try {
       const result = open(...args);
@@ -40,9 +77,15 @@ module.exports = function callPiP(request, ui) {
     }
   };
   const pipCallback =
-    (open) =>
+    (open, origin) =>
     (...args) =>
-      openPiP(open, args);
+      openPiP(open, args, origin);
+  const nativeCallback =
+    (open) =>
+    (...args) => {
+      clear();
+      return open(...args);
+    };
   ui.watch(
     "call-pip-button",
     (source) =>
@@ -148,6 +191,14 @@ module.exports = function callPiP(request, ui) {
           let Overlay = overlays.get(tree.type);
           if (!Overlay) {
             Overlay = class extends tree.type {
+              componentDidMount() {
+                super.componentDidMount?.();
+                this.unsubscribePiP = state.subscribe(() => this.forceUpdate());
+              }
+              componentWillUnmount() {
+                this.unsubscribePiP?.();
+                super.componentWillUnmount?.();
+              }
               constructor(...args) {
                 super(...args);
                 const render = this.renderBottomRightControls,
@@ -181,7 +232,10 @@ module.exports = function callPiP(request, ui) {
                     label: "Picture-in-picture",
                     iconComponent: OverlayIcon,
                     iconClassName: undefined,
-                    onOpenPopout: pipCallback(this.handleOpenPopout),
+                    onOpenPopout: pipCallback(this.handleOpenPopout, {
+                      channelId: this.props.channel?.id,
+                      participantId: this.props.participantOnScreen?.id,
+                    }),
                   });
                   const index = settingsNode ? children.indexOf(settingsNode) : -1;
                   // Place it after the actual cog when present, otherwise next
@@ -190,6 +244,10 @@ module.exports = function callPiP(request, ui) {
                     (child) => child?.props?.onOpenPopout === this.handleOpenPopout,
                   );
                   if (settingsNode && index < 0) return controls;
+                  if (popout >= 0)
+                    children[popout] = React.cloneElement(children[popout], {
+                      onOpenPopout: nativeCallback(this.handleOpenPopout),
+                    });
                   children.splice(index >= 0 ? index + 1 : popout >= 0 ? popout : 0, 0, pip);
                   return React.cloneElement(controls, { children });
                 };
@@ -203,6 +261,8 @@ module.exports = function callPiP(request, ui) {
         Wrapper = function (props) {
           const tree = Reflect.apply(original, this, [props]);
           const context = contexts.length === 1 ? React.useContext(contexts[0]) : null;
+          const [, update] = React.useState(0);
+          React.useEffect(() => state.subscribe(() => update((n) => n + 1)), []);
           if (context?.renderWindow?.[Symbol.for("dpe.pipWindow")] === true || unavailable())
             return tree;
           const open = ui.signature(props.onOpenPopout);

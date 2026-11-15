@@ -143,6 +143,19 @@ structures remain native. The component harness covers ordering, inherited
 color, keyboard activation and ordinary popout behavior; it is not a live-call
 visual qualification.
 
+Entry visibility subscribes to the owned PiP lifecycle. Poll only its live
+WindowProxy until native close finishes, then refresh mounted controls even
+when Discord's PureComponent props did not change during pop-in. Autofocus also
+runs at the outer native call view and retries on RTC store changes, so shared
+guild-room state or late media cannot prevent initialization. Explicit PiP uses
+the native media-tile view instead of the shared guild room; APP and ordinary
+popouts retain that room. An empty fullscreen layout still needs a selection.
+Restore an automatic selection on close only when it remains unchanged.
+An explicit in-app PiP click carries its displayed participant as the preferred
+media target for that owned window and channel, validated against eligible RTC
+media before selection. Own shares remain excluded. Clear this transient origin
+on close; ordinary overlay popout clicks clear any unfinished PiP intent.
+
 An explicit PiP click arms a one-use, 60-second call-window intent in the opener.
 The existing same-origin /popout lifecycle wrapper consumes it only for the call
 window key, appends `dpe-pip=yes` to that exact window.open request and marks the

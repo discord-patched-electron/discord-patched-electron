@@ -98,10 +98,7 @@ module.exports = function pipParticipants(request, ui) {
     const store = [...stores][0],
       action = [...actions][0];
     const previousLayout = store.getLayout?.(channel, "POPOUT");
-    if (previousLayout === "full-screen") {
-      local.attempted.add(channel);
-      return;
-    }
+    const previousSelected = store.getSelectedParticipant?.(channel);
     const streams = store.getStreamParticipants(channel),
       me = users.size === 1 ? [...users][0].getCurrentUser()?.id : undefined;
     if (streams.length && typeof me !== "string") return;
@@ -112,13 +109,33 @@ module.exports = function pipParticipants(request, ui) {
       ...store.getActivityParticipants(channel),
     ];
     const ids = new Set(eligible.filter((p) => !p.isPoppedOut).map((p) => p.id));
-    if (ids.size !== 1 || typeof [...ids][0] !== "string") return;
+    const entry = globalThis[Symbol.for("dpe.callPiP")];
+    const origin =
+      entry?.activeWindow === target && entry.origin?.channelId === channel
+        ? entry.origin.participantId
+        : null;
+    const preferred = typeof origin === "string" && ids.has(origin) ? origin : null;
+    if (
+      previousLayout === "full-screen" &&
+      previousSelected?.id &&
+      (!preferred || preferred === previousSelected.id)
+    ) {
+      local.attempted.add(channel);
+      return;
+    }
+    const selected = preferred || (ids.size === 1 ? [...ids][0] : null);
+    if (typeof selected !== "string") return;
     const sig = ui.signature(action.updateLayout);
     if (!sig || !ui.has(sig, "CHANNEL_RTC_UPDATE_LAYOUT", "channelId", "appContext")) return;
     local.attempted.add(channel);
-    action.selectParticipant(channel, [...ids][0]);
-    action.updateLayout(channel, "full-screen", "POPOUT");
-    if (typeof previousLayout === "string")
+    action.selectParticipant(channel, selected);
+    if (previousLayout !== "full-screen") action.updateLayout(channel, "full-screen", "POPOUT");
+    if (typeof store.getSelectedParticipant === "function")
+      local.restore.push(() => {
+        if (store.getSelectedParticipant(channel)?.id === selected)
+          action.selectParticipant(channel, previousSelected?.id ?? null);
+      });
+    if (typeof previousLayout === "string" && previousLayout !== "full-screen")
       local.restore.push(() => {
         if (store.getLayout?.(channel, "POPOUT") === "full-screen")
           action.updateLayout(channel, previousLayout, "POPOUT");
@@ -133,7 +150,10 @@ module.exports = function pipParticipants(request, ui) {
         "CHANNEL_RTC_SELECT_PARTICIPANT",
         "renderWindow",
         "getVoiceParticipantsHidden",
-      ].some((word) => source.includes(word)),
+      ].some((word) => source.includes(word)) ||
+      ["getSelectedParticipant", "getLayout", "guildRoomVisible", "callContainerDimensions"].every(
+        (word) => source.includes(word),
+      ),
     (exports, runtime) => {
       React ||= ui.inspect(runtime).React;
       for (const value of [exports, ...Object.values(exports || {})]) {
@@ -198,7 +218,16 @@ module.exports = function pipParticipants(request, ui) {
           "getVoiceParticipantsHidden",
           "toggleVoiceParticipantsHidden",
         );
-        if (!view && !menu) continue;
+        const call = ui.has(
+          sig,
+          "getSelectedParticipant",
+          "getLayout",
+          "getMode",
+          "guildRoomVisible",
+          "callContainerDimensions",
+          "popoutType",
+        );
+        if (!view && !menu && !call) continue;
 
         const Context = [...contexts][0];
         const Wrapper = function (props) {
@@ -212,15 +241,28 @@ module.exports = function pipParticipants(request, ui) {
           }, []);
           const local = enabled ? settings(context.renderWindow) : null;
           React.useEffect(() => {
-            if (!view || !enabled || !props.channel?.id) return;
-            const timer = setTimeout(() => {
-              try {
-                focus(context.renderWindow, props.channel.id);
-              } catch {
-                /* Changed native contracts keep their selection. */
-              }
-            }, 0);
-            return () => clearTimeout(timer);
+            if ((!view && !call) || !enabled || !props.channel?.id) return;
+            let timer;
+            const run = () => {
+              clearTimeout(timer);
+              timer = setTimeout(() => {
+                try {
+                  focus(context.renderWindow, props.channel.id);
+                } catch {
+                  /* Changed native contracts keep their selection. */
+                }
+              }, 0);
+            };
+            const store = stores.size === 1 ? [...stores][0] : null;
+            const subscribable =
+              typeof store?.addChangeListener === "function" &&
+              typeof store.removeChangeListener === "function";
+            run();
+            if (subscribable) store.addChangeListener(run);
+            return () => {
+              clearTimeout(timer);
+              if (subscribable) store.removeChangeListener(run);
+            };
           }, [enabled, props.channel?.id, props.participantsVersion, props.participants]);
           React.useEffect(() => {
             if (
@@ -255,6 +297,19 @@ module.exports = function pipParticipants(request, ui) {
               action.toggleParticipants(props.channel.id, false);
             }
           }, [enabled, hideMembers, props.channel?.id, props.selectedParticipant?.id]);
+          if (call) {
+            const tree = Reflect.apply(original, this, [props]);
+            // Guild room state is shared with the app and can bypass the tile
+            // view entirely when PiP opens from Discord's in-app overlay.
+            if (
+              !enabled ||
+              tree?.props?.appContext !== "POPOUT" ||
+              !Array.isArray(tree.props.participants) ||
+              typeof tree.props.guildRoomVisible !== "boolean"
+            )
+              return tree;
+            return React.cloneElement(tree, { guildRoomVisible: false });
+          }
           if (menu) {
             const tree = Reflect.apply(original, this, [props]);
             if (!enabled || tree?.props?.id !== "no-video-hide") return tree;

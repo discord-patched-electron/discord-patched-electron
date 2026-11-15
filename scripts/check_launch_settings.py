@@ -16,6 +16,16 @@ def check(runtime, output, media_cache=None):
     if output.exists() or output.is_relative_to(runtime.parent):
         raise ValueError("Choose a fresh output outside the input distribution")
     output.mkdir(parents=True)
+    if os.environ.get("DPE_SETTINGS_SCOPE") == "popout":
+        run(
+            "bun",
+            "build",
+            ROOT / "tests/discord-ui/react-fixture.cjs",
+            "--target=browser",
+            "--format=cjs",
+            "--minify",
+            "--outfile=" + str(output / "react-fixture.cjs"),
+        )
     run("cp", "-a", "--reflink=auto", runtime.parent, output / "runtime")
     resources = output / "runtime/resources"
     if resources.is_symlink():

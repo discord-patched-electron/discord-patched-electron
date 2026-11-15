@@ -9,8 +9,10 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     persistedHidden = false,
     nativeToggles = 0,
     rerenders = 0,
-    layout = "normal";
+    layout = "normal",
+    selected = null;
   const timers = new Set(),
+    changes = new Set(),
     calls = [];
   const target = {
     name: "DISCORD_CHANNEL_CALL_POPOUT",
@@ -43,9 +45,13 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     getActivityParticipants: () => media.activities,
     getVoiceParticipantsHidden: () => persistedHidden,
     getLayout: () => layout,
+    getSelectedParticipant: () => selected,
+    addChangeListener: (fn) => changes.add(fn),
+    removeChangeListener: (fn) => changes.delete(fn),
   };
   const actions = {
     selectParticipant(channelId, id) {
+      selected = id == null ? null : { id };
       calls.push({ type: "CHANNEL_RTC_SELECT_PARTICIPANT", channelId, id });
     },
     updateLayout(channelId, next, appContext) {
@@ -110,8 +116,28 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
       visit = fn;
     },
   };
+  const callExports = {
+    default: function nativeCall({ channel, popoutType }) {
+      const layout = store.getLayout(channel.id),
+        selectedParticipant = store.getSelectedParticipant(channel.id);
+      const getMode = () => "video";
+      return React.createElement("native-call", {
+        channel,
+        layout,
+        selectedParticipant,
+        mode: getMode(),
+        appContext: context.appContext,
+        participants: store.getParticipants(channel.id),
+        guildRoomVisible: true,
+        callContainerDimensions: { width: 320, height: 180 },
+        popoutType,
+      });
+    },
+  };
+  runtime.c.call = { exports: callExports };
   const realm = vm.createContext({
     ui,
+    target,
     setTimeout: (fn) => {
       timers.add(fn);
       return fn;
@@ -125,6 +151,7 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
   visit({ store, actions, user: { getCurrentUser: () => ({ id: "me" }), getUser() {} } }, runtime);
   visit(viewExports, runtime);
   visit(menu, runtime);
+  visit(callExports, runtime);
   return {
     store,
     actions,
@@ -133,6 +160,14 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     calls,
     install,
     menu: () => runtime.c.menu.exports.A("call"),
+    renderCall: () =>
+      runtime.c.call.exports.default({ channel: { id: "call" }, popoutType: "voice" }),
+    origin(participantId) {
+      vm.runInContext(
+        `globalThis[Symbol.for("dpe.callPiP")]={activeWindow:target,origin:{channelId:"call",participantId:${JSON.stringify(participantId)}}}`,
+        realm,
+      );
+    },
     render: (props) =>
       runtime.c.view.exports.A({ channel: { id: "call" }, ...props }).props.children,
     pip() {
@@ -152,6 +187,9 @@ function fixture(media = { streams: [], videos: [], activities: [] }) {
     },
     get nativeToggles() {
       return nativeToggles;
+    },
+    changed() {
+      for (const fn of changes) fn();
     },
   };
 }
@@ -248,7 +286,72 @@ test("closing auto-focused PiP restores the ordinary popout's previous layout", 
   assert.equal(f.store.getLayout(), "full-screen");
   f.target.events.pagehide();
   assert.equal(f.store.getLayout(), "normal");
-  assert.equal(f.calls[2].appContext, "POPOUT");
+  assert.equal(f.calls[2].id, null);
+  assert.equal(f.calls[3].appContext, "POPOUT");
+});
+
+test("PiP opened from the in-app overlay focuses its sole media without waiting for the participant view", () => {
+  const stream = { id: "share", stream: { ownerId: "other" } };
+  const f = fixture({ streams: [stream], videos: [], activities: [] });
+  assert.equal(f.renderCall().props.guildRoomVisible, true);
+  f.flush();
+  assert.equal(f.calls.length, 0);
+  f.pip();
+  assert.equal(f.renderCall().props.guildRoomVisible, false);
+  f.flush();
+  assert.equal(f.calls[0].id, "share");
+  assert.equal(f.calls[1].layout, "full-screen");
+  f.target.events.pagehide();
+  f.main();
+  assert.equal(f.renderCall().props.guildRoomVisible, true);
+});
+
+test("an empty fullscreen layout still selects sole media, while existing fullscreen selections survive", () => {
+  for (const existing of [null, "manual"]) {
+    const camera = { id: "camera" },
+      f = fixture({ streams: [], videos: [camera], activities: [] });
+    f.actions.updateLayout("call", "full-screen", "POPOUT");
+    if (existing) f.actions.selectParticipant("call", existing);
+    const before = f.calls.length;
+    f.pip();
+    f.renderCall();
+    f.flush();
+    assert.equal(f.calls.length, before + (existing ? 0 : 1));
+    if (!existing) assert.equal(f.calls.at(-1).id, "camera");
+  }
+});
+
+test("sole media arriving after the outer PiP call view mounts still receives automatic focus", () => {
+  const media = { streams: [], videos: [], activities: [] },
+    f = fixture(media);
+  f.pip();
+  f.renderCall();
+  f.flush();
+  assert.equal(f.calls.length, 0);
+  media.activities.push({ id: "activity" });
+  f.changed();
+  f.flush();
+  assert.equal(f.calls[0].id, "activity");
+  assert.equal(f.calls[1].layout, "full-screen");
+});
+
+test("an explicit in-app PiP media target wins among multiple media, excluding the user's own share", () => {
+  for (const id of ["remote", "activity", "own"]) {
+    const f = fixture({
+      streams: [
+        { id: "remote", stream: { ownerId: "them" } },
+        { id: "own", stream: { ownerId: "me" } },
+      ],
+      videos: [{ id: "camera" }],
+      activities: [{ id: "activity" }],
+    });
+    f.pip();
+    f.origin(id);
+    f.renderCall();
+    f.flush();
+    assert.equal(f.calls.length, id === "own" ? 0 : 2);
+    if (id !== "own") assert.equal(f.calls[0].id, id);
+  }
 });
 
 test("a sole PiP tile uses the native focused view without a duplicate participant strip", () => {

@@ -9,7 +9,10 @@ module.exports = async function check(window, root) {
         '<style>body{margin:24px;background:#1a1a1e;color:white;font:14px sans-serif}#controls,#overlay{display:flex;gap:8px}#overlay{margin-top:24px;--text-overlay-light:rgb(244,245,246)}.call-control{display:flex;align-items:center;justify-content:center;width:36px;height:36px;padding:6px;border:0;border-radius:4px;background:transparent;color:inherit}.overlay-control{color:var(--text-overlay-light)}.call-control:hover{background:#383940}.call-control:focus-visible{outline:2px solid #00b0f4;outline-offset:2px}.call-control:disabled{opacity:.35}.call-control svg{width:24px;height:24px}</style><div id="controls"></div><div id="overlay"></div>',
       ),
   );
-  const react = fs.readFileSync(path.join(root, "out/ui/ui-runtime.cjs"), "utf8");
+  const react = fs.readFileSync(
+    path.join(process.env.DPE_SETTINGS_OUTPUT, "react-fixture.cjs"),
+    "utf8",
+  );
   const runtime = require(path.join(root, "integration/discord-ui/runtime.cjs"));
   const adapter = require(path.join(root, "integration/discord-ui/call-pip.cjs"));
   await window.webContents.executeJavaScript(`(()=>{
@@ -86,7 +89,7 @@ module.exports = async function check(window, root) {
     "overlay-stock",
   ]);
   await window.webContents.executeJavaScript(
-    `globalThis[Symbol.for('dpe.callPiP')].activeWindow={closed:false};renderOverlay()`,
+    `window.testPiP={closed:false};globalThis[Symbol.for('dpe.callPiP')].opened(testPiP)`,
   );
   await new Promise((resolve) => setTimeout(resolve, 40));
   assert.equal(
@@ -96,10 +99,22 @@ module.exports = async function check(window, root) {
     2,
   );
   await window.webContents.executeJavaScript(
-    `globalThis[Symbol.for('dpe.callPiP')].activeWindow.closed=true;renderOverlay()`,
+    `testPiP.closed=true;new Promise(resolve=>setTimeout(resolve,350))`,
   );
   await window.webContents.executeJavaScript(
     "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
+  );
+  assert.equal(
+    await window.webContents.executeJavaScript(
+      "document.querySelectorAll('#overlay button').length",
+    ),
+    3,
+  );
+  assert.equal(
+    await window.webContents.executeJavaScript(
+      "document.querySelectorAll('#controls button').length",
+    ),
+    2,
   );
   return {
     assertDisabled: async () => {

@@ -8,12 +8,15 @@ function fixture() {
   let visit;
   const requests = [],
     timers = new Set();
+  let updates = 0;
   const nativeContext = {
     $$typeof: Symbol.for("react.context"),
     _currentValue: { appContext: "APP", renderWindow: {}, windowDispatch: {} },
   };
   const React = {
     useContext: (context) => context._currentValue,
+    useState: () => [0, () => updates++],
+    useEffect: (fn) => fn(),
     Fragment: "fragment",
     createElement: (type, props, ...children) => ({
       type,
@@ -89,6 +92,9 @@ function fixture() {
     constructor(props) {
       this.props = props;
     }
+    forceUpdate() {
+      updates++;
+    }
     handleOpenPopout = () => open();
     renderSettingsIcon = () =>
       React.createElement("settings-cog", { className: "overlay-control" });
@@ -140,6 +146,9 @@ function fixture() {
       runtime.c.overlay.exports.A(props),
     expire() {
       for (const fn of timers) fn();
+    },
+    get updates() {
+      return updates;
     },
   };
 }
@@ -204,11 +213,52 @@ test("in-app PiP adds its native-styled entry after the cog, preserving other co
   const remote = f.renderOverlay({ settings: false, popout: true });
   const children = new remote.type(remote.props).renderBottomRightControls().props.children;
   assert.equal(children[2].props.label, "Picture-in-picture");
-  assert.equal(children[3].props.onOpenPopout instanceof Function, true);
+  assert.equal(typeof children[3].props.onOpenPopout, "function");
   const ordinary = children[3].type(children[3].props);
   ordinary.props.onClick();
   assert.doesNotMatch(f.requests[1].features, /dpe-pip/);
 });
+test("pop-in refreshes unchanged overlay controls after the native window finishes closing", () => {
+  const f = fixture(),
+    element = f.renderOverlay({
+      settings: true,
+      popout: false,
+      channel: { id: "call" },
+      participantOnScreen: { id: "share" },
+    }),
+    overlay = new element.type(element.props);
+  overlay.componentDidMount();
+  const pip = overlay.renderBottomRightControls().props.children[2];
+  pip.type(pip.props).props.onClick();
+  assert.equal(
+    vm.runInContext('globalThis[Symbol.for("dpe.callPiP")].origin.participantId', f.context),
+    "share",
+  );
+  const before = f.updates;
+  assert.equal(overlay.renderBottomRightControls().props.children.length, 4);
+  f.requests[0].child.closed = true;
+  f.expire();
+  assert.ok(f.updates > before);
+  assert.equal(vm.runInContext('globalThis[Symbol.for("dpe.callPiP")].origin', f.context), null);
+  assert.equal(overlay.renderBottomRightControls().props.children.length, 5);
+  overlay.componentWillUnmount();
+});
+
+test("ordinary overlay popout clicks clear an unfinished PiP request", () => {
+  const f = fixture();
+  let pending;
+  f.handlers.handleOpenPopout = () => {
+    pending = () => f.context.open("/popout", "DISCORD_CHANNEL_CALL_POPOUT", "");
+  };
+  const element = f.renderOverlay({ settings: false, popout: true });
+  const [, , pip, stock] = new element.type(element.props).renderBottomRightControls().props
+    .children;
+  pip.type(pip.props).props.onClick();
+  stock.type(stock.props).props.onClick();
+  pending();
+  assert.doesNotMatch(f.requests[0].features, /dpe-pip/);
+});
+
 test("native asynchronous opens consume PiP once; normal clicks, failures and expiry clear the intent", async () => {
   const f = fixture();
   let pending;
