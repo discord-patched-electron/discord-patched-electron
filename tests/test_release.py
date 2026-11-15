@@ -321,6 +321,20 @@ class PortableReleases(unittest.TestCase):
         with self.assertRaises(ValueError):
             metadata(Path("/tmp/app"), "../../unsafe", "canary", 0)
 
+    def test_explicit_skip_tests_reaches_integrity_checks_without_claiming_launch_validation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary)
+            build = {"portable": True, "runtime_kind": "compiled"}
+            write_json(app / "local-build.json", build)
+            with patch.dict(os.environ, {"DPE_RELEASE_TESTS_SKIPPED": "1"}):
+                with patch(
+                    "package_release.validate_distribution",
+                    side_effect=ValueError("integrity guard reached"),
+                ):
+                    with self.assertRaisesRegex(ValueError, "integrity guard reached"):
+                        package(app, app / "packages", "20261115.120000", 1234567890, "nfpm")
+            self.assertEqual(read_json(app / "local-build.json"), build)
+
     def test_release_requires_launch_verified_unchanged_module_pins(self):
         with tempfile.TemporaryDirectory() as temporary:
             app = Path(temporary) / "app"

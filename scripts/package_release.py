@@ -285,13 +285,16 @@ def package(
     build = read_json(app / "local-build.json")
     if not build.get("portable") or build.get("runtime_kind") != "compiled":
         raise ValueError("Only compiled portable builds can be released")
-    if not build.get("launch_verified"):
+    tests_skipped = os.environ.get("DPE_RELEASE_TESTS_SKIPPED") == "1"
+    if not tests_skipped and not build.get("launch_verified"):
         raise ValueError("Run check_desktop_launch.py on the relocated app before packaging")
     if (app / "resources/_app.asar").exists():
         raise ValueError("Uninstall client mods before packaging the app")
-    if build.get("client_pins_verified") is not True:
+    if not tests_skipped and build.get("client_pins_verified") is not True:
         raise ValueError("Validate the package's pinned Discord modules before release")
-    if sha256(app / "client-update.json") != build.get("client_manifest_sha256"):
+    if not tests_skipped and sha256(app / "client-update.json") != build.get(
+        "client_manifest_sha256"
+    ):
         raise ValueError("Pinned Discord module manifest changed after launch validation")
     validate_distribution(app)
     validate_provenance(
@@ -434,7 +437,7 @@ def package(
                 "cache_release": "runtime-cache-" + build["capacity"]["runtime_key"],
             },
             "workflow_run": os.environ.get("GITHUB_RUN_ID"),
-            "tests_skipped": os.environ.get("DPE_RELEASE_TESTS_SKIPPED") == "1",
+            "tests_skipped": tests_skipped,
             "clients_state": os.environ.get("CLIENTS_STATE"),
             "proposal_commit": os.environ.get("PROPOSAL_COMMIT"),
             "release_key": release_key,
