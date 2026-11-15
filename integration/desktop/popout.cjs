@@ -275,6 +275,7 @@ function attach(window, options, onReady, screen) {
     };
   };
   let choices = Promise.resolve();
+  let monitorPlacement;
   const moveChoice = async (name, automatic = false) => {
     if (!["top-left", "top-right", "bottom-left", "bottom-right"].includes(name)) return;
     await placement;
@@ -353,59 +354,103 @@ function attach(window, options, onReady, screen) {
           layout &&
           require("./popout-position.cjs").neighbor(layout.outputs, layout.current, direction);
         if (!target || window.isDestroyed()) return cornerState();
-        const name = (await cornerState()).corner || targetCorner;
+        const unchangedPlacement =
+          monitorPlacement &&
+          ["x", "y", "width", "height"].every(
+            (key) => Math.abs(before.bounds[key] - monitorPlacement.bounds[key]) <= 2,
+          );
+        const savedClient = unchangedPlacement ? monitorPlacement.client : window.getSize();
+        const corner = require("./popout-position.cjs").corner;
+        const names = ["top-left", "top-right", "bottom-left", "bottom-right"];
+        const name = unchangedPlacement
+          ? monitorPlacement.corner
+          : names.find((name) => {
+              const p = corner(before.area, before.bounds.width, before.bounds.height, name);
+              return Math.abs(p.x - before.bounds.x) <= 2 && Math.abs(p.y - before.bounds.y) <= 2;
+            });
+        const origin = corner(before.area, before.bounds.width, before.bounds.height, "top-left"),
+          end = corner(before.area, before.bounds.width, before.bounds.height, "bottom-right");
+        const fraction = unchangedPlacement
+          ? monitorPlacement.fraction
+          : {
+              x: Math.max(
+                0,
+                Math.min(1, (before.bounds.x - origin.x) / Math.max(1, end.x - origin.x)),
+              ),
+              y: Math.max(
+                0,
+                Math.min(1, (before.bounds.y - origin.y) / Math.max(1, end.y - origin.y)),
+              ),
+            };
         if (window.isDestroyed() || window.isFullScreen()) return { available: false };
         if (compositor) {
           if (!(await compositor.transferMonitor(direction))) return cornerState();
-          await compositor.prepare?.(name, () => !window.isDestroyed() && !window.isFullScreen());
+          await compositor.prepare?.(
+            name || targetCorner,
+            () => !window.isDestroyed() && !window.isFullScreen(),
+          );
         } else {
           const display = screen.getAllDisplays().find((d) => d.id === target.id);
           if (!display || window.isDestroyed()) return cornerState();
-          const point = require("./popout-position.cjs").corner(
-            display.workArea,
-            before.bounds.width,
-            before.bounds.height,
-            name,
+          const factor = Math.min(
+            1,
+            Math.max(1, display.workArea.width - 32) / savedClient[0],
+            Math.max(1, display.workArea.height - 32) / savedClient[1],
           );
-          window.setPosition(point.x, point.y);
+          const fitting = {
+            width: Math.max(1, Math.floor(savedClient[0] * factor)),
+            height: Math.max(1, Math.floor(savedClient[1] * factor)),
+          };
+          if (window.getSize()[0] !== fitting.width || window.getSize()[1] !== fitting.height)
+            window.setSize(fitting.width, fitting.height);
+          const p = corner(display.workArea, fitting.width, fitting.height, name || "top-left");
+          window.setPosition(p.x, p.y);
         }
         let fresh = await snapshot();
         if (!fresh || window.isDestroyed()) return cornerState();
-        const [width, height] = window.getSize();
+        const current = window.getSize(),
+          decoration = {
+            width: Math.max(0, fresh.bounds.width - current[0]),
+            height: Math.max(0, fresh.bounds.height - current[1]),
+          };
         const factor = Math.min(
           1,
-          Math.max(1, fresh.area.width - 32 - (fresh.bounds.width - width)) / width,
-          Math.max(1, fresh.area.height - 32 - (fresh.bounds.height - height)) / height,
+          Math.max(1, fresh.area.width - 32 - decoration.width) / savedClient[0],
+          Math.max(1, fresh.area.height - 32 - decoration.height) / savedClient[1],
         );
-        if (factor < 1) {
-          const size = {
-            width: Math.max(1, Math.floor(width * factor)),
-            height: Math.max(1, Math.floor(height * factor)),
-          };
+        const size = {
+          width: Math.max(1, Math.floor(savedClient[0] * factor)),
+          height: Math.max(1, Math.floor(savedClient[1] * factor)),
+        };
+        if (Math.abs(current[0] - size.width) > 1 || Math.abs(current[1] - size.height) > 1) {
           window.setSize(size.width, size.height);
           await compositor?.resizeTo?.(size, screen, fresh);
           for (let attempt = 0; attempt < 10; attempt++) {
             fresh = await snapshot();
             if (!fresh || window.isDestroyed()) return cornerState();
-            const current = window.getSize();
-            if (Math.abs(current[0] - size.width) <= 2 && Math.abs(current[1] - size.height) <= 2)
+            if (
+              Math.abs(fresh.bounds.width - size.width - decoration.width) <= 2 &&
+              Math.abs(fresh.bounds.height - size.height - decoration.height) <= 2
+            )
               break;
             await new Promise((resolve) => setTimeout(resolve, 40));
           }
         }
         fresh = await snapshot();
         if (!fresh) return cornerState();
-        if (compositor) await compositor.moveTo(name, screen, fresh);
-        else {
-          const point = require("./popout-position.cjs").corner(
-            fresh.area,
-            fresh.bounds.width,
-            fresh.bounds.height,
-            name,
-          );
-          window.setPosition(point.x, point.y);
-        }
+        const a = corner(fresh.area, fresh.bounds.width, fresh.bounds.height, "top-left"),
+          b = corner(fresh.area, fresh.bounds.width, fresh.bounds.height, "bottom-right");
+        const point = name
+          ? corner(fresh.area, fresh.bounds.width, fresh.bounds.height, name)
+          : {
+              x: Math.round(a.x + fraction.x * (b.x - a.x)),
+              y: Math.round(a.y + fraction.y * (b.y - a.y)),
+            };
+        if (compositor) await compositor.moveTo(point, screen, fresh);
+        else window.setPosition(point.x, point.y);
         const after = await snapshot();
+        if (after)
+          monitorPlacement = { client: savedClient, fraction, corner: name, bounds: after.bounds };
         if (
           after &&
           baseline &&
@@ -415,7 +460,7 @@ function attach(window, options, onReady, screen) {
           baseline = after.bounds;
           baselineClient = { width: window.getSize()[0], height: window.getSize()[1] };
         }
-        targetCorner = name;
+        if (name) targetCorner = name;
         return cornerState();
       }));
   sessions.set(window, {

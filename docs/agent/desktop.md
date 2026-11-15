@@ -393,3 +393,11 @@ both directional targets are unavailable (single output or unsupported composito
 while retaining corner controls. The opener tracks its live PiP WindowProxy so
 the PiP entry is omitted in all call toolbars until that window closes; the
 ordinary return-to-call control remains native.
+
+Monitor transfers preserve the preferred client size and normalized position
+between the usable corner limits. Exact corners stay anchored; free placement
+is carried to the same relative location. When a destination is too small, fit
+proportionally but retain the preferred size/position for the return trip. A
+manual move or resize invalidates that transfer checkpoint. PiP’s settings action
+opens an independent normal Settings window, not a child dialog. Its native button
+label markup is retained and the shared button padding/nowrap treatment applies.

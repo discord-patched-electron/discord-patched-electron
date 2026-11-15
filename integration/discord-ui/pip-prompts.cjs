@@ -42,7 +42,17 @@ module.exports = function pipPrompts() {
         const button = buttons[0];
         const label = "Participants without video are currently hidden in PiP.";
         if (text.data !== label) text.data = label;
-        if (button.textContent !== "Open DPE Settings") button.textContent = "Open DPE Settings";
+        container.classList.add("dpe-ui");
+        button.classList.add("dpe-button");
+        button.dataset.dpePipSettings = "";
+        if (button.textContent !== "Open DPE Settings") {
+          const labels = document.createTreeWalker(button, NodeFilter.SHOW_TEXT),
+            texts = [];
+          while (labels.nextNode())
+            if (labels.currentNode.data.trim()) texts.push(labels.currentNode);
+          if (texts.length === 1) texts[0].data = "Open DPE Settings";
+          else button.textContent = "Open DPE Settings";
+        }
         if (!noticeButtons.has(button)) {
           noticeButtons.add(button);
           button.addEventListener(

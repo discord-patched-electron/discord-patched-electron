@@ -510,14 +510,17 @@ app
       assert.deepEqual(emptyPicker, { visible: true, arrows: true });
       const notice = await fixture.webContents.executeJavaScript(`(async()=>{
         let opened=0;window.DPEPiP.openSettings=async()=>{opened++;};
-        const box=document.createElement('section');box.innerHTML='<p>Participants without video are currently hidden</p><button>Show participants</button>';document.body.append(box);
+        const box=document.createElement('section');box.innerHTML='<p>Participants without video are currently hidden</p><button style="width:70px"><span>Show participants</span></button>';document.body.append(box);
         await new Promise(resolve=>setTimeout(resolve,70));box.querySelector('button').click();
-        const result={text:box.querySelector('p').textContent,button:box.querySelector('button').textContent,opened};box.remove();return result;
+        const result={text:box.querySelector('p').textContent,button:box.querySelector('button').textContent,opened,nowrap:getComputedStyle(box.querySelector('button')).whiteSpace==='nowrap',padding:parseFloat(getComputedStyle(box.querySelector('button')).paddingLeft)>=12,inner:!!box.querySelector('button>span')};box.remove();return result;
       })()`);
       assert.deepEqual(notice, {
         text: "Participants without video are currently hidden in PiP.",
         button: "Open DPE Settings",
         opened: 1,
+        nowrap: true,
+        padding: true,
+        inner: true,
       });
       const activityPicker = await fixture.webContents.executeJavaScript(`(async()=>{
         for(const node of document.querySelectorAll('video'))node.remove();
