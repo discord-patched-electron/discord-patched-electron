@@ -560,11 +560,17 @@ def notes(
     approved: bool = False,
     previous_prerelease: dict | None = None,
 ):
-    if approved:
-        changes = changes_since(manifest, previous, approved=True)
+    separate_comparisons = (
+        not approved
+        and previous_prerelease is not None
+        and (previous is None or previous_prerelease["version"] > previous["version"])
+    )
+    if not separate_comparisons:
+        changes = changes_since(manifest, previous, approved=approved)
     else:
         changes = "\n\n".join(
-            f"<details>\n<summary>Changes since last {baseline}</summary>\n\n"
+            f"<details{' open' if baseline == 'pre-release' else ''}>\n"
+            + f"<summary>Changes since last {baseline}</summary>\n\n"
             + changes_since(manifest, before, baseline=baseline)
             + "\n\n</details>"
             for baseline, before in (
@@ -586,7 +592,7 @@ def notes(
         + install_notes(manifest, approved=approved)
         + "## Changes\n\n"
         + changes
-        + ("\n\n" + changelog_link(manifest, previous) if not approved else "")
+        + ("\n\n" + changelog_link(manifest, previous) if separate_comparisons else "")
         + provenance
         + f" · [✅ Test results]({URL}/actions/runs/{manifest['workflow_run']})"
         + "\n"

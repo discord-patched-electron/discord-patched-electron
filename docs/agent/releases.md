@@ -166,11 +166,13 @@ Candidate proposals record exact client/runtime/source identities in
 `config/update-proposals/`; they do not approve anything. Reserve the source tag
 before a proposal metadata write and verify it still pins qualified source.
 Retries resume drafts and reuse identical public candidates; never overwrite
-public assets. Build-version ordering determines release order. Prerelease notes
-have separate collapsed sections for changes since the previous stable release
-and since the previous published prerelease of the same channel/track. Each shows
-its complete source range, including merged code and helper changes, input
-changes and its own comparison link. Missing baselines are stated explicitly;
+public assets. Build-version ordering determines release order. When the previous
+published release of the same channel/track is stable, show its changes directly
+without comparison dropdowns. Otherwise, prerelease notes have a collapsed
+comparison against the previous stable release and an expanded comparison against
+the previous prerelease. Each shows its complete source range, including merged
+code and helper changes, input changes and its own comparison link. Missing
+baselines are stated explicitly;
 never substitute a newer stable release when repairing older notes. Approval
 retains the complete stable-to-stable changelog.
 
