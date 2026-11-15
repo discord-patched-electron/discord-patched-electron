@@ -134,8 +134,14 @@ function fixture() {
   };
   runtime.c.overlay = { exports: overlay };
   visit(overlay, runtime);
+  const position = { pipVideoWindow: { position: "top-left" }, getDockedRect() {}, pipWidth() {} };
+  visit({ position }, runtime);
   return {
     nativeContext,
+    position,
+    follow(enabled) {
+      vm.runInContext(`(${adapter})({followInAppPosition:${enabled}},ui)`, context);
+    },
     renderPin: () =>
       runtime.c.pin.exports.A({ popoutWindowAlwaysOnTop: true, onToggleStayOnTop: () => {} }),
     context,
@@ -257,6 +263,40 @@ test("ordinary overlay popout clicks clear an unfinished PiP request", () => {
   stock.type(stock.props).props.onClick();
   pending();
   assert.doesNotMatch(f.requests[0].features, /dpe-pip/);
+});
+
+test("following reads the current native overlay corner at click time and leaves main-call launches on their default", () => {
+  for (const corner of ["top-left", "top-right", "bottom-left", "bottom-right"]) {
+    const f = fixture();
+    f.follow(true);
+    const element = f.renderOverlay(),
+      overlay = new element.type(element.props);
+    const pip = overlay.renderBottomRightControls().props.children[2];
+    f.position.pipVideoWindow.position = corner;
+    pip.type(pip.props).props.onClick();
+    assert.ok(f.requests[0].features.includes(`dpe-pip-corner=${corner}`));
+  }
+  for (const mode of ["disabled", "hidden", "missing", "unknown", "throwing", "main"]) {
+    const f = fixture();
+    f.follow(mode !== "disabled");
+    if (mode === "hidden") f.position.pipVideoWindow.hidden = true;
+    if (mode === "missing") f.position.pipVideoWindow = null;
+    if (mode === "unknown") f.position.pipVideoWindow.position = "center";
+    if (mode === "throwing")
+      Object.defineProperty(f.position, "pipVideoWindow", {
+        get() {
+          throw Error("closed");
+        },
+      });
+    const element = f.renderOverlay();
+    const pip =
+      mode === "main"
+        ? f.render().props.children[0]
+        : new element.type(element.props).renderBottomRightControls().props.children[2];
+    (mode === "main" ? pip : pip.type(pip.props)).props.onClick();
+    assert.match(f.requests[0].features, /dpe-pip=yes/);
+    assert.doesNotMatch(f.requests[0].features, /dpe-pip-corner=/);
+  }
 });
 
 test("native asynchronous opens consume PiP once; normal clicks, failures and expiry clear the intent", async () => {

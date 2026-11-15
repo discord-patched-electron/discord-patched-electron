@@ -156,6 +156,14 @@ media target for that owned window and channel, validated against eligible RTC
 media before selection. Own shares remain excluded. Clear this transient origin
 on close; ordinary overlay popout clicks clear any unfinished PiP intent.
 
+The opt-in **Follow in-app PiP position** preference snapshots the native
+PictureInPictureStore's visible video-window corner when its PiP entry is clicked.
+Only the four known logical corners are forwarded with the consumed PiP intent.
+Main-frame window options validate the hint and require the preference to be
+enabled before using it. This is a per-launch override; the saved default corner
+remains available for main-call launches and unavailable/ambiguous native state.
+No overlay DOM coordinates or compositor-specific pixel offsets are used.
+
 The native participant sizing wrapper permits shrinking below its media's
 minimum content size in explicit PiP, so the header cannot push its measured
 height beyond the viewport. When removing an empty invitation slot, bound both

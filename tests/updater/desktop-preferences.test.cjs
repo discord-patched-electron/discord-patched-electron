@@ -585,6 +585,45 @@ test("ordinary call popouts keep Discord geometry; only the PiP entry enables co
   assert.ok(pip.width < 854);
 });
 
+test("following an in-app PiP corner is opt-in, validated and never changes the saved default", () => {
+  const parent = {
+    isDestroyed: () => false,
+    getBounds: () => ({ x: 0, y: 0, width: 900, height: 600 }),
+  };
+  for (const enabled of [false, true]) {
+    const prefs = { popoutFollowInAppPosition: enabled, popoutCorner: "bottom-left" };
+    const { controller } = fixture(prefs);
+    for (const corner of ["top-left", "top-right", "bottom-left", "bottom-right"]) {
+      const options = controller.popoutOptions(
+        {},
+        "DISCORD_CHANNEL_CALL_POPOUT",
+        parent,
+        `dpe-pip=yes,dpe-pip-corner=${corner}`,
+      );
+      assert.equal(options.dpeCorner, enabled ? corner : "bottom-left");
+      assert.equal(prefs.popoutCorner, "bottom-left");
+    }
+    for (const features of [
+      "dpe-pip=yes",
+      "dpe-pip=yes,dpe-pip-corner=center",
+      "dpe-pip=yes,dpe-pip-corner=top-left,dpe-pip-corner=bottom-right",
+    ])
+      assert.equal(
+        controller.popoutOptions({}, "DISCORD_CHANNEL_CALL_POPOUT", parent, features).dpeCorner,
+        "bottom-left",
+      );
+    assert.equal(
+      controller.popoutOptions(
+        {},
+        "DISCORD_CHANNEL_CALL_POPOUT",
+        parent,
+        "dpe-pip-corner=top-right",
+      ).dpeVideo,
+      undefined,
+    );
+  }
+});
+
 test("native pin requests preserve PiP's required topmost mode without affecting normal popouts", (t) => {
   const { controller } = fixture();
   t.mock.method(require("../../integration/desktop/popout.cjs"), "attach", () => false);
