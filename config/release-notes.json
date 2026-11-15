@@ -111,6 +111,16 @@
         "Minimize PiP members on launch and on video, screenshare or activity selection and layout changes. Preserve manual Show Members until the next transition and honor manual deselection of a sole tile.",
         "Keep Discord\u2019s native pop-in control visible in fullscreen PiP, using its regular whole-call close action for returning to Discord."
       ]
+    },
+    "d1dd736ee98b4f0ec29a6fd33623c909a8e07ddc": {
+      "Improvements": [
+        "Share control registration, immutable insertion, export replacement and lifecycle cleanup across call controls, the PiP corner/monitor mover, Settings entries, screenshare menu actions and audio picker hosts. Keep native Discord styling, callbacks and other extensions through rerenders and remounts."
+      ],
+      "Fixes": [
+        "Show Return to Discord as soon as PiP opens, including before its window handle reaches Discord\u2019s window store, and preserve the native return action through fullscreen and layout changes.",
+        "Support frozen native component exports without losing unrelated exports or another adapter\u2019s replacement. Prevent duplicate injected controls and keep rebuilt menus on their current callbacks.",
+        "Cancel an open audio picker exactly once during page teardown, release its observer and ignore late PiP mover replies after cleanup."
+      ]
     }
   }
 }
