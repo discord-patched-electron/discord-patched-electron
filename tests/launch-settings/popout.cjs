@@ -12,6 +12,11 @@ module.exports = async function check({ window, values, click, get, until, evalu
     await click(`desktop-${name}`);
     await ready();
   };
+  assert.equal(await get('$("desktop-popoutFollowInAppPosition").checked'), false);
+  await toggle("popoutFollowInAppPosition");
+  assert.equal(values.openasar.desktop.popoutFollowInAppPosition, true);
+  assert.equal(await get('$("desktop-popoutCorner-trigger").disabled'), false);
+  await toggle("popoutFollowInAppPosition");
   assert.equal(await get('$("desktop-popoutShowNonVideoParticipants").checked'), true);
   await toggle("popoutShowNonVideoParticipants");
   assert.equal(values.openasar.desktop.popoutShowNonVideoParticipants, false);

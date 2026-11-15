@@ -41,7 +41,12 @@ module.exports = function popoutLifecycle() {
     } catch {
       /* Invalid URLs remain native. */
     }
-    if (pip) args[2] = `${args[2] || ""},dpe-pip=yes`;
+    if (pip) {
+      args[2] = `${args[2] || ""},dpe-pip=yes`;
+      const corner = globalThis[Symbol.for("dpe.callPiP")]?.openingOrigin?.corner;
+      if (["top-left", "top-right", "bottom-left", "bottom-right"].includes(corner))
+        args[2] += `,dpe-pip-corner=${corner}`;
+    }
     const child = Reflect.apply(open, this, args);
     if (child && video(name)) {
       try {

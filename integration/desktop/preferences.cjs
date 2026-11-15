@@ -9,6 +9,7 @@ const DEFAULTS = Object.freeze({
   closeButton: true,
   minimumWindowSize: true,
   popoutCorner: "bottom-right",
+  popoutFollowInAppPosition: false,
   popoutHideTitlebar: true,
   popoutHideMembers: true,
   popoutShowNonVideoParticipants: true,
@@ -304,6 +305,7 @@ function createController(
         (state.popout ? `globalThis[Symbol.for("dpe.pipWindow")]=${state.video === true};` : "") +
           `(${require("../discord-ui/popout-lifecycle.cjs").toString()})();` +
           require("../discord-ui/source.cjs").call(require("../discord-ui/call-pip.cjs"), {
+            followInAppPosition: values.popoutFollowInAppPosition,
             icons: { pip: require("../discord-ui/icons.cjs")().pip },
           }) +
           ";" +
@@ -463,8 +465,30 @@ function createController(
       const pip =
         typeof features === "string" &&
         features.split(",").some((feature) => feature.trim() === "dpe-pip=yes");
+      const corners =
+        typeof features === "string"
+          ? features
+              .split(",")
+              .map((feature) =>
+                /^dpe-pip-corner=(top-left|top-right|bottom-left|bottom-right)$/.exec(
+                  feature.trim(),
+                ),
+              )
+              .filter(Boolean)
+          : [];
+      const placement =
+        values.popoutFollowInAppPosition && corners.length === 1
+          ? { ...values, popoutCorner: corners[0][1] }
+          : values;
       return pip
-        ? require("./popout.cjs").windowOptions(base, key, parent, electron.screen, options, values)
+        ? require("./popout.cjs").windowOptions(
+            base,
+            key,
+            parent,
+            electron.screen,
+            options,
+            placement,
+          )
         : base;
     },
     setPopoutAlwaysOnTop: (window, enabled) => {

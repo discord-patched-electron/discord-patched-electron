@@ -3,9 +3,17 @@
 // callback. Only the explicit PiP entry opts its next call-window request in.
 module.exports = function callPiP(request, ui) {
   const key = Symbol.for("dpe.callPiP");
-  if (globalThis[key]) return;
+  if (globalThis[key]) {
+    globalThis[key].followInAppPosition = request.followInAppPosition === true;
+    return;
+  }
   const listeners = new Set();
-  const state = { pending: false, timer: undefined };
+  const state = {
+    pending: false,
+    timer: undefined,
+    followInAppPosition: request.followInAppPosition === true,
+  };
+  const positions = new Set();
   const notify = () => {
     for (const refresh of listeners) refresh();
   };
@@ -61,7 +69,21 @@ module.exports = function callPiP(request, ui) {
   const openPiP = (open, args, origin) => {
     clear();
     state.pending = true;
-    state.pendingOrigin = origin;
+    let corner;
+    try {
+      if (state.followInAppPosition && origin?.inApp && positions.size === 1) {
+        const native = [...positions][0].pipVideoWindow;
+        if (
+          native &&
+          !native.hidden &&
+          ["top-left", "top-right", "bottom-left", "bottom-right"].includes(native.position)
+        )
+          corner = native.position;
+      }
+    } catch {
+      /* A changed or closing native overlay uses the default corner. */
+    }
+    state.pendingOrigin = { ...origin, corner };
     state.timer = setTimeout(clear, 60000);
     try {
       const result = open(...args);
@@ -95,8 +117,18 @@ module.exports = function callPiP(request, ui) {
       ["popoutWindowAlwaysOnTop", "onToggleStayOnTop"].every((word) => source.includes(word)) ||
       ["renderBottomRightControls", "renderSettingsIcon", "renderPopoutIcon", "VIDEO_PIP"].every(
         (word) => source.includes(word),
-      ),
+      ) ||
+      source.includes("PictureInPictureStore"),
     (exports, runtime) => {
+      for (const value of [exports, ...Object.values(exports || {})])
+        if (
+          value &&
+          typeof value === "object" &&
+          "pipVideoWindow" in value &&
+          typeof value.getDockedRect === "function" &&
+          typeof value.pipWidth === "function"
+        )
+          positions.add(value);
       React ||= ui.inspect(runtime).React;
       if (!React) return;
       const matches = Object.entries(exports || {}).filter(([, value]) => {
@@ -233,6 +265,7 @@ module.exports = function callPiP(request, ui) {
                     iconComponent: OverlayIcon,
                     iconClassName: undefined,
                     onOpenPopout: pipCallback(this.handleOpenPopout, {
+                      inApp: true,
                       channelId: this.props.channel?.id,
                       participantId: this.props.participantOnScreen?.id,
                     }),

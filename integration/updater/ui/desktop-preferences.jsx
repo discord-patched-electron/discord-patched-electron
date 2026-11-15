@@ -221,8 +221,8 @@ export function PopoutPreferences({ model }) {
       </h3>
       <Select
         id="desktop-popoutCorner"
-        label="PiP corner"
-        description="Choose where PiP appears. An unchanged PiP moves when you change this."
+        label="Default PiP corner"
+        description="Used unless PiP follows the in-app corner. An unchanged PiP moves when you change this."
         value={values?.popoutCorner || "bottom-right"}
         options={[
           ["top-left", "Top left"],
@@ -232,6 +232,12 @@ export function PopoutPreferences({ model }) {
         ]}
         disabled={model.busy || !values}
         onChange={(popoutCorner) => model.save({ popoutCorner })}
+      />
+      <DesktopSwitch
+        model={model}
+        name="popoutFollowInAppPosition"
+        label="Follow in-app PiP position"
+        description="Open PiP in the same corner as Discord’s in-app PiP. Launching from the call view uses the default corner."
       />
       <DesktopSwitch
         model={model}
