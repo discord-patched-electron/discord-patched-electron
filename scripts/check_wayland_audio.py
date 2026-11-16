@@ -31,7 +31,7 @@ from desktop_identity import desktop_id
 from patch_app_audio import patch
 
 
-def analyze(output):
+def analyze(output, native_capture_recovery=False):
     cases = {
         "app-a": (True, True, False),
         "app-b": (False, False, True),
@@ -43,6 +43,8 @@ def analyze(output):
         "app-exited": (False, False, False),
         "cleared": (False, False, False),
     }
+    if native_capture_recovery:
+        cases["capture-recovered"] = (True, True, False)
     results = {}
     for name, expected in cases.items():
         file = output / (name + ".raw")
@@ -132,6 +134,7 @@ def session(
             "GSK_RENDERER": "cairo",
             "DPE_AUDIO_OUTPUT": str(output),
             "DPE_APP_AUDIO_TRACE": "1",
+            "DPE_FIXTURE_CAPTURE_RECOVERY": "1" if pulse == "pipewire" else "0",
             "CHROME_DESKTOP": identity + ".desktop",
         }
 
@@ -157,6 +160,8 @@ def session(
 
         def command(args):
             return sp.check_output(args, env=env, text=True, timeout=5)
+
+        default_source = "test-microphone" if pulse == "pipewire" else "test-sink.monitor"
 
         def select_audio():
             """Operate only the disposable fixture's real Wayland Zenity dialog."""
@@ -239,12 +244,13 @@ def session(
             )
             ready(lambda: (run / "bus").exists())
             config = (ROOT / "tests/audio/pipewire.conf").read_text()
-            if pulse == "pulseaudio":
-                config = config.replace(" { name = libpipewire-module-protocol-pulse }", "")
+            config = config.replace(" { name = libpipewire-module-protocol-pulse }", "")
             (output / "pipewire.conf").write_text(config)
             spawn(["pipewire", "-c", str(output / "pipewire.conf")], "pipewire")
             ready(lambda: (run / "dpe-audio").exists())
-            if pulse == "pulseaudio":
+            if pulse == "pipewire":
+                spawn(["pipewire-pulse"], "pipewire-pulse")
+            else:
                 (run / "pulse").mkdir()
                 pa = output / "pulse.pa"
                 pa.write_text(
@@ -280,7 +286,7 @@ def session(
             # ADM initialization can hang if policy has not selected one yet.
             ready(
                 lambda: any(
-                    s["name"] == "test-sink.monitor"
+                    s["name"] == default_source
                     for s in json.loads(command(["pactl", "-f", "json", "list", "sources"]))
                 )
             )
@@ -297,7 +303,7 @@ def session(
                     == 0
                     for action, device in [
                         ("set-default-sink", "test-sink"),
-                        ("set-default-source", "test-sink.monitor"),
+                        ("set-default-source", default_source),
                     ]
                 )
 
@@ -305,7 +311,7 @@ def session(
             ready(
                 lambda: (
                     json.loads(command(["pactl", "-f", "json", "info"])).get("default_source_name")
-                    == "test-sink.monitor"
+                    == default_source
                 )
             )
             command(["niri", "validate", "-c", str(ROOT / "tests/wayland/niri.kdl")])
@@ -617,7 +623,7 @@ def check(
         expected = read_json(provenance)["capacity"].get("compiled_version", "44.0.0-reference.1")
         if fixture["versions"]["electron"] != expected:
             raise ValueError("Wrong compiler runtime loaded")
-    analysis = analyze(output)
+    analysis = analyze(output, fixture.get("native_capture_recovery", False))
     validate_phases(fixture, analysis["cases"])
     report = {
         "schema": 1,

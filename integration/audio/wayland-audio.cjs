@@ -40,11 +40,14 @@ function installVoice(voice) {
         return selected?.(...args);
       },
       (...args) => {
-        picker("cancel");
+        // A completed picker no longer owns the accepted connection. A late
+        // dismissal (including an existing-source picker) must not tear down
+        // its audio; source end/clear/release still handle actual teardown.
+        if (pickerPending) picker("cancel");
         return cancelled?.(...args);
       },
       (...args) => {
-        picker("cancel");
+        if (pickerPending) picker("cancel");
         return failed?.(...args);
       },
     );
@@ -235,21 +238,32 @@ function wrap(
         }
         if (value.state === "unavailable" && lastState !== value.state)
           warn(
-            "Application audio is unavailable; check that PipeWire and the audio helper tools are installed.",
+            value.reason === "native-capture"
+              ? "Discord's application-audio recorder could not start after retrying. Toggle Share audio to try again."
+              : "Application audio is unavailable; check that PipeWire and the audio helper tools are installed.",
           );
         lastState = value.state;
       }
     });
-    const failed = () => {
+    const failed = (reason) => {
       if (helper === child) {
         clearInterval(observationTimer);
         helper = null;
         dismissPicker();
-        if (!disposed) silence();
+        if (!disposed) {
+          silence();
+          warn(`Application audio helper ${reason}; audio is off.`);
+        }
       }
     };
-    child.on("error", failed);
-    child.on("exit", failed);
+    child.on("error", () => failed("could not start"));
+    child.on("exit", (code, signal) =>
+      failed(
+        typeof signal === "string" && /^SIG[A-Z0-9]+$/.test(signal)
+          ? `stopped (${signal})`
+          : `exited (code ${Number.isInteger(code) ? code : "unknown"})`,
+      ),
+    );
     return child;
   }
   function configure() {

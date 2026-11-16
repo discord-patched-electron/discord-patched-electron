@@ -67,6 +67,9 @@ class AudioEvidence(unittest.TestCase):
             ]:
                 tone(frequencies).tofile(directory / (phase + ".raw"))
             self.assertTrue(analyze(directory)["all_cases_passed"])
+            self.assertFalse(analyze(directory, True)["all_cases_passed"])
+            tone((440, 660)).tofile(directory / "capture-recovered.raw")
+            self.assertTrue(analyze(directory, True)["all_cases_passed"])
             # Only one 10 ms frame leaks the other app: a median-only check
             # would miss it, but the maximum clean-frame assertion rejects it.
             samples = tone((440, 660))

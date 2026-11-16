@@ -25,6 +25,17 @@ existing lock. Do not clamp values, invent channels, hide device events or chang
 unrelated buffer ABI. Executable fixtures cover lock balance, valid/invalid
 values, repeated preparation and changed-byte rejection.
 
+Canary 1.0.2483's final Pulse reconnect stage replaces `PulseConnect` and its
+stack-unwinding metadata. It reuses the existing recursive mainloop
+lock and reconstructs failed/terminated contexts after detaching old stream maps;
+healthy/connecting contexts and one-time loop startup are preserved. Whole-file
+input/output hashes bind both regions, PLT targets and controller fields. Earlier
+stages recognize the corrected final identity without reverting it; updater,
+package and compatibility fingerprints include the patch script. Executable
+instruction and isolated native disconnect/recovery checks cover this contract;
+see [application audio](audio.md#routing-and-teardown). This stage is not ported
+to older reviewed clients.
+
 Retained decoder work repairs send/receive EAGAIN and buffered output without
 losing packet/frame metadata, leaking buffers or assuming one output per input.
 Use the executable fixture and actual native receiver, including send errors,

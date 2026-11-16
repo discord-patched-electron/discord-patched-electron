@@ -52,11 +52,13 @@ class AppAudioPatch(unittest.TestCase):
                 mock_patch("patch_app_audio.patch_capture_chroma", return_value={}),
                 mock_patch("patch_app_audio.patch_presentation_clock", return_value={}),
                 mock_patch("patch_app_audio.patch_video_pacing", return_value={}),
+                mock_patch("patch_app_audio.patch_pulse_reconnect", return_value={}),
             ):
                 patch(directory, adapter)
                 self.assertEqual(wrapper.read_text().count(ANCHOR + VIDEO_INSERT + INSERT), 1)
                 self.assertEqual(wrapper.read_text().count(INSERT), 1)
 
+    @mock_patch("patch_app_audio.patch_pulse_reconnect", return_value={"reconnect_fixture": True})
     @mock_patch("patch_app_audio.patch_video_pacing", return_value={"pacing_fixture": True})
     @mock_patch("patch_app_audio.patch_presentation_clock", return_value={"clock_fixture": True})
     @mock_patch("patch_app_audio.patch_capture_chroma", return_value={"chroma_fixture": True})
@@ -67,7 +69,7 @@ class AppAudioPatch(unittest.TestCase):
     @mock_patch("patch_app_audio.patch_vaapi_hrd", return_value={"video_fixture": True})
     @mock_patch("patch_app_audio.patch_pulse_audio", return_value={"fixture": True})
     def test_known_wrapper_is_idempotent_and_unknown_layout_fails_unchanged(
-        self, native, video, dimensions, decoder, chroma, clock, pacing
+        self, native, video, dimensions, decoder, chroma, clock, pacing, reconnect
     ):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
@@ -90,6 +92,8 @@ class AppAudioPatch(unittest.TestCase):
             chroma.assert_called_once_with(directory / "discord_voice.node")
             clock.assert_called_once_with(directory / "discord_voice.node")
             pacing.assert_called_once_with(directory / "discord_voice.node")
+            reconnect.assert_called_once_with(directory / "discord_voice.node")
+            self.assertEqual(report["native_pulse_reconnect_patch"], {"reconnect_fixture": True})
             self.assertEqual(report["native_video_pacing_patch"], {"pacing_fixture": True})
             self.assertEqual(report["native_presentation_clock_patch"], {"clock_fixture": True})
             self.assertEqual(report["native_buffer_patch"], {"fixture": True})

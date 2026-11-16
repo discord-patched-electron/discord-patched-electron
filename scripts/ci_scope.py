@@ -124,6 +124,7 @@ RULES = (
             "scripts/patch_app_audio.py",
             "scripts/build_ui.py",
             "scripts/patch_pulse_audio.py",
+            "scripts/patch_pulse_reconnect.py",
             "scripts/desktop_identity.py",
         ),
         ("packaging", "audio"),

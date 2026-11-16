@@ -133,7 +133,7 @@ class SnapshotProcessReview(unittest.TestCase):
         routes = []
 
         def route():
-            result = Mock(capture_pid=900)
+            result = Mock(capture_pid=900, **{"recording_state.return_value": "ready"})
             routes.append(result)
             return result
 

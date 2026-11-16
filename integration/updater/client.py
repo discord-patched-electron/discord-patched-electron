@@ -65,6 +65,7 @@ def compatibility_key() -> str:
         "scripts/native_client_2472.py",
         "scripts/native_client_2483.py",
         "scripts/patch_pulse_audio.py",
+        "scripts/patch_pulse_reconnect.py",
         "scripts/patch_vaapi_hrd.py",
         "scripts/patch_capture_dimensions.py",
         "scripts/patch_capture_chroma.py",

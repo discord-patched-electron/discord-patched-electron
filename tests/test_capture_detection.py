@@ -161,7 +161,9 @@ class CaptureDetection(unittest.TestCase):
             patch.object(audio.time, "monotonic", return_value=10),
             patch.dict(audio.os.environ, {"NIRI_SOCKET": "fixture"}),
             patch.object(audio, "niri_request") as niri,
-            patch.object(audio, "Route") as route,
+            patch.object(
+                audio, "Route", **{"return_value.recording_state.return_value": "ready"}
+            ) as route,
             contextlib.redirect_stdout(io.StringIO()),
         ):
             controller = self.controller()
@@ -224,7 +226,9 @@ class CaptureDetection(unittest.TestCase):
             patch.object(audio, "command", return_value=json.dumps(pulse)),
             patch.object(audio, "video_sources", return_value={(42, "100")}),
             patch("window_inventory.windows", return_value=[]),
-            patch.object(audio, "Route") as route,
+            patch.object(
+                audio, "Route", **{"return_value.recording_state.return_value": "ready"}
+            ) as route,
             contextlib.redirect_stdout(io.StringIO()) as output,
         ):
             controller = self.controller()
@@ -291,7 +295,9 @@ class CaptureDetection(unittest.TestCase):
             patch.object(audio, "command", return_value="[]"),
             patch.object(audio, "video_sources", return_value={(42, "100")}),
             patch("window_inventory.windows", return_value=self.windows),
-            patch.object(audio, "Route") as route,
+            patch.object(
+                audio, "Route", **{"return_value.recording_state.return_value": "ready"}
+            ) as route,
             patch.dict(audio.os.environ, {}, clear=True),
         ):
             route.return_value.capture_pid = 900

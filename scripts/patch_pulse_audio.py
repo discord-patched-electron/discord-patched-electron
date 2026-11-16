@@ -17,6 +17,7 @@ from capstone.x86 import X86_INS_CALL, X86_INS_JMP, X86_OP_IMM, X86_OP_MEM, X86_
 from common import sha256
 from elftools.common.exceptions import ELFError
 from elftools.elf.elffile import ELFFile
+from patch_pulse_reconnect import restored
 
 PREFIX = "_ZN7discord5media10soundshare20PulseAudioController"
 ATTACH = PREFIX + "6AttachEjNSt4__Cr12basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEE"
@@ -223,8 +224,9 @@ def patch(binary: Path) -> dict:
     original = binary.read_bytes()
     before = hashlib.sha256(original).hexdigest()
     try:
-        offset, already = patch_site(original)
-        volume_offset, volume_already = volume_site(original)
+        layout = restored(original)
+        offset, already = patch_site(layout)
+        volume_offset, volume_already = volume_site(layout)
     except (ValueError, ELFError, CsError) as error:
         # The updater treats unsupported layouts as a permanent compatibility
         # failure, instead of repeatedly downloading the same unsupported module.

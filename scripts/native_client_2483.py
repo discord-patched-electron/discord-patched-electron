@@ -65,6 +65,26 @@ STAGES = {
             ),
         ),
     ),
+    "pulse-reconnect": (
+        "42b32e010c1bbd57bc0eb71b0b751730738d85e282c920f331ffabcb3ef035e5",
+        "3d67b22c8c69652420fcf299d65ca49cc8c8d4f938a9c16718842e851de683b4",
+        (
+            (
+                0x472CB0,
+                bytes.fromhex(
+                    "534883bf700200000074025bc34889fbe84b1cf0ff84c07521488d3d2e763d01488d356a7f3e01488d0d16843e01ba610f000031c0e8a6c52300e8f1f2e1ff488983700200004889c7e8f2d9e1ff488d3512843e014889c7e8e3d3e1ff48898378020000488d3505f6ffff4889c74889dae8fadae1ff488bbb78020000488d35fce8ffff4889dae8b4dae1ff488bbb7802000031f6ba0100000031c9e80fffe1ff488bbb70020000488d35c8833e01e8cce7e1ff488bbb700200005be9eff4e1ff"
+                ),
+                bytes.fromhex(
+                    "53488d9f70020000488b3b4885ff751fe81bf3e1ff4889034889c7488d3555843e01e859e8e1ff488b3be881f5e1ff488b3be839dee1ff488b7b084885ff741ee8dbfde1ff3c05726e488dbb90fdffffe86b010000488b7b08e8d201e2ff488b3be8dad9e1ff488d35fa833e014889c7e8cbd3e1ff48894308488d35f0f5ffff4889c7488d9390fdffffe8e1dae1ff488b7b08488d35e6e8ffff488d9390fdffffe89adae1ff488b7b0831f631d2ffc231c9e8f9fee1ff488b3be8c1d4e1ff5bc3"
+                ),
+            ),
+            (
+                0x1B4A1A9,
+                bytes.fromhex("410e1083024b0e08410e1002af0e08"),
+                bytes.fromhex("410e10830202bf0e08c30000000000"),
+            ),
+        ),
+    ),
 }
 HASHES = {digest for before, after, _ in STAGES.values() for digest in (before, after)}
 

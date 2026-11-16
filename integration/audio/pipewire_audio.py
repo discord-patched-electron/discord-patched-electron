@@ -324,6 +324,11 @@ class Route:
         self.owner = None
         self.playback = None
         self.guard = None
+        self.native = None
+        self.native_ready = False
+        self.bridge = None
+        self.capture_missing_since = None
+        self.capture_retries = 0
 
     def spawn(self, args, **kwargs):
         # Native Discord's libpulse override must not replace the explicit,
@@ -400,7 +405,7 @@ class Route:
             self.mix = self.create_sink(self.prefix + "-mix")
             server = json.loads(command([system_tool("pactl"), "-f", "json", "info"]))
             if "PipeWire" in server.get("server_name", ""):
-                native = self.create_sink(self.prefix + "-native")
+                self.native = self.create_sink(self.prefix + "-native")
                 # Stay on the PipeWire graph: raw pw-cat -> pacat pipes lose
                 # capture timing and can retain old PCM after backpressure.
                 # Loopback uses the newest capture buffer at each playback
@@ -413,7 +418,7 @@ class Route:
                         "-C",
                         self.mix,
                         "-P",
-                        native,
+                        self.native,
                         "-c",
                         "2",
                         "-l",
@@ -481,6 +486,63 @@ class Route:
         except Exception:
             self.close()
             raise
+
+    def ready(self, objects, pulse):
+        self.native_ready = False
+        self.bridge = None
+        if self.native is None:
+            return True  # The real PulseAudio backend retains its separate bridge.
+        streams = {str(s.get("properties", {}).get("object.serial")): s for s in pulse}
+        for node, properties in playback_entries(objects, pulse):
+            stream = streams.get(str(properties.get("object.serial")), {})
+            if (
+                properties.get("node.name") == "output." + self.prefix + "-bridge"
+                and audio_pid(properties) == self.playback.pid
+                and str(properties.get("target.object")) == self.native
+                and node.get("info", {}).get("state") == "running"
+                and stream.get("corked") is False
+                and stream.get("mute") is False
+                and 0 < integer(stream.get("client")) < 0xFFFFFFFF
+                and str(stream.get("sink")) == self.native
+            ):
+                self.native_ready = True
+                self.bridge = (node["id"], str(properties["object.serial"]))
+                return True
+        self.capture_missing_since = None
+        return False
+
+    def recording_state(self, objects, owner):
+        if self.native is None:
+            return "ready"  # Real PulseAudio has no shared recording graph.
+        clients = {x["id"]: props(x) for x in objects if x["type"] == "PipeWire:Interface:Client"}
+        linked = {
+            x.get("info", {}).get("input-node-id")
+            for x in objects
+            if x["type"] == "PipeWire:Interface:Link"
+            and x.get("info", {}).get("output-node-id") == self.bridge[0]
+        }
+        for node in objects:
+            p = props(node)
+            client = clients.get(integer(p.get("client.id")), {})
+            if (
+                node["type"] == "PipeWire:Interface:Node"
+                and p.get("media.class") == "Stream/Input/Audio"
+                and integer(client.get("application.process.id", p.get("application.process.id")))
+                == owner
+                and (str(p.get("target.object")) == self.bridge[1] or node["id"] in linked)
+            ):
+                self.capture_missing_since = None
+                return "ready"
+        now = time.monotonic()
+        if self.capture_missing_since is None:
+            self.capture_missing_since = now
+        if now - self.capture_missing_since < 5:
+            return "ready"  # Allow asynchronous native recording startup.
+        if self.capture_retries >= 3:
+            return "unavailable"
+        self.capture_retries += 1
+        self.capture_missing_since = None
+        return "retry"
 
     def sync(self, objects, pulse, target, excluded):
         if not all(
@@ -648,13 +710,15 @@ class Controller:
         self.pending_choice = False
         self.choices = {}
 
-    def emit(self, pid=0, state="waiting", backend=None):
+    def emit(self, pid=0, state="waiting", backend=None, reason=None):
         value = {
             "generation": self.generation,
             "pid": pid,
             "state": state,
             "backend": backend,
         }
+        if reason is not None:
+            value["reason"] = reason
         if value != self.last:
             print(json.dumps(value), flush=True)
             self.last = value
@@ -1109,7 +1173,13 @@ class Controller:
             objects = graph()
             pulse = json.loads(command([system_tool("pactl"), "-f", "json", "list", "sink-inputs"]))
         else:
-            objects, pulse = self.events.snapshot()
+            if self.route and self.route.native is not None and not self.route.native_ready:
+                # Pulse may not publish a separate uncork notification for a
+                # native PipeWire stream. Do not let a cached corked snapshot
+                # block the initial handoff indefinitely.
+                objects, pulse = self.events.snapshot(refresh_inputs=True)
+            else:
+                objects, pulse = self.events.snapshot()
         # Direct GPU sources intentionally have no PipeWire video node. Bind the
         # audio choice to the native capture request instead of guessing a node.
         sources = (
@@ -1239,10 +1309,28 @@ class Controller:
             self.route = route
         self.target = identity
         self.route.sync(objects, pulse, self.target, self.excluded)
+        if not self.route.ready(objects, pulse):
+            # Spawning a worker does not mean its Pulse-visible playback stream
+            # exists or is uncorked. A native attachment made during startup can
+            # fail asynchronously and remain stuck on that PID. Keep consent and
+            # the route while graph notifications complete the bridge handoff.
+            self.emit()
+            return
         if automatic and identity is not None and not self.route.feeds:
             # Identity and playback availability are separate. A known app may
             # be paused or open its first stream much later. Keep watching its
             # bound process family without prompting or capturing another app.
+            return
+        recording = self.route.recording_state(objects, self.owner)
+        if recording != "ready":
+            # A successful connect_record call only queues an asynchronous
+            # request. The native controller does not reconnect a failed Pulse
+            # context. Drop the PID for one tick, then attach the same private
+            # bridge again without replacing app identity, feeds or consent.
+            self.emit(
+                state="unavailable" if recording == "unavailable" else "waiting",
+                reason="native-capture" if recording == "unavailable" else None,
+            )
             return
         self.emit(self.route.capture_pid, "ready", target["backend"])
 
@@ -1362,4 +1450,25 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        # The JS boundary suppresses arbitrary stderr. Report a fatal helper
+        # failure without exception text, protocol payloads or environment data.
+        frame = error.__traceback__
+        while frame.tb_next:
+            frame = frame.tb_next
+        print(
+            "[dpe-audio-helper-error] "
+            + json.dumps(
+                {
+                    "type": type(error).__name__,
+                    "function": frame.tb_frame.f_code.co_name,
+                    "line": frame.tb_lineno,
+                    "fatal": True,
+                }
+            ),
+            file=sys.stderr,
+            flush=True,
+        )
+        sys.exit(1)

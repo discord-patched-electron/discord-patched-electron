@@ -68,10 +68,6 @@ let connection, pickerResult;
 voice.setNativeScreenSharePickerCallbacks(
   () => {
     events.push({ event: "selected" });
-    connection.setDesktopSourceWithOptions({
-      sourceId: "screen:0:0",
-      type: "screen",
-    });
     pickerResult?.("selected");
   },
   () => {
@@ -106,6 +102,14 @@ async function choose(selection) {
     soundsharePid: 1,
     soundshareLoopback: true,
   });
+  if (result === "selected") {
+    // Match MediaEngineNative: soundshare is configured before the source,
+    // and the native setter receives the split prepicked:0 identifier.
+    connection.setDesktopSourceWithOptions({ sourceId: "0", type: "prepicked" });
+    // A repeated source setter must preserve the selected application's audio.
+    await wait(600);
+    connection.setDesktopSourceWithOptions({ sourceId: "0", type: "prepicked" });
+  }
   if (explicitSelection && result === "selected") {
     const deadline = Date.now() + 90000;
     while (!fs.existsSync(done)) {
@@ -209,6 +213,36 @@ async function capture(name, change, settle = 2000) {
     events.push({ event: "video-status", value }),
   );
   await capture("app-a", () => choose({ pid: inputs.a.pid, kind: "window" }));
+  if (process.env.DPE_FIXTURE_CAPTURE_RECOVERY === "1") {
+    await capture(
+      "capture-recovered",
+      () => {
+        const { execFileSync } = require("node:child_process");
+        const clients = JSON.parse(
+          execFileSync("/usr/bin/pactl", ["-f", "json", "list", "clients"], {
+            encoding: "utf8",
+          }),
+        ).filter(
+          (client) =>
+            client.properties?.["application.name"] === "discord_capture" &&
+            Number(client.properties?.["application.process.id"]) === process.pid,
+        );
+        if (clients.length !== 1) throw new Error("Expected one owned native capture client");
+        // Disconnect only this fixture's soundshare context. Voice, video,
+        // helper workers and the selected application's playback stay alive.
+        const objects = JSON.parse(execFileSync("/usr/bin/pw-dump", { encoding: "utf8" }));
+        const owned = objects.filter(
+          (object) =>
+            object.type === "PipeWire:Interface:Client" &&
+            Number(object.info?.props?.["object.serial"]) === clients[0].index,
+        );
+        if (owned.length !== 1) throw new Error("Expected the owned PipeWire capture client");
+        execFileSync("/usr/bin/pw-cli", ["destroy", String(owned[0].id)]);
+        events.push({ event: "capture-interrupted" });
+      },
+      8000,
+    );
+  }
   await capture("app-b", () => choose({ pid: inputs.b.pid, kind: "window" }));
   await capture("system", () => choose({ kind: "system" }));
   await capture("disabled", () => connection.setTransportOptions({ soundsharePid: 0 }));
@@ -250,6 +284,7 @@ async function capture(name, change, settle = 2000) {
     pcmFormats,
     portal: "controlled test portal backed by real niri screencasts",
     real_discord_call_verified: false,
+    native_capture_recovery: process.env.DPE_FIXTURE_CAPTURE_RECOVERY === "1",
   });
 })().catch((error) =>
   ipcRenderer.send("audio-result", {

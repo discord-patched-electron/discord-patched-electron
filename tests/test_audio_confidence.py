@@ -360,6 +360,19 @@ class AudioConfidence(unittest.TestCase):
         self.assertEqual(self.controller.target, self.processes[200])
         self.assertEqual(len(self.events("choosing")), 1)
 
+    def test_bridge_startup_does_not_publish_a_pid_before_the_endpoint_is_ready(self):
+        self.open_uncertain_picker()
+        with patch.object(audio.Route, "ready", return_value=False):
+            self.reply("200")
+            route = self.controller.route
+            self.assertIsNotNone(route)
+            self.assertEqual(self.controller.target, self.processes[200])
+            self.assertEqual(self.events("ready"), [])
+        self.controller.tick()
+        self.assertIs(self.controller.route, route)
+        self.assertEqual(len(self.events("ready")), 1)
+        self.assertEqual(len(self.events("choosing")), 1)
+
     def test_cancellation_survives_graph_failures_and_temporary_missing_video(self):
         self.open_uncertain_picker()
         self.reply("")
@@ -373,6 +386,26 @@ class AudioConfidence(unittest.TestCase):
         self.assertIsNone(self.controller.route)
         self.assertEqual(len(self.events("choosing")), 1)
         self.assertEqual(self.events("ready"), [])
+
+    def test_native_recording_retry_keeps_manual_identity_feeds_and_consent(self):
+        self.open_uncertain_picker()
+        self.reply("200")
+        route = self.controller.route
+        feeds = dict(route.feeds)
+        with patch.object(route, "recording_state", side_effect=["retry", "ready", "unavailable"]):
+            self.window_pid = 300
+            self.controller.tick()
+            self.assertEqual(self.controller.last["pid"], 0)
+            self.assertEqual(self.controller.last["state"], "waiting")
+            self.controller.tick()
+            self.assertEqual(self.controller.last["pid"], route.capture_pid)
+            self.controller.tick()
+            self.assertEqual(self.controller.last["state"], "unavailable")
+            self.assertEqual(self.controller.last["reason"], "native-capture")
+        self.assertIs(self.controller.route, route)
+        self.assertEqual(route.feeds, feeds)
+        self.assertEqual(self.controller.target, self.processes[200])
+        self.assertEqual(len(self.events("choosing")), 1)
 
     def test_failed_pending_picker_reopens_with_a_new_request_and_rejects_old_reply(self):
         self.open_uncertain_picker()

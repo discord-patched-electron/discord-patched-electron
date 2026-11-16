@@ -9,6 +9,7 @@ from patch_capture_dimensions import patch as patch_capture_dimensions
 from patch_decoder_eagain import patch as patch_decoder_eagain
 from patch_presentation_clock import patch as patch_presentation_clock
 from patch_pulse_audio import patch as patch_pulse_audio
+from patch_pulse_reconnect import patch as patch_pulse_reconnect
 from patch_vaapi_hrd import patch as patch_vaapi_hrd
 from patch_video_pacing import patch as patch_video_pacing
 
@@ -137,6 +138,7 @@ def patch(directory: Path, adapter: Path) -> dict:
     chroma = patch_capture_chroma(directory / "discord_voice.node")
     presentation = patch_presentation_clock(directory / "discord_voice.node")
     pacing = patch_video_pacing(directory / "discord_voice.node")
+    reconnect = patch_pulse_reconnect(directory / "discord_voice.node")
     wrapper.write_text(source)
     shutil.copy2(adapter, directory / "dpe-app-audio.cjs")
     for name, destination in SIDECARS.items():
@@ -153,6 +155,7 @@ def patch(directory: Path, adapter: Path) -> dict:
         "native_capture_chroma_patch": chroma,
         "native_presentation_clock_patch": presentation,
         "native_video_pacing_patch": pacing,
+        "native_pulse_reconnect_patch": reconnect,
         "enabled_by_default": True,
         "default_sessions": ["wayland"],
         "disable_environment": "DPE_APP_AUDIO=0",

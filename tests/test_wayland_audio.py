@@ -17,6 +17,119 @@ spec.loader.exec_module(audio)
 
 
 class WaylandRoute(unittest.TestCase):
+    def test_missing_native_recording_retries_are_bounded_and_match_only_our_bridge(self):
+        route = audio.Route()
+        route.native = "102"
+        route.bridge = (11, "103")
+        client = {
+            "id": 20,
+            "type": "PipeWire:Interface:Client",
+            "info": {"props": {"application.process.id": 100}},
+        }
+        recorder = {
+            "id": 21,
+            "type": "PipeWire:Interface:Node",
+            "info": {
+                "props": {
+                    "client.id": 20,
+                    "media.class": "Stream/Input/Audio",
+                    "target.object": "103",
+                }
+            },
+        }
+        with patch.object(audio.time, "monotonic", return_value=10) as clock:
+            self.assertEqual(route.recording_state([], 100), "ready")
+            clock.return_value = 14.9
+            self.assertEqual(route.recording_state([], 100), "ready")
+            clock.return_value = 15
+            self.assertEqual(route.recording_state([], 100), "retry")
+            self.assertEqual(route.capture_retries, 1)
+            self.assertEqual(route.recording_state([], 100), "ready")
+            self.assertEqual(route.recording_state([client, recorder], 100), "ready")
+            self.assertIsNone(route.capture_missing_since)
+            # Other Discord connections and microphone capture cannot hide a
+            # failed recorder for this exact private bridge.
+            for owner, target in [(999, "103"), (100, "microphone")]:
+                recorder["info"]["props"]["target.object"] = target
+                clock.return_value += 1
+                self.assertEqual(route.recording_state([client, recorder], owner), "ready")
+                self.assertIsNotNone(route.capture_missing_since)
+                clock.return_value += 5
+                self.assertEqual(route.recording_state([client, recorder], owner), "retry")
+            self.assertEqual(route.capture_retries, 3)
+            self.assertEqual(route.recording_state([], 100), "ready")
+            clock.return_value += 5
+            self.assertEqual(route.recording_state([], 100), "unavailable")
+            clock.return_value += 300
+            self.assertEqual(route.recording_state([], 100), "unavailable")
+            self.assertEqual(route.capture_retries, 3)
+            # A server can remove target.object after making the exact link.
+            link = {
+                "id": 22,
+                "type": "PipeWire:Interface:Link",
+                "info": {"output-node-id": 11, "input-node-id": 21},
+            }
+            self.assertEqual(route.recording_state([client, recorder, link], 100), "ready")
+            self.assertIsNone(route.capture_missing_since)
+
+    def test_pipewire_bridge_waits_for_its_uncorked_pulse_visible_endpoint(self):
+        route = audio.Route()
+        route.native = "102"
+        route.playback = Mock(pid=4321)
+        client = {
+            "id": 10,
+            "type": "PipeWire:Interface:Client",
+            "info": {"props": {"application.process.id": 4321}},
+        }
+        node = {
+            "id": 11,
+            "type": "PipeWire:Interface:Node",
+            "info": {
+                "state": "running",
+                "props": {
+                    "media.class": "Stream/Output/Audio",
+                    "client.id": 10,
+                    "object.serial": 103,
+                    "target.object": 102,
+                    "node.name": "output." + route.prefix + "-bridge",
+                },
+            },
+        }
+        stream = {
+            "properties": {"object.serial": "103"},
+            "client": "104",
+            "sink": 102,
+            "corked": False,
+            "mute": False,
+        }
+        self.assertFalse(route.ready([], []))
+        self.assertFalse(route.ready([client, node], []))
+        for field, value in [("corked", True), ("client", None), ("sink", 999), ("mute", True)]:
+            with self.subTest(field=field):
+                self.assertFalse(route.ready([client, node], [{**stream, field: value}]))
+        self.assertTrue(route.ready([client, node], [stream]))
+        node["info"]["state"] = "suspended"
+        self.assertFalse(route.ready([client, node], [stream]))
+
+    def test_fatal_controller_errors_report_location_without_protocol_contents(self):
+        secret = "private-protocol-value"
+        result = audio.sp.run(
+            [sys.executable, str(Path(audio.__file__)), "--owner", str(audio.os.getpid())],
+            input=audio.json.dumps({"generation": secret}) + "\n",
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        self.assertEqual(result.returncode, 1)
+        prefix = "[dpe-audio-helper-error] "
+        self.assertTrue(result.stderr.startswith(prefix), result.stderr)
+        detail = audio.json.loads(result.stderr.removeprefix(prefix))
+        self.assertEqual(detail["type"], "ValueError")
+        self.assertEqual(detail["function"], "main")
+        self.assertIs(type(detail["line"]), int)
+        self.assertTrue(detail["fatal"])
+        self.assertNotIn(secret, result.stderr)
+
     def test_pipewire_bridge_exposes_worker_pid_without_a_raw_audio_pipe(self):
         route = audio.Route()
         child = Mock(pid=4321)

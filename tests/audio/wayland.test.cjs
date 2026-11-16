@@ -118,6 +118,37 @@ test("late helper responses cannot restore audio after switching or ending a sou
   assert.equal(f.calls.at(-1).soundsharePid, 0);
   f.adapter.destroy();
 });
+test("native capture retries preserve the helper and report exhausted recording startup", (t) => {
+  const f = fixture(t);
+  f.adapter.setDesktopSource("screen:0:0");
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  const child = f.children[0];
+  const report = (state, reason) =>
+    child.stdout.emit(
+      "data",
+      Buffer.from(
+        JSON.stringify({
+          generation: child.messages.at(-1).generation,
+          state,
+          pid: 0,
+          reason,
+        }) + "\n",
+      ),
+    );
+  f.ready(child, 2500);
+  report("waiting");
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
+  f.ready(child, 2500);
+  assert.equal(f.calls.at(-1).soundsharePid, 2500);
+  assert.equal(f.children.length, 1);
+  assert.equal(child.closed, undefined);
+  assert.deepEqual(f.warnings, []);
+  report("unavailable", "native-capture");
+  report("unavailable", "native-capture");
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
+  assert.equal(f.warnings.length, 1);
+  assert.match(f.warnings[0], /recorder could not start after retrying/);
+});
 test("native picker callbacks stop capture while choosing and after cancellation", (t) => {
   const previous = process.env.DPE_APP_AUDIO;
   const previousLatency = process.env.PULSE_LATENCY_MSEC;
@@ -166,6 +197,7 @@ test("native picker callbacks stop capture while choosing and after cancellation
     assert.equal(forwarded, 1);
     f.ready(f.children.at(-1), 2600);
     assert.equal(f.calls.at(-1).soundsharePid, 2600);
+    voice.presentNativeScreenSharePicker("window");
     cancelled(false);
     assert.equal(f.calls.at(-1).soundsharePid, 0);
     assert.equal(forwarded, 2);
@@ -196,6 +228,46 @@ test("explicit Wayland opt-out leaves picker methods and buffer settings alone",
     if (previous === undefined) delete process.env.DPE_APP_AUDIO;
     else process.env.DPE_APP_AUDIO = previous;
   }
+});
+
+test("late native picker cancellation cannot end an accepted source's audio", (t) => {
+  const previous = process.env.DPE_AUDIO_AUTO_DETECT;
+  process.env.DPE_AUDIO_AUTO_DETECT = "0";
+  t.after(() => {
+    if (previous === undefined) delete process.env.DPE_AUDIO_AUTO_DETECT;
+    else process.env.DPE_AUDIO_AUTO_DETECT = previous;
+  });
+  let selected, cancelled, failed;
+  const forwarded = [];
+  const voice = {
+    presentNativeScreenSharePicker() {},
+    setNativeScreenSharePickerCallbacks(...callbacks) {
+      [selected, cancelled, failed] = callbacks;
+    },
+    releaseNativeDesktopVideoSourcePickerStream() {},
+  };
+  installVoice(voice);
+  voice.setNativeScreenSharePickerCallbacks(
+    () => forwarded.push("selected"),
+    () => forwarded.push("cancelled"),
+    () => forwarded.push("failed"),
+  );
+  const f = fixture(t);
+  voice.presentNativeScreenSharePicker("window");
+  selected(false, null);
+  f.adapter.setTransportOptions({ soundsharePid: 1 });
+  f.adapter.setDesktopSourceWithOptions({ sourceId: "0", type: "prepicked" });
+  const child = f.children[0];
+  f.ready(child, 2500);
+  cancelled(false);
+  failed("previous picker closed");
+  assert.deepEqual(forwarded, ["selected", "cancelled", "failed"]);
+  assert.equal(child.closed, undefined);
+  assert.equal(f.calls.at(-1).soundsharePid, 2500);
+  // Ending the actual source remains authoritative after the picker finishes.
+  f.end();
+  assert.equal(child.closed, true);
+  assert.equal(f.calls.at(-1).soundsharePid, 0);
 });
 
 test("fragmented helper messages and invalid PIDs never become system capture", (t) => {
@@ -229,8 +301,13 @@ test("helper exit or failure silences capture and ignores stale messages", (t) =
     f.ready(child, 2500);
     child.emit(event, new Error("fixture failure"));
     assert.equal(f.calls.at(-1).soundsharePid, 0);
+    assert.equal(f.warnings.length, 1);
+    assert.match(f.warnings[0], /Application audio helper .*; audio is off\./);
+    assert.equal(f.warnings[0].includes("fixture failure"), false);
     f.ready(child, 2700);
     assert.equal(f.calls.at(-1).soundsharePid, 0);
+    child.emit("exit", 1);
+    assert.equal(f.warnings.length, 1, "one failure must not produce duplicate warnings");
   }
 });
 
@@ -646,6 +723,7 @@ test("native picker pending and callback order do not turn a new capture into a 
     assert.equal(f.calls.at(-1).soundsharePid, 2600);
     assert.deepEqual(idle.calls, [options]);
     assert.equal(idle.children.length, 0, "ordinary voice connections ignore global picker events");
+    voice.presentNativeScreenSharePicker("window");
     cancelled(false);
     f.ready(child, 2900, configuration.generation);
     assert.equal(f.calls.at(-1).soundsharePid, 0);

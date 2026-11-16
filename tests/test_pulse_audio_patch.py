@@ -269,6 +269,7 @@ print(json.dumps(dict(zero=zero, locked_zero=bool(locked_zero), again=again)))
             mock_patch("patch_app_audio.patch_capture_chroma", return_value={}),
             mock_patch("patch_app_audio.patch_presentation_clock", return_value={}),
             mock_patch("patch_app_audio.patch_video_pacing", return_value={}),
+            mock_patch("patch_app_audio.patch_pulse_reconnect", return_value={}),
             mock_patch.multiple(
                 hrd,
                 VOLUME_INPUT_SHA256=digest(guarded),

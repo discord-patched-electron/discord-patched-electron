@@ -162,9 +162,9 @@ class AudioGraph:
                 self.command(["/usr/bin/pactl", "info"])
             select.select(self.filenos(), [], [], 0.05)
 
-    def snapshot(self):
+    def snapshot(self, *, refresh_inputs=False):
         self._ready()
-        if self.inputs is None or self.pulse.inputs_dirty:
+        if refresh_inputs or self.inputs is None or self.pulse.inputs_dirty:
             self.inputs = json.loads(
                 self.command(["/usr/bin/pactl", "-f", "json", "list", "sink-inputs"])
             )

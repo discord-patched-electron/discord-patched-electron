@@ -34,10 +34,13 @@ REVIEWED = (
     ),
 )
 OUTPUT_BASES = {after: before for before, after, _ in REVIEWED}
+OUTPUT_BASES[CLIENT_2483_STAGES["pulse-reconnect"][1]] = CLIENT_2483_STAGES["pacing"][0]
 
 
 def corrected(data):
     digest = hashlib.sha256(data).hexdigest()
+    if digest == CLIENT_2483_STAGES["pulse-reconnect"][1]:
+        return data
     for before, after, offset in REVIEWED:
         if digest == after:
             return data

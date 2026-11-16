@@ -176,6 +176,12 @@ class SubscriptionLifecycle(unittest.TestCase):
         self.inputs = [{"index": 9}]
         self.assertEqual(self.events.snapshot()[1], self.inputs)
 
+    def test_bridge_readiness_can_refresh_inputs_without_a_subscription_event(self):
+        self.events.snapshot()
+        self.inputs = [{"index": 1, "corked": False}]
+        self.assertEqual(self.events.snapshot()[1], [{"index": 1}])
+        self.assertEqual(self.events.snapshot(refresh_inputs=True)[1], self.inputs)
+
     def test_subscription_never_uses_an_unconfirmed_initial_snapshot(self):
         with patch("audio_graph.time.monotonic", side_effect=[0, 4]):
             with self.assertRaisesRegex(ValueError, "ready"):
