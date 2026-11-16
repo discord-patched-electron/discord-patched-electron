@@ -1,6 +1,13 @@
 {
   "schema": 1,
   "commits": {
+    "2980430a265a7230a263eed47470e4bb97ac6a30": {
+      "Fixes": [
+        "Recover application-audio capture after Discord\u2019s native PulseAudio connection fails, preserving the selected app and retrying the recorder without restarting the video share.",
+        "Wait for the private PipeWire audio bridge to be ready before attaching native capture, and preserve accepted shares when late picker cancellation callbacks arrive.",
+        "Report audio-helper failures and exhausted recorder retries with bounded diagnostics instead of leaving application audio silently unavailable."
+      ]
+    },
     "9afbeb595acb77430a5f67d7d8d3f2f54db3e2a7": {
       "Improvements": [
         "Make bun dev run current automatically select a cache for the current Git branch and working tree, refresh changed UI/helpers, and reassemble changed native support or packaging inputs using a matching verified Electron runtime. Existing development profiles are preserved.",
