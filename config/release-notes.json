@@ -138,6 +138,14 @@
         "Keep development archives locked while they are copied or extracted, and preserve archives currently in use when pruning the download cache.",
         "Wait for actual popout destruction and persisted setup completion during release qualification, and handle display-clamped settings window sizes correctly."
       ]
+    },
+    "89d7c04aa846059e70bd1173487211530e3a5f8b": {
+      "Improvements": [
+        "Update Discord Canary to 1.0.2484, preserving upstream audio retransmission and RTCP NACK sequence handling."
+      ],
+      "Fixes": [
+        "Port the reviewed voice-module preparation and capture hooks to the new client while retaining app-audio recovery, video timing, scaling and software AV1 decoding fixes."
+      ]
     }
   }
 }
