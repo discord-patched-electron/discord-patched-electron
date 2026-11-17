@@ -296,8 +296,8 @@ The subsequent live manifest advertises revision 19. Its retained manifest hash
 is `64acfe1b610ff18095000adac409ff418a47c1cffc5ee2af57da6e921492559e` and its
 normalized lock hash is
 `9bf65d8c9a3f35fa6e5f4cdd7295fa18ef8375358bea23a09ac269a6817f9514`.
-This direct snapshot has no discovery-state commit yet; archive hashes in
-`config/clients.lock.json` bind its inputs. `out/discovery-20261116/` retains both
+Immutable client state `aaba05aab6eab429d62b87df7f5eb4797800c2e4` and the archive
+hashes in `config/clients.lock.json` bind its inputs. `out/discovery-20261116/` retains both
 immutable state locks, verified archives, complete member/ASAR inventories,
 all 11 changed-entry dispositions, text hunks and native comparisons.
 
@@ -337,3 +337,38 @@ runtime/module/profile trees; `cache-validation.json` and per-fixture storage
 receipts record those contracts. Failed experiments and their reports remain
 separate from passing results. These checks do not extend the game-detection,
 live-call, codec, platform or publication coverage stated above.
+
+### Canary 1.0.2484
+
+Immutable client state `824a4b0faa4ba0be36f9c76fe413a61842418020` matches the
+current distribution manifest: host 1.0.2484, voice revision 2, utils revision 3
+and revision 1 for the other modules. The comparison in
+`out/update-review/canary-latest/` starts from the reviewed revision-19 snapshot
+above; the retained revision-12 comparison completes the delta from the approved
+release. All archive/member/ASAR unions are inventoried, including the stock
+runtime payloads replaced by DPE. Desktop-core and its JavaScript are unchanged.
+The bootstrap's executable changes handle macOS updater relaunch; Linux behavior
+is unchanged. RPC, spellcheck and voice manifests reorder the same file sets;
+the CLD Makefile only reorders existing tokens. Modules/utils code is unchanged
+apart from build identities and relocated constant references.
+
+The voice update adds audio retransmission, wire/internal sequence-number mapping
+and RTCP NACK translation, with private AudioTransport/LocalUser layout changes.
+Preserve those upstream changes: DPE does not access their private fields. The
+reviewed codec, soundshare and capture patch functions retain their instruction
+bodies and relative target identities. The seven-stage chain, shader and unwind
+record are relocated with exact intermediate hashes; picker selection storage and
+wake contexts are updated in both Python and the compiled Rust bridge. Original
+voice SHA-256 is `041052cf69f4bd551998940f3b0982ec4e1f33182ca53dc6aa319b884ea3f6e8`;
+fully prepared SHA-256 is
+`b487dfe6d9a524ed7f7a2e15acebe05811e412b55161cfc7075801369c6d0c21`.
+`hook-context-proof.json` binds 50 hook/capture/decoder functions, their relative
+targets and literals, and the PulseConnect unwind range. Full preparation,
+idempotence and picker/scale/sync scope checks pass. The existing reconnect
+execution fixture covers both revisions, including failed-context recovery,
+locking and stack unwinding. Unknown inputs still fail closed.
+
+Qualification uses the retained alpha.10 runtime identified above; no Electron
+compilation is required. Hosted candidate qualification is pending. Live calls,
+lossy-network retransmission behavior, physical cameras and cross-platform
+behavior are not established by the local preparation and instruction checks.

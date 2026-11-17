@@ -20,40 +20,49 @@ import tempfile
 from pathlib import Path
 
 from native_client_2483 import STAGES
+from native_client_2484 import STAGES as CLIENT_2484_STAGES
 from patch_video_pacing import REVIEWED
 
 PATCH = "reconnect-failed-pulse-soundshare-context-v1"
 INPUT_SHA256, OUTPUT_SHA256, SITES = STAGES["pulse-reconnect"]
 
 
+def chains():
+    return ((INPUT_SHA256, OUTPUT_SHA256, SITES), CLIENT_2484_STAGES["pulse-reconnect"])
+
+
 def restored(data):
     """Expose the original layout to earlier, idempotent preparation stages."""
-    if hashlib.sha256(data).hexdigest() != OUTPUT_SHA256:
-        return data
-    result = bytearray(data)
-    for offset, before, _after in SITES:
-        result[offset : offset + len(before)] = before
-    if hashlib.sha256(result).hexdigest() != INPUT_SHA256:
-        raise ValueError("Pulse reconnect restoration differs from review")
-    return bytes(result)
+    for original, final, sites in chains():
+        if hashlib.sha256(data).hexdigest() != final:
+            continue
+        result = bytearray(data)
+        for offset, before, _after in sites:
+            result[offset : offset + len(before)] = before
+        if hashlib.sha256(result).hexdigest() != original:
+            raise ValueError("Pulse reconnect restoration differs from review")
+        return bytes(result)
+    return data
 
 
 def corrected(data):
     digest = hashlib.sha256(data).hexdigest()
-    if digest == OUTPUT_SHA256:
-        return data
-    if digest != INPUT_SHA256:
-        if digest in {after for _before, after, _offset in REVIEWED}:
+    for original, final, sites in chains():
+        if digest == final:
             return data
-        raise ValueError("Unsupported Pulse reconnect module")
-    result = bytearray(data)
-    for offset, before, after in SITES:
-        if len(before) != len(after) or data[offset : offset + len(before)] != before:
-            raise ValueError("Pulse reconnect instructions differ from review")
-        result[offset : offset + len(before)] = after
-    if hashlib.sha256(result).hexdigest() != OUTPUT_SHA256:
-        raise ValueError("Pulse reconnect output differs from review")
-    return bytes(result)
+        if digest != original:
+            continue
+        result = bytearray(data)
+        for offset, before, after in sites:
+            if len(before) != len(after) or data[offset : offset + len(before)] != before:
+                raise ValueError("Pulse reconnect instructions differ from review")
+            result[offset : offset + len(before)] = after
+        if hashlib.sha256(result).hexdigest() != final:
+            raise ValueError("Pulse reconnect output differs from review")
+        return bytes(result)
+    if digest in {after for _before, after, _offset in REVIEWED}:
+        return data
+    raise ValueError("Unsupported Pulse reconnect module")
 
 
 def patch(binary: Path):
@@ -70,6 +79,6 @@ def patch(binary: Path):
         "input_sha256": hashlib.sha256(data).hexdigest(),
         "output_sha256": hashlib.sha256(result).hexdigest(),
         "already_patched": result == data,
-        "supported": hashlib.sha256(result).hexdigest() == OUTPUT_SHA256,
+        "supported": hashlib.sha256(result).hexdigest() in {final for _, final, _ in chains()},
         "changed_bytes": sum(a != b for a, b in zip(data, result, strict=True)),
     }

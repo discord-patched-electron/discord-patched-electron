@@ -128,6 +128,7 @@ def integration_key(
                     "scripts/native_client_2444.py",
                     "scripts/native_client_2472.py",
                     "scripts/native_client_2483.py",
+                    "scripts/native_client_2484.py",
                     "scripts/patch_pulse_audio.py",
                     "scripts/patch_pulse_reconnect.py",
                     "scripts/patch_vaapi_hrd.py",

@@ -72,6 +72,23 @@ class PulseReconnect(unittest.TestCase):
             0x185B127: "thread_name",
             0x471E25: "duplicate_done",
         }
+        relocated = {
+            **targets,
+            0x473CB0: "callback_state",
+            0x472FC0: "callback_event",
+            0x474800: "detach",
+            0x185D117: "client_name",
+            0x185D127: "thread_name",
+            0x4737B5: "duplicate_done",
+        }
+        for version, sites, bindings in (
+            ("2483", reconnect.SITES, targets),
+            ("2484", reconnect.CLIENT_2484_STAGES["pulse-reconnect"][2], relocated),
+        ):
+            with self.subTest(version=version):
+                self.execute_instructions(sites, bindings)
+
+    def execute_instructions(self, sites, targets):
         disassembler = Cs(CS_ARCH_X86, CS_MODE_64)
         disassembler.detail = True
         assembly = [
@@ -79,9 +96,9 @@ class PulseReconnect(unittest.TestCase):
             ".globl fixture_connect",
             "fixture_connect:",
             ".cfi_startproc",
-            ".cfi_escape " + ",".join(hex(b) for b in reconnect.SITES[1][2]),
+            ".cfi_escape " + ",".join(hex(b) for b in sites[1][2]),
         ]
-        for address, _before, code in reconnect.SITES[:1]:
+        for address, _before, code in sites[:1]:
             for ins in disassembler.disasm(code, address):
                 assembly.append(f"at_{ins.address:x}:")
                 raw = bytes(ins.bytes)

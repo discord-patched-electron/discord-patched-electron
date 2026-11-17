@@ -9,6 +9,7 @@ from elftools.elf.elffile import ELFFile
 from native_client_2444 import HASHES as CLIENT_2444_HASHES
 from native_client_2472 import HASHES as CLIENT_2472_HASHES
 from native_client_2483 import HASHES as CLIENT_2483_HASHES
+from native_client_2484 import HASHES as CLIENT_2484_HASHES
 from patch_capture_dimensions import OUTPUT_SHA256 as DIMENSIONS_OTHER_SHA256
 from patch_capture_dimensions import PINNED_OUTPUT_SHA256 as DIMENSIONS_SHA256
 from patch_decoder_eagain import extend_reviewed
@@ -24,10 +25,18 @@ REVIEWED = {
 REVIEWED.update(dict.fromkeys(CLIENT_2444_HASHES, 0x2311B40))
 REVIEWED.update(dict.fromkeys(CLIENT_2472_HASHES, 0x231FB90))
 REVIEWED.update(dict.fromkeys(CLIENT_2483_HASHES, 0x2323C10))
+REVIEWED.update(dict.fromkeys(CLIENT_2484_HASHES, 0x2326C10))
 extend_reviewed(REVIEWED)
 
 
 WAKE_OFFSETS = {
+    0x2326C10: (
+        (15394109, 15303968),
+        (15440518, 15304240),
+        (15434453, 15304240),
+        (14939630, 14975376),
+        (14939670, 15227104),
+    ),
     0x2323C10: (
         (15387453, 15297312),
         (15433862, 15297584),

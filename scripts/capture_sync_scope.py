@@ -9,6 +9,7 @@ from elftools.elf.elffile import ELFFile
 from native_client_2444 import HASHES as CLIENT_2444_HASHES
 from native_client_2472 import HASHES as CLIENT_2472_HASHES
 from native_client_2483 import HASHES as CLIENT_2483_HASHES
+from native_client_2484 import HASHES as CLIENT_2484_HASHES
 from patch_capture_dimensions import OUTPUT_SHA256 as DIMENSIONS_OTHER_SHA256
 from patch_capture_dimensions import PINNED_OUTPUT_SHA256 as DIMENSIONS_SHA256
 from patch_decoder_eagain import extend_reviewed
@@ -54,6 +55,15 @@ REVIEWED.update(
         (
             "74a02f8678f787c6e499482a68500e34385f51de7e161047d3c7029a63fc7648",
             "9012b61a986d984f6f7f173b6a9e837bcba1f09b7487f476d52500d137a446ce",
+        ),
+    )
+)
+REVIEWED.update(
+    dict.fromkeys(
+        CLIENT_2484_HASHES,
+        (
+            "cca1d3d2d66157f9c8889da5f1de3f9e1cfc04adec9de25a26cf114d32194283",
+            "43a4f05ab633c075a0108c00fec50d3790333b8d3f0d8b3cd00ec82482febfba",
         ),
     )
 )
