@@ -128,6 +128,16 @@
         "Support frozen native component exports without losing unrelated exports or another adapter\u2019s replacement. Prevent duplicate injected controls and keep rebuilt menus on their current callbacks.",
         "Cancel an open audio picker exactly once during page teardown, release its observer and ignore late PiP mover replies after cleanup."
       ]
+    },
+    "900a0362c67972dc58a4985bb3500aaf811e873f": {
+      "Improvements": [
+        "Update Discord Canary 1.0.2483 to the reviewed module revision 19.",
+        "Share verified module downloads between native checks and development builds, and remove disposable test runtimes and profiles after checks finish."
+      ],
+      "Fixes": [
+        "Keep development archives locked while they are copied or extracted, and preserve archives currently in use when pruning the download cache.",
+        "Wait for actual popout destruction and persisted setup completion during release qualification, and handle display-clamped settings window sizes correctly."
+      ]
     }
   }
 }
