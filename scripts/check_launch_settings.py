@@ -8,6 +8,7 @@ from pathlib import Path
 
 from build_ui import build as build_ui
 from common import ROOT, read_json, run, sha256, write_json
+from fixture_storage import copy_runtime, transient_paths
 
 
 def check(runtime, output, media_cache=None):
@@ -16,70 +17,71 @@ def check(runtime, output, media_cache=None):
     if output.exists() or output.is_relative_to(runtime.parent):
         raise ValueError("Choose a fresh output outside the input distribution")
     output.mkdir(parents=True)
-    if os.environ.get("DPE_SETTINGS_SCOPE") == "popout":
-        run(
-            "bun",
-            "build",
-            ROOT / "tests/discord-ui/react-fixture.cjs",
-            "--target=browser",
-            "--format=cjs",
-            "--minify",
-            "--outfile=" + str(output / "react-fixture.cjs"),
-        )
-    run("cp", "-a", "--reflink=auto", runtime.parent, output / "runtime")
-    resources = output / "runtime/resources"
-    if resources.is_symlink():
-        resources.unlink()
-    elif resources.exists():
-        shutil.rmtree(resources)
-    resources.mkdir()
-    fixture = output / "fixture"
-    shutil.copytree(ROOT / "tests/launch-settings", fixture)
-    run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
-    (output / "profile").mkdir()
-    (output / "config").mkdir()
-    if media_cache is not None:
-        # Optional local, verified fonts make visual checks exercise actual gg sans.
-        # No client profile, account data or executable payload is copied.
-        media = read_json(ROOT / "integration/updater/splash-media.json")["assets"]
-        destination = output / "profile/discord_asset_cache/openasar"
-        destination.mkdir(parents=True)
-        for item in media.values():
-            if item["type"] != "font/woff2":
-                continue
-            filename = item["sha256"] + ".woff2"
-            source = media_cache / filename
-            if sha256(source) != item["sha256"]:
-                raise ValueError("Test font does not match its pinned checksum")
-            shutil.copyfile(source, destination / filename)
-    env = {
-        **os.environ,
-        "DPE_SETTINGS_OUTPUT": str(output),
-        "DPE_APP_ROOT": str(ROOT),
-        "DPE_PROFILE_DIR": str(output / "profile"),
-        "DPE_LAUNCHER": str(output / "launch.sh"),
-        "DPE_LAUNCH_ARGS": "[]",
-        "DPE_CLIENT_OFFLINE": "1",
-        "DPE_IGNORE_FLAGS": "0",
-        "DPE_DEFAULT_FLAGS": "1",
-        "XDG_CONFIG_HOME": str(output / "config"),
-        "DPE_SETTINGS_EXPECT_FONTS": "1" if media_cache is not None else "0",
-    }
-    env.pop("ELECTRON_RUN_AS_NODE", None)
-    with (output / "console.log").open("w") as log:
-        process = subprocess.run(
-            [str(output / "runtime" / runtime.name), "--disable-setuid-sandbox"],
-            env=env,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            timeout=120,
-        )
-    report = read_json(output / "settings.json")
-    report.update(executable_sha256=sha256(runtime), process_exit=process.returncode)
-    report["passed"] = report.get("passed") is True and process.returncode == 0
-    write_json(output / "settings.json", report)
-    print(report)
-    return report
+    with transient_paths(output, "runtime", "profile", "config"):
+        if os.environ.get("DPE_SETTINGS_SCOPE") == "popout":
+            run(
+                "bun",
+                "build",
+                ROOT / "tests/discord-ui/react-fixture.cjs",
+                "--target=browser",
+                "--format=cjs",
+                "--minify",
+                "--outfile=" + str(output / "react-fixture.cjs"),
+            )
+        copy_runtime(runtime.parent, output / "runtime")
+        resources = output / "runtime/resources"
+        if resources.is_symlink():
+            resources.unlink()
+        elif resources.exists():
+            shutil.rmtree(resources)
+        resources.mkdir()
+        fixture = output / "fixture"
+        shutil.copytree(ROOT / "tests/launch-settings", fixture)
+        run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
+        (output / "profile").mkdir()
+        (output / "config").mkdir()
+        if media_cache is not None:
+            # Optional local, verified fonts make visual checks exercise actual gg sans.
+            # No client profile, account data or executable payload is copied.
+            media = read_json(ROOT / "integration/updater/splash-media.json")["assets"]
+            destination = output / "profile/discord_asset_cache/openasar"
+            destination.mkdir(parents=True)
+            for item in media.values():
+                if item["type"] != "font/woff2":
+                    continue
+                filename = item["sha256"] + ".woff2"
+                source = media_cache / filename
+                if sha256(source) != item["sha256"]:
+                    raise ValueError("Test font does not match its pinned checksum")
+                shutil.copyfile(source, destination / filename)
+        env = {
+            **os.environ,
+            "DPE_SETTINGS_OUTPUT": str(output),
+            "DPE_APP_ROOT": str(ROOT),
+            "DPE_PROFILE_DIR": str(output / "profile"),
+            "DPE_LAUNCHER": str(output / "launch.sh"),
+            "DPE_LAUNCH_ARGS": "[]",
+            "DPE_CLIENT_OFFLINE": "1",
+            "DPE_IGNORE_FLAGS": "0",
+            "DPE_DEFAULT_FLAGS": "1",
+            "XDG_CONFIG_HOME": str(output / "config"),
+            "DPE_SETTINGS_EXPECT_FONTS": "1" if media_cache is not None else "0",
+        }
+        env.pop("ELECTRON_RUN_AS_NODE", None)
+        with (output / "console.log").open("w") as log:
+            process = subprocess.run(
+                [str(output / "runtime" / runtime.name), "--disable-setuid-sandbox"],
+                env=env,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                timeout=120,
+            )
+        report = read_json(output / "settings.json")
+        report.update(executable_sha256=sha256(runtime), process_exit=process.returncode)
+        report["passed"] = report.get("passed") is True and process.returncode == 0
+        write_json(output / "settings.json", report)
+        print(report)
+        return report
 
 
 def main():

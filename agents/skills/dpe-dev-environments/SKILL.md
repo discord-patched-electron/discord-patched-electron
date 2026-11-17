@@ -113,6 +113,11 @@ Chromium state files or DPE current-state metadata; it is an inventory, not a
 complete ownership classifier. After checks, remove disposable profiles and
 redundant payloads while retaining required reports, reusable inputs and compiler
 objects. A fresh profile requirement is not permission to retain it indefinitely.
+Treat each retained profile's `dpe-updater/cache` as live prepared-module storage:
+its generations link directly into those directories. Never delete it wholesale
+as download-cache cleanup. Preserve every retained generation's module targets
+and integrity records; use `out/dev/downloads` for shared archive pruning.
+
 Remove only named versions/profiles within the requested cleanup scope. Version
 removal preserves profiles; profile removal deletes login data, settings, mods
 and client caches. Preview `prune` before applying it; `--downloads` also evicts

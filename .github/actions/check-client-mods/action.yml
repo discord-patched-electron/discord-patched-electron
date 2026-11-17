@@ -17,6 +17,7 @@ runs:
       run: |
         set -euo pipefail
         fixture=$(mktemp -d "$RUNNER_TEMP/client-mods.XXXXXX")
+        trap 'rm -rf "$fixture"' EXIT
         for mod in vencord equicord; do
           if [[ "$mod" == vencord ]]; then
             url=https://github.com/Vencord/Installer/releases/download/v1.4.2/VencordInstallerCli-linux
@@ -32,4 +33,3 @@ runs:
         done
         xvfb-run -a uv run python scripts/check_client_mods.py "$APP" --output "$OUTPUT" \
           --vencord "$fixture/vencord-installer" --equicord "$fixture/equicord-installer"
-        rm -rf "$fixture"

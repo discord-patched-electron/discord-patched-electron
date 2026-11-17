@@ -101,11 +101,11 @@ const externalCalls = () =>
 const externalURLs = () => externalCalls().map((call) => call.args[0]);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(predicate) {
-  const end = Date.now() + 10000;
+  const end = performance.now() + 10000;
   do {
     if (await predicate()) return;
     await delay(50);
-  } while (Date.now() < end);
+  } while (performance.now() < end);
   throw new Error("Timed out waiting for the settings UI");
 }
 let window;
@@ -676,13 +676,21 @@ app
       return {x:Math.round(bounds.x+bounds.width/2), y:Math.round(bounds.y+bounds.height/2)};
     })()`);
     window.webContents.sendInputEvent({ type: "mouseMove", ...installPoint });
-    await delay(200);
+    await until(
+      async () =>
+        (await get('getComputedStyle($("mods-install-vencord")).backgroundColor')) ===
+        "rgba(151, 151, 159, 0.16)",
+    );
     assert.equal(
       await get('getComputedStyle($("mods-install-vencord")).backgroundColor'),
       "rgba(151, 151, 159, 0.16)",
     );
     window.webContents.sendInputEvent({ type: "mouseDown", button: "left", ...installPoint });
-    await delay(200);
+    await until(
+      async () =>
+        (await get('getComputedStyle($("mods-install-vencord")).backgroundColor')) ===
+        "rgba(151, 151, 159, 0.2)",
+    );
     assert.equal(
       await get('getComputedStyle($("mods-install-vencord")).backgroundColor'),
       "rgba(151, 151, 159, 0.2)",
@@ -1167,7 +1175,6 @@ app
       stockPreview,
     );
     await evaluate('document.querySelector(".tray-settings").scrollIntoView({block:"start"})');
-    await delay(200);
     await capture("tray-vencord");
     await choosePreset("equicord", 2);
     await until(async () => (await trayStatus()) === "Equicord");
@@ -1179,7 +1186,6 @@ app
       assert.deepEqual(image.getSize(), { width: 32, height: 32 });
       assert.equal(icon.source, "Equicord");
     }
-    await delay(200);
     await capture("tray-equicord");
     trayChoice = { canceled: false, filePaths: [custom] };
     await chooseTray();
@@ -1294,7 +1300,13 @@ app
       await capture(`tray-mixed-${width}`);
     }
     window.setSize(trayBounds.width, trayBounds.height);
-    await until(() => evaluate(`innerWidth === ${trayBounds.width}`));
+    await until(() => {
+      const [width, height] = window.getSize();
+      return width === trayBounds.width && height === trayBounds.height;
+    });
+    await until(() =>
+      evaluate(`innerWidth === ${trayBounds.width} && innerHeight === ${trayBounds.height}`),
+    );
     await evaluate(
       'document.querySelector("[data-tray-state=default] .tray-icon-actions button:last-child").click()',
     );
@@ -1341,7 +1353,7 @@ app
       ),
       true,
     );
-    assert.deepEqual(window.getSize(), [1100, 800]);
+    assert.deepEqual(window.getSize(), [trayBounds.width, trayBounds.height]);
     // Window controls add content above the editor. Give it actual spare space
     // before checking growth rather than expecting it to grow inside overflow.
     const editorRoom = await evaluate(

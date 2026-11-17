@@ -23,7 +23,14 @@ run [Release Linux packages](https://github.com/discord-patched-electron/discord
 | `skip_tests`    | Manual emergency prerelease only; defaults off. Skips qualification suites, retains package-integrity checks and signing, and records the omission in the manifest/notes. |
 
 Qualification checks packages, fresh-profile launch/relaunch, mods, native
-video/Krisp and isolated audio. Public test releases remain unapproved until
+video/Krisp and isolated audio. Source lint/unit verification reuses a completed,
+trusted main push job for the exact source commit; pending verification is awaited,
+failed verification stops publication, and missing proof runs the source suite.
+An identical bundled-native result can be reused only with matching archived
+client-digest evidence; custom runtime and audio gates still run.
+`source-verification.json` records the reused
+run/job; approval promotes the qualified files without rerunning their tests.
+Public test releases remain unapproved until
 manual testing. Failed runs keep the last qualified release available; retries
 resume drafts without overwriting public assets.
 

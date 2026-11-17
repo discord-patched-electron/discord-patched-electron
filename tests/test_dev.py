@@ -1,5 +1,6 @@
 """Development storage and profile isolation contracts."""
 
+import hashlib
 import json
 import os
 import shutil
@@ -15,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from common import read_json, write_json
 from dev import Manager, copy_changed, disk_bytes, find_profiles, lock, main, name, sync_sidecars
 from dev_client import configure_installation, link_helpers
+from fixture_storage import client_archive
 
 
 class DevTests(unittest.TestCase):
@@ -165,6 +167,23 @@ class DevTests(unittest.TestCase):
         self.manager.remove("versions", "two")
         self.manager.prune(True, False)
         self.assertEqual(list((self.manager.home / "objects").iterdir()), [])
+
+    def test_pruning_downloads_respects_active_consumers_and_preserves_lock_identity(self):
+        payload = b"verified archive"
+        checksum = hashlib.sha256(payload).hexdigest()
+        cache = self.manager.home / "downloads"
+        cache.mkdir(exist_ok=True)
+        archive = cache / (checksum + ".tar.br")
+        archive.write_bytes(payload)
+        with client_archive({"url": "https://example.test/client", "sha256": checksum}, cache):
+            lock_file = cache / (checksum + ".lock")
+            inode = lock_file.stat().st_ino
+            self.manager.prune(True, True)
+            self.assertEqual(archive.read_bytes(), payload)
+            self.assertEqual(lock_file.stat().st_ino, inode)
+        self.manager.prune(True, True)
+        self.assertFalse(archive.exists())
+        self.assertEqual(lock_file.stat().st_ino, inode)
 
     def test_published_electron_files_share_pool_without_linking_resources(self):
         app = self.manager.path("versions", "one")

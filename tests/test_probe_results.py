@@ -33,6 +33,7 @@ class ProbeResults(unittest.TestCase):
                         ],
                     ),
                     patch.object(check_safe_storage.subprocess, "run"),
+                    patch.object(check_safe_storage, "copy_runtime"),
                     patch.object(check_safe_storage, "read_json", return_value=result),
                     patch.object(check_safe_storage, "write_json") as write,
                 ):

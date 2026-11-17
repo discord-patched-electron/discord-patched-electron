@@ -22,6 +22,15 @@ from installation import copy_payload
 
 
 def verify(packages: Path, output: Path, runtime_archive: Path):
+    if output.exists():
+        raise ValueError("Choose a fresh report directory")
+    try:
+        return _verify(packages, output, runtime_archive)
+    finally:
+        shutil.rmtree(output / "profile", ignore_errors=True)
+
+
+def _verify(packages: Path, output: Path, runtime_archive: Path):
     packages, output = packages.resolve(), output.resolve()
     if output.exists():
         raise ValueError("Choose a fresh application-upgrade report directory")

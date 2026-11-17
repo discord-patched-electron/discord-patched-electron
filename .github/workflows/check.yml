@@ -40,10 +40,13 @@ jobs:
       - uses: ./.github/actions/setup-project
       - if: needs.changes.outputs.unit == 'true'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv libclang-dev libpipewire-0.3-dev libgbm-dev libegl-dev libgles-dev libdrm-dev libva-dev nasm libcap-dev libwayland-dev libwayland-bin libvulkan-dev libgl-dev libx11-dev libxcb1-dev libxcb-xfixes0-dev cmake ninja-build
-      - run: bun run lint:source
-      - run: bun run lint:rust
+      - name: Verify source formatting and workflows
+        run: bun run lint:source
+      - name: Verify Rust formatting and lints
+        run: bun run lint:rust
         if: needs.changes.outputs.unit == 'true'
-      - run: bun run test
+      - name: Run unit suites
+        run: bun run test
         if: needs.changes.outputs.unit == 'true'
       - name: Check real compiler cache hits and CPU/header invalidation
         if: needs.changes.outputs.compiler == 'true'

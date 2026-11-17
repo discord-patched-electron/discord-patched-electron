@@ -13,6 +13,7 @@ import re
 import signal
 import socket
 import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -66,7 +67,10 @@ def check(
         port = reservation.getsockname()[1]
     profile = (profile or output / "profile").resolve()
     launcher_app = app
-    startup_timeout = 120
+    metadata = read_json(app / "local-build.json") if (app / "local-build.json").exists() else {}
+    # Portable module-only apps download and prepare the same cold client as a
+    # minimal bootstrap. Include setup relaunch and login in that bounded budget.
+    startup_timeout = 300 if metadata.get("client_distribution") == "module-only" else 120
     launch_environment = dict(os.environ)
     if launcher and (app / "bootstrap.json").exists():
         launch_environment["APPIMAGE"] = str(launcher.resolve())
@@ -111,6 +115,7 @@ def check(
         environment.pop(name, None)
     report = {
         "passed": False,
+        "startup_timeout_seconds": startup_timeout,
         "profile": str(profile),
         "screenshots_saved": False,
         "real_discord_call_verified": False,
@@ -139,7 +144,11 @@ def check(
             start_new_session=True,
         )
         try:
-            deadline = time.monotonic() + startup_timeout
+            started = time.monotonic()
+            deadline = started + startup_timeout
+            report["startup_phase"] = "preparation"
+            login_budget_started = False
+            completed = False
             while time.monotonic() < deadline and (
                 process.poll() is None or report.get("setup_done_sent")
             ):
@@ -217,6 +226,13 @@ def check(
                             and welcome_target is None
                             and (not setup_configure or configure_target is None)
                         )
+                    if report.get("setup_complete") and not login_budget_started:
+                        # Preparing modules and restarting Welcome can consume the
+                        # cold-start budget. Allow a full login window once, based
+                        # on the persisted setup marker, never on repeated polls.
+                        deadline = time.monotonic() + 120
+                        login_budget_started = True
+                        report["startup_phase"] = "login"
                     for page, websocket in discord_pages:
                         report["page"] = page
                         if (
@@ -262,10 +278,18 @@ def check(
                     if "popout" in report and not report["passed"]:
                         break
                     if report["passed"] and (not verify_setup or report.get("setup_complete")):
+                        completed = True
                         break
-                except (OSError, ValueError, subprocess.SubprocessError, urllib.error.URLError):
-                    pass
+                except (
+                    OSError,
+                    ValueError,
+                    subprocess.SubprocessError,
+                    urllib.error.URLError,
+                ) as error:
+                    report["last_probe_error"] = f"{type(error).__name__}: {error}"
                 time.sleep(1)
+            report["startup_elapsed_seconds"] = round(time.monotonic() - started, 2)
+            report["timed_out"] = not completed and time.monotonic() >= deadline
             report["exited_before_check"] = process.poll()
         finally:
             # Ask Chromium to close before terminating its process tree, so the
@@ -409,6 +433,24 @@ def inspect_discord(websocket: str) -> dict:
 
 
 def check_popout(websocket: str) -> dict:
+    try:
+        return verify_popouts(websocket)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        return {"passed": False, "error": str(error)}
+    finally:
+        try:
+            cdp(
+                websocket,
+                "Runtime.evaluate",
+                {
+                    "expression": "window.__DPE_POPOUT_FIXTURE__?.close(); delete window.__DPE_POPOUT_FIXTURE__"
+                },
+            )
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+
+
+def verify_popouts(websocket: str) -> dict:
     """Exercise Discord's real popout handler and loaded handshake at the login page.
 
     The parent writes only a synthetic marker, never account or voice data.
@@ -420,15 +462,14 @@ def check_popout(websocket: str) -> dict:
         return {passed:false, error:'Popout check requires the fresh login page'};
       }
       const attempts = [];
-      const keys = ['DISCORD_CHANNEL_CALL_POPOUT', 'DISCORD_CHANNEL_CALL_POPOUT',
-        'DISCORD_CALL_TILE_POPOUT_dpe_fixture', 'DISCORD_CALL_TILE_POPOUT_dpe_fixture'];
+      const keys = [POPOUT_KEY];
       for (const key of keys) {
         const result = await new Promise(resolve => {
           let child, timer;
           const finish = value => {
             clearTimeout(timer);
             window.removeEventListener('message', loaded);
-            if (child && !child.closed) child.close();
+            if (!value.passed && child && !child.closed) child.close();
             resolve(value);
           };
           const loaded = event => {
@@ -454,23 +495,62 @@ def check_popout(websocket: str) -> dict:
           timer = setTimeout(() => finish({passed:false, error:'Popout loaded handshake timed out'}), 12000);
           try {
             child = window.open('/popout', key, 'menubar=no,toolbar=no,location=no,directories=no,width=854,height=480,');
+            window.__DPE_POPOUT_FIXTURE__ = child;
             if (!child) finish({passed:false, error:'window.open returned null (request denied or opener unavailable)'});
           } catch (error) { finish({passed:false, error:String(error)}); }
         });
         attempts.push({key, ...result});
         if (!result.passed) break;
-        await new Promise(resolve => setTimeout(resolve, 150));
       }
-      return {passed:attempts.length === keys.length && attempts.every(item => item.passed), attempts};
+      return {passed:attempts.length === 1 && attempts.every(item => item.passed), attempts};
     })()"""
-    result = cdp(
-        websocket,
-        "Runtime.evaluate",
-        {"expression": expression, "returnByValue": True, "awaitPromise": True},
-        timeout=30,
-    )
-    value = result.get("result", {}).get("value")
-    return value if isinstance(value, dict) else {"passed": False, "error": "Popout check failed"}
+
+    def targets():
+        infos = cdp(websocket, "Target.getTargets").get("targetInfos")
+        if not isinstance(infos, list) or any(
+            not isinstance(t.get("targetId"), str) for t in infos
+        ):
+            raise ValueError("Could not inspect browser targets")
+        return {t["targetId"] for t in infos if t.get("type") == "page"}
+
+    attempts = []
+    for key in (
+        "DISCORD_CHANNEL_CALL_POPOUT",
+        "DISCORD_CHANNEL_CALL_POPOUT",
+        "DISCORD_CALL_TILE_POPOUT_dpe_fixture",
+        "DISCORD_CALL_TILE_POPOUT_dpe_fixture",
+    ):
+        before = targets()
+        result = cdp(
+            websocket,
+            "Runtime.evaluate",
+            {
+                "expression": expression.replace("POPOUT_KEY", json.dumps(key)),
+                "returnByValue": True,
+                "awaitPromise": True,
+            },
+            timeout=15,
+        )
+        value = result.get("result", {}).get("value")
+        if not isinstance(value, dict) or value.get("passed") is not True:
+            return {"passed": False, "attempts": attempts, "error": value or "Popout check failed"}
+        attempts.extend(value["attempts"])
+        created = targets() - before
+        if len(created) != 1:
+            raise ValueError(f"Expected one new popout target, found {sorted(created)}")
+        cdp(websocket, "Runtime.evaluate", {"expression": "window.__DPE_POPOUT_FIXTURE__.close()"})
+        # Confirm destruction of the exact target, independent of opener metadata
+        # and WindowProxy.closed, before reusing the same native registration key.
+        deadline = time.monotonic() + 5
+        while created & targets():
+            if time.monotonic() >= deadline:
+                return {
+                    "passed": False,
+                    "attempts": attempts,
+                    "error": "Popout target was not destroyed",
+                }
+            time.sleep(0.05)
+    return {"passed": True, "attempts": attempts}
 
 
 def close_setup_settings(websocket: str) -> dict:
@@ -486,11 +566,13 @@ def close_setup_settings(websocket: str) -> dict:
         && !!note?.getClientRects().length
         && note.textContent.trim() === 'Closing settings will launch Discord.'
         && !!restart && !restart.disabled && !!close && !close.disabled;
-      if (closeSent) setTimeout(() => close.click(), 250);
       return JSON.stringify({onboarding, closeSent});
     })()"""
     result = cdp(websocket, "Runtime.evaluate", {"expression": expression, "returnByValue": True})
-    return json.loads(result.get("result", {}).get("value", "{}"))
+    value = json.loads(result.get("result", {}).get("value", "{}"))
+    if value.get("closeSent"):
+        dispatch_setup_action(websocket, "b_close", value)
+    return value
 
 
 def complete_setup(websocket: str, *, configure: bool = False) -> dict:
@@ -515,12 +597,27 @@ def complete_setup(websocket: str, *, configure: bool = False) -> dict:
       const configureSent = !choiceSent && !linksOptOut && useConfigure && !!ready(configure);
       const doneSent = !choiceSent && !linksOptOut && !useConfigure && !!ready(done);
       if (choiceSent) next.click();
-      if (configureSent) configure.click();
-      if (doneSent) done.click();
       return JSON.stringify({welcome, choiceSent, configureSent, doneSent});
     })()""".replace("USE_CONFIGURE", json.dumps(configure))
     result = cdp(websocket, "Runtime.evaluate", {"expression": expression, "returnByValue": True})
-    return json.loads(result.get("result", {}).get("value", "{}"))
+    value = json.loads(result.get("result", {}).get("value", "{}"))
+    if value.get("configureSent") or value.get("doneSent"):
+        dispatch_setup_action(websocket, "setup-configure" if configure else "setup-done", value)
+    return value
+
+
+def dispatch_setup_action(websocket: str, button: str, state: dict):
+    # Readiness has already been acknowledged on a separate request. A finishing
+    # action can destroy its own DevTools target before replying; success still
+    # requires the persisted setup marker and disappearance of the old window.
+    try:
+        cdp(
+            websocket,
+            "Runtime.evaluate",
+            {"expression": f"document.getElementById({json.dumps(button)})?.click()"},
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        state["dispatch_error"] = str(error)
 
 
 def cdp(websocket: str, method: str, params: dict | None = None, *, timeout: int = 5) -> dict:
@@ -530,7 +627,7 @@ const ws = new WebSocket(process.argv[1]);
 const timer = setTimeout(() => {ws.close(); process.exit(2)}, Number(process.argv[4]) * 1000);
 ws.addEventListener("open", () => ws.send(JSON.stringify({id:1, method:process.argv[2], params:JSON.parse(process.argv[3])})));
 ws.addEventListener("message", event => { const value=JSON.parse(event.data); if(value.id!==1)return;
- clearTimeout(timer); console.log(JSON.stringify(value.result || {})); ws.close(); });
+ clearTimeout(timer); console.log(JSON.stringify(value)); ws.close(); });
 ws.addEventListener("error", () => process.exit(3));
 """
     result = subprocess.run(
@@ -548,7 +645,52 @@ ws.addEventListener("error", () => process.exit(3));
         text=True,
         timeout=timeout + 3,
     )
-    return json.loads(result.stdout) if result.returncode == 0 else {}
+    if result.returncode:
+        raise ValueError(
+            f"DevTools {method} failed (exit {result.returncode}): {result.stderr[-1000:]}"
+        )
+    response = json.loads(result.stdout)
+    if "error" in response:
+        raise ValueError(f"DevTools {method}: {response['error']}")
+    value = response.get("result", {})
+    if "exceptionDetails" in value:
+        raise ValueError(f"DevTools {method}: {value['exceptionDetails']}")
+    return value
+
+
+def check_sequence(args) -> bool:
+    """Own one disposable identity across first launch and same-profile relaunch."""
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".desktop-fixture-", dir=args.output.parent
+    ) as temporary:
+        profile = Path(temporary) / "profile"
+        first = check(
+            args.app,
+            args.output,
+            profile=profile,
+            equicord=args.equicord,
+            read_only_app=args.read_only_app,
+            runtime_archive=args.runtime_archive,
+            application_archive=args.application_archive,
+            expect_setup=args.expect_setup,
+            setup_configure=args.setup_configure,
+            launcher=args.launcher,
+        )
+        passed = first["passed"]
+        if passed and args.relaunch:
+            second = check(
+                args.app,
+                args.output / "relaunch",
+                Path(first["profile"]),
+                args.equicord,
+                args.read_only_app,
+                launcher=args.launcher,
+            )
+            passed = second["passed"] and (
+                not (args.expect_setup or args.setup_configure) or not second["setup_seen"]
+            )
+        return passed
 
 
 if __name__ == "__main__":
@@ -584,28 +726,4 @@ if __name__ == "__main__":
         help="Verify Configure more replaces Welcome and closing Settings starts Discord",
     )
     args = parser.parse_args()
-    first = check(
-        args.app,
-        args.output,
-        equicord=args.equicord,
-        read_only_app=args.read_only_app,
-        runtime_archive=args.runtime_archive,
-        application_archive=args.application_archive,
-        expect_setup=args.expect_setup,
-        setup_configure=args.setup_configure,
-        launcher=args.launcher,
-    )
-    passed = first["passed"]
-    if passed and args.relaunch:
-        second = check(
-            args.app,
-            args.output / "relaunch",
-            Path(first["profile"]),
-            args.equicord,
-            args.read_only_app,
-            launcher=args.launcher,
-        )
-        passed = second["passed"] and (
-            not (args.expect_setup or args.setup_configure) or not second["setup_seen"]
-        )
-    raise SystemExit(0 if passed else 1)
+    raise SystemExit(0 if check_sequence(args) else 1)

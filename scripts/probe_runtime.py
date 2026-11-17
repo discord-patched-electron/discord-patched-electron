@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from common import ROOT, download, hash_files, read_json, run, sha256, write_json
+from fixture_storage import copy_runtime, transient_paths
 
 
 def probe(
@@ -38,127 +39,142 @@ def probe(
         "krisp": sha256(modules / "discord_krisp/discord_krisp.node"),
     }
     output.mkdir(parents=True, exist_ok=True)
-    for name in (
-        "runtime",
-        "modules",
-        "home",
-        "profile",
-        "run",
-        "cache",
-        "data",
-        "config",
-        "headers",
+    with transient_paths(
+        output, "runtime", "modules", "home", "profile", "run", "cache", "data", "config", "headers"
     ):
-        (output / name).mkdir()
-    (output / "run").chmod(0o700)
-    run("cp", "-a", "--reflink=auto", str(runtime) + "/.", output / "runtime")
-    run("cp", "-a", "--reflink=auto", str(modules) + "/.", output / "modules")
-    fixture = ROOT / "tests/runtime"
-    header = read_json(fixture / "header.lock.json")
-    download(header["url"], output / "headers/electron_video_shared.h", header["sha256"])
-    run(
-        "g++",
-        "-std=c++17",
-        "-shared",
-        "-fPIC",
-        "-Wno-attributes",
-        "-DNAPI_VERSION=8",
-        "-I/usr/include/node",
-        "-I" + str(output / "headers"),
-        fixture / "frame_addon.cc",
-        "-ldl",
-        "-o",
-        output / "frame_addon.node",
-    )
-    # This only changes our freshly copied distribution, including for a bundled
-    # Discord executable. Its ordinary bootstrap/profile is never run.
-    run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
-    environment = {
-        "PATH": "/usr/local/bin:/usr/bin:/bin",
-        "LANG": "C.UTF-8",
-        "HOME": str(output / "home"),
-        "XDG_CONFIG_HOME": str(output / "config"),
-        "XDG_CACHE_HOME": str(output / "cache"),
-        "XDG_DATA_HOME": str(output / "data"),
-        "XDG_RUNTIME_DIR": str(output / "run"),
-        "DISCORD_USER_DATA_DIR": str(output / "profile"),
-        "DPE_PROBE_PROFILE": str(output / "profile"),
-        "DPE_PROBE_REPORT": str(output / "runtime-report.json"),
-        "DPE_PROBE_MODULES": str(output / "modules"),
-        "DPE_PROBE_ADDON": str(output / "frame_addon.node"),
-        "DPE_PROBE_PRESENTATION": "1" if presentation else "0",
-        "PULSE_SERVER": "unix:" + str(output / "run/no-pulse"),
-        "PIPEWIRE_REMOTE": "no-pipewire",
-        "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(output / "run/no-dbus"),
-    }
-    if audio_fixtures is not None:
-        audio = output / "audio-input"
-        audio.mkdir()
-        files = sorted(audio_fixtures.glob("*.wav"))
-        if not files:
-            raise ValueError("Audio fixture directory contains no WAV files")
-        for file in files:
-            shutil.copy2(file, audio / file.name)
-        environment["DPE_PROBE_AUDIO_INPUT"] = str(audio)
-    command = [
-        "xvfb-run",
-        "-a",
-        "-s",
-        "-screen 0 1024x768x24 -nolisten tcp",
-        str(output / "runtime" / executable),
-        "--ozone-platform=x11",
-        "--disable-gpu",
-        "--disable-setuid-sandbox",
-    ]
-    timed_out = False
-    with (output / "runtime.log").open("w") as log:
-        process = subprocess.Popen(
-            command,
-            env=environment,
-            cwd=output,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
+        for name in (
+            "modules",
+            "home",
+            "profile",
+            "run",
+            "cache",
+            "data",
+            "config",
+            "headers",
+        ):
+            (output / name).mkdir()
+        (output / "run").chmod(0o700)
+        copy_runtime(runtime, output / "runtime")
+        run("cp", "-a", "--reflink=auto", str(modules) + "/.", output / "modules")
+        fixture = ROOT / "tests/runtime"
+        header = read_json(fixture / "header.lock.json")
+        download(header["url"], output / "headers/electron_video_shared.h", header["sha256"])
+        run(
+            "g++",
+            "-std=c++17",
+            "-shared",
+            "-fPIC",
+            "-Wno-attributes",
+            "-DNAPI_VERSION=8",
+            "-I/usr/include/node",
+            "-I" + str(output / "headers"),
+            fixture / "frame_addon.cc",
+            "-ldl",
+            "-o",
+            output / "frame_addon.node",
         )
-        try:
-            process.wait(timeout=100 if audio_fixtures is not None else 40)
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            os.killpg(process.pid, signal.SIGTERM)
+        # This only changes our freshly copied distribution, including for a bundled
+        # Discord executable. Its ordinary bootstrap/profile is never run.
+        run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
+        environment = {
+            "PATH": "/usr/local/bin:/usr/bin:/bin",
+            "LANG": "C.UTF-8",
+            "HOME": str(output / "home"),
+            "XDG_CONFIG_HOME": str(output / "config"),
+            "XDG_CACHE_HOME": str(output / "cache"),
+            "XDG_DATA_HOME": str(output / "data"),
+            "XDG_RUNTIME_DIR": str(output / "run"),
+            "DISCORD_USER_DATA_DIR": str(output / "profile"),
+            "DPE_PROBE_PROFILE": str(output / "profile"),
+            "DPE_PROBE_REPORT": str(output / "runtime-report.json"),
+            "DPE_PROBE_MODULES": str(output / "modules"),
+            "DPE_PROBE_ADDON": str(output / "frame_addon.node"),
+            "DPE_PROBE_PRESENTATION": "1" if presentation else "0",
+            "PULSE_SERVER": "unix:" + str(output / "run/no-pulse"),
+            "PIPEWIRE_REMOTE": "no-pipewire",
+            "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(output / "run/no-dbus"),
+        }
+        if audio_fixtures is not None:
+            audio = output / "audio-input"
+            audio.mkdir()
+            files = sorted(audio_fixtures.glob("*.wav"))
+            if not files:
+                raise ValueError("Audio fixture directory contains no WAV files")
+            for file in files:
+                shutil.copy2(file, audio / file.name)
+            environment["DPE_PROBE_AUDIO_INPUT"] = str(audio)
+        command = [
+            "xvfb-run",
+            "-a",
+            "-s",
+            "-screen 0 1024x768x24 -nolisten tcp",
+            str(output / "runtime" / executable),
+            "--ozone-platform=x11",
+            "--disable-gpu",
+            "--disable-setuid-sandbox",
+        ]
+        timed_out = False
+        with (output / "runtime.log").open("w") as log:
+            process = subprocess.Popen(
+                command,
+                env=environment,
+                cwd=output,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
             try:
-                process.wait(timeout=5)
+                process.wait(timeout=100 if audio_fixtures is not None else 40)
             except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-    report_path = output / "runtime-report.json"
-    report = (
-        read_json(report_path)
-        if report_path.exists()
-        else {"passed": False, "error": "Fixture did not produce a report"}
-    )
-    report.update(
-        process_exit=process.returncode,
-        timed_out=timed_out,
-        original_inputs=originals,
-        public_header=header,
-        frame_addon_sha256=sha256(output / "frame_addon.node"),
-        fixture_inputs=hash_files(
-            [
-                "scripts/probe_runtime.py",
-                *[str(p.relative_to(ROOT)) for p in fixture.iterdir() if p.is_file()],
-            ]
-        ),
-        publishable=False,
-    )
-    report["passed"] = (
-        report.get("passed") is True
-        and process.returncode == 0
-        and not timed_out
-        and report.get("fixture") == "discord-native-bridge"
-        and report.get("userData") == str(output / "profile")
-    )
-    write_json(report_path, report)
-    return report
+                timed_out = True
+            finally:
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGTERM)
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(process.pid, signal.SIGKILL)
+                        process.wait()
+        report_path = output / "runtime-report.json"
+        report = (
+            read_json(report_path)
+            if report_path.exists()
+            else {"passed": False, "error": "Fixture did not produce a report"}
+        )
+        report.update(
+            process_exit=process.returncode,
+            timed_out=timed_out,
+            original_inputs=originals,
+            public_header=header,
+            frame_addon_sha256=sha256(output / "frame_addon.node"),
+            fixture_inputs=hash_files(
+                [
+                    "scripts/probe_runtime.py",
+                    "scripts/fixture_storage.py",
+                    *[str(p.relative_to(ROOT)) for p in fixture.iterdir() if p.is_file()],
+                ]
+            ),
+            publishable=False,
+        )
+        report["passed"] = (
+            report.get("passed") is True
+            and process.returncode == 0
+            and not timed_out
+            and report.get("fixture") == "discord-native-bridge"
+            and report.get("userData") == str(output / "profile")
+        )
+        # The analyzer runs after this probe returns. Keep its synthetic outputs
+        # and voice diagnostics outside the disposable Chromium profile.
+        for source in (output / "profile").glob("audio-*/noisy_processed.wav"):
+            target = output / "audio-output" / source.parent.name / source.name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        for source in (output / "profile/voice").glob("discord-webrtc_*"):
+            target = output / "voice-logs" / source.name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        write_json(report_path, report)
+        return report
 
 
 def main():

@@ -9,7 +9,8 @@ from pathlib import Path
 from channels import enabled_discord_channels
 from check_krisp_audio import analyze, generate
 from client_inputs import load_clients, validate_channel
-from common import ROOT, digest, download, read_json, write_json
+from common import ROOT, digest, read_json, write_json
+from fixture_storage import client_archive, transient_paths
 from patch_krisp import patch
 from probe_runtime import probe
 
@@ -23,63 +24,64 @@ def check_channel(
     expected_version: str | None,
 ) -> dict:
     validate_channel(channel, client)
-    for name in ("core", "discord_voice", "discord_krisp"):
-        source = client["sources"][name]
-        archive = download(source["url"], directory / (name + ".tar.br"), source["sha256"])
-        target = directory / "core" if name == "core" else directory / "modules" / name
-        target.mkdir(parents=True)
-        subprocess.run(
-            [
-                "tar",
-                "-xf",
-                str(archive),
-                "--use-compress-program=brotli",
-                "--strip-components=1",
-                "-C",
-                str(target),
-                "files/",
-            ],
-            check=True,
+    with transient_paths(directory, "core", "modules"):
+        for name in ("core", "discord_voice", "discord_krisp"):
+            source = client["sources"][name]
+            with client_archive(source) as archive:
+                target = directory / "core" if name == "core" else directory / "modules" / name
+                target.mkdir(parents=True)
+                subprocess.run(
+                    [
+                        "tar",
+                        "-xf",
+                        str(archive),
+                        "--use-compress-program=brotli",
+                        "--strip-components=1",
+                        "-C",
+                        str(target),
+                        "files/",
+                    ],
+                    check=True,
+                )
+        info = read_json(directory / "core/resources/build_info.json")
+        if info["releaseChannel"] != channel or info["version"] != client["version"]:
+            raise ValueError("Extracted client identity differs from the lock")
+        krisp = directory / "modules/discord_krisp"
+        patched = patch(krisp / "discord_krisp.node")
+        (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
+        write_json(directory / "krisp-patch.json", patched)
+        runtime = custom_runtime or directory / "core"
+        executable = (
+            "electron"
+            if custom_runtime
+            else {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[channel]
         )
-    info = read_json(directory / "core/resources/build_info.json")
-    if info["releaseChannel"] != channel or info["version"] != client["version"]:
-        raise ValueError("Extracted client identity differs from the lock")
-    krisp = directory / "modules/discord_krisp"
-    patched = patch(krisp / "discord_krisp.node")
-    (krisp / "KMS/logs").mkdir(parents=True, exist_ok=True)
-    write_json(directory / "krisp-patch.json", patched)
-    runtime = custom_runtime or directory / "core"
-    executable = (
-        "electron"
-        if custom_runtime
-        else {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[channel]
-    )
-    result = probe(
-        runtime,
-        executable,
-        directory / "modules",
-        directory / "probe",
-        fixture / "input",
-        presentation=bool(
-            custom_runtime and expected_version and expected_version.startswith("46.")
-        ),
-    )
-    if not result["passed"]:
-        raise ValueError("Native runtime fixture failed; inspect runtime-report.json")
-    if expected_version and result["versions"]["electron"] != expected_version:
-        raise ValueError("Loaded Electron version differs from the compiler report")
-    audio = analyze(fixture, directory / "probe")
-    write_json(directory / "audio-report.json", audio)
-    if not audio["offline_krisp_verified"]:
-        raise ValueError("Offline Krisp check failed; inspect audio-report.json")
-    return {
-        "passed": True,
-        "runtime_versions": result["versions"],
-        "original_inputs": result["original_inputs"],
-        "native_fixture_passed": result["passed"],
-        "offline_krisp_verified": audio["offline_krisp_verified"],
-        "noise_reduction_db": audio["noise_reduction_db"],
-    }
+        result = probe(
+            runtime,
+            executable,
+            directory / "modules",
+            directory / "probe",
+            fixture / "input",
+            presentation=bool(
+                custom_runtime and expected_version and expected_version.startswith("46.")
+            ),
+        )
+        if not result["passed"]:
+            raise ValueError("Native runtime fixture failed; inspect runtime-report.json")
+        if expected_version and result["versions"]["electron"] != expected_version:
+            raise ValueError("Loaded Electron version differs from the compiler report")
+        audio = analyze(fixture, directory / "probe")
+        write_json(directory / "audio-report.json", audio)
+        if not audio["offline_krisp_verified"]:
+            raise ValueError("Offline Krisp check failed; inspect audio-report.json")
+        return {
+            "passed": True,
+            "runtime_versions": result["versions"],
+            "original_inputs": result["original_inputs"],
+            "native_fixture_passed": result["passed"],
+            "offline_krisp_verified": audio["offline_krisp_verified"],
+            "noise_reduction_db": audio["noise_reduction_db"],
+        }
 
 
 def check(

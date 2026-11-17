@@ -7,7 +7,11 @@ for comparison.
 
 The fixture copies the runtime and gives it a private profile, HOME, XDG paths,
 display and unavailable audio/DBus endpoints. It does not open the normal Discord
-bootstrap or use an account. Synthetic results do not establish live-call quality.
+bootstrap or use an account. Private runtime/module copies and profile state
+are removed when the probe ends, including on failure. Reports,
+`fixture-storage.json`, `audio-output/` synthetic WAVs and `voice-logs/` remain for
+analysis. Native client checks share verified archives with `out/dev/downloads`
+and discard their unpacked input trees. Synthetic results do not establish live-call quality.
 
 ## Reproduction
 

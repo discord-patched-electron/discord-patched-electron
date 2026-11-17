@@ -157,7 +157,7 @@ def prepare(
         with (downloads / (expected + ".lock")).open("a") as stream:
             fcntl.flock(stream, fcntl.LOCK_EX)
             download(url, archive, expected)
-        target.write_bytes(archive.read_bytes())
+            target.write_bytes(archive.read_bytes())
 
     client.fetch = fetch
     root = profile / "dpe-updater"

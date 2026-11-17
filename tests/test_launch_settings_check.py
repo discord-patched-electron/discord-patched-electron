@@ -2,6 +2,7 @@
 
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -35,7 +36,15 @@ class SettingsRuntimeCopy(unittest.TestCase):
                     self.assertFalse(target.parent.is_symlink())
                     target.write_bytes(b"isolated settings fixture")
 
+            original_run = subprocess.run
+
             def execute(*args, **kwargs):
+                if args[0][0] == "cp":
+                    return original_run(*args, **kwargs)
+                self.assertEqual(
+                    (output / "runtime/resources/app.asar").read_bytes(),
+                    b"isolated settings fixture",
+                )
                 (output / "settings.json").write_text(json.dumps({"passed": True}))
                 return SimpleNamespace(returncode=0)
 
@@ -46,6 +55,6 @@ class SettingsRuntimeCopy(unittest.TestCase):
             ):
                 self.assertTrue(check_launch_settings.check(executable, output)["passed"])
             self.assertEqual((original / "app.asar").read_bytes(), b"verified original application")
-            self.assertEqual(
-                (output / "runtime/resources/app.asar").read_bytes(), b"isolated settings fixture"
-            )
+            self.assertFalse((output / "runtime").exists())
+            self.assertFalse((output / "profile").exists())
+            self.assertTrue((output / "settings.json").is_file())

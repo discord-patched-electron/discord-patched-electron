@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 from common import ROOT, read_json, run, sha256, write_json
+from fixture_storage import copy_runtime, transient_paths
 
 VIDEO_CODECS = {
     "h264": ("mp4", ["-c:v", "libx264", "-movflags", "+faststart"]),
@@ -46,97 +47,98 @@ def check(
     if output.exists() or output.is_relative_to(runtime.parent):
         raise ValueError("Choose a fresh output outside the input distribution")
     output.mkdir(parents=True)
-    run("cp", "-a", "--reflink=auto", runtime.parent, output / "runtime")
-    fixture = output / "fixture"
-    shutil.copytree(ROOT / "tests/graphics", fixture)
-    if openasar_source:
-        shutil.copy2(openasar_source, fixture / "cmdSwitches.js")
-        adapters = fixture / "integration/updater"
-        adapters.mkdir(parents=True)
-        for name in ("patches.cjs", "flags.cjs"):
-            shutil.copy2(ROOT / "integration/updater" / name, adapters / name)
-    extension, codec_flags = VIDEO_CODECS[video_codec]
-    clip = "clip." + extension
-    write_json(fixture / "clip.json", {"file": clip, "roundTrips": not playback_only})
-    run(
-        "ffmpeg",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-f",
-        "lavfi",
-        "-i",
-        "testsrc2=size=1280x720:rate=30",
-        "-t",
-        "2",
-        *codec_flags,
-        "-threads",
-        "2",
-        "-pix_fmt",
-        pixel_format,
-        fixture / clip,
-    )
-    # Preserve the encoded profile/bit depth, not just the requested encoder flags.
-    probe = subprocess.check_output(
-        ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(fixture / clip)],
-        text=True,
-    )
-    (output / "clip-probe.json").write_text(probe)
-    run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
-    env = {
-        **os.environ,
-        "DPE_GRAPHICS_OUTPUT": str(output),
-        "DPE_GRAPHICS_PRESET": preset,
-        "WAYLAND_DEBUG": "client",
-    }
-    env.pop("ELECTRON_RUN_AS_NODE", None)
-    command = [str(output / "runtime" / runtime.name), "--disable-setuid-sandbox", *extra]
-    if launcher_codecs:
-        command = [
-            "bash",
-            "-c",
-            'source "$1"; shift; dpe_restore_codec_environment; dpe_preload_openh264 "$@"; exec "$@"',
-            "codec-probe",
-            str(ROOT / "integration/launcher/codec-preload.sh"),
-            *command,
-        ]
-    with (output / "console.log").open("w") as log:
-        process = subprocess.run(
-            command,
-            env=env,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            timeout=45,
+    with transient_paths(output, "runtime", "profile"):
+        copy_runtime(runtime.parent, output / "runtime")
+        fixture = output / "fixture"
+        shutil.copytree(ROOT / "tests/graphics", fixture)
+        if openasar_source:
+            shutil.copy2(openasar_source, fixture / "cmdSwitches.js")
+            adapters = fixture / "integration/updater"
+            adapters.mkdir(parents=True)
+            for name in ("patches.cjs", "flags.cjs"):
+                shutil.copy2(ROOT / "integration/updater" / name, adapters / name)
+        extension, codec_flags = VIDEO_CODECS[video_codec]
+        clip = "clip." + extension
+        write_json(fixture / "clip.json", {"file": clip, "roundTrips": not playback_only})
+        run(
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=1280x720:rate=30",
+            "-t",
+            "2",
+            *codec_flags,
+            "-threads",
+            "2",
+            "-pix_fmt",
+            pixel_format,
+            fixture / clip,
         )
-    report = read_json(output / "graphics.json")
-    report.update(
-        executable_sha256=sha256(runtime),
-        process_exit=process.returncode,
-        native_wayland_connection="wl_display"
-        in (output / "console.log").read_text(errors="replace"),
-        additional_flags=extra,
-        video_codec=video_codec,
-        launcher_codecs=launcher_codecs,
-        pixel_format=pixel_format,
-        playback_only=playback_only,
-    )
-    if openasar_source:
-        report.update(openasar_source_sha256=sha256(openasar_source), openasar_preset=preset)
-    report["passed"] = report.get("passed") is True and process.returncode == 0
-    write_json(output / "graphics.json", report)
-    print(
-        {
-            key: report.get(key)
-            for key in (
-                "passed",
-                "native_wayland_connection",
-                "gpuFeatures",
-                "rendering",
-                "players",
-            )
+        # Preserve the encoded profile/bit depth, not just the requested encoder flags.
+        probe = subprocess.check_output(
+            ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(fixture / clip)],
+            text=True,
+        )
+        (output / "clip-probe.json").write_text(probe)
+        run(ROOT / "node_modules/.bin/asar", "pack", fixture, output / "runtime/resources/app.asar")
+        env = {
+            **os.environ,
+            "DPE_GRAPHICS_OUTPUT": str(output),
+            "DPE_GRAPHICS_PRESET": preset,
+            "WAYLAND_DEBUG": "client",
         }
-    )
-    return report
+        env.pop("ELECTRON_RUN_AS_NODE", None)
+        command = [str(output / "runtime" / runtime.name), "--disable-setuid-sandbox", *extra]
+        if launcher_codecs:
+            command = [
+                "bash",
+                "-c",
+                'source "$1"; shift; dpe_restore_codec_environment; dpe_preload_openh264 "$@"; exec "$@"',
+                "codec-probe",
+                str(ROOT / "integration/launcher/codec-preload.sh"),
+                *command,
+            ]
+        with (output / "console.log").open("w") as log:
+            process = subprocess.run(
+                command,
+                env=env,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                timeout=45,
+            )
+        report = read_json(output / "graphics.json")
+        report.update(
+            executable_sha256=sha256(runtime),
+            process_exit=process.returncode,
+            native_wayland_connection="wl_display"
+            in (output / "console.log").read_text(errors="replace"),
+            additional_flags=extra,
+            video_codec=video_codec,
+            launcher_codecs=launcher_codecs,
+            pixel_format=pixel_format,
+            playback_only=playback_only,
+        )
+        if openasar_source:
+            report.update(openasar_source_sha256=sha256(openasar_source), openasar_preset=preset)
+        report["passed"] = report.get("passed") is True and process.returncode == 0
+        write_json(output / "graphics.json", report)
+        print(
+            {
+                key: report.get(key)
+                for key in (
+                    "passed",
+                    "native_wayland_connection",
+                    "gpuFeatures",
+                    "rendering",
+                    "players",
+                )
+            }
+        )
+        return report
 
 
 def main():

@@ -2,6 +2,10 @@ name: Native runtime validation
 on:
   workflow_call:
     inputs:
+      reuse_checks:
+        description: Reuse exact source/client bundled evidence from main push checks
+        type: boolean
+        default: false
       reference_run:
         description: Successful reference or candidate compiler run ID; empty checks bundled runtimes
         type: string
@@ -19,6 +23,10 @@ on:
         default: all
   workflow_dispatch:
     inputs:
+      reuse_checks:
+        description: Reuse exact source/client bundled evidence from main push checks
+        type: boolean
+        default: false
       reference_run:
         description: Successful reference or candidate compiler run ID; empty checks bundled runtimes
         type: string
@@ -49,14 +57,27 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+      - name: Reuse exact bundled native qualification
+        id: reuse
+        if: inputs.reuse_checks && env.REFERENCE_RUN == '' && env.CLIENTS_STATE != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          python3 scripts/source_verification.py --commit "$GITHUB_SHA"
+          --bundled-state "$CLIENTS_STATE" --discord-channel "$DISCORD_CHANNELS"
+          --output out/native-reuse.json
       - uses: ./.github/actions/setup-project
+        if: steps.reuse.outputs.reused != 'true'
       - name: Install native fixture dependencies
+        if: steps.reuse.outputs.reused != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential libnode-dev xvfb xauth brotli \
             libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6
       - name: Permit sandbox namespaces for the disposable test runtimes
+        if: steps.reuse.outputs.reused != 'true'
         shell: bash
         run: |
           # Ubuntu restricts user namespaces for downloaded Chromium executables.
@@ -82,12 +103,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: python scripts/fetch_reference.py "$REFERENCE_RUN" --output out/reference-download
       - name: Fetch the exact discovered client snapshot
-        if: env.CLIENTS_STATE != ''
+        if: env.CLIENTS_STATE != '' && steps.reuse.outputs.reused != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
       - name: Check native video and offline Krisp for selected client channels
+        if: steps.reuse.outputs.reused != 'true'
         shell: bash
         run: |
           args=()
@@ -123,19 +145,25 @@ jobs:
         with:
           name: native-runtime-diagnostics-${{ github.run_id }}-${{ inputs.discord_channels || 'all' }}-${{ inputs.reference_run || 'bundled' }}
           path: |
+            out/native-reuse.json
             out/reference-download/artifact-provenance.json
             out/clients.lock.json
             out/clients.lock.provenance.json
             out/native-runtime/runtime-checks.json
             out/native-runtime/*/client-check.json
+            out/native-runtime/*/fixture-storage.json
+            out/native-runtime/*/probe/fixture-storage.json
             out/native-runtime/*/audio-report.json
             out/native-runtime/*/krisp-patch.json
             out/native-runtime/*/probe/runtime-report.json
             out/native-runtime/*/probe/runtime.log
-            out/native-runtime/*/probe/profile/voice/discord-webrtc_*
+            out/native-runtime/*/probe/voice-logs/discord-webrtc_*
+            out/native-runtime/*/probe/audio-output/*/*.wav
             out/frame-capture/frame-capture.json
+            out/frame-capture/fixture-storage.json
             out/frame-capture/console.log
             out/safe-storage/storage-report.json
+            out/safe-storage/fixture-storage.json
             out/safe-storage/console-*.log
           retention-days: 7
           if-no-files-found: warn

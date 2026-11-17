@@ -536,10 +536,18 @@ class Manager:
         print(f"Removed {suffix} {label}")
 
     def prune(self, apply: bool, downloads: bool):
-        with lock(self.home / "locks/catalog"):
+        with lock(self.home / "locks/catalog"), contextlib.ExitStack() as leases:
             candidates = [p for p in files(self.home / "objects") if p.stat().st_nlink == 1]
             if downloads:
-                candidates.extend(files(self.home / "downloads"))
+                for path in files(self.home / "downloads"):
+                    if not re.fullmatch(r"[a-f0-9]{64}\.tar\.br", path.name):
+                        continue
+                    try:
+                        leases.enter_context(lock(path.with_name(path.name[:64] + ".lock")))
+                    except ValueError:
+                        print(f"Skipping in-use download {path}")
+                        continue
+                    candidates.append(path)
             for path in candidates:
                 print(("Removing " if apply else "Would remove ") + str(path))
                 if apply:

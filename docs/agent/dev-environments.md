@@ -43,12 +43,29 @@ or version eviction occurs. A legacy stored `current` is preserved, not selected
 
 ## Storage and helper identity
 
-`build_local_app.py` extracts runtime archives into every output. Nonportable
-apps embed their output path in their ASAR and cannot safely be relocated.
-Portable apps use per-profile client generations and per-installation runtime
-caches. Application helpers are also copied into module sidecars. The updater's
-compatibility key includes JS helpers, so ordinary edits can create another
-prepared generation and download the same module archives again.
+`build_local_app.py` extracts runtime archives into each output, then the manager
+pools immutable Electron files by content hash. Managed downloads share exact,
+checksum-verified upstream archives across compatibility generations. Prepared
+modules stay private because adapters and native patches can differ. Cargo's
+`out/rust-target` and immutable `out/rust-support` archives are separate build
+caches; their size is not evidence of duplicate downloads.
+
+Unmanaged fixture results previously retained complete runtime/profile copies.
+`--reflink=auto` preserves isolation but does not give those copies a shared
+lifetime or guarantee physical block sharing. Settings, popout, graphics, native
+probe, frame-capture and safeStorage harnesses now own these payloads through
+`fixture_storage.transient_paths`: cleanup runs after success or failure, while
+reports and logs survive. Each completed cleanup writes `fixture-storage.json`.
+Copying replaces a linked resources directory before packing fixture code, so a
+runtime's shared application payload cannot be overwritten. Native probes retain
+only required synthetic audio and voice diagnostics outside their disposable
+profile; their caller also removes unpacked input distributions and modules.
+
+Native qualification shares `out/dev/downloads` with the default managed home.
+Archives use SHA-256 keys and are reverified on every cache hit. Consumers hold
+the per-hash lock through extraction/copying; download pruning skips busy archives
+and preserves lock-file inodes. Only recognized content-addressed `.tar.br` files
+participate in `--downloads`; unrelated files are left for explicit inspection.
 
 The manager imports only portable compiled local apps and checks the executable
 against their local build record; this is not a fresh provenance qualification.
@@ -81,6 +98,14 @@ use, or ownership is uncertain, ask about retention at the next suitable stoppin
 point (normally before final handback). Do not interrupt calls, delete user-owned
 profiles, or leave disposable profile series for someone else to clean up.
 
+The profile's `dpe-updater/cache` is prepared installation data, not a disposable
+download cache. Generation `modules/` entries link directly into it, and
+`current.json` requires those targets and their integrity records. Preserve the
+complete cache dependencies of retained generations; deleting that directory can
+invalidate the current client and force online reconstruction. Shared upstream
+archives in `out/dev/downloads` have a separate lifetime and explicit pruning
+command. Keeping login files alone does not preserve an offline-capable profile.
+
 `--temporary-profile` instead owns a unique managed profile for one manager run;
 normal return, launch failure, Ctrl+C and SIGTERM remove it after the child process
 group stops. SIGKILL or power loss can leave it behind. Temporary profiles use
@@ -94,6 +119,8 @@ without following directory symlinks or descending into identified profiles.
 It never deletes anything and cannot infer whether an identity is expendable.
 `list` reports an allocated total with hard-linked inodes counted once across the
 managed home. Per-category figures overlap; reflink extents are not deduplicated.
+On Btrfs, use `btrfs filesystem du -s out` to distinguish exclusive and shared
+extents; ordinary `du` totals do not establish exclusive physical usage.
 Historical benchmark payload copies and Rust targets are outside managed pruning;
 review them separately rather than evicting reusable downloads to hide growth.
 

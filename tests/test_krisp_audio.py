@@ -45,6 +45,13 @@ class AudioGate(unittest.TestCase):
             shutil.copy2(self.fixture / "input/noisy.wav", directory / "noisy_processed.wav")
         self.enabled = self.probe / "profile/audio-1/noisy_processed.wav"
 
+    def test_analyzer_uses_retained_audio_after_profile_cleanup(self):
+        shutil.copy2(self.fixture / "reference.wav", self.enabled)
+        (self.probe / "profile").rename(self.probe / "audio-output")
+        (self.probe / "audio-output/voice").rename(self.probe / "voice-logs")
+        self.assertTrue(analyze(self.fixture, self.probe)["offline_krisp_verified"])
+        self.assertFalse((self.probe / "profile").exists())
+
     def test_bypassed_processing_fails(self):
         self.assertFalse(analyze(self.fixture, self.probe)["offline_krisp_verified"])
 

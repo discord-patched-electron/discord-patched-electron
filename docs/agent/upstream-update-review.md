@@ -281,3 +281,59 @@ from its mirror while building the audio image; release qualification's audio
 job passed. Retain this as an infrastructure failure, not a reason to weaken
 native or package gates. The failed main job was retried with the same checks and passed in
 [main Checks attempt 2](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/43553882488/attempts/2).
+
+### Canary 1.0.2483 module revision 19
+
+The approved `v20261116020335.0.0-canary.cc5107a1f46d6b85` release provides the
+revision-12 baseline: source `c97acf3bdc2958abdff109710576899b0255565f`, client state
+`5ed96cbd86a0de1ef9ba585ccce00c0f10bdcef6`. Discovery run
+[43968870954](https://github.com/discord-patched-electron/discord-patched-electron/actions/runs/43968870954)
+used source `a1101b3494327352eb30639bcd3be8ab8211796e` and revision-18 state
+`bb47dc9588e8c0f2d1603a85367c0136fafb62a4`. Its native/audio gates passed, but the
+120-second portable launch check expired shortly after setup restarted.
+
+The subsequent live manifest advertises revision 19. Its retained manifest hash
+is `64acfe1b610ff18095000adac409ff418a47c1cffc5ee2af57da6e921492559e` and its
+normalized lock hash is
+`9bf65d8c9a3f35fa6e5f4cdd7295fa18ef8375358bea23a09ac269a6817f9514`.
+This direct snapshot has no discovery-state commit yet; archive hashes in
+`config/clients.lock.json` bind its inputs. `out/discovery-20261116/` retains both
+immutable state locks, verified archives, complete member/ASAR inventories,
+all 11 changed-entry dispositions, text hunks and native comparisons.
+
+All JavaScript, ASAR contents and the voice binary are unchanged. RPC, voice and
+spellcheck manifests reorder identical file sets; the generated CLD Makefile
+reorders prerequisites. `discord_modules.node` changes only its build identity.
+`discord_utils.node` removes an obsolete process-observer callback/constructor
+flag, shifts private observer fields, and retains legacy exports as no-ops.
+DPE has no private-layout hooks or callers of those deprecated methods; preserve
+upstream behavior. Original/prepared voice identities remain the alpha.10 review's
+`ae2ca4d...` / `42b32e01...` chain above; no hash-allowlist extension is needed.
+
+Using the verified alpha.10 archive identified above, exact revision-19 checks
+passed cold setup/login, real module versions/updater APIs, all four popout
+handshakes, same-profile relaunch, native bridge and offline Krisp. Official Vencord and
+Equicord install, self-update, package-update preservation, relaunch and uninstall
+also passed; the mod fixture removed its profile after the sequence. The revised
+launch harness also passed with automatic profile cleanup. The cold path took
+97.74 seconds and relaunch 11.81 seconds on this machine; these measurements are
+observations, not readiness delays or timeout recommendations.
+
+Revision 18 also stalled in a local preparation check with a 300-second budget;
+retain that failed experiment rather than claiming the longer timeout alone
+qualifies it. Standalone Node-mode utils teardown crashed on both baseline and
+candidate; it does not qualify the Electron renderer lifecycle. Authenticated
+game detection, live calls, new codec benchmarks, package-format installation and
+Windows/macOS remain unverified in this pass. Existing scheduled-presentation,
+direct-GPU and codec limits above remain. This review does not publish or approve
+a release.
+
+The fixture-storage/CI follow-up retains exact-input evidence in `out/ci-storage/`.
+The revision-19 login, Configure more/onboarding-close path, both launches' four
+popout handshakes, full settings harness, frame-capture lifecycle and safeStorage
+relaunch passed on the same alpha.10 runtime. Two successive native/Krisp runs
+reused the same archive inodes, mtimes and SHA-256 values and left no private
+runtime/module/profile trees; `cache-validation.json` and per-fixture storage
+receipts record those contracts. Failed experiments and their reports remain
+separate from passing results. These checks do not extend the game-detection,
+live-call, codec, platform or publication coverage stated above.

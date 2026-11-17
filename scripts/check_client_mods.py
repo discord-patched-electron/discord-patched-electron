@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -15,6 +16,15 @@ from installation import copy_payload
 
 
 def verify(app: Path, output: Path, installers: dict[str, Path]):
+    if output.exists():
+        raise ValueError("Choose a fresh report directory")
+    try:
+        return _verify(app, output, installers)
+    finally:
+        shutil.rmtree(output / "profile", ignore_errors=True)
+
+
+def _verify(app: Path, output: Path, installers: dict[str, Path]):
     app, output = app.resolve(), output.resolve()
     if output.exists():
         raise ValueError("Choose a fresh mod report directory")

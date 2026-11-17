@@ -475,3 +475,13 @@ proportionally but retain the preferred size/position for the return trip. A
 manual move or resize invalidates that transfer checkpoint. PiP’s settings action
 opens an independent normal Settings window, not a child dialog. Its native button
 label markup is retained and the shared button padding/nowrap treatment applies.
+
+Hunspell can emit `Hash Manager Error : 1` while both English dictionaries remain
+functional on the retained alpha.10 runtime. The Chromium Hunspell AF loader
+calls a boolean-returning `parse_aliasf` as an integer error result; successful
+alias parsing can therefore print this warning. An isolated revision-19 check
+using copied en-GB/en-US dictionaries reproduced two warnings while accepting
+`hello`, rejecting `helllo` and suggesting `hello`. Evidence is in
+`out/ci-storage/spellcheck/probe-verified/`. This is not a DPE module-checksum
+failure and does not justify deleting personal dictionaries. No runtime rebuild
+or stderr suppression was applied for this diagnostic.

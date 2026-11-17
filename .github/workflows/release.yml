@@ -85,6 +85,7 @@ jobs:
     if: needs.inputs.outputs.needed == 'true' && !inputs.skip_tests
     uses: ./.github/workflows/native-runtime.yml
     with:
+      reuse_checks: true
       clients_state: ${{ needs.inputs.outputs.state }}
       discord_channels: ${{ inputs.discord_channel }}
   native:
@@ -141,7 +142,7 @@ jobs:
       - run: rustup show
       - name: Check source and workflow quality
         if: ${{ !inputs.skip_tests }}
-        run: bun run lint && bun run test
+        run: python scripts/source_verification.py --commit "$GITHUB_SHA" --output out/source-verification.json
       - name: Assemble pinned inputs without compiling Electron
         run: |
           python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
@@ -260,6 +261,7 @@ jobs:
         with:
           name: release-checks-${{ inputs.discord_channel }}
           path: |
+            out/source-verification.json
             out/application-update/application-update-report.json
             out/application-update/**/console.log
             out/launch/**/launch-report.json

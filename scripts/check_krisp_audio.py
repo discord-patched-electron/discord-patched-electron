@@ -75,7 +75,9 @@ def analyze(fixture: Path, probe: Path) -> dict:
     for index, batch in enumerate(batches):
         if batch["processed"] != 1 or batch["failed"] != 0:
             raise ValueError("Batch must process exactly one fixture successfully")
-        path = probe / "profile" / f"audio-{index}" / "noisy_processed.wav"
+        path = probe / "audio-output" / f"audio-{index}" / "noisy_processed.wav"
+        if not path.exists():
+            path = probe / "profile" / f"audio-{index}" / "noisy_processed.wav"
         processed = np.asarray(read_wav(path), dtype=np.float64)
         if abs(len(processed) - len(reference)) >= 480:
             raise ValueError("Unexpected processed audio length")
@@ -113,7 +115,8 @@ def analyze(fixture: Path, probe: Path) -> dict:
     )
     logs = "\n".join(
         path.read_text(errors="replace")
-        for path in (probe / "profile/voice").glob("discord-webrtc_*")
+        for directory in (probe / "voice-logs", probe / "profile/voice")
+        for path in directory.glob("discord-webrtc_*")
     )
     checks = {
         "krisp_initialization_logged": "Krisp initialized successfully" in logs,

@@ -10,26 +10,35 @@ Source lint always runs. Documentation changes skip native package installation
 and Cargo checks. Code changes run Python, JavaScript and Rust tests, with
 integration jobs selected by their inputs:
 
-| Change                                                                        | Additional checks                                                           |
-| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| README, contributor guides, agent notes and skill instructions                | None; source lint only                                                      |
-| Release notes, approval/AUR/discovery tooling, unit tests                     | Unit suite only                                                             |
-| App settings, updater, package assets and templates                           | Arch packaging                                                              |
-| Launcher                                                                      | Arch packaging (shell syntax is already covered by lint)                    |
-| Audio adapters or patches                                                     | Arch packaging and application audio                                        |
-| Krisp patcher                                                                 | Arch packaging and native baselines                                         |
-| Camera support                                                                | Arch packaging and camera binary compilation                                |
-| Capture producers, hooks, protocols and their build scripts                   | Arch packaging, native baselines and independent capture bundle compilation |
-| AppImage builder, dependency bundle and dedicated fixtures                    | AppImage build and launch without FUSE                                      |
-| Shared release packager or AppRun                                             | Arch packaging and AppImage                                                 |
-| Compiler cache                                                                | Real compiler cache check                                                   |
-| Native/audio test fixtures                                                    | Their corresponding integration suite                                       |
-| Source/client locks, shared dependencies, selector/workflow, unfamiliar paths | Full checks                                                                 |
+| Change                                                         | Additional checks                                                           |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| README, contributor guides, agent notes and skill instructions | None; source lint only                                                      |
+| Release notes, approval/AUR/discovery tooling, unit tests      | Unit suite only                                                             |
+| App settings, updater, package assets and templates            | Arch packaging                                                              |
+| Launcher                                                       | Arch packaging (shell syntax is already covered by lint)                    |
+| Audio adapters or patches                                      | Arch packaging and application audio                                        |
+| Krisp patcher                                                  | Arch packaging and native baselines                                         |
+| Camera support                                                 | Arch packaging and camera binary compilation                                |
+| Capture producers, hooks, protocols and their build scripts    | Arch packaging, native baselines and independent capture bundle compilation |
+| AppImage builder, dependency bundle and dedicated fixtures     | AppImage build and launch without FUSE                                      |
+| Shared release packager or AppRun                              | Arch packaging and AppImage                                                 |
+| Compiler cache                                                 | Real compiler cache check                                                   |
+| Native/audio test fixtures                                     | Their corresponding integration suite                                       |
+| Client lock                                                    | Native, audio, Arch and AppImage package checks                             |
+| Source lock, imported Electron patches and source assembler    | Source assembly                                                             |
+| Dev manager and manual-only benchmark/graphics/popout tools    | Unit suite only                                                             |
+| Runtime compatibility/import pins                              | Native and package checks                                                   |
+| Shared dependencies, selector/entry point and unfamiliar paths | Full checks                                                                 |
 
-Mixed changes use the union of their scopes. Keep the rules conservative: a new
-unlisted path runs everything until its consumers have been identified. Changing
-the selector or `check.yml` itself also runs everything. No check here recompiles
-Electron; compilation remains a separate budgeted workflow.
+Mixed changes use the union of their scopes. README variants and maintained
+documentation run source lint only. Every existing file has a consumer-based
+rule or an explicit shared-input fallback; new unknown paths still run all checks.
+The shared setup action, language/dependency pins, channel/input primitives,
+`ci_scope.py` and `check.yml` keep full coverage because they control the complete
+job graph or environment. A selector/entry-point edit therefore validates the
+whole routing once; subsequent documentation edits do not inherit that scope.
+Source-only changes do not run application probes against an unchanged runtime.
+No check here recompiles Electron; compilation remains a separate budgeted workflow.
 
 Only `agents/skills/*/SKILL.md` is classified as skill documentation. Executable
 helpers and other new skill resources keep full checks until explicitly scoped.
@@ -112,6 +121,66 @@ A library migration needs a specific missing capability. Adding pytest, a second
 JavaScript runner, a homegrown scheduler or a coverage percentage gate does not
 by itself improve these boundaries. Coverage gaps should be stated as missing
 behaviors and addressed with the appropriate fixture or end-to-end check.
+
+## Reusing source verification for release
+
+Release packaging calls `source_verification.py` before candidate checks. It
+reuses the successful `tests` job from the exact source SHA's main-branch push
+Checks run only after source lint, Rust lint and unit suites all succeeded. The
+repository, workflow path, event, branch and full commit must match. Pending jobs
+are observed with a bounded completion wait rather than rerun concurrently;
+failed checks stop the release. Missing or older proofs require fresh source
+verification. The retained `source-verification.json` identifies the reused run
+and job. API failures never authorize a skip.
+
+Bundled native qualification can also reuse the push job only when the full
+client lock matches and its downloaded report proves the requested channel,
+bundled runtime, native fixture and offline Krisp all passed. The report's client
+digest must match; different clients or custom runtimes require their own checks.
+`native-reuse.json` retains the original job/artifact identity.
+
+Candidate module/runtime, audio, launch/mod preservation, package installation,
+signed update activation and signing gates still run against exact release
+inputs. A dummy Arch runtime, bundled baseline, custom runtime and installed
+package test cover different contracts. Approval validates the successful release
+workflow, signatures and artifact identities, then promotes those same files;
+it neither rebuilds nor repeats the qualification suites.
+
+## Desktop launch timing and fixture ownership
+
+A module-only portable app follows the same cold download/preparation path as a
+minimal bootstrap. Both receive a bounded 300-second preparation budget; a local
+app with staged modules receives 120 seconds. Completing Welcome starts one
+120-second login budget after the persisted setup marker is visible and the
+Welcome window has closed. Repeated polls never extend that deadline. Login,
+module pins/APIs and popout handshakes remain required.
+
+Launch reports retain the phase, elapsed time, timeout budget and last probe
+error. The CLI owns one temporary profile across first launch and relaunch and
+removes it on success or exception. Callers of `check()` own any supplied profile;
+the mod and signed-application-update fixtures retain theirs only until their
+multi-launch sequence ends. Keep reports and console logs after cleanup. The
+shared mod action also removes downloaded installers through an EXIT trap.
+
+Popout qualification captures the new browser target after its loaded handshake,
+closes it, and requires that exact target ID to disappear before reusing its native
+registration key. A fixed delay or `WindowProxy.closed` cannot prove teardown.
+Welcome/Settings finish actions acknowledge readiness in one DevTools request,
+then dispatch in another; the persisted setup marker and closed window establish
+completion even if finishing destroys the target before its command replies.
+Transport, protocol and JavaScript errors remain explicit failures.
+
+Settings hover/pressed checks wait for the exact computed state; resize checks
+wait for both dimensions and restore the observed bounds. Initial settings size
+is display-clamped, so a test must not assume every Xvfb display permits
+1100×800. Polling uses monotonic clocks; deadlines bound failures rather than
+substitute for readiness. Other fixed sampling/animation waits are not all
+replaced by this focused release/settings audit.
+
+The shared fixture storage helper removes private runtime/profile copies and
+retains cleanup receipts. Native diagnostics preserve processed synthetic WAVs
+and voice logs outside the profile for post-run analysis. CI retains these logs
+and receipts; completed checks do not require retaining executable copies.
 
 ## Failure-history triage
 
