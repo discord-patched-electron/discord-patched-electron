@@ -5,7 +5,7 @@
       "at": "2026-11-01T06:47:06.343948+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-20T20:49:25+00:00",
+      "provider_settled_at": "2026-11-20T21:19:06+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -13,7 +13,7 @@
       "at": "2026-11-01T06:54:02.281292+00:00",
       "conclusion": "success",
       "minutes": 960,
-      "provider_settled_at": "2026-11-20T20:49:25+00:00",
+      "provider_settled_at": "2026-11-20T21:19:06+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -21,7 +21,7 @@
       "at": "2026-11-05T15:39:39.838127+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-20T20:49:25+00:00",
+      "provider_settled_at": "2026-11-20T21:19:06+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -29,7 +29,7 @@
       "at": "2026-11-05T16:48:18.342617+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-20T20:49:25+00:00",
+      "provider_settled_at": "2026-11-20T21:19:06+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -37,7 +37,7 @@
       "at": "2026-11-05T22:09:16.833291+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-20T20:49:25+00:00",
+      "provider_settled_at": "2026-11-20T21:19:06+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -45,7 +45,7 @@
       "at": "2026-11-12T03:57:24.272224+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-20T20:49:25+00:00",
+      "provider_settled_at": "2026-11-20T21:19:06+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     },
@@ -53,7 +53,7 @@
       "at": "2026-11-12T05:09:01.267082+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-20T20:49:25+00:00",
+      "provider_settled_at": "2026-11-20T21:19:06+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     },
@@ -61,13 +61,13 @@
       "at": "2026-11-12T12:58:30.452069+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-20T20:49:25+00:00",
+      "provider_settled_at": "2026-11-20T21:19:06+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     }
   },
   "blacksmith_usage": {
-    "at": "2026-11-20T20:49:25+00:00",
+    "at": "2026-11-20T21:19:06+00:00",
     "limit_minutes": 3000,
     "period_start": "2026-11-01T00:00:00+00:00",
     "runner_rate": 8,
@@ -562,6 +562,15 @@
       "requested_at": "2026-10-30T23:55:36.192900+00:00",
       "run": "41147165609",
       "status": "success"
+    },
+    "433575806bc1418ec39cd8db5b485cb4f2c09fc553ebb539519cf287a08ef333": {
+      "channel": "canary",
+      "client_digest": "63a635c4f9e29e5c8f92b7bbb43d70ac293cee0740ccb64dc7f750d05b499a93",
+      "key": "433575806bc1418ec39cd8db5b485cb4f2c09fc553ebb539519cf287a08ef333",
+      "reference_run": "43553882378",
+      "requested_at": "2026-11-20T21:19:10.578857+00:00",
+      "run": "44818993358",
+      "status": "queued"
     },
     "467b96ce451fea2eead33f6913ee6740e19de479abd7597330a05fac4668a843": {
       "channel": "canary",
@@ -1176,14 +1185,14 @@
           "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2506/discord_sysimg/1/full.distro"
         },
         "discord_utils": {
-          "module_version": 2,
-          "sha256": "062c79f1d916e30fd44cfc50c18ea8e526e61ef62570054a3a77f36faf8192d9",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2506/discord_utils/2/full.distro"
+          "module_version": 3,
+          "sha256": "8d386b25542eb185c562ac6d31869e7cfb76c93e7c96714dd311d83bd019bcb0",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2506/discord_utils/3/full.distro"
         },
         "discord_voice": {
-          "module_version": 2,
-          "sha256": "2908c3b27a48b63665b6a75747bf9b7f8caaa9f5347f00edb490c5309ae59b35",
-          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2506/discord_voice/2/full.distro"
+          "module_version": 4,
+          "sha256": "4fbd04f0d11450ed6f7df6ec7b2b143bbf5caf75e3b9984a380d13b52c515d70",
+          "url": "https://canary.dl2.discordapp.net/distro/app/canary/linux/x64/1.0.2506/discord_voice/4/full.distro"
         },
         "discord_zstd": {
           "module_version": 1,
@@ -4341,5 +4350,5 @@
       "withdrawn_at": null
     }
   ],
-  "security_checked_at": "2026-11-20T20:48:11Z"
+  "security_checked_at": "2026-11-20T21:17:43Z"
 }
