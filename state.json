@@ -5,7 +5,7 @@
       "at": "2026-11-01T06:47:06.343948+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-24T02:22:20+00:00",
+      "provider_settled_at": "2026-11-24T06:26:50+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -13,7 +13,7 @@
       "at": "2026-11-01T06:54:02.281292+00:00",
       "conclusion": "success",
       "minutes": 960,
-      "provider_settled_at": "2026-11-24T02:22:20+00:00",
+      "provider_settled_at": "2026-11-24T06:26:50+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -21,7 +21,7 @@
       "at": "2026-11-05T15:39:39.838127+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-24T02:22:20+00:00",
+      "provider_settled_at": "2026-11-24T06:26:50+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -29,7 +29,7 @@
       "at": "2026-11-05T16:48:18.342617+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-24T02:22:20+00:00",
+      "provider_settled_at": "2026-11-24T06:26:50+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -37,7 +37,7 @@
       "at": "2026-11-05T22:09:16.833291+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-24T02:22:20+00:00",
+      "provider_settled_at": "2026-11-24T06:26:50+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -45,7 +45,7 @@
       "at": "2026-11-12T03:57:24.272224+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-24T02:22:20+00:00",
+      "provider_settled_at": "2026-11-24T06:26:50+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     },
@@ -53,7 +53,7 @@
       "at": "2026-11-12T05:09:01.267082+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-24T02:22:20+00:00",
+      "provider_settled_at": "2026-11-24T06:26:50+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     },
@@ -61,13 +61,13 @@
       "at": "2026-11-12T12:58:30.452069+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-24T02:22:20+00:00",
+      "provider_settled_at": "2026-11-24T06:26:50+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     }
   },
   "blacksmith_usage": {
-    "at": "2026-11-24T02:22:20+00:00",
+    "at": "2026-11-24T06:26:50+00:00",
     "limit_minutes": 3000,
     "period_start": "2026-11-01T00:00:00+00:00",
     "runner_rate": 8,
@@ -398,7 +398,7 @@
       "reference_run": "43553882378",
       "requested_at": "2026-11-24T02:22:24.200371+00:00",
       "run": "45311676401",
-      "status": "queued"
+      "status": "failure"
     },
     "12b9d02d86463138ca1188263b5950212faa179d5e85ac524e5f1b144874464f": {
       "channel": "canary",
@@ -1317,12 +1317,13 @@
       "urgent_reasons": []
     },
     "ba56e164936a251a65a3941629bbcd15309227f5e7a592548b780c74a17b58c9": {
-      "attempts": 2,
+      "attempts": 3,
       "previous_runs": [
-        "45282079946"
+        "45282079946",
+        "45311676401"
       ],
-      "requested_at": "2026-11-24T02:22:24.200371+00:00",
-      "run": "45311676401",
+      "requested_at": "2026-11-24T06:26:54.291741+00:00",
+      "run": "45340340763",
       "status": "queued",
       "target": {
         "commit": "d5343c16c17bbab06ea769b0f4b7633e846e4169",
@@ -4421,5 +4422,5 @@
       "withdrawn_at": null
     }
   ],
-  "security_checked_at": "2026-11-24T02:20:54Z"
+  "security_checked_at": "2026-11-24T06:25:31Z"
 }
