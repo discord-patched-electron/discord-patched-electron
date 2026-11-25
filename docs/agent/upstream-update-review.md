@@ -404,9 +404,9 @@ Chromium's removal of FFmpeg audio decoders in the configuration script and the
 new CRAS switch declarations. Full dependency patch application and GN generation
 pass. Local compilation reuses the retained workspace and eight compile jobs.
 The initial 15-CPU quota on the 20-logical-CPU host was reduced in place to one
-CPU (5%) at the user's request; the compiler was not restarted. The memory
-limit remains 18 GiB. `out/update-20261125/build-quota-change.json` records the
-change. Missing Node/npm tools in the container were supplied from a
+CPU (5%), then raised to 19 CPUs (95%) at the user's request. The healthy
+compiler was not restarted. The memory limit remains 18 GiB.
+`out/update-20261125/build-quota-change.json` records these budget changes. Missing Node/npm tools in the container were supplied from a
 checksum-verified official Node distribution; retained compile objects survive
 those tool failures.
 
