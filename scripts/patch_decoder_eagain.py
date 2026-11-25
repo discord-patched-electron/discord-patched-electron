@@ -15,6 +15,7 @@ import native_client_2444
 import native_client_2472
 import native_client_2483
 import native_client_2484
+import native_client_2510
 import patch_capture_chroma as chroma
 
 PATCH = "ffmpeg-decoder-buffered-output-v1"
@@ -66,6 +67,7 @@ def extend_reviewed(reviewed):
         reviewed.update(native_client_2472.HASHES)
         reviewed.update(native_client_2483.HASHES)
         reviewed.update(native_client_2484.HASHES)
+        reviewed.update(native_client_2510.HASHES)
         reviewed.update(digest for digest, base in SCOPE_BASES.items() if base in reviewed)
     else:
         reviewed.update(
@@ -76,7 +78,8 @@ def extend_reviewed(reviewed):
 
 def reviewed(digest):
     current = (
-        native_client_2484.reviewed("decoder", digest)
+        native_client_2510.reviewed("decoder", digest)
+        or native_client_2484.reviewed("decoder", digest)
         or native_client_2483.reviewed("decoder", digest)
         or native_client_2472.reviewed("decoder", digest)
         or native_client_2444.reviewed("decoder", digest)

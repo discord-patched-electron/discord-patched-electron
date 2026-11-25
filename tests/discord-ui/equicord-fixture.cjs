@@ -6,7 +6,14 @@ module.exports = function equicordFixture(archive, originalPreload) {
   process.env.DISCORD_PRELOAD = originalPreload;
   const sync = {
     VencordGetPluginIpcMethodMap: {},
-    VencordGetSettings: { autoUpdate: false, autoUpdateNotification: false, plugins: {} },
+    VencordGetSettings: {
+      autoUpdate: false,
+      autoUpdateNotification: false,
+      plugins:
+        process.env.DPE_TEST_FAKE_NITRO === "1"
+          ? { FakeNitro: { enabled: true, enableStreamQualityBypass: true } }
+          : {},
+    },
     VencordPreloadGetRendererJs: fs.readFileSync(path.join(archive, "renderer.js"), "utf8"),
     VencordSupportsWindowsMaterial: false,
   };

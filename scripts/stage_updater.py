@@ -139,6 +139,7 @@ def stage(
         "native_client_2472.py",
         "native_client_2483.py",
         "native_client_2484.py",
+        "native_client_2510.py",
         "patch_pulse_audio.py",
         "patch_pulse_reconnect.py",
         "patch_vaapi_hrd.py",

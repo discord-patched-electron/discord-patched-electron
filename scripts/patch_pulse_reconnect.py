@@ -21,6 +21,7 @@ from pathlib import Path
 
 from native_client_2483 import STAGES
 from native_client_2484 import STAGES as CLIENT_2484_STAGES
+from native_client_2510 import STAGES as CLIENT_2510_STAGES
 from patch_video_pacing import REVIEWED
 
 PATCH = "reconnect-failed-pulse-soundshare-context-v1"
@@ -28,7 +29,11 @@ INPUT_SHA256, OUTPUT_SHA256, SITES = STAGES["pulse-reconnect"]
 
 
 def chains():
-    return ((INPUT_SHA256, OUTPUT_SHA256, SITES), CLIENT_2484_STAGES["pulse-reconnect"])
+    return (
+        (INPUT_SHA256, OUTPUT_SHA256, SITES),
+        CLIENT_2484_STAGES["pulse-reconnect"],
+        CLIENT_2510_STAGES["pulse-reconnect"],
+    )
 
 
 def restored(data):

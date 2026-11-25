@@ -372,3 +372,116 @@ Qualification uses the retained alpha.10 runtime identified above; no Electron
 compilation is required. Hosted candidate qualification is pending. Live calls,
 lossy-network retransmission behavior, physical cameras and cross-platform
 behavior are not established by the local preparation and instruction checks.
+
+### Canary 1.0.2510 and Electron alpha.13 candidate
+
+`out/update-20261124/` retains the immutable client snapshot from state
+`a683dbb9f6467ccb319c5c2ca87dcd574ff28383`, verified archives,
+48 changed member entries, complete ASAR inventories and formatted text diffs.
+The comparison starts from the reviewed 1.0.2484 snapshot. The original voice
+SHA-256 is `c5e81bfe73be8367b0389d874008a5035e402f8483a47437679778b5b37f9b95`;
+the complete prepared module is
+`5ad4980d44711716b37e5da190924d609e8d226a64170b7e3f8b16cf0e64516a`.
+The ordered patch chain remains idempotent. The capture selection storage and
+wake guards move together in Python and Rust; exact canonical instruction,
+relative-target and literal comparisons cover 50 hooked capture/decoder functions.
+The executable reconnect fixture also covers this revision.
+
+On the retained, verified alpha.10 runtime, the exact candidate passes fresh
+setup/login, module APIs, popout handshakes, same-profile relaunch, native frame
+bridge and offline Krisp. Synthetic VP8 and hardware AV1 with dav1d reception pass
+picker, scaling, synchronization, pacing and cancellation checks. The AV1 paced
+case also passes transport reporting. Failed checks with an unprepared module,
+software-only display or incompatible capture-mode/transport assertions remain in
+the evidence directory. These results do not qualify alpha.13.
+
+Electron alpha.13 is pinned to `d5343c16c17bbab06ea769b0f4b7633e846e4169`.
+The source comparison from alpha.10 contains 212 files and 690 hunks. The
+compatibility port retains upstream's WebContents point include alongside DPE's
+image/range includes. The additive dependency layer adapts video-frame memory
+budget includes, GIF configuration and OpenH264 switch context. It preserves
+Chromium's removal of FFmpeg audio decoders in the configuration script and the
+new CRAS switch declarations. Full dependency patch application and GN generation
+pass. The shared-memory capture port uses Chromium's current read-only mapping
+`data()` accessor. It retains the validity/allocation checks, mapping lifetime and
+existing opaque-pointer ABI; only the removed `memory()` accessor changes.
+The locked assembly tree is `55919c846464f66640308b08ea27a565540db91c`;
+fresh assembly evidence is `out/update-20261125/shared-memory-source.json`.
+Local compilation reuses the retained workspace and eight compile jobs.
+The initial 15-CPU quota on the 20-logical-CPU host was reduced in place to one
+CPU (5%), then raised to 19 CPUs (95%) at the user's request. The healthy
+compiler was not restarted. The memory limit remains 18 GiB.
+`out/update-20261125/build-quota-change.json` records these budget changes. Missing Node/npm tools in the container were supplied from a
+checksum-verified official Node distribution; retained compile objects survive
+those tool failures. Snapshot generation also requires GLib and X11 runtime
+libraries in the compiler container. Verified Ubuntu packages and their dependency
+closure are recorded under `out/update-20261125/build-container-deps/`.
+
+The local alpha.13 compilation completed and the exact runtime passes native bridge/Krisp, isolated application audio, frame-capture lifetime/GC, safeStorage, all 46 settings checks, fresh relocated setup/login/relaunch/popouts, both official mod lifecycles and VP8/H.264/AV1/HEVC sender/receiver delivery with picker/scale/sync/pacing/cancellation/transport checks. H.264 uses the verified external OpenH264 decoder; HEVC uses the Electron receiver. The complete reports and truthful local compiler provenance are under `out/update-20261125/alpha13-qualification/`. The portable review archive is `out/update-20261125/dpe-canary-1.0.2513-electron-46.0.0-alpha.13-linux-x64-review.tar.gz`, SHA-256 `587d6685d0a7de727808f0a829a40b212e8dac2534fe386ef73e391a7d628d06`. Repository lint and the full Python/JavaScript/Rust suites also pass. This is local qualification; no release is published or approved. The user's existing
+non-Nitro `clock` profile was tested through the full DPE/Equicord startup path
+with FakeNitro and its stream-quality bypass temporarily enabled. The native
+Optimized picker showed no Nitro banner, and 1080p, 1440p, Source and 60fps were
+selectable. Only an owned synthetic source catalog was supplied; no stream,
+account call or capture session was started. The test modal was closed, the test
+app exited and the original plugin setting was restored. Evidence includes
+`clock-nitro-state.json`, `clock-picker-controls.json`, `clock-menu-resolution.json`
+and `clock-menu-fps.json`. A repeat using the refreshed helper sources confirmed
+“Stream” in the native Optimized picker and unlocked 1440p/60fps on HDMI-A-1;
+`out/update-20261125/clock-options.json` and `clock-menu.json` retain that result.
+Both native optimized and application-audio primary actions now use “Stream”. The reported locked picker/banner was not reproduced.
+
+Current saved default/global flags also launch both a fresh candidate and the
+`clock` profile. The reported default-flags failure remains unreproduced; the
+primary running Discord process was not restarted. The same native settings-entry probe passes inside the full DPE/Equicord
+`clock` startup: exactly one DPE Settings row precedes Log Out, uses the native
+settings icon/type and retains the native compiled parent/layout. Evidence:
+`out/update-20261125/clock-native-settings.json`. The signed-out-only legacy
+probe still encounters missing lazy CSS modules; its failure is retained as a
+harness coverage gap rather than reported as a pass. Account calls, a real Fedora Atomic installation, other GPUs
+and cross-platform behavior remain unverified. No release is published or approved.
+
+The long-running 2484/alpha.10 session also produced a SIGSEGV in
+`discord::node_api::Environment` bookkeeping inside `discord_utils.node`.
+The mapped utils module SHA-256 was
+`a2159205be8276cc28e787660721fd49dddb13ec4432f3a170063db9288ece2c`,
+which differs from both reviewed comparison and candidate utils binaries.
+The fault is a null bucket-list access with a retained bucket count of two in
+the static `GetEnvironmentToken::env_count` table. This is consistent with an
+invalid table lifetime/state; it does not establish the cause or a link to the
+reported startup flags issue. `out/update-20261125/primary-crash-metadata.json`
+and `primary-crash-registers.json` retain the native evidence. Only ELF core
+notes were read; no heap or raw core was extracted, and the primary profile was
+not relaunched. Long-running native-module teardown/lifetime remains an explicit
+limit of the bounded synthetic checks.
+
+The subsequent Canary 1.0.2513 snapshot is pinned to state
+`683b87868c1f09d7ce58ca77dd50fe187c1dea72`; its verified comparison is retained in
+`out/update-20261125/`. Its 21 changed member entries include stricter external-URL
+validation in bootstrap and desktop core, stock updater changes, reordered
+manifests/Makefile dependencies, Node type-package metadata and native build
+identities. Preserve the stricter URL checks; DPE's opener remains behind the
+native validation. Modules/utils retain canonical instruction bodies, targets
+and literals. The voice binary is identical to the reviewed 2510 binary, so its
+complete patch chain and compiled hook scopes apply unchanged. Required native
+bridge and offline Krisp checks pass against the retained alpha.10 runtime.
+The exact 2513 candidate also passes fresh setup, login-window launch,
+popout handshakes and same-profile relaunch on the retained runtime. The isolated
+native application-audio test passes selection, cancellation and route cleanup.
+Both official mods pass installation, self-update, package-update preservation,
+relaunch and removal. Equicord's commit-comparison request is served by the local
+self-update fixture before its release response; failed downloads still preserve
+the installed bytes. The optional dispatch module's unchanged exported ABI and
+OpenSSL dependency set are recorded in the native review; only its exact new
+hash is added to the existing two-library exception.
+
+Repository lint and the full Python/JavaScript/Rust suites pass. The settings
+harness passes all 46 checks in its isolated X11 environment; host-Wayland hover
+checks remain sensitive to focus/window placement. The focused capture-picker
+harness passes as well. H.264 VA-API delivery passes with the verified external
+OpenH264 decoder supplied, including picker/scale/sync/pacing/cancellation and
+transport reporting. The attempt without that decoder correctly failed receiver
+delivery and remains in the evidence directory. SafeStorage IPC, invalid
+ciphertext and same-profile persistence pass with synthetic data. HEVC VA-API
+delivery passes with the Electron receiver; the unsupported native software
+receiver attempt remains as a failure. Main-process frame-capture lifetime/GC
+passes explicit stop, immediate stop, source destruction and consumer destruction. The earlier retained-runtime results remain distinct from the exact alpha.13 qualification described above.

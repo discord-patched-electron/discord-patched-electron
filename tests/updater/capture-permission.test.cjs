@@ -66,6 +66,8 @@ function fixture(options = {}) {
     "/usr/local",
     "/usr/local/libexec",
     root,
+    "/var",
+    "/var/usrlocal",
     `${root}/permissions`,
     `${root}/maintenance`,
   ]);
@@ -85,7 +87,7 @@ function fixture(options = {}) {
     if (name === "node:fs")
       return {
         constants: fs.constants,
-        readlinkSync: () => "/fixture/discord",
+        readlinkSync: (file) => (file === "/usr/local" ? "/var/usrlocal" : "/fixture/discord"),
         statSync: () => ({ dev: 1n, ino: 2n, size: 100n, mtimeNs: 4n, ctimeNs: 5n }),
         writeFileSync: (file, value) => records.set(file, value),
         renameSync: (source, destination) => {
@@ -138,7 +140,8 @@ function fixture(options = {}) {
             throw Error("missing");
           return {
             isFile: () => !directories.has(file),
-            isDirectory: () => directories.has(file),
+            isDirectory: () => directories.has(file) && !(options.atomic && file === "/usr/local"),
+            isSymbolicLink: () => options.atomic && file === "/usr/local",
             uid: options.untrusted === file ? 1000 : 0,
             mode:
               (directories.has(file) ? 0o40755 : 0o100755) |
@@ -444,4 +447,17 @@ test("missing maintenance authorization never falls back to a prompting pkexec a
     f.calls.some((c) => c.args?.includes("--allow-user-interaction")),
     false,
   );
+});
+
+test("Atomic root-owned redirects retain grants only with trusted destination ancestors", async () => {
+  assert.equal(
+    (await fixture({ allowed: true, maintenance: true, atomic: true }).api.status()).allowed,
+    true,
+  );
+  for (const untrusted of ["/usr/local", "/var", "/var/usrlocal"])
+    assert.equal(
+      (await fixture({ allowed: true, maintenance: true, atomic: true, untrusted }).api.status())
+        .allowed,
+      false,
+    );
 });

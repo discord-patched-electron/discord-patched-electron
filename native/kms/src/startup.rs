@@ -50,6 +50,12 @@ fn executable(path: &CStr) -> bool {
         && unsafe { libc::access(path.as_ptr(), libc::X_OK) } == 0
 }
 pub(crate) fn ancestors(path: &CStr) -> bool {
+    ancestors_at(path, 0)
+}
+fn ancestors_at(path: &CStr, depth: usize) -> bool {
+    if depth > 64 {
+        return false;
+    }
     let mut parent = path.to_bytes().to_vec();
     loop {
         let Some(separator) = parent.iter().rposition(|byte| *byte == b'/') else {
@@ -59,13 +65,44 @@ pub(crate) fn ancestors(path: &CStr) -> bool {
         let Ok(path) = CString::new(parent.as_slice()) else {
             return false;
         };
-        if !stat(&path).is_some_and(|s| trusted(&s, libc::S_IFDIR)) {
+        if !directory(&path, depth) {
             return false;
         }
         if separator == 0 {
             return true;
         }
     }
+}
+fn directory(path: &CStr, depth: usize) -> bool {
+    use std::{os::unix::ffi::OsStrExt, path::Path};
+    if depth > 64 {
+        return false;
+    }
+    let Some(info) = stat(path) else {
+        return false;
+    };
+    if trusted(&info, libc::S_IFDIR) {
+        return true;
+    }
+    if info.st_mode & libc::S_IFMT != libc::S_IFLNK || info.st_uid != 0 {
+        return false;
+    }
+    let source = Path::new(std::ffi::OsStr::from_bytes(path.to_bytes()));
+    let Ok(link) = std::fs::read_link(source) else {
+        return false;
+    };
+    let target = if link.is_absolute() {
+        link
+    } else {
+        let Some(parent) = source.parent() else {
+            return false;
+        };
+        parent.join(link)
+    };
+    let Ok(target) = CString::new(target.as_os_str().as_bytes()) else {
+        return false;
+    };
+    ancestors_at(&target, depth + 1) && directory(&target, depth + 1)
 }
 fn permission() -> bool {
     // SAFETY: getuid has no pointer arguments or side effects.

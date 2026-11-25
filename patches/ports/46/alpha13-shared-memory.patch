@@ -1,0 +1,13 @@
+diff --git a/discord/discord_frame_capture_manager.cc b/discord/discord_frame_capture_manager.cc
+index 4510680f4e5bee038eaf9998ec83383b4068a5fd..62b6852eaf4baba638064ae58e39bf14fd519a7e 100644
+--- a/discord/discord_frame_capture_manager.cc
++++ b/discord/discord_frame_capture_manager.cc
+@@ -160,7 +160,7 @@ class CapturedFrame : public ElectronObject<IElectronCapturedFrame> {
+       offset += stride * rows;
+     }
+     texture_.plane_count = planes;
+-    texture_.handle = const_cast<void*>(mapping_.memory());
++    texture_.handle = const_cast<uint8_t*>(mapping_.data());
+     texture_.type = media::electron::kCapturedTextureSharedMemory;
+   }
+ 

@@ -10,6 +10,7 @@ from native_client_2444 import HASHES as CLIENT_2444_HASHES
 from native_client_2472 import HASHES as CLIENT_2472_HASHES
 from native_client_2483 import HASHES as CLIENT_2483_HASHES
 from native_client_2484 import HASHES as CLIENT_2484_HASHES
+from native_client_2510 import HASHES as CLIENT_2510_HASHES
 from patch_capture_dimensions import OUTPUT_SHA256 as DIMENSIONS_OTHER_SHA256
 from patch_capture_dimensions import PINNED_OUTPUT_SHA256 as DIMENSIONS_SHA256
 from patch_decoder_eagain import extend_reviewed
@@ -64,6 +65,15 @@ REVIEWED.update(
         (
             "cca1d3d2d66157f9c8889da5f1de3f9e1cfc04adec9de25a26cf114d32194283",
             "43a4f05ab633c075a0108c00fec50d3790333b8d3f0d8b3cd00ec82482febfba",
+        ),
+    )
+)
+REVIEWED.update(
+    dict.fromkeys(
+        CLIENT_2510_HASHES,
+        (
+            "177c4882e4c73a993a6c6a213a6564a1ff023bad1ec2c091400c2386196da230",
+            "987cf7ae1e910dbce1c0dad410391604fde751dfc63c308d1a6ebd522e28c57c",
         ),
     )
 )

@@ -1,0 +1,74 @@
+diff --git a/patches/chromium/add_discord_ffmpeg_config_options.patch b/patches/chromium/add_discord_ffmpeg_config_options.patch
+index 5485faa6267..4f1adc2b907 100644
+--- a/patches/chromium/add_discord_ffmpeg_config_options.patch
++++ b/patches/chromium/add_discord_ffmpeg_config_options.patch
+@@ -14,19 +14,16 @@ diff --git a/media/ffmpeg/scripts/build_ffmpeg.py b/media/ffmpeg/scripts/build_f
+ index ae9bfc507844026febffbd84be9a8e4c05dd2f7c..a1707579f5dadbfcdba982480e014ae001cd4db3 100755
+ --- a/media/ffmpeg/scripts/build_ffmpeg.py
+ +++ b/media/ffmpeg/scripts/build_ffmpeg.py
+-@@ -825,9 +825,9 @@
++@@ -824,6 +824,7 @@
+              # Common codecs.
+-             '--enable-decoder=vorbis,libopus,flac',
+-             '--enable-decoder=pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3',
+--            '--enable-decoder=pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw',
+ -            '--enable-demuxer=ogg,matroska,wav,flac,mp3,mov',
+--            '--enable-parser=opus,vorbis,flac,mpegaudio,vp9',
+-+            '--enable-decoder=pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw,gif',
++-            '--enable-parser=vp9',
+++            '--enable-decoder=gif',
+ +            '--enable-demuxer=ogg,matroska,wav,flac,mp3,mov,gif',
+-+            '--enable-parser=opus,vorbis,flac,mpegaudio,vp9,gif',
+-             # Setup include path so Chromium's libopus can be used.
+-             '--extra-cflags=-I'
+-             + os.path.join(CHROMIUM_ROOT_DIR, 'third_party/opus/src/include'),
+++            '--enable-parser=vp9,gif',
++             # Disable usage of Linux Performance API. Not used in production code, but
++             # missing system headers break some Android builds.
++             '--disable-linux-perf',
+ @@ -1196,9 +1196,12 @@
+      # Google Chrome specific configuration.
+      configure_flags['Chrome'].extend(
+diff --git a/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch b/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch
+index d972b071b6e..ca8ee2507c8 100644
+--- a/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch
++++ b/patches/chromium/enable_openh264_dynamic_loading_for_linux_x64.patch
+@@ -39,8 +39,8 @@ index 2f762ce65834cb423e1e04a787215c21a66da362..4955379ce4ce9004e30031d31c6db3b5
+ +#endif
+ +
+  #if BUILDFLAG(USE_CRAS)
+- // Enforce system audio echo cancellation.
+- const char kSystemAecEnabled[] = "system-aec-enabled";
++ // Use CRAS, the ChromeOS audio server.
++ const char kUseCras[] = "use-cras";
+ diff --git a/media/base/media_switches.h b/media/base/media_switches.h
+ index 0ac83eed44fbff97896956d89d4aff20caf749bb..39d065e168877fa7b709077c33523c29faa049c4 100644
+ --- a/media/base/media_switches.h
+@@ -56,7 +56,7 @@ index 0ac83eed44fbff97896956d89d4aff20caf749bb..39d065e168877fa7b709077c33523c29
+ +#endif
+  
+  #if BUILDFLAG(USE_CRAS)
+- MEDIA_EXPORT extern const char kSystemAecEnabled[];
++ MEDIA_EXPORT extern const char kUseCras[];
+ diff --git a/media/ffmpeg/ffmpeg_common.cc b/media/ffmpeg/ffmpeg_common.cc
+ index 483138ccf1ccb72fb3dde4bdecc957d4c535105d..6b21e32e71142f03647e9cd01c1dfe3c17914b82 100644
+ --- a/media/ffmpeg/ffmpeg_common.cc
+diff --git a/patches/chromium/skid-proof_video_decoding_memory_use.patch b/patches/chromium/skid-proof_video_decoding_memory_use.patch
+index 7e5ad6bebcb..213bb211476 100644
+--- a/patches/chromium/skid-proof_video_decoding_memory_use.patch
++++ b/patches/chromium/skid-proof_video_decoding_memory_use.patch
+@@ -57,12 +57,13 @@ diff --git a/media/base/video_frame.cc b/media/base/video_frame.cc
+ index f617bc0690fa8f422a1a6ad3b1fd06783d461977..04c3d46decde3d813729cb6bd0831f2bebe75a70 100644
+ --- a/media/base/video_frame.cc
+ +++ b/media/base/video_frame.cc
+-@@ -38,6 +38,7 @@
++@@ -38,7 +38,8 @@
+  #include "media/base/limits.h"
+  #include "media/base/media_switches.h"
+  #include "media/base/timestamp_constants.h"
+ +#include "media/base/video_frame_memory_budget.h"
+  #include "media/base/video_util.h"
++ #include "skia/ext/skia_utils_base.h"
+  #include "third_party/skia/include/core/SkYUVAInfo.h"
+  #include "third_party/skia/include/core/SkYUVAPixmaps.h"
+ @@ -1662,6 +1663,10 @@ VideoFrame::~VideoFrame() {

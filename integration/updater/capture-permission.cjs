@@ -72,11 +72,19 @@ function trusted(file, executable = false, access = true) {
   try {
     const info = fs.lstatSync(file);
     if (!info.isFile() || info.uid !== 0 || info.mode & 0o022) return false;
-    for (let parent = path.dirname(file); ; parent = path.dirname(parent)) {
-      const directory = fs.lstatSync(parent);
-      if (!directory.isDirectory() || directory.uid !== 0 || directory.mode & 0o022) return false;
-      if (parent === path.dirname(parent)) break;
+    function directory(parent, depth = 0) {
+      if (depth > 64) return false;
+      const info = fs.lstatSync(parent);
+      if (info.uid !== 0) return false;
+      const ancestor = path.dirname(parent);
+      if (ancestor !== parent && !directory(ancestor, depth + 1)) return false;
+      if (info.isSymbolicLink?.()) {
+        const target = fs.readlinkSync(parent);
+        return directory(path.isAbsolute(target) ? target : `${ancestor}/${target}`, depth + 1);
+      }
+      return info.isDirectory() && !(info.mode & 0o022);
     }
+    if (!directory(path.dirname(file))) return false;
     if (access) fs.accessSync(file, executable ? fs.constants.X_OK : fs.constants.R_OK);
     return true;
   } catch {

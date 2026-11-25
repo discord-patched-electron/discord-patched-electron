@@ -16,7 +16,8 @@ SYSTEM_ROOT = Path("/")
 ROOT_UID = 0
 KMS_ROOT = Path("/usr/local/libexec/discord-patched-electron")
 RULES = Path("/etc/polkit-1/rules.d")
-ACTIONS = Path("/usr/share/polkit-1/actions")
+ACTIONS = Path("/etc/polkit-1/actions")
+LEGACY_ACTIONS = Path("/usr/share/polkit-1/actions")
 APPARMOR = Path("/etc/apparmor.d")
 APPARMOR_PROFILES = Path("/sys/kernel/security/apparmor/profiles")
 APPARMOR_PARSER = Path("/sbin/apparmor_parser")
@@ -35,8 +36,10 @@ GLOBAL_FILES = (
 )
 
 
-def directory(path: Path) -> bool:
-    """Do not traverse writable or linked system directories as root."""
+def directory(path: Path, depth: int = 0) -> bool:
+    """Follow only root-controlled redirects with trusted target ancestors."""
+    if depth > 64:
+        raise ValueError("System directory link cycle")
     for parent in reversed((path, *path.parents)):
         if not parent.is_relative_to(SYSTEM_ROOT):
             continue
@@ -44,7 +47,14 @@ def directory(path: Path) -> bool:
             info = parent.lstat()
         except FileNotFoundError:
             return False
-        if not stat.S_ISDIR(info.st_mode) or info.st_uid != ROOT_UID or info.st_mode & 0o022:
+        if stat.S_ISLNK(info.st_mode) and info.st_uid == ROOT_UID:
+            target = parent.readlink()
+            target = target if target.is_absolute() else parent.parent / target
+            if not target.is_relative_to(SYSTEM_ROOT):
+                raise ValueError(f"Untrusted system directory: {parent}")
+            if not directory(target, depth + 1):
+                return False
+        elif not stat.S_ISDIR(info.st_mode) or info.st_uid != ROOT_UID or info.st_mode & 0o022:
             raise ValueError(f"Untrusted system directory: {parent}")
     return True
 
@@ -161,7 +171,7 @@ def cleanup(package: str | None, own_root: Path):
         # Validate every parent before deleting anything. Revocation precedes
         # rule/helper removal so live servers lose their grant immediately.
         rules_exist = directory(RULES)
-        actions_exist = directory(ACTIONS)
+        action_directories = {path: directory(path) for path in (ACTIONS, LEGACY_ACTIONS)}
         if has_root:
             for name in ("permissions", "maintenance", "__pycache__"):
                 path = KMS_ROOT / name
@@ -180,12 +190,13 @@ def cleanup(package: str | None, own_root: Path):
         clean_apparmor(package, full)
         if not full:
             return
-        if actions_exist:
-            for name in (
-                "org.discord-patched-electron.capture.policy",
-                "org.discord-patched-electron.capture.maintain.policy",
-            ):
-                (ACTIONS / name).unlink(missing_ok=True)
+        for actions, exists in action_directories.items():
+            if exists:
+                for name in (
+                    "org.discord-patched-electron.capture.policy",
+                    "org.discord-patched-electron.capture.maintain.policy",
+                ):
+                    (actions / name).unlink(missing_ok=True)
         if has_root:
             for name in GLOBAL_FILES:
                 (KMS_ROOT / name).unlink(missing_ok=True)
@@ -201,7 +212,7 @@ def cleanup(package: str | None, own_root: Path):
         for path in (KMS_ROOT / "permissions", KMS_ROOT / "maintenance", KMS_ROOT):
             if has_root:
                 clean_children(path, lambda name: name.startswith(".dpe-kms-"))
-        for path, exists in ((RULES, rules_exist), (ACTIONS, actions_exist)):
+        for path, exists in ((RULES, rules_exist), *action_directories.items()):
             if exists:
                 for child in path.glob(".dpe-kms-*"):
                     if not child.is_dir():

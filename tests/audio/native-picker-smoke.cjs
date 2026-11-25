@@ -48,7 +48,9 @@ app.whenReady().then(async () => {
     if (event.level === "error") console.error(event.message);
   });
   try {
-    await window.loadURL("https://canary.discord.com/login");
+    // Use Discord's normal entry route so its shared application chunks are
+    // registered before the signed-out router renders the login form.
+    await window.loadURL("https://canary.discord.com/app");
     await until('!!document.querySelector("input[name=email]")');
     const settingsResult = await require("../discord-ui/native-settings-check.cjs")(run);
     fs.writeFileSync(
@@ -58,7 +60,7 @@ app.whenReady().then(async () => {
     // Register the same lazy UI chunks as the screenshare entry point, without
     // executing its controller, opening the video picker or starting capture.
     await run(
-      `(async()=>{const ui=globalThis[Symbol.for('dpe.discordUI')];const req=ui.runtimes('dpe-test-chunks').find(runtime=>ui.inspect(runtime).React);const source=Object.values(req.m).map(String).find(s=>s.includes('openModalLazy')&&s.includes('getDesktopSource')&&s.includes('sourceName:null')&&s.length<10000);if(!source)throw Error('Screenshare entry unavailable');const ids=[...source.matchAll(/\\.e\\("(\\d+)"\\)/g)].map(m=>m[1]);await Promise.all(ids.map(id=>req.e(id)));})()`,
+      `(async()=>{const ui=globalThis[Symbol.for('dpe.discordUI')];const req=ui.runtimes('dpe-test-chunks').find(runtime=>ui.inspect(runtime).React);const source=Object.values(req.m).map(String).find(s=>s.includes('getDesktopSource')&&s.includes('sourceName:null')&&s.length<10000);if(!source)throw Error('Screenshare entry unavailable');const ids=[...source.matchAll(/\\.e\\("?(\\d+)"?\\)/g)].map(m=>m[1]);await Promise.all(ids.map(id=>req.e(Number(id))));})()`,
     );
     console.log(
       await run(

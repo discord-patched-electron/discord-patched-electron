@@ -60,7 +60,7 @@ app.whenReady().then(async () => {
       result.modal = query('dialog').matches(':modal');
       result.dialogFocused = pickerRoot.activeElement === query('dialog');
       result.nativeDimensions = query('dialog').getBoundingClientRect().width === 960 && query('dialog').getBoundingClientRect().height === 596 && query('.tabs').getBoundingClientRect().height === 40 && query('.tab').getBoundingClientRect().height === 32;
-      result.nativeActions = query('.primary').textContent === 'Make Selection' && query('.primary').getBoundingClientRect().width >= 100 && query('.primary').scrollWidth <= query('.primary').clientWidth && getComputedStyle(query('.secondary')).fontSize === '16px' && getComputedStyle(query('.secondary')).fontWeight === '400' && getComputedStyle(query('.secondary')).borderColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(query('.secondary')).backgroundColor === 'rgba(0, 0, 0, 0)';
+      result.nativeActions = query('.primary').textContent === 'Stream' && query('.primary').getBoundingClientRect().width >= 100 && query('.primary').scrollWidth <= query('.primary').clientWidth && getComputedStyle(query('.secondary')).fontSize === '16px' && getComputedStyle(query('.secondary')).fontWeight === '400' && getComputedStyle(query('.secondary')).borderColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(query('.secondary')).backgroundColor === 'rgba(0, 0, 0, 0)';
       result.bulletSeparator = query('.detection-link [aria-hidden=true]').textContent === '•';
       result.cornerLabel = query('.summary strong').textContent === 'Choose audio source';
       result.appCopy = query('.scope [aria-hidden=false] .scope-copy').textContent === 'Includes windows from the same app';
@@ -122,7 +122,7 @@ app.whenReady().then(async () => {
       result.systemAutomatic = !query('[value="system"]') && !query('.primary').disabled && query('[type=search]').disabled;
       query('.system-source').click();
       query('.system-source').click();
-      result.systemCannotDeselect = !query('.primary').disabled && query('.primary').textContent === 'Make Selection';
+      result.systemCannotDeselect = !query('.primary').disabled && query('.primary').textContent === 'Stream';
       query('#audio-tab-0').click();
       result.appRestored = !query('.primary').disabled && query('[value="200"]').checked && !query('.refresh').disabled && actionPositions()===appActions;
       query('#audio-tab-1').click();

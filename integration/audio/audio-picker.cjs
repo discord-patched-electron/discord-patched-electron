@@ -306,7 +306,7 @@ function show(
   refresh.classList.add("refresh");
   const skip = actionButton("Continue without audio");
   skip.classList.add("secondary");
-  const share = actionButton("Make Selection", "primary");
+  const share = actionButton("Stream", "primary");
   share.classList.add("primary");
   share.disabled = true;
   const status = element("span", "", "refresh-status sr-only");

@@ -9,11 +9,11 @@ module.exports = async function checkSettings(run) {
     const req = ui.runtimes("dpe-settings-check").find(runtime => ui.inspect(runtime).React);
     if (!req) throw Error("Discord runtime unavailable");
     const entryPoints = Object.values(req.m).map(String).filter(source =>
-      source.includes('"USER_SETTINGS_MODAL_OPEN"') && source.includes("openModalLazy") && source.includes(".e("));
+      source.includes('"USER_SETTINGS_MODAL_OPEN"') && source.includes("openUserSettings") && source.includes(".e("));
     if (entryPoints.length !== 1) throw Error("Settings entry point changed: " + entryPoints.length);
-    const ids = [...entryPoints[0].matchAll(/\\.e\\("(\\d+)"\\)/g)].map(match => match[1]);
+    const ids = [...entryPoints[0].matchAll(/\\.e\\("?(\\d+)"?\\)/g)].map(match => match[1]);
     // Register presentation chunks; never invoke account settings actions.
-    await Promise.all(ids.map(id => req.e(id)));
+    await Promise.all(ids.map(id => req.e(Number(id))));
     const roots = Object.entries(req.m).filter(([,factory]) =>
       String(factory).includes("LOGOUT_SIDEBAR_ITEM") && String(factory).includes('"user_settings"'));
     if (roots.length !== 1) throw Error("Settings root changed: " + roots.length);

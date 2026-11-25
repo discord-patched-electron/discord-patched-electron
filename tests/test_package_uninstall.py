@@ -34,7 +34,8 @@ class PackageUninstall(unittest.TestCase):
             "ROOT_UID": os.getuid(),
             "KMS_ROOT": self.root / "usr/local/libexec/discord-patched-electron",
             "RULES": self.root / "etc/polkit-1/rules.d",
-            "ACTIONS": self.root / "usr/share/polkit-1/actions",
+            "ACTIONS": self.root / "etc/polkit-1/actions",
+            "LEGACY_ACTIONS": self.root / "usr/share/polkit-1/actions",
             "APPARMOR": self.root / "etc/apparmor.d",
             "APPARMOR_PROFILES": self.root / "sys/kernel/security/apparmor/profiles",
             "APPARMOR_PARSER": self.root / "sbin/apparmor_parser",
@@ -47,6 +48,7 @@ class PackageUninstall(unittest.TestCase):
             uninstall.KMS_ROOT,
             uninstall.RULES,
             uninstall.ACTIONS,
+            uninstall.LEGACY_ACTIONS,
             *uninstall.INSTALL_BASES,
         ):
             directory.mkdir(parents=True, exist_ok=True)
@@ -54,6 +56,9 @@ class PackageUninstall(unittest.TestCase):
         for name in uninstall.GLOBAL_FILES:
             (uninstall.KMS_ROOT / name).write_text("root helper fixture")
         (uninstall.ACTIONS / "org.discord-patched-electron.capture.policy").write_text("policy")
+        (uninstall.LEGACY_ACTIONS / "org.discord-patched-electron.capture.policy").write_text(
+            "old policy"
+        )
         self.profile = self.root / "home/test/discord/settings.json"
         self.profile.parent.mkdir(parents=True)
         self.profile.write_text("preserve my settings")
@@ -87,6 +92,7 @@ class PackageUninstall(unittest.TestCase):
             uninstall.KMS_ROOT / "maintenance",
             uninstall.RULES,
             uninstall.ACTIONS,
+            uninstall.LEGACY_ACTIONS,
         ):
             (directory / ".dpe-kms-interrupted").write_text("partial atomic write")
         unrelated = uninstall.RULES / "10-other-app.rules"
@@ -95,6 +101,7 @@ class PackageUninstall(unittest.TestCase):
         self.assertFalse(uninstall.KMS_ROOT.exists())
         self.assertEqual(list(uninstall.RULES.iterdir()), [unrelated])
         self.assertEqual(list(uninstall.ACTIONS.iterdir()), [])
+        self.assertEqual(list(uninstall.LEGACY_ACTIONS.iterdir()), [])
         self.assertEqual(self.profile.read_text(), "preserve my settings")
         uninstall.cleanup(NAME, self.own)
         self.assertFalse(uninstall.KMS_ROOT.exists())
@@ -143,6 +150,7 @@ class PackageUninstall(unittest.TestCase):
         uninstall.cleanup(NAME, self.own)
         self.assertFalse(stale.exists())
         self.assertEqual(list(uninstall.ACTIONS.iterdir()), [])
+        self.assertEqual(list(uninstall.LEGACY_ACTIONS.iterdir()), [])
         self.assertFalse(uninstall.KMS_ROOT.exists())
 
     def test_symlinks_and_unrelated_files_cannot_escape_cleanup(self):
@@ -157,6 +165,23 @@ class PackageUninstall(unittest.TestCase):
         uninstall.cleanup(NAME, self.own)
         self.assertEqual(sentinel.read_text(), "untouched")
         self.assertEqual([p.name for p in uninstall.KMS_ROOT.iterdir()], ["unrelated-file"])
+
+    def test_atomic_redirect_validates_target_and_removes_both_policy_locations(self):
+        self.grant(1000)
+        local = self.root / "usr/local"
+        target = self.root / "var/usrlocal"
+        target.parent.mkdir()
+        local.rename(target)
+        local.symlink_to(target, target_is_directory=True)
+        target.parent.chmod(0o777)
+        with self.assertRaisesRegex(ValueError, "Untrusted system directory"):
+            uninstall.cleanup(NAME, self.own)
+        self.assertTrue((uninstall.KMS_ROOT / "permissions/1000").exists())
+        target.parent.chmod(0o755)
+        uninstall.cleanup(NAME, self.own)
+        self.assertFalse(uninstall.KMS_ROOT.exists())
+        self.assertEqual(list(uninstall.ACTIONS.iterdir()), [])
+        self.assertEqual(list(uninstall.LEGACY_ACTIONS.iterdir()), [])
 
     def test_writable_system_directory_is_rejected_before_revocation(self):
         marker = self.grant(1000)
