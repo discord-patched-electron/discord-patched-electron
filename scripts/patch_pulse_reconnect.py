@@ -17,10 +17,10 @@ their original connection behavior until separately ported and qualified.
 import hashlib
 from pathlib import Path
 
-from common import write_verified_binary
 from native_client_2483 import STAGES
 from native_client_2484 import STAGES as CLIENT_2484_STAGES
 from native_client_2510 import STAGES as CLIENT_2510_STAGES
+from native_elf import write_verified_binary
 from patch_video_pacing import REVIEWED
 
 PATCH = "reconnect-failed-pulse-soundshare-context-v1"

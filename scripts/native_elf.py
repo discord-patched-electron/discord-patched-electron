@@ -1,10 +1,14 @@
 """Reuse decoded ELF data while inspecting one unchanged native module."""
 
 import hashlib
+import shutil
+import tempfile
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import cached_property
+from pathlib import Path
 
+from common import sha256
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 
@@ -86,3 +90,14 @@ def inspect_module(module, inspection=None):
         return
     with module.open("rb") as stream, ModuleInspection(stream) as inspection:
         yield inspection
+
+
+def write_verified_binary(path: Path, data: bytes, expected: str):
+    """Check the bytes written to the replacement before publishing it."""
+    with tempfile.TemporaryDirectory(dir=path.parent) as temporary:
+        staged = Path(temporary) / path.name
+        staged.write_bytes(data)
+        if sha256(staged) != expected:
+            raise ValueError(f"Native patch written output failed verification: {path.name}")
+        shutil.copystat(path, staged)
+        staged.replace(path)

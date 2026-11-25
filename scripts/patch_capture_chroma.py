@@ -13,7 +13,8 @@ import native_client_2472
 import native_client_2483
 import native_client_2484
 import native_client_2510
-from common import ROOT, write_verified_binary
+from common import ROOT
+from native_elf import write_verified_binary
 from patch_presentation_clock import OUTPUT_BASES
 
 PATCH = "gpu-capture-chroma-box-filter-v1"

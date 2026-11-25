@@ -9,12 +9,12 @@ remain native. Only the default ASCII policy changes; no code is redirected.
 import hashlib
 from pathlib import Path
 
-from common import write_verified_binary
 from native_client_2444 import STAGES
 from native_client_2472 import STAGES as CLIENT_2472_STAGES
 from native_client_2483 import STAGES as CLIENT_2483_STAGES
 from native_client_2484 import STAGES as CLIENT_2484_STAGES
 from native_client_2510 import STAGES as CLIENT_2510_STAGES
+from native_elf import write_verified_binary
 
 PATCH = "screenshare-pacing-default-v1"
 BEFORE = b"1.0,2875,80,40,-60,3\0"

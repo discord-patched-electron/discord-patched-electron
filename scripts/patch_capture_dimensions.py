@@ -20,7 +20,7 @@ import native_client_2484
 import native_client_2510
 import patch_capture_chroma as chroma
 import patch_decoder_eagain as decoder
-from common import write_verified_binary
+from native_elf import write_verified_binary
 
 INPUT_SHA256 = "0eecfa64b0120ca85c6454a39cf011f1f52d5661b33868ada0822580e644490e"
 OUTPUT_SHA256 = "23dae94b2adcc295faa473fd5869b17cbc19154eec50d6cdf5970ef4f921b0c5"

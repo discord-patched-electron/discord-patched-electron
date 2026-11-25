@@ -16,7 +16,7 @@ import native_client_2510
 import patch_capture_chroma as chroma
 import patch_capture_dimensions as dimensions
 import patch_decoder_eagain as decoder
-from common import write_verified_binary
+from native_elf import write_verified_binary
 
 INPUT_SHA256 = "f56d3c31611f769e6798bb2bc03ad2b5a21e2b29224825ca740af013e145f0d8"
 OUTPUT_SHA256 = "0eecfa64b0120ca85c6454a39cf011f1f52d5661b33868ada0822580e644490e"

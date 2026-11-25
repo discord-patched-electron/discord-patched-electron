@@ -87,7 +87,6 @@ def integration_key(
                     "integration/updater/config.cjs",
                     "integration/updater/openasar/config.html",
                     "scripts/client_native.py",
-                    "scripts/common.py",
                     "scripts/native_elf.py",
                     "integration/updater/client.py",
                     "integration/updater/runtime.py",

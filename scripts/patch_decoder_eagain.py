@@ -15,7 +15,7 @@ import native_client_2483
 import native_client_2484
 import native_client_2510
 import patch_capture_chroma as chroma
-from common import write_verified_binary
+from native_elf import write_verified_binary
 
 PATCH = "ffmpeg-decoder-buffered-output-v1"
 
