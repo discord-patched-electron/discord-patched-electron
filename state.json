@@ -5,7 +5,7 @@
       "at": "2026-11-01T06:47:06.343948+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-25T17:27:18+00:00",
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -13,7 +13,7 @@
       "at": "2026-11-01T06:54:02.281292+00:00",
       "conclusion": "success",
       "minutes": 960,
-      "provider_settled_at": "2026-11-25T17:27:18+00:00",
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
       "runtime_key": "dfe843643db999ec0d6f392412deeb7ce73ddc0118f879e5601089de61afbdde",
       "status": "completed"
     },
@@ -21,7 +21,7 @@
       "at": "2026-11-05T15:39:39.838127+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-25T17:27:18+00:00",
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -29,7 +29,7 @@
       "at": "2026-11-05T16:48:18.342617+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-25T17:27:18+00:00",
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -37,7 +37,7 @@
       "at": "2026-11-05T22:09:16.833291+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-25T17:27:18+00:00",
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
       "runtime_key": "f714ec70c1beaeb923d59a4f05fcb0b9f6a8245852b8a0b4f62353255f46b45f",
       "status": "completed"
     },
@@ -45,7 +45,7 @@
       "at": "2026-11-12T03:57:24.272224+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-25T17:27:18+00:00",
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     },
@@ -53,7 +53,7 @@
       "at": "2026-11-12T05:09:01.267082+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-25T17:27:18+00:00",
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     },
@@ -61,18 +61,21 @@
       "at": "2026-11-12T12:58:30.452069+00:00",
       "conclusion": "failure",
       "minutes": 960,
-      "provider_settled_at": "2026-11-25T17:27:18+00:00",
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
       "runtime_key": "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1",
       "status": "completed"
     },
     "45664818388": {
       "at": "2026-11-25T17:27:20.703808+00:00",
+      "conclusion": "success",
       "minutes": 960,
-      "runtime_key": "1378fb4639f7ec41f2e3793c9e8e7f2d7f9c4969b01f1e5b07e48b9caf46f6e2"
+      "provider_settled_at": "2026-11-25T20:35:38+00:00",
+      "runtime_key": "1378fb4639f7ec41f2e3793c9e8e7f2d7f9c4969b01f1e5b07e48b9caf46f6e2",
+      "status": "completed"
     }
   },
   "blacksmith_usage": {
-    "at": "2026-11-25T17:27:18+00:00",
+    "at": "2026-11-25T20:35:38+00:00",
     "limit_minutes": 3000,
     "period_start": "2026-11-01T00:00:00+00:00",
     "runner_rate": 8,
@@ -84,9 +87,10 @@
       "42118937404": 88,
       "43151538467": 40,
       "43159362004": 56,
-      "43222756115": 40
+      "43222756115": 40,
+      "45664818388": 568
     },
-    "used_minutes": 1160
+    "used_minutes": 1728
   },
   "bundled_runtime_errors": {},
   "bundled_runtimes": {
@@ -979,7 +983,7 @@
       "reference_run": "43553882378",
       "requested_at": "2026-11-25T17:26:16.527669+00:00",
       "run": "45664478636",
-      "status": "queued"
+      "status": "success"
     },
     "ba937390288dceb5ee8e4d0fdc4e5865a44befc5c6d30addb5ad58eea49faa37": {
       "channel": "canary",
@@ -1280,6 +1284,11 @@
     }
   },
   "compiler_requests": {
+    "1378fb4639f7ec41f2e3793c9e8e7f2d7f9c4969b01f1e5b07e48b9caf46f6e2": {
+      "conclusion": "success",
+      "run": "45664818388",
+      "status": "completed"
+    },
     "6df2bce80b40fe5f537220f71cfecb53bc17c07cb377e33a04227b4df501b6a1": {
       "conclusion": "failure",
       "run": "43222756115",
@@ -1323,7 +1332,7 @@
       "previous_runs": [],
       "requested_at": "2026-11-25T17:26:16.527669+00:00",
       "run": "45664478636",
-      "status": "queued",
+      "status": "success",
       "target": {
         "commit": "d5343c16c17bbab06ea769b0f4b7633e846e4169",
         "version": "46.0.0-alpha.13"
@@ -4618,5 +4627,5 @@
       "withdrawn_at": null
     }
   ],
-  "security_checked_at": "2026-11-25T17:24:52Z"
+  "security_checked_at": "2026-11-25T20:34:21Z"
 }
