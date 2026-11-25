@@ -417,7 +417,7 @@ those tool failures. Snapshot generation also requires GLib and X11 runtime
 libraries in the compiler container. Verified Ubuntu packages and their dependency
 closure are recorded under `out/update-20261125/build-container-deps/`.
 
-Alpha.13 compilation and runtime qualification are pending. The user's existing
+The local alpha.13 compilation completed and the exact runtime passes native bridge/Krisp, isolated application audio, frame-capture lifetime/GC, safeStorage, all 46 settings checks, fresh relocated setup/login/relaunch/popouts, both official mod lifecycles and VP8/H.264/AV1/HEVC sender/receiver delivery with picker/scale/sync/pacing/cancellation/transport checks. H.264 uses the verified external OpenH264 decoder; HEVC uses the Electron receiver. The complete reports and truthful local compiler provenance are under `out/update-20261125/alpha13-qualification/`. The portable review archive is `out/update-20261125/dpe-canary-1.0.2513-electron-46.0.0-alpha.13-linux-x64-review.tar.gz`, SHA-256 `587d6685d0a7de727808f0a829a40b212e8dac2534fe386ef73e391a7d628d06`. Repository lint and the full Python/JavaScript/Rust suites also pass. This is local qualification; no release is published or approved. The user's existing
 non-Nitro `clock` profile was tested through the full DPE/Equicord startup path
 with FakeNitro and its stream-quality bypass temporarily enabled. The native
 Optimized picker showed no Nitro banner, and 1080p, 1440p, Source and 60fps were
@@ -484,4 +484,4 @@ delivery and remains in the evidence directory. SafeStorage IPC, invalid
 ciphertext and same-profile persistence pass with synthetic data. HEVC VA-API
 delivery passes with the Electron receiver; the unsupported native software
 receiver attempt remains as a failure. Main-process frame-capture lifetime/GC
-passes explicit stop, immediate stop, source destruction and consumer destruction. These results do not establish alpha.13 qualification.
+passes explicit stop, immediate stop, source destruction and consumer destruction. The earlier retained-runtime results remain distinct from the exact alpha.13 qualification described above.
