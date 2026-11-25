@@ -1,6 +1,17 @@
 {
   "schema": 1,
   "commits": {
+    "62e4b4394b852e3fcb00844809a94ae81fcf5c12": {
+      "Improvements": [
+        "Accelerate large application, Electron, and Discord module downloads with up to eight connections selected from the measured transfer rate. Split downloads can be turned off in General settings.",
+        "Open cached installations before checking for network updates, fetch the pinned Electron directly on first launch, and prepare Electron and Discord modules in parallel when possible.",
+        "Speed up Discord voice setup by reusing decoded ELF data and counting changes only within reviewed patch ranges."
+      ],
+      "Fixes": [
+        "Retry interrupted download ranges and verify the complete checksum before accepting a file. Fall back to one connection when range responses are unusable.",
+        "Verify native patch output on disk and check each patch stage against the previous stage before replacing the voice module."
+      ]
+    },
     "673ba92c10955cdaec33e1e9d28adf7171e8de94": {
       "Improvements": [
         "Show the HTML updater splash from a verified cached Electron before downloading a replacement application, then switch to the prepared runtime automatically."
