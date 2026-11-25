@@ -425,9 +425,12 @@ Both native optimized and application-audio primary actions now use “Stream”
 
 Current saved default/global flags also launch both a fresh candidate and the
 `clock` profile. The reported default-flags failure remains unreproduced; the
-primary running Discord process was not restarted. The signed-out native settings
-probe still encounters missing lazy CSS modules; this is a harness coverage gap,
-not a passing check. Account calls, a real Fedora Atomic installation, other GPUs
+primary running Discord process was not restarted. The same native settings-entry probe passes inside the full DPE/Equicord
+`clock` startup: exactly one DPE Settings row precedes Log Out, uses the native
+settings icon/type and retains the native compiled parent/layout. Evidence:
+`out/update-20261125/clock-native-settings.json`. The signed-out-only legacy
+probe still encounters missing lazy CSS modules; its failure is retained as a
+harness coverage gap rather than reported as a pass. Account calls, a real Fedora Atomic installation, other GPUs
 and cross-platform behavior remain unverified. No release is published or approved.
 
 The subsequent Canary 1.0.2513 snapshot is pinned to state
