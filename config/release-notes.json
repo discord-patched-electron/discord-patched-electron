@@ -1,6 +1,15 @@
 {
   "schema": 1,
   "commits": {
+    "7dd195e6877535f78001b99693c3d9bfb0446227": {
+      "Improvements": [
+        "Update Discord Canary to 1.0.2513 and port Electron 46.0.0-alpha.13, preserving upstream security fixes and the new native voice-module layout."
+      ],
+      "Fixes": [
+        "Allow Direct screensharing permission setup on Fedora Atomic systems with a root-owned /usr/local symlink and read-only /usr. Store the polkit action under /etc and validate symlink targets and ancestors before trusting privileged helpers.",
+        "Label the Optimized screensharing and application-audio picker action \u201cStream\u201d."
+      ]
+    },
     "2980430a265a7230a263eed47470e4bb97ac6a30": {
       "Fixes": [
         "Recover application-audio capture after Discord\u2019s native PulseAudio connection fails, preserving the selected app and retrying the recorder without restarting the video share.",
