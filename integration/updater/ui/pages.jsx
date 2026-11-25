@@ -46,8 +46,24 @@ const groups = [
         "themeSync",
         true,
       ],
-      ["Quickstart", "Skip some startup checks to open Discord sooner.", "quickstart", false],
+      [
+        "Quickstart",
+        "Use the verified cache and check for updates after Discord opens.",
+        "quickstart",
+        true,
+      ],
       ["Allow multiple windows", "Run more than one Discord instance.", "multiInstance", false],
+    ],
+  ],
+  [
+    "Updates",
+    [
+      [
+        "Split downloads",
+        "Use multiple connections for large updates when it can make them faster.",
+        "splitDownloads",
+        true,
+      ],
     ],
   ],
 ];

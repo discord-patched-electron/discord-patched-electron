@@ -66,7 +66,15 @@ class UpdateCheck(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()) as output:
                 update_check.launch_paths(path)
             self.assertEqual(output.getvalue().splitlines(), list(value.values()))
+            path.write_text(json.dumps({**value, "defer_update": True}))
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                update_check.launch_paths(path)
+            self.assertEqual(output.getvalue().splitlines(), [*value.values(), "1"])
             for bad in ("relative", "/path\ninjected", None):
                 path.write_text(json.dumps({**value, "voice": bad}))
                 with self.assertRaises(ValueError):
                     update_check.launch_paths(path)
+            path.write_text(json.dumps({"application": "/profile/pending application"}))
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                update_check.launch_paths(path)
+            self.assertEqual(output.getvalue().splitlines(), ["/profile/pending application"])

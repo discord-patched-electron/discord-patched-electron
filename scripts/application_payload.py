@@ -11,8 +11,10 @@ from common import ROOT, read_json, sha256, write_json
 from desktop_identity import profile_name
 
 ASSET = "application.zip"
+TRANSFER = "download_transfer.py"
 BOOTSTRAP_ENTRIES = {
     "loader.py",
+    TRANSFER,
     "uninstall.py",
     "splash",
     "launch.sh",
@@ -82,6 +84,7 @@ def bootstrap(
 ):
     output.mkdir()
     shutil.copy2(ROOT / "integration/bootstrap/loader.py", output / "loader.py")
+    shutil.copy2(ROOT / "integration/updater" / TRANSFER, output / TRANSFER)
     shutil.copy2(ROOT / "integration/bootstrap/uninstall.py", output / "uninstall.py")
     splash = output / "splash"
     (splash / "openasar").mkdir(parents=True)
@@ -142,6 +145,7 @@ def bootstrap(
 def validate_bootstrap(app: Path):
     if not {
         "loader.py",
+        TRANSFER,
         "uninstall.py",
         "launch.sh",
         "bootstrap.json",

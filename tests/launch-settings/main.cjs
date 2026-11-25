@@ -613,6 +613,15 @@ app
     }
     await open();
     await click("t_settings");
+    await until(() => get('$("setting-splitDownloads")?.checked'));
+    await evaluate('document.getElementById("setting-splitDownloads").focus()');
+    window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Space" });
+    window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Space" });
+    await until(() => values.openasar.splitDownloads === false);
+    assert.equal(await get('$("setting-splitDownloads").checked'), false);
+    await evaluate('document.getElementById("setting-splitDownloads").click()');
+    await until(() => values.openasar.splitDownloads === true);
+    checks.push("Split downloads defaults on and saves both choices through the Settings switch");
     await capture("general");
     fs.writeFileSync(
       path.join(output, "layout.json"),

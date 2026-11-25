@@ -9,9 +9,9 @@ from capture_scale_scope import write_scope as write_capture_scale_scope
 from capture_scope import write_scope as write_capture_scope
 from capture_sync_scope import write_scope as write_capture_sync_scope
 from capture_upstream_scope import write_scope as write_capture_upstream_scope
-from common import sha256, write_json
-from elftools.elf.elffile import ELFFile
+from common import write_json
 from encoder_scope import write_scope as write_encoder_scope
+from native_elf import inspect_module
 from patch_pulse_audio import normalized
 
 SYMBOL = "_ZN6webrtc18videocapturemodule14DeviceInfoV4l216FillCapabilitiesEi"
@@ -19,10 +19,10 @@ FRAME = "_ZN6webrtc18videocapturemodule16VideoCaptureImpl13IncomingFrameEPhmRKNS
 FRAME_HASH = "9a0b52c0d848dbaf070097f3e9e639d7b8cfb1e740715499c5db3b218dac847e"
 
 
-def flip_scope(module: Path) -> dict:
+def flip_scope(module: Path, *, inspection=None) -> dict:
     """Unknown camera layouts keep working, but cannot enable outgoing mirroring."""
-    with module.open("rb") as stream:
-        elf = ELFFile(stream)
+    with inspect_module(module, inspection) as inspection:
+        elf = inspection.elf
         table = elf.get_section_by_name(".symtab")
         frames = table.get_symbol_by_name(FRAME) if table else None
         converters = table.get_symbol_by_name("ConvertToI420") if table else None
@@ -50,15 +50,15 @@ def flip_scope(module: Path) -> dict:
             return {"supported": False}
         return {
             "supported": True,
-            "voice_sha256": sha256(module),
+            "voice_sha256": inspection.digest,
             "call": calls[0],
             "converter": converter["st_value"],
         }
 
 
-def scope(module: Path) -> dict:
-    with module.open("rb") as stream:
-        elf = ELFFile(stream)
+def scope(module: Path, *, inspection=None) -> dict:
+    with inspect_module(module, inspection) as inspection:
+        elf = inspection.elf
         table = elf.get_section_by_name(".symtab")
         symbols = table.get_symbol_by_name(SYMBOL) if table else None
         if elf["e_machine"] != "EM_X86_64" or not symbols or len(symbols) != 1:
@@ -74,23 +74,24 @@ def scope(module: Path) -> dict:
             or start + size > section["sh_addr"] + section["sh_size"]
         ):
             raise ValueError("Invalid camera capability function range")
-    return {
-        "voice_sha256": sha256(module),
-        "symbol": SYMBOL,
-        "start": start,
-        "end": start + size,
-    }
+        return {
+            "voice_sha256": inspection.digest,
+            "symbol": SYMBOL,
+            "start": start,
+            "end": start + size,
+        }
 
 
 def write_scope(module: Path, directory: Path) -> dict:
-    report = scope(module)
-    write_json(directory / "camera-probe.json", report)
-    (directory / "camera-probe.conf").write_text(f"{report['start']:#x} {report['end']:#x}\n")
-    write_json(directory / "camera-flip.json", flip_scope(module))
-    write_capture_scope(module, directory)
-    write_capture_scale_scope(module, directory)
-    write_capture_upstream_scope(module, directory)
-    write_capture_sync_scope(module, directory)
-    write_capture_picker_scope(module, directory)
-    write_encoder_scope(module, directory)
+    with inspect_module(module) as inspection:
+        report = scope(module, inspection=inspection)
+        write_json(directory / "camera-probe.json", report)
+        (directory / "camera-probe.conf").write_text(f"{report['start']:#x} {report['end']:#x}\n")
+        write_json(directory / "camera-flip.json", flip_scope(module, inspection=inspection))
+        write_capture_scope(module, directory, inspection=inspection)
+        write_capture_scale_scope(module, directory, inspection=inspection)
+        write_capture_upstream_scope(module, directory, inspection=inspection)
+        write_capture_sync_scope(module, directory, inspection=inspection)
+        write_capture_picker_scope(module, directory, inspection=inspection)
+        write_encoder_scope(module, directory, inspection=inspection)
     return report

@@ -6,8 +6,6 @@ the updater retains its previous generation. No live process is modified.
 """
 
 import hashlib
-import shutil
-import tempfile
 from pathlib import Path
 
 import native_client_2444
@@ -18,6 +16,7 @@ import native_client_2510
 import patch_capture_chroma as chroma
 import patch_capture_dimensions as dimensions
 import patch_decoder_eagain as decoder
+from native_elf import write_verified_binary
 
 INPUT_SHA256 = "f56d3c31611f769e6798bb2bc03ad2b5a21e2b29224825ca740af013e145f0d8"
 OUTPUT_SHA256 = "0eecfa64b0120ca85c6454a39cf011f1f52d5661b33868ada0822580e644490e"
@@ -114,15 +113,7 @@ def patch(binary: Path) -> dict:
     candidate = corrected(original)
     already = candidate == original
     if not already:
-        # Replace only the prepared file, preserving mode and any shared source
-        # inode. Never rewrite bytes through a mapped or hardlinked input inode.
-        with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
-            target = Path(temporary) / binary.name
-            shutil.copy2(binary, target)
-            target.write_bytes(candidate)
-            if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
-                raise ValueError("H.264 HRD written output failed validation")
-            target.replace(binary)
+        write_verified_binary(binary, candidate, expected)
     return {
         "patch": PATCH,
         "input_sha256": digest,

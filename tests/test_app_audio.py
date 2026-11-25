@@ -7,7 +7,7 @@ from unittest.mock import patch as mock_patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build_reference import build_config
-from common import ROOT, read_json
+from common import ROOT, read_json, sha256
 from fingerprints import integration_key, runtime_key
 from patch_app_audio import ANCHOR, CAMERA_BEFORE, INSERT, VIDEO_INSERT, patch
 
@@ -26,10 +26,14 @@ class AppAudioPatch(unittest.TestCase):
             )
             wrapper.write_text(original)
             order = []
+            module = directory / "discord_voice.node"
+            module.write_bytes(b"original")
 
-            def pulse(module):
+            def pulse(staged):
                 order.append("pulse")
-                return {}
+                before = sha256(staged)
+                staged.write_bytes(b"patched")
+                return {"input_sha256": before, "output_sha256": sha256(staged)}
 
             def video(module):
                 self.assertEqual(order, ["pulse"])
@@ -44,33 +48,24 @@ class AppAudioPatch(unittest.TestCase):
                     patch(directory, adapter)
             self.assertEqual(wrapper.read_text(), original)
             self.assertFalse((directory / "dpe-video.cjs").exists())
-            with (
-                mock_patch("patch_app_audio.patch_pulse_audio", return_value={}),
-                mock_patch("patch_app_audio.patch_vaapi_hrd", return_value={}),
-                mock_patch("patch_app_audio.patch_capture_dimensions", return_value={}),
-                mock_patch("patch_app_audio.patch_decoder_eagain", return_value={}),
-                mock_patch("patch_app_audio.patch_capture_chroma", return_value={}),
-                mock_patch("patch_app_audio.patch_presentation_clock", return_value={}),
-                mock_patch("patch_app_audio.patch_video_pacing", return_value={}),
-                mock_patch("patch_app_audio.patch_pulse_reconnect", return_value={}),
-            ):
+            self.assertEqual(module.read_bytes(), b"original")
+            with mock_patch("patch_app_audio.patch_native", return_value={}):
                 patch(directory, adapter)
                 self.assertEqual(wrapper.read_text().count(ANCHOR + VIDEO_INSERT + INSERT), 1)
                 self.assertEqual(wrapper.read_text().count(INSERT), 1)
 
-    @mock_patch("patch_app_audio.patch_pulse_reconnect", return_value={"reconnect_fixture": True})
-    @mock_patch("patch_app_audio.patch_video_pacing", return_value={"pacing_fixture": True})
-    @mock_patch("patch_app_audio.patch_presentation_clock", return_value={"clock_fixture": True})
-    @mock_patch("patch_app_audio.patch_capture_chroma", return_value={"chroma_fixture": True})
-    @mock_patch("patch_app_audio.patch_decoder_eagain", return_value={"decoder_fixture": True})
     @mock_patch(
-        "patch_app_audio.patch_capture_dimensions", return_value={"dimensions_fixture": True}
+        "patch_app_audio.patch_native",
+        return_value={
+            "native_buffer_patch": {"fixture": True},
+            "native_video_patch": {"video_fixture": True},
+            "native_capture_dimensions_patch": {"dimensions_fixture": True},
+            "native_presentation_clock_patch": {"clock_fixture": True},
+            "native_video_pacing_patch": {"pacing_fixture": True},
+            "native_pulse_reconnect_patch": {"reconnect_fixture": True},
+        },
     )
-    @mock_patch("patch_app_audio.patch_vaapi_hrd", return_value={"video_fixture": True})
-    @mock_patch("patch_app_audio.patch_pulse_audio", return_value={"fixture": True})
-    def test_known_wrapper_is_idempotent_and_unknown_layout_fails_unchanged(
-        self, native, video, dimensions, decoder, chroma, clock, pacing, reconnect
-    ):
+    def test_known_wrapper_is_idempotent_and_unknown_layout_fails_unchanged(self, native):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
             wrapper = directory / "index.js"
@@ -87,12 +82,6 @@ class AppAudioPatch(unittest.TestCase):
                 (ROOT / "integration/audio/system-tools.cjs").read_bytes(),
             )
             native.assert_called_once_with(directory / "discord_voice.node")
-            video.assert_called_once_with(directory / "discord_voice.node")
-            dimensions.assert_called_once_with(directory / "discord_voice.node")
-            chroma.assert_called_once_with(directory / "discord_voice.node")
-            clock.assert_called_once_with(directory / "discord_voice.node")
-            pacing.assert_called_once_with(directory / "discord_voice.node")
-            reconnect.assert_called_once_with(directory / "discord_voice.node")
             self.assertEqual(report["native_pulse_reconnect_patch"], {"reconnect_fixture": True})
             self.assertEqual(report["native_video_pacing_patch"], {"pacing_fixture": True})
             self.assertEqual(report["native_presentation_clock_patch"], {"clock_fixture": True})

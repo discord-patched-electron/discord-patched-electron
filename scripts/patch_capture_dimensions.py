@@ -11,8 +11,6 @@ shader, metadata layout and ABI. Unknown modules require a fresh review.
 """
 
 import hashlib
-import shutil
-import tempfile
 from pathlib import Path
 
 import native_client_2444
@@ -22,6 +20,7 @@ import native_client_2484
 import native_client_2510
 import patch_capture_chroma as chroma
 import patch_decoder_eagain as decoder
+from native_elf import write_verified_binary
 
 INPUT_SHA256 = "0eecfa64b0120ca85c6454a39cf011f1f52d5661b33868ada0822580e644490e"
 OUTPUT_SHA256 = "23dae94b2adcc295faa473fd5869b17cbc19154eec50d6cdf5970ef4f921b0c5"
@@ -91,15 +90,7 @@ def patch(binary: Path) -> dict:
     candidate = corrected(original)
     already = candidate == original
     if not already:
-        # Preserve shared source inodes and active mappings; replace only the
-        # privately prepared file after validating the complete written output.
-        with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
-            target = Path(temporary) / binary.name
-            shutil.copy2(binary, target)
-            target.write_bytes(candidate)
-            if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
-                raise ValueError("GPU capture dimension written output failed validation")
-            target.replace(binary)
+        write_verified_binary(binary, candidate, expected)
     return {
         "patch": PATCH,
         "input_sha256": digest,

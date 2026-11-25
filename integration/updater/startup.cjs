@@ -58,8 +58,10 @@ else {
       const channel = JSON.parse(
         fs.readFileSync(path.join(root, "resources/build_info.json"), "utf8"),
       ).releaseChannel;
+      const offline = process.env.DPE_CLIENT_OFFLINE === "1";
       let quickstart = Boolean(
-        (preferences.config(profile).quickstart || process.env.OPENASAR_QUICKSTART) &&
+        !offline &&
+        preferences.quickstart(profile) &&
         fs.existsSync(path.join(process.env.DPE_CLIENT_ROOT, "current.json")),
       );
       const attempt = async () => {
@@ -71,7 +73,8 @@ else {
           root,
           clientRoot: process.env.DPE_CLIENT_ROOT,
           channel,
-          offline: quickstart || process.env.DPE_CLIENT_OFFLINE === "1",
+          offline: quickstart || offline,
+          requireCurrentCache: quickstart,
           onProgress: (state) => view.update(state),
         });
         try {

@@ -15,13 +15,12 @@ their original connection behavior until separately ported and qualified.
 """
 
 import hashlib
-import shutil
-import tempfile
 from pathlib import Path
 
 from native_client_2483 import STAGES
 from native_client_2484 import STAGES as CLIENT_2484_STAGES
 from native_client_2510 import STAGES as CLIENT_2510_STAGES
+from native_elf import write_verified_binary
 from patch_video_pacing import REVIEWED
 
 PATCH = "reconnect-failed-pulse-soundshare-context-v1"
@@ -38,8 +37,9 @@ def chains():
 
 def restored(data):
     """Expose the original layout to earlier, idempotent preparation stages."""
+    digest = hashlib.sha256(data).hexdigest()
     for original, final, sites in chains():
-        if hashlib.sha256(data).hexdigest() != final:
+        if digest != final:
             continue
         result = bytearray(data)
         for offset, before, _after in sites:
@@ -73,17 +73,21 @@ def corrected(data):
 def patch(binary: Path):
     data = binary.read_bytes()
     result = corrected(data)
-    if result != data:
-        with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
-            target = Path(temporary) / binary.name
-            shutil.copy2(binary, target)
-            target.write_bytes(result)
-            target.replace(binary)
+    before, after = hashlib.sha256(data).hexdigest(), hashlib.sha256(result).hexdigest()
+    changes = 0
+    if result is not data:
+        _, _, sites = next(chain for chain in chains() if chain[0] == before)
+        changes = sum(
+            old != new
+            for _, original, replacement in sites
+            for old, new in zip(original, replacement, strict=True)
+        )
+        write_verified_binary(binary, result, after)
     return {
         "patch": PATCH,
-        "input_sha256": hashlib.sha256(data).hexdigest(),
-        "output_sha256": hashlib.sha256(result).hexdigest(),
-        "already_patched": result == data,
-        "supported": hashlib.sha256(result).hexdigest() in {final for _, final, _ in chains()},
-        "changed_bytes": sum(a != b for a, b in zip(data, result, strict=True)),
+        "input_sha256": before,
+        "output_sha256": after,
+        "already_patched": result is data,
+        "supported": after in {final for _, final, _ in chains()},
+        "changed_bytes": changes,
     }

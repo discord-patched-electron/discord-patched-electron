@@ -121,6 +121,7 @@ function open(tab = "settings", sourceContents, options = {}) {
         "noTyping",
         "themeSync",
         "quickstart",
+        "splitDownloads",
         "multiInstance",
       ])
         if (typeof config[key] === "boolean") next[key] = config[key];

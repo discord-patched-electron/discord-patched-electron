@@ -10,6 +10,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 import zipfile
 from contextlib import contextmanager
@@ -306,6 +307,33 @@ class RuntimeUpdates(unittest.TestCase):
         self.assertEqual(len(self.downloads), 1)
         self.assertTrue(self.downloads[0].endswith("runtime-dist.zip"))
 
+    def test_cold_bootstrap_fetches_the_pinned_electron_without_an_approval_lookup(self):
+        self.updater_only_package()
+        executable = runtime.ensure_runtime(self.app, self.profile, bootstrap=True)
+        self.assertEqual(executable.parent.name, self.policy["archive_sha256"])
+        self.assertEqual(len(self.downloads), 1)
+        self.assertTrue(self.downloads[0].endswith("runtime-dist.zip"))
+
+    def test_older_electron_can_draw_the_splash_but_cannot_satisfy_cached_launch(self):
+        self.updater_only_package()
+        older = self.root / "older" / "electron"
+        identity = {
+            **self.policy,
+            "electron_version": "45.0.0-alpha.1",
+            "archive_sha256": "f" * 64,
+        }
+        with (
+            patch.object(runtime, "selected", return_value=(older, identity)),
+            patch.object(
+                runtime, "install_runtime", side_effect=ValueError("Pinned runtime missing")
+            ),
+        ):
+            self.assertEqual(
+                runtime.ensure_runtime(self.app, self.profile, offline=True, bootstrap=True), older
+            )
+            with self.assertRaisesRegex(ValueError, "Pinned runtime missing"):
+                runtime.ensure_runtime(self.app, self.profile, offline=True)
+
     def test_local_archive_seeds_exact_pins_without_network_and_rejects_changed_bytes(self):
         self.updater_only_package()
         with patch.object(runtime, "download", side_effect=AssertionError("local seed network")):
@@ -454,6 +482,36 @@ class RuntimeUpdates(unittest.TestCase):
         self.assertIs(descriptor["prerelease"], False)
         with patch.object(runtime, "download", side_effect=AssertionError("offline network")):
             self.assertEqual(runtime.approved_release(directory, self.policy, key), self.manifest)
+
+    def test_one_check_shares_downloads_without_sharing_signature_verdicts(self):
+        key = self.app / "integration/updater/release-signing-key.asc"
+        invalid_key = self.root / "invalid.asc"
+        invalid_key.write_text("not a public key")
+        with patch.object(runtime, "download", wraps=self.download) as network:
+            with runtime.reuse_approval_downloads():
+                for name, public_key in (
+                    ("application", key),
+                    ("runtime", invalid_key),
+                    ("client", key),
+                ):
+                    directory = self.root / ("approval-" + name)
+                    directory.mkdir()
+                    if public_key == invalid_key:
+                        with self.assertRaises(subprocess.CalledProcessError):
+                            runtime.approved_release(directory, self.policy, public_key, fetch=True)
+                    else:
+                        self.assertEqual(
+                            runtime.approved_release(
+                                directory, self.policy, public_key, fetch=True
+                            ),
+                            self.manifest,
+                        )
+            self.assertEqual(network.call_count, 4)
+            following = self.root / "approval-next-check"
+            following.mkdir()
+            with runtime.reuse_approval_downloads():
+                runtime.approved_release(following, self.policy, key, fetch=True)
+            self.assertEqual(network.call_count, 8)
 
     def test_invalid_approval_is_rejected_before_any_asset_request(self):
         directory = self.root / "invalid-approval"
@@ -742,9 +800,20 @@ class RuntimeBoundaries(unittest.TestCase):
         )
         check = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(check)
+        preparing_modules = threading.Event()
+
+        def select_runtime(*_args, **_kwargs):
+            self.assertTrue(preparing_modules.wait(5), "Runtime blocked module preparation")
+            return Path("/selected/electron")
+
+        def prepare_modules(_path, _channel, *, executable, **_kwargs):
+            preparing_modules.set()
+            self.assertEqual(executable(), Path("/selected/electron"))
+            return Path("/client/new")
+
         with (
-            patch.object(check, "ensure_runtime", return_value=Path("/selected/electron")),
-            patch.object(check, "ensure_client", return_value=Path("/client/new")) as modules,
+            patch.object(check, "ensure_runtime", side_effect=select_runtime),
+            patch.object(check, "ensure_client", side_effect=prepare_modules) as modules,
             patch.object(check, "publish", return_value=Path("/installed")) as publish,
             patch.object(
                 check, "read_object", return_value={"modules": {"discord_voice": {"version": 7}}}
@@ -764,11 +833,9 @@ class RuntimeBoundaries(unittest.TestCase):
                     "voice": "/installed/modules/discord_voice-7/discord_voice",
                 },
             )
-            modules.assert_called_once_with(
-                Path("/profile/dpe-updater"),
-                "canary",
-                offline=os.environ.get("DPE_CLIENT_OFFLINE") == "1",
-                executable=Path("/selected/electron"),
+            self.assertEqual(modules.call_args.args, (Path("/profile/dpe-updater"), "canary"))
+            self.assertEqual(
+                modules.call_args.kwargs["offline"], os.environ.get("DPE_CLIENT_OFFLINE") == "1"
             )
 
     def test_failed_metadata_publication_leaves_previous_pointer_and_no_temporary_file(self):

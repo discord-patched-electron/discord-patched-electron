@@ -115,7 +115,7 @@ function start() {
     .catch((error) => {
       console.warn("DPE capture helper maintenance failed:", error.message);
     });
-  if (global.oaConfig?.quickstart || process.env.OPENASAR_QUICKSTART)
+  if (process.env.DPE_DEFER_UPDATE_CHECK === "1")
     app.whenReady().then(() => setTimeout(() => updater.requestCheck(), 1000).unref());
 }
 

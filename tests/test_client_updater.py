@@ -1,15 +1,19 @@
 """Exercise module-only updates, atomic activation and archive boundaries."""
 
 import copy
+import hashlib
 import http.client
 import importlib.util
 import io
 import json
+import os
 import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import unittest
+import urllib.error
 import urllib.request
 from email.message import Message
 from pathlib import Path
@@ -18,6 +22,7 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "integration/updater"))
+import download_transfer
 from check_release_packages import check_client_free_archive
 from common import sha256
 from stage_updater import stage, validate_distribution
@@ -27,6 +32,157 @@ spec = importlib.util.spec_from_file_location(
 )
 client = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(client)
+
+
+class RangeOpener:
+    def __init__(self, data, mode="split"):
+        self.data = data
+        self.mode = mode
+        self.full_requests = 0
+        self.ranges = []
+        self.concurrent = threading.Barrier(3, timeout=5) if mode == "split" else None
+
+    def open(self, request, **_kwargs):
+        if isinstance(request, str):
+            self.full_requests += 1
+            body = self.data
+            if self.mode == "corrupt-full":
+                body = b"!" * len(body)
+            response = io.BytesIO(body)
+            response.status = 200
+            response.headers = {
+                "Accept-Ranges": "none" if self.mode == "no-ranges" else "bytes",
+                "Content-Length": str(len(body)),
+                "ETag": '"fixture"',
+            }
+            response.geturl = lambda: request
+            return response
+        start, end = map(int, request.get_header("Range").removeprefix("bytes=").split("-"))
+        self.ranges.append((start, end))
+        if self.concurrent and start % (len(self.data) // 4) == 0:
+            self.concurrent.wait()
+        if self.mode == "limited":
+            raise urllib.error.HTTPError(request.full_url, 429, "Limited", {}, None)
+        body = self.data[start : end + 1]
+        if start == len(self.data) // 4 and self.mode == "split":
+            body = body[:29]
+        if self.mode in ("corrupt", "corrupt-full"):
+            body = b"!" * len(body)
+        response = io.BytesIO(body)
+        response.status = 200 if self.mode == "ignored" else 206
+        response.headers = {
+            "ETag": '"changed"' if self.mode == "changed-etag" else '"fixture"',
+            "Content-Range": f"bytes {start + (self.mode == 'wrong-range')}-{end}/{len(self.data)}",
+        }
+        return response
+
+
+class SplitDownloads(unittest.TestCase):
+    def test_large_pinned_module_fetches_concurrent_ranges_and_resumes_only_the_short_part(self):
+        data = bytes(range(256)) * 128
+        opener = RangeOpener(data)
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(download_transfer, "SPLIT_AT", 8192),
+            patch.object(download_transfer, "connection_count", return_value=4),
+            patch.object(urllib.request, "build_opener", return_value=opener),
+        ):
+            target = Path(temporary) / "voice"
+            client.fetch("https://example.invalid/voice", target, hashlib.sha256(data).hexdigest())
+            self.assertEqual(target.read_bytes(), data)
+            self.assertEqual(opener.full_requests, 1)
+            self.assertCountEqual(
+                opener.ranges, [(8192, 16383), (8221, 16383), (16384, 24575), (24576, 32767)]
+            )
+
+    def test_large_transfer_falls_back_for_ignored_or_corrupt_ranges(self):
+        data = bytes(range(256)) * 128
+        for mode, requests in (
+            ("no-ranges", 1),
+            ("ignored", 2),
+            ("corrupt", 2),
+            ("wrong-range", 2),
+            ("changed-etag", 2),
+        ):
+            with (
+                self.subTest(mode=mode),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(download_transfer, "SPLIT_AT", 8192),
+                patch.object(download_transfer, "connection_count", return_value=4),
+            ):
+                target = Path(temporary) / "asset"
+                opener = RangeOpener(data, mode)
+                download_transfer.transfer(
+                    opener,
+                    "https://example.invalid/asset",
+                    target,
+                    limit=len(data),
+                    expected_sha256=hashlib.sha256(data).hexdigest(),
+                )
+                self.assertEqual(target.read_bytes(), data)
+                self.assertEqual(opener.full_requests, requests)
+                self.assertEqual(list(target.parent.iterdir()), [target])
+
+    def test_cancellation_bad_checksum_and_rate_limiting_never_publish_partial_bytes(self):
+        data = bytes(range(256)) * 128
+        for mode, error, expected_requests in (
+            ("corrupt-full", ValueError, 2),
+            ("limited", urllib.error.HTTPError, 1),
+            ("cancelled", InterruptedError, 1),
+        ):
+            with (
+                self.subTest(mode=mode),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(download_transfer, "SPLIT_AT", 8192),
+                patch.object(download_transfer, "connection_count", return_value=4),
+            ):
+                target = Path(temporary) / "asset"
+                target.write_bytes(b"previous verified asset")
+                opener = RangeOpener(data, mode)
+
+                def check_cancelled(mode=mode, opener=opener):
+                    if mode == "cancelled" and opener.full_requests:
+                        raise InterruptedError("fixture cancellation")
+
+                with self.assertRaises(error):
+                    download_transfer.transfer(
+                        opener,
+                        "https://example.invalid/asset",
+                        target,
+                        limit=len(data),
+                        expected_sha256=hashlib.sha256(data).hexdigest(),
+                        check_cancelled=check_cancelled,
+                    )
+                self.assertEqual(target.read_bytes(), b"previous verified asset")
+                self.assertEqual(opener.full_requests, expected_requests)
+                self.assertEqual(list(target.parent.iterdir()), [target])
+
+    def test_small_or_fast_downloads_stay_serial_and_slow_large_downloads_are_bounded(self):
+        sample = 512 * 1024
+        size = 40 * 1024 * 1024
+        self.assertEqual(download_transfer.connection_count(size, sample, 0.004), 1)
+        self.assertEqual(download_transfer.connection_count(size, sample, 0.060), 4)
+        self.assertEqual(download_transfer.connection_count(size, sample, 0.25), 8)
+
+    def test_disabled_preference_uses_one_verified_connection(self):
+        data = bytes(range(256)) * 128
+        opener = RangeOpener(data)
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary)
+            (profile / "settings.json").write_text('{"openasar":{"splitDownloads":false}}')
+            target = profile / "voice"
+            with (
+                patch.dict(os.environ, {"DPE_PROFILE_DIR": str(profile)}),
+                patch.object(download_transfer, "SPLIT_AT", 8192),
+                patch.object(download_transfer, "connection_count", return_value=4),
+                patch.object(urllib.request, "build_opener", return_value=opener),
+            ):
+                client.fetch(
+                    "https://example.invalid/voice", target, hashlib.sha256(data).hexdigest()
+                )
+            self.assertEqual(target.read_bytes(), data)
+            self.assertEqual(opener.full_requests, 1)
+            self.assertEqual(opener.ranges, [])
 
 
 def manifest(version=123):
@@ -196,6 +352,11 @@ class ModuleUpdates(unittest.TestCase):
             root = Path(temporary)
             previous = client.ensure_client(root, "canary")
             calls = fetch.call_count
+            with patch.object(client, "compatibility_key", return_value="d" * 64):
+                self.assertEqual(client.ensure_client(root, "canary", offline=True), previous)
+                with self.assertRaisesRegex(ValueError, "internet"):
+                    client.ensure_client(root, "canary", offline=True, require_current_cache=True)
+                self.assertEqual(fetch.call_count, calls)
             for damaged in ("invalid-json", "null", "{}", '"' + "c" * 64 + '"'):
                 (root / "current.json").write_text(damaged)
                 self.assertEqual(client.ensure_client(root, "canary"), previous)

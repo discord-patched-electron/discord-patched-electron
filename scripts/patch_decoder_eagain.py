@@ -7,8 +7,6 @@ unchanged. In particular send_packet EAGAIN remains an error.
 """
 
 import hashlib
-import shutil
-import tempfile
 from pathlib import Path
 
 import native_client_2444
@@ -17,6 +15,7 @@ import native_client_2483
 import native_client_2484
 import native_client_2510
 import patch_capture_chroma as chroma
+from native_elf import write_verified_binary
 
 PATCH = "ffmpeg-decoder-buffered-output-v1"
 
@@ -121,13 +120,7 @@ def patch(binary: Path) -> dict:
     candidate = corrected(original)
     already = candidate == original
     if not already:
-        with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
-            target = Path(temporary) / binary.name
-            shutil.copy2(binary, target)
-            target.write_bytes(candidate)
-            if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
-                raise ValueError("Decoder written output failed validation")
-            target.replace(binary)
+        write_verified_binary(binary, candidate, expected)
     return {
         "patch": PATCH,
         "input_sha256": digest,

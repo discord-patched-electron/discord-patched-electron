@@ -17,6 +17,7 @@ from capstone.x86 import X86_INS_CALL, X86_INS_JMP, X86_OP_IMM, X86_OP_MEM, X86_
 from common import sha256
 from elftools.common.exceptions import ELFError
 from elftools.elf.elffile import ELFFile
+from native_elf import ModuleInspection
 from patch_pulse_reconnect import restored
 
 PREFIX = "_ZN7discord5media10soundshare20PulseAudioController"
@@ -97,8 +98,9 @@ def normalized(code: bytes, address: int) -> bytes:
     return bytes(result)
 
 
-def patch_site(data: bytes) -> tuple[int, bool]:
-    elf = ELFFile(io.BytesIO(data))
+def patch_site(data: bytes, *, elf=None) -> tuple[int, bool]:
+    if elf is None:
+        elf = ELFFile(io.BytesIO(data))
     if elf.elfclass != 64 or not elf.little_endian or elf.header["e_machine"] != "EM_X86_64":
         raise ValueError("PulseAudio buffer patch requires x86_64 ELF")
     symbols, text = elf.get_section_by_name(".symtab"), elf.get_section_by_name(".text")
@@ -200,8 +202,9 @@ def volume_edits():
     )
 
 
-def volume_site(data):
-    elf = ELFFile(io.BytesIO(data))
+def volume_site(data, *, elf=None):
+    if elf is None:
+        elf = ELFFile(io.BytesIO(data))
     symbols = elf.get_section_by_name(".symtab")
     found = symbols.get_symbol_by_name(MIC_VOLUME) if symbols else None
     if not found or len(found) != 1 or found[0]["st_info"]["type"] != "STT_FUNC":
@@ -220,13 +223,18 @@ def volume_site(data):
     return offset, code == bytes(patched)
 
 
+def patch_sites(data):
+    with io.BytesIO(data) as stream, ModuleInspection(stream) as inspection:
+        elf = inspection.elf
+        return patch_site(data, elf=elf), volume_site(data, elf=elf)
+
+
 def patch(binary: Path) -> dict:
     original = binary.read_bytes()
     before = hashlib.sha256(original).hexdigest()
     try:
         layout = restored(original)
-        offset, already = patch_site(layout)
-        volume_offset, volume_already = volume_site(layout)
+        (offset, already), (volume_offset, volume_already) = patch_sites(layout)
     except (ValueError, ELFError, CsError) as error:
         # The updater treats unsupported layouts as a permanent compatibility
         # failure, instead of repeatedly downloading the same unsupported module.
@@ -241,11 +249,12 @@ def patch(binary: Path) -> dict:
     if not already or not volume_already:
         with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
             target = Path(temporary) / binary.name
-            shutil.copy2(binary, target)
             target.write_bytes(candidate)
-            if patch_site(target.read_bytes()) != (offset, True):
+            shutil.copystat(binary, target)
+            attach, volume = patch_sites(target.read_bytes())
+            if attach != (offset, True):
                 raise ValueError("PulseAudio buffer patch failed validation")
-            if volume_site(target.read_bytes()) != (volume_offset, True):
+            if volume != (volume_offset, True):
                 raise ValueError("Microphone volume guard failed validation")
             target.replace(binary)
     return {

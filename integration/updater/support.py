@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from diagnostic_log import event as diagnostic_event
+from download_transfer import IncompleteDownload, split_downloads_enabled, transfer
 
 _progress_lock = threading.Lock()
 
@@ -86,10 +87,6 @@ class RateLimited(OSError):
         super().__init__(f"Download temporarily limited. Try again after {when}.")
 
 
-class IncompleteDownload(ValueError):
-    pass
-
-
 def retry_time(headers):
     """Respect server cooldowns without sleeping through a whole rate-limit window."""
     now = time.time()
@@ -118,7 +115,15 @@ def cooldown_file(url):
     return Path(profile) / "dpe-updater/http-cooldowns" / (host + ".json")
 
 
-def download(url: str, target: Path, *, limit: int = 4 * 1024 * 1024, label: str | None = None):
+def download(
+    url: str,
+    target: Path,
+    *,
+    limit: int = 4 * 1024 * 1024,
+    label: str | None = None,
+    expected_sha256: str | None = None,
+    profile: Path | None = None,
+):
     if urlparse(url).scheme != "https":
         raise ValueError("Update downloads must use HTTPS")
     cooldown = cooldown_file(url)
@@ -132,7 +137,14 @@ def download(url: str, target: Path, *, limit: int = 4 * 1024 * 1024, label: str
                 raise
     for attempt in range(2):
         try:
-            return _download_once(url, target, limit=limit, label=label)
+            return _download_once(
+                url,
+                target,
+                limit=limit,
+                label=label,
+                expected_sha256=expected_sha256,
+                profile=profile,
+            )
         except urllib.error.HTTPError as error:
             if (
                 error.code == 429
@@ -170,37 +182,20 @@ def download(url: str, target: Path, *, limit: int = 4 * 1024 * 1024, label: str
         time.sleep(0.5)
 
 
-def _download_once(url, target, *, limit, label):
+def _download_once(url, target, *, limit, label, expected_sha256=None, profile=None):
     opener = urllib.request.build_opener(HTTPSRedirect())
     opener.addheaders = [("User-Agent", "discord-patched-electron-updater/1")]
-    # Keep the old complete file usable if the network or local storage fails.
-    temporary = None
-    try:
-        with opener.open(url, timeout=20) as response:
-            size = int(response.headers.get("Content-Length", "0"))
-            if size < 0 or size > limit:
-                raise ValueError("Update download exceeds size limit")
-            with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as output:
-                temporary = Path(output.name)
-                total = 0
-                reported = 0
-                while block := response.read(1024 * 1024):
-                    total += len(block)
-                    if total > limit:
-                        raise ValueError("Update download exceeds size limit")
-                    output.write(block)
-                    if label and time.monotonic() - reported >= 0.1:
-                        progress("download", label, current=total, total=size)
-                        reported = time.monotonic()
-                if size and total != size:
-                    raise IncompleteDownload(
-                        "Update download was incomplete; check your connection and try again"
-                    )
-                output.flush()
-                os.fsync(output.fileno())
-            temporary.replace(target)
-            if label:
-                progress("download", label, current=total, total=size or total)
-    finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
+
+    def report(current, total):
+        progress("download", label, current=current, total=total)
+
+    transfer(
+        opener,
+        url,
+        target,
+        limit=limit,
+        expected_sha256=expected_sha256,
+        parallel=expected_sha256 is not None
+        and split_downloads_enabled(profile or os.environ.get("DPE_PROFILE_DIR")),
+        on_progress=report if label else None,
+    )

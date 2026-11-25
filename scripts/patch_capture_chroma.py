@@ -6,8 +6,6 @@ the edit to modules after the Pulse, HRD, dimensions and decoder corrections.
 """
 
 import hashlib
-import shutil
-import tempfile
 from pathlib import Path
 
 import native_client_2444
@@ -16,6 +14,7 @@ import native_client_2483
 import native_client_2484
 import native_client_2510
 from common import ROOT
+from native_elf import write_verified_binary
 from patch_presentation_clock import OUTPUT_BASES
 
 PATCH = "gpu-capture-chroma-box-filter-v1"
@@ -85,17 +84,11 @@ def corrected(data):
 def patch(binary: Path) -> dict:
     original = binary.read_bytes()
     digest = hashlib.sha256(original).hexdigest()
-    _, expected, _ = reviewed(digest)
+    _, expected, offset = reviewed(digest)
     candidate = corrected(original)
     already = candidate == original
     if not already:
-        with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
-            target = Path(temporary) / binary.name
-            shutil.copy2(binary, target)
-            target.write_bytes(candidate)
-            if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
-                raise ValueError("GPU chroma written output failed validation")
-            target.replace(binary)
+        write_verified_binary(binary, candidate, expected)
     return {
         "patch": PATCH,
         "input_sha256": digest,
@@ -103,5 +96,12 @@ def patch(binary: Path) -> dict:
         "already_patched": already,
         "changed_bytes": 0
         if already
-        else sum(a != b for a, b in zip(original, candidate, strict=True)),
+        else sum(
+            a != b
+            for a, b in zip(
+                original[offset : offset + SHADER_SIZE],
+                candidate[offset : offset + SHADER_SIZE],
+                strict=True,
+            )
+        ),
     }

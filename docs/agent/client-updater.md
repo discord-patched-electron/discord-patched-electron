@@ -26,6 +26,10 @@ background and offers Discord's normal restart notification. Activation happens
 at startup. Failed checks retain the package baseline or a previously approved
 installation. Discord's hosted web interface updates independently.
 
+Application, runtime and module checks share approval downloads within one
+check. Each consumer applies its own compatibility and version rules. The next
+check fetches fresh proof when its normal cooldown expires.
+
 Package updates supply the stable loader, trust key, desktop entries and system
 dependencies. Application updates supply all other executable integration code,
 including OpenAsar, ASAR patching and the Python updater.
@@ -140,6 +144,18 @@ within the profile. The startup error page stops automatic retries for throttlin
 instead of requesting the same URL every ten seconds. Verified installed versions
 remain usable when an optional update check fails.
 
+Checksum-pinned application, Electron runtime and module downloads of at least
+8 MiB can use up to eight connections when the server advertises byte ranges and
+a file size. A short sample estimates the remaining time on one connection. The
+updater budgets about 1.25 seconds of work per connection and keeps parts about
+4 MiB or larger. The first connection supplies the first part. A transport
+interruption retries that part from its last written byte. The updater checks
+range boundaries, the server's strong ETag when available, and the complete
+SHA-256 before publishing the file. Unusable ranges fall back to one connection.
+Rate limiting stops the transfer. Small and fast downloads use one connection.
+**General → Updates → Split downloads** controls new transfers, including cold
+Electron and application downloads before Discord opens.
+
 The verification chain is:
 
 ```text
@@ -230,9 +246,14 @@ activation transaction, so a mod can update itself without being rolled back by
 a failed client update. See [mod preservation](client-updater.md#mod-preservation-and-installer-network-failures).
 
 OpenAsar settings, custom CSS/JS, theme sync and Focus presets are retained.
-Explicit launcher flags win over presets. Quickstart validates a prepared client
-offline, then checks updates in the background. OpenAsar's self-updater is replaced
-so it cannot overwrite the integration.
+Explicit launcher flags win over presets. Quickstart is enabled by default and
+checks a verified client and runtime cache offline. It retries online when the
+cache needs repair or preparation, and checks in the background after a successful
+cached launch. An explicit Quickstart preference still controls startup. Cold
+bootstrap downloads the application's pinned Electron before checking for approved
+updates. Electron preparation overlaps module setup. Desktop core waits for the
+selected Electron before its ASAR checks. OpenAsar's self-updater is replaced so
+it cannot overwrite the integration.
 
 The pinned settings page, preload and Monaco editor run locally. Settings IPC
 accepts only the local main frame, and window navigation is blocked.
@@ -265,6 +286,18 @@ the bar backward. The pinned upstream HTML and settings sources stay unchanged.
 Fonts and animations download from Discord's CDN, are verified against
 `splash-media.json`, and remain in `discord_asset_cache/openasar/`. They are not
 packaged. Cached media works offline; missing media does not prevent text display.
+
+Voice and Krisp start with the first batch of module downloads. Native scope
+generation shares decoded ELF symbols and the SHA-256 of the fully patched
+module for one inspection. Patch reports count changes in the reviewed edit
+ranges. On the same workstation, `scripts/client_native.py <private-voice-copy>
+discord_voice` spent 36.6 seconds preparing the original Canary 1.0.2514 voice
+module and 9.2 seconds with these changes. The patched bytes and all generated
+scope files matched. Both measurements exclude downloading and launching Discord.
+
+The voice patch chain prepares replacements privately and checks every reported
+input against the previous stage's output. Each reviewed replacement is verified
+on disk before use. Only a fully verified chain can replace the original module.
 
 Theme sync uses cached Discord/custom colors and is enabled by default.
 `openasar.themeSync: false` disables it. `BACKGROUND_COLOR` supplies the fallback

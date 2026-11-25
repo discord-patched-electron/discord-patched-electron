@@ -358,6 +358,7 @@ RULES = (
             "scripts/stage_vaapi_hrd_fix.py",
             "integration/video/*",
             "scripts/client_native.py",
+            "scripts/native_elf.py",
             "packaging/upstream/krisp-patcher.py",
         ),
         ("packaging", "native"),

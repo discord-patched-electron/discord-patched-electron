@@ -1,6 +1,7 @@
 """Install the module adapter; reject an unknown native wrapper layout."""
 
 import shutil
+import tempfile
 from pathlib import Path
 
 from common import sha256
@@ -73,6 +74,39 @@ VIDEO_INSTALL = (
 )
 
 
+def patch_native(binary: Path):
+    # Each stage checks its supported input and edited bytes. Keep the entire
+    # chain private until the stage reports agree and the final file verifies.
+    before = sha256(binary)
+    with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
+        target = Path(temporary) / binary.name
+        shutil.copy2(binary, target)
+        outputs = {}
+        expected = before
+        for label, apply in (
+            ("native_buffer_patch", patch_pulse_audio),
+            ("native_video_patch", patch_vaapi_hrd),
+            ("native_capture_dimensions_patch", patch_capture_dimensions),
+            ("native_decoder_patch", patch_decoder_eagain),
+            ("native_capture_chroma_patch", patch_capture_chroma),
+            ("native_presentation_clock_patch", patch_presentation_clock),
+            ("native_video_pacing_patch", patch_video_pacing),
+            ("native_pulse_reconnect_patch", patch_pulse_reconnect),
+        ):
+            report = apply(target)
+            if report["input_sha256"] != expected:
+                raise ValueError(f"Patch chain input differs from the previous stage: {label}")
+            expected = report["output_sha256"]
+            outputs[label] = report
+        if sha256(target) != expected:
+            raise ValueError("Final voice module differs from the verified patch output")
+        if expected != before:
+            if sha256(binary) != before:
+                raise ValueError("Voice module changed during patch preparation")
+            target.replace(binary)
+    return outputs
+
+
 def patch(directory: Path, adapter: Path) -> dict:
     wrapper = directory / "index.js"
     before = sha256(wrapper)
@@ -131,14 +165,7 @@ def patch(directory: Path, adapter: Path) -> dict:
     for name in SIDECARS:
         if not (adapter.parent / name).is_file():
             raise ValueError("Missing application audio helper: " + name)
-    native = patch_pulse_audio(directory / "discord_voice.node")
-    video = patch_vaapi_hrd(directory / "discord_voice.node")
-    dimensions = patch_capture_dimensions(directory / "discord_voice.node")
-    decoder = patch_decoder_eagain(directory / "discord_voice.node")
-    chroma = patch_capture_chroma(directory / "discord_voice.node")
-    presentation = patch_presentation_clock(directory / "discord_voice.node")
-    pacing = patch_video_pacing(directory / "discord_voice.node")
-    reconnect = patch_pulse_reconnect(directory / "discord_voice.node")
+    native = patch_native(directory / "discord_voice.node")
     wrapper.write_text(source)
     shutil.copy2(adapter, directory / "dpe-app-audio.cjs")
     for name, destination in SIDECARS.items():
@@ -148,14 +175,7 @@ def patch(directory: Path, adapter: Path) -> dict:
         "input_sha256": before,
         "output_sha256": sha256(wrapper),
         "adapter_sha256": sha256(adapter),
-        "native_buffer_patch": native,
-        "native_video_patch": video,
-        "native_capture_dimensions_patch": dimensions,
-        "native_decoder_patch": decoder,
-        "native_capture_chroma_patch": chroma,
-        "native_presentation_clock_patch": presentation,
-        "native_video_pacing_patch": pacing,
-        "native_pulse_reconnect_patch": reconnect,
+        **native,
         "enabled_by_default": True,
         "default_sessions": ["wayland"],
         "disable_environment": "DPE_APP_AUDIO=0",
