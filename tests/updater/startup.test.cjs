@@ -6,7 +6,7 @@ const vm = require("node:vm");
 const { test } = require("node:test");
 const failure = require("../../integration/updater/failure.cjs");
 
-async function fixture(config = {}) {
+async function fixture(config = { quickstart: false }, offline = false) {
   const exits = [],
     states = [],
     pending = [],
@@ -41,7 +41,12 @@ async function fixture(config = {}) {
             action = handle;
             return { window, update: (state) => states.push(state) };
           };
-        if (name === "./profile.cjs") return { settings: () => ({}), config: () => config };
+        if (name === "./profile.cjs")
+          return {
+            settings: () => ({}),
+            config: () => config,
+            quickstart: () => config.quickstart !== false,
+          };
         if (name === "./failure.cjs") return failure;
         if (name === "./runner.cjs")
           return (options) => {
@@ -70,6 +75,7 @@ async function fixture(config = {}) {
           DPE_APP_ROOT: "/app",
           DPE_PROFILE_DIR: "/profile",
           DPE_CLIENT_ROOT: "/profile/dpe-updater",
+          DPE_CLIENT_OFFLINE: offline ? "1" : "0",
         },
         argv: [],
         once() {},
@@ -108,6 +114,16 @@ test("startup exposes errors, can pause automatic retries, and retries on demand
   assert.deepEqual(f.exits, [0]);
 });
 
+test("explicit offline mode reports a missing cache without retrying online", async () => {
+  const f = await fixture({}, true);
+  assert.equal(f.pending[0].options.offline, true);
+  assert.equal(f.pending[0].options.requireCurrentCache, false);
+  f.pending[0].reject(new Error("First launch requires an internet connection"));
+  await new Promise(setImmediate);
+  assert.equal(f.states.at(-1).stage, "error");
+  assert.equal(f.timers.size, 0);
+});
+
 test("permanent startup failures wait for user action and quit waits for cancellation", async () => {
   const f = await fixture();
   f.pending[0].reject(
@@ -127,14 +143,16 @@ test("permanent startup failures wait for user action and quit waits for cancell
 });
 
 test("quickstart falls back to online preparation once when its cache is incomplete", async () => {
-  const f = await fixture({ quickstart: true });
+  const f = await fixture({});
   assert.equal(f.pending[0].options.offline, true);
+  assert.equal(f.pending[0].options.requireCurrentCache, true);
   f.pending[0].reject(new Error("cache incomplete"));
   await new Promise(setImmediate);
   const timer = [...f.timers][0];
   assert.equal(timer.ms, 0);
   timer.callback();
   assert.equal(f.pending[1].options.offline, false);
+  assert.equal(f.pending[1].options.requireCurrentCache, false);
   f.pending[1].resolve({});
   await new Promise(setImmediate);
   assert.deepEqual(f.exits, [0]);

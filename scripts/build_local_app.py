@@ -105,6 +105,7 @@ def build(
             "openh264.py",
             "openh264.json",
             "support.py",
+            "download_transfer.py",
             "OPENH264-BINARY-LICENSE.txt",
         ):
             shutil.copy2(ROOT / "integration/updater" / filename, codec_helpers / filename)

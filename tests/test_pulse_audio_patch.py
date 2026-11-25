@@ -265,11 +265,15 @@ print(json.dumps(dict(zero=zero, locked_zero=bool(locked_zero), again=again)))
         def digest(data):
             return hashlib.sha256(data).hexdigest()
 
+        def unchanged(path):
+            identity = digest(path.read_bytes())
+            return {"input_sha256": identity, "output_sha256": identity}
+
         with (
-            mock_patch("patch_app_audio.patch_capture_chroma", return_value={}),
-            mock_patch("patch_app_audio.patch_presentation_clock", return_value={}),
-            mock_patch("patch_app_audio.patch_video_pacing", return_value={}),
-            mock_patch("patch_app_audio.patch_pulse_reconnect", return_value={}),
+            mock_patch("patch_app_audio.patch_capture_chroma", side_effect=unchanged),
+            mock_patch("patch_app_audio.patch_presentation_clock", side_effect=unchanged),
+            mock_patch("patch_app_audio.patch_video_pacing", side_effect=unchanged),
+            mock_patch("patch_app_audio.patch_pulse_reconnect", side_effect=unchanged),
             mock_patch.multiple(
                 hrd,
                 VOLUME_INPUT_SHA256=digest(guarded),
@@ -289,6 +293,15 @@ print(json.dumps(dict(zero=zero, locked_zero=bool(locked_zero), again=again)))
                 SITES=tuple(decoder_sites),
             ),
         ):
+            with (
+                mock_patch.object(
+                    audio, "patch_video_pacing", side_effect=ValueError("late failure")
+                ),
+                self.assertRaisesRegex(ValueError, "late failure"),
+            ):
+                audio.patch(self.directory, ROOT / "integration/audio/app-audio.cjs")
+            self.assertEqual(native.read_bytes(), initial)
+            self.assertEqual(shared.read_bytes(), initial)
             first = audio.patch(self.directory, ROOT / "integration/audio/app-audio.cjs")
             self.assertEqual(native.read_bytes(), final)
             self.assertEqual(shared.read_bytes(), initial)

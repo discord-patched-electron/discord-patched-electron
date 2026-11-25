@@ -291,7 +291,8 @@ class ApplicationUpdates(unittest.TestCase):
         dialog = Mock()
         dialog.poll.return_value = None
 
-        def download(_url, target, *, check_cancelled):
+        def download(_url, target, *, expected_sha256, check_cancelled):
+            self.assertEqual(expected_sha256, next_app["archive_sha256"])
             launch.assert_called_once()
             staged = Path(launch.call_args.args[0][-2])
             self.assertEqual(staged.stat().st_ino, executable.stat().st_ino)

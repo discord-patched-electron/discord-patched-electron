@@ -9,6 +9,7 @@ import http.client
 import json
 import os
 import re
+import runpy
 import select as io_select
 import shutil
 import signal
@@ -470,30 +471,31 @@ class HTTPSRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def download(url, target, *, check_cancelled=no_cancel):
+def download(url, target, *, expected_sha256=None, check_cancelled=no_cancel):
     if not url.startswith(f"https://github.com/{REPOSITORY}/releases/download/"):
         raise ValueError("Unexpected application download URL")
+    helper = Path(__file__).resolve().with_name("download_transfer.py")
+    if __name__ == "__main__" or helper.is_file():
+        # Isolated Python deliberately excludes this package from sys.path.
+        transport = runpy.run_path(str(helper))
+        transfer = transport["transfer"]
+        split_downloads_enabled = transport["split_downloads_enabled"]
+    else:
+        from download_transfer import split_downloads_enabled, transfer
+
     opener = urllib.request.build_opener(HTTPSRedirect())
+    parallel = split_downloads_enabled(_diagnostic_profile)
     for attempt in range(3):
-        complete = False
         try:
-            check_cancelled()
-            with opener.open(url, timeout=20) as response, target.open("wb") as output:
-                length = response.headers.get("Content-Length")
-                expected = int(length) if length is not None else None
-                if expected is not None and not 0 <= expected <= 64 * 1024 * 1024:
-                    raise ValueError("Application download exceeds size limit")
-                total = 0
-                while block := response.read(1024 * 1024):
-                    check_cancelled()
-                    total += len(block)
-                    if total > 64 * 1024 * 1024:
-                        raise ValueError("Application download exceeds size limit")
-                    output.write(block)
-                if expected is not None and total < expected:
-                    raise http.client.IncompleteRead(b"", expected - total)
-            check_cancelled()
-            complete = True
+            transfer(
+                opener,
+                url,
+                target,
+                limit=64 * 1024 * 1024,
+                expected_sha256=expected_sha256,
+                parallel=parallel,
+                check_cancelled=check_cancelled,
+            )
             return
         except (
             urllib.error.URLError,
@@ -510,9 +512,6 @@ def download(url, target, *, check_cancelled=no_cancel):
             ):
                 raise
             print(f"Application download interrupted; retrying: {error}", file=sys.stderr)
-        finally:
-            if not complete:
-                target.unlink(missing_ok=True)
         time.sleep(attempt + 1)
 
 
@@ -691,7 +690,12 @@ def select(root, package, policy, *, archive=None, launch=False, progress=None):
                 if progress:
                     progress.show([app for _, _, app in sorted(valid, reverse=True)])
                 if archive is None:
-                    download(policy["url"], source, check_cancelled=check_cancelled)
+                    download(
+                        policy["url"],
+                        source,
+                        expected_sha256=baseline["archive_sha256"],
+                        check_cancelled=check_cancelled,
+                    )
                 if progress:
                     progress.installing()
                 directory = install(

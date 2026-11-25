@@ -18,6 +18,7 @@ import tarfile
 import tempfile
 import time
 from collections import deque
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 
 import runtime
@@ -59,6 +60,7 @@ def prerequisites():
 def compatibility_key() -> str:
     files = [
         "scripts/client_native.py",
+        "scripts/native_elf.py",
         "scripts/common.py",
         "scripts/patch_app_audio.py",
         "scripts/native_client_2444.py",
@@ -98,6 +100,7 @@ def compatibility_key() -> str:
         "packaging/upstream/krisp-patcher.py",
         "integration/updater/client.py",
         "integration/updater/support.py",
+        "integration/updater/download_transfer.py",
         "integration/updater/patches.cjs",
     ]
     files += [
@@ -115,9 +118,7 @@ def identity(value) -> str:
 
 def fetch(url: str, target: Path, expected: str, limit: int = 512 * 1024 * 1024):
     name = url.split("/")[-3]
-    download(url, target, limit=limit, label=name)
-    if checksum(target) != expected:
-        raise ValueError("Discord module checksum mismatch")
+    download(url, target, limit=limit, label=name, expected_sha256=expected)
 
 
 def normalize(manifest: dict, channel: str) -> dict:
@@ -187,8 +188,8 @@ def approved_sources(root: Path, channel: str, *, offline: bool, previous: Path 
     key = PACKAGE_ROOT / "integration/updater/release-signing-key.asc"
     approvals = root / "approvals"
 
-    def source(directory):
-        manifest = runtime.approved_release(directory, policy, key)
+    def source(directory, *, fetch=False):
+        manifest = runtime.approved_release(directory, policy, key, fetch=fetch)
         if "client" not in manifest:
             raise ValueError("Release has no approved Discord module pins")
         state = normalize(manifest["client"], channel)
@@ -231,8 +232,7 @@ def approved_sources(root: Path, channel: str, *, offline: bool, previous: Path 
         write_json(checked, time.time())
         with tempfile.TemporaryDirectory(prefix="approval-", dir=approvals) as temporary:
             directory = Path(temporary)
-            runtime.approved_release(directory, policy, key, fetch=True)
-            incoming = source(directory)
+            incoming = source(directory, fetch=True)
             destination = approvals / incoming["approval"]
             # Preserve the signed evidence so cached launches can verify it too.
             staged = directory / "verified"
@@ -398,7 +398,7 @@ def module_complete(directory: Path, source: dict) -> bool:
 
 
 def install_module(
-    cache: Path, name: str, source: dict, compatibility: str, executable: Path
+    cache: Path, name: str, source: dict, compatibility: str, executable: Path | Callable[[], Path]
 ) -> Path:
     destination = module_path(cache, name, source, compatibility)
     if module_complete(destination, source):
@@ -418,7 +418,7 @@ def install_module(
             # our in-memory transforms before making this generation current.
             subprocess.run(
                 [
-                    str(executable),
+                    str(executable() if callable(executable) else executable),
                     str(PACKAGE_ROOT / "integration/updater/patches.cjs"),
                     str(extracted),
                 ],
@@ -483,7 +483,12 @@ def current_host(root: Path, channel: str) -> Path | None:
 
 
 def ensure_client(
-    root: Path, channel: str, *, offline: bool = False, executable: Path | None = None
+    root: Path,
+    channel: str,
+    *,
+    offline: bool = False,
+    executable: Path | Callable[[], Path] | None = None,
+    require_current_cache: bool = False,
 ) -> Path:
     if channel not in ("stable", "ptb", "canary"):
         raise ValueError("Unknown Discord channel")
@@ -503,18 +508,19 @@ def ensure_client(
             )
             previous = None
         sources = approved_sources(root, channel, offline=offline, previous=previous)
-        if previous and not any(
-            pins(read_object(previous / "client.json")) == pins(source) for source in sources
-        ):
+        previous_state = read_object(previous / "client.json") if previous else None
+        if previous and not any(pins(previous_state) == pins(source) for source in sources):
             print("Cached Discord client has no matching package pins or approval", file=sys.stderr)
             previous = None
         if offline:
-            if previous is not None:
+            if previous is not None and not require_current_cache:
                 return previous
             # A failed publication or application rollback can leave the pointer
             # absent or unusable while the exact authorized generation survives.
             # Derive candidates from verified sources, never from directory names.
             compatibility = compatibility_key()
+            if previous is not None and previous_state["compatibility"] == compatibility:
+                return previous
             for source in sorted(sources, key=lambda item: item["approved_version"], reverse=True):
                 generation = identity({**source, "compatibility": compatibility})
                 try:
@@ -545,9 +551,15 @@ def ensure_client(
                     raise ValueError("Refusing an approved Discord client downgrade")
             cache = root / "cache"
             cache.mkdir(exist_ok=True)
+            # Voice and Krisp are the largest downloads and have extra patch
+            # steps. Start them while the other workers install small modules.
+            modules = sorted(
+                state["modules"].items(),
+                key=lambda item: item[0] not in ("discord_voice", "discord_krisp"),
+            )
             pending = [
                 (name, source)
-                for name, source in state["modules"].items()
+                for name, source in modules
                 if not module_complete(
                     module_path(cache, name, source, state["compatibility"]), source
                 )

@@ -19,6 +19,10 @@ function config(profile = process.env.DPE_PROFILE_DIR) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+function quickstart(profile) {
+  return Boolean(process.env.OPENASAR_QUICKSTART || config(profile).quickstart !== false);
+}
+
 function background(profile = process.env.DPE_PROFILE_DIR) {
   if (config(profile).themeSync === false) return "#282b30";
   const color = settings(profile).BACKGROUND_COLOR;
@@ -71,4 +75,4 @@ function paths(app, info, host) {
   };
 }
 
-module.exports = { readObject, settings, config, background, theme, paths };
+module.exports = { readObject, settings, config, quickstart, background, theme, paths };

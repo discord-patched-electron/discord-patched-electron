@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -19,6 +20,17 @@ ELECTRON_CHANNELS = ("stable", "prerelease", "nightly")
 def sha256(path: Path) -> str:
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def write_verified_binary(path: Path, data: bytes, expected: str):
+    """Check the bytes written to the replacement before publishing it."""
+    with tempfile.TemporaryDirectory(dir=path.parent) as temporary:
+        staged = Path(temporary) / path.name
+        staged.write_bytes(data)
+        if sha256(staged) != expected:
+            raise ValueError(f"Native patch written output failed verification: {path.name}")
+        shutil.copystat(path, staged)
+        staged.replace(path)
 
 
 def digest(value: object) -> str:

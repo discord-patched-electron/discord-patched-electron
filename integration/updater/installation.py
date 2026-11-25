@@ -25,17 +25,23 @@ EXECUTABLES = {"stable": "Discord", "canary": "DiscordCanary", "ptb": "DiscordPT
 
 
 def manifest(directory: Path, *, exclude=()) -> dict:
+    def included_paths():
+        for entry in directory.glob("*"):
+            if entry.name in exclude:
+                continue
+            yield entry
+            if entry.is_dir() and not entry.is_symlink():
+                yield from entry.rglob("*")
+
     files = {}
-    for item in sorted(directory.rglob("*")):
+    for item in sorted(included_paths()):
         relative = item.relative_to(directory).as_posix()
-        if relative.split("/", 1)[0] in exclude:
-            continue
         if item.is_file():
             files[relative] = {"New": {"Sha256": checksum(item)}}
     return {"manifest_version": 1, "files": files}
 
 
-def intact(directory: Path, state: dict, *, allow_mod=False) -> bool:
+def intact(directory: Path, state: dict, *, allow_mod=False, verified_view=None) -> bool:
     try:
         expected = read_object(directory / "installer-record.json")
         actual = manifest(directory, exclude=("modules", "installer-record.json"))
@@ -53,6 +59,15 @@ def intact(directory: Path, state: dict, *, allow_mod=False) -> bool:
             actual["files"]["resources/app.asar"] = original
         if actual != wanted:
             return False
+        modules = directory / "modules"
+        if (
+            verified_view is not None
+            and modules.is_symlink()
+            and modules.resolve() == (verified_view / "modules").resolve()
+        ):
+            # prepare_view already checked these exact files in this transaction.
+            private = read_object(verified_view / "installer-record.json")
+            return expected["modules"] == private["modules"]
         for module in expected["modules"]:
             version = module["module_version"]
             name = version["module"]["name"]
@@ -280,7 +295,7 @@ def publish_locked(app: Path, profile: Path, host: Path, executable: Path) -> Pa
             active.get("view") == str(view)
             and public.is_dir()
             and not public.is_symlink()
-            and intact(public, state, allow_mod=True)
+            and intact(public, state, allow_mod=True, verified_view=view)
             and entry.is_symlink()
             and entry.resolve() == public / EXECUTABLES[state["channel"]]
         ):

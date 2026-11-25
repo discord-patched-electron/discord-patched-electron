@@ -7,10 +7,9 @@ remain native. Only the default ASCII policy changes; no code is redirected.
 """
 
 import hashlib
-import shutil
-import tempfile
 from pathlib import Path
 
+from common import write_verified_binary
 from native_client_2444 import STAGES
 from native_client_2472 import STAGES as CLIENT_2472_STAGES
 from native_client_2483 import STAGES as CLIENT_2483_STAGES
@@ -68,16 +67,15 @@ def corrected(data):
 def patch(binary: Path):
     data = binary.read_bytes()
     result = corrected(data)
-    if result != data:
-        with tempfile.TemporaryDirectory(dir=binary.parent) as temporary:
-            target = Path(temporary) / binary.name
-            shutil.copy2(binary, target)
-            target.write_bytes(result)
-            target.replace(binary)
+    before, after = hashlib.sha256(data).hexdigest(), hashlib.sha256(result).hexdigest()
+    if result is not data:
+        write_verified_binary(binary, result, after)
     return {
         "patch": PATCH,
-        "input_sha256": hashlib.sha256(data).hexdigest(),
-        "output_sha256": hashlib.sha256(result).hexdigest(),
-        "already_patched": result == data,
-        "changed_bytes": sum(a != b for a, b in zip(data, result, strict=True)),
+        "input_sha256": before,
+        "output_sha256": after,
+        "already_patched": result is data,
+        "changed_bytes": 0
+        if result is data
+        else sum(a != b for a, b in zip(BEFORE, AFTER, strict=True)),
     }

@@ -71,7 +71,13 @@ def prepare(app: Path, profile: Path) -> Path | None:
             tag = read_object(directory / "approval.json")["tag"]
             url = f"https://github.com/discord-patched-electron/discord-patched-electron/releases/download/{tag}/application.zip"
             archive = directory / "application.zip"
-            download(url, archive, limit=64 * 1024 * 1024, label="Discord Patched Electron")
+            download(
+                url,
+                archive,
+                limit=64 * 1024 * 1024,
+                label="Discord Patched Electron",
+                expected_sha256=incoming["archive_sha256"],
+            )
             # Keep the archive outside proof so cached approval evidence stays small.
             proof = directory / "proof"
             proof.mkdir()

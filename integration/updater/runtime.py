@@ -14,8 +14,11 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import zipfile
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path, PurePosixPath
 
 from support import (
@@ -37,6 +40,7 @@ RELEASE_PROOF_LIMITS = {
     "SHA256SUMS": 1024 * 1024,
     "SHA256SUMS.sig": 64 * 1024,
 }
+_approval_downloads = ContextVar("approval_downloads", default=None)
 FAILURES = (
     OSError,
     ValueError,
@@ -126,6 +130,32 @@ def verify_signature(directory: Path, key: Path):
         raise ValueError("Release manifest checksum mismatch")
 
 
+@contextmanager
+def reuse_approval_downloads():
+    token = _approval_downloads.set(({}, threading.Lock()))
+    try:
+        yield
+    finally:
+        _approval_downloads.reset(token)
+
+
+def download_approval_file(url, path, *, limit):
+    # Application, runtime and client can all need the same proof within one
+    # check. Each still validates it against its own launch requirements.
+    shared = _approval_downloads.get()
+    if shared is None:
+        download(url, path, limit=limit)
+        return
+    cache, lock = shared
+    identity = (url, limit)
+    with lock:
+        if identity in cache:
+            path.write_bytes(cache[identity])
+        else:
+            download(url, path, limit=limit)
+            cache[identity] = path.read_bytes()
+
+
 def approved_release(
     directory: Path, policy: dict, key: Path, *, fetch=False, application_update=False
 ) -> dict:
@@ -144,7 +174,7 @@ def approved_release(
         else f"approved-{channel}-{track}-release.json"
     )
     if fetch:
-        download(
+        download_approval_file(
             f"https://raw.githubusercontent.com/{REPOSITORY}/main/config/{approval_name}",
             directory / "approval.json",
             limit=16 * 1024,
@@ -171,7 +201,7 @@ def approved_release(
     }
     if fetch:
         for name, url in assets.items():
-            download(url, directory / name, limit=RELEASE_PROOF_LIMITS[name])
+            download_approval_file(url, directory / name, limit=RELEASE_PROOF_LIMITS[name])
     else:
         # Recheck retained API-era evidence, including its original release
         # eligibility and fixed asset URLs. New proof has the same legacy shape.
@@ -452,7 +482,14 @@ def install_runtime(
                 file=sys.stderr,
             )
             archive = directory / "runtime.zip"
-            download(incoming["url"], archive, limit=512 * 1024 * 1024, label="Electron")
+            download(
+                incoming["url"],
+                archive,
+                limit=512 * 1024 * 1024,
+                label="Electron",
+                expected_sha256=incoming["archive_sha256"],
+                profile=root.parent.parent,
+            )
         progress("install", "Electron")
         if checksum(archive) != incoming["archive_sha256"]:
             raise ValueError("Runtime archive checksum mismatch")
@@ -509,11 +546,13 @@ def _ensure_runtime(
             current, current_info = selected(root, app, policy)
         except FAILURES:
             current, current_info = None, policy
-        if current and (bootstrap or offline or os.environ.get("DPE_RUNTIME_BUNDLED") == "1"):
+        if current and (bootstrap or os.environ.get("DPE_RUNTIME_BUNDLED") == "1"):
             return current
         if archive is not None and not current:
             return install_runtime(root, app, policy, pinned_runtime(policy), archive)
         if offline:
+            if current and (same_runtime(current_info, policy) or newer(current_info, policy)):
+                return current
             # A new application payload has a new resource path, but may pin
             # the same Electron. Reuse it before bootstrap opens a download UI.
             try:
@@ -547,7 +586,8 @@ def _ensure_runtime(
                 "No verified Electron runtime is cached; launch once with internet access"
             )
         updates = (
-            os.environ.get("DPE_RUNTIME_UPDATES") != "0"
+            not bootstrap
+            and os.environ.get("DPE_RUNTIME_UPDATES") != "0"
             and os.environ.get("DPE_RUNTIME_BUNDLED") != "1"
         )
         try:

@@ -4,8 +4,8 @@ import hashlib
 import struct
 from pathlib import Path
 
-from common import sha256, write_json
-from elftools.elf.elffile import ELFFile
+from common import write_json
+from native_elf import inspect_module
 from patch_capture_dimensions import OUTPUT_SHA256 as DIMENSIONS_OUTPUT_SHA256
 from patch_capture_dimensions import PINNED_OUTPUT_SHA256 as PINNED_DIMENSIONS_OUTPUT_SHA256
 from patch_decoder_eagain import extend_reviewed
@@ -394,12 +394,12 @@ def hevc_scope(elf) -> dict:
     return {"abi": 1, "offsets": linkage}
 
 
-def scope(module: Path) -> dict:
-    checksum = sha256(module)
-    if checksum not in REVIEWED:
-        return {"schema": 1, "supported": False, "reason": "unreviewed-native-module"}
-    with module.open("rb") as stream:
-        elf = ELFFile(stream)
+def scope(module: Path, *, inspection=None) -> dict:
+    with inspect_module(module, inspection) as inspection:
+        checksum = inspection.digest
+        if checksum not in REVIEWED:
+            return {"schema": 1, "supported": False, "reason": "unreviewed-native-module"}
+        elf = inspection.elf
         if elf["e_machine"] != "EM_X86_64":
             raise ValueError("Reviewed encoder ABI requires x86-64")
         symbols = elf.get_section_by_name(".dynsym")
@@ -596,7 +596,7 @@ def decoder_scope(elf):
     return result
 
 
-def write_scope(module: Path, directory: Path) -> dict:
-    report = scope(module)
+def write_scope(module: Path, directory: Path, *, inspection=None) -> dict:
+    report = scope(module, inspection=inspection)
     write_json(directory / "encoder-scope.json", report)
     return report

@@ -3,8 +3,8 @@
 import struct
 from pathlib import Path
 
-from common import sha256, write_json
-from elftools.elf.elffile import ELFFile
+from common import write_json
+from native_elf import inspect_module
 from patch_capture_dimensions import OUTPUT_SHA256 as DIMENSIONS_OUTPUT_SHA256
 from patch_capture_dimensions import PINNED_OUTPUT_SHA256 as PINNED_DIMENSIONS_OUTPUT_SHA256
 from patch_decoder_eagain import extend_reviewed
@@ -21,14 +21,14 @@ REVIEWED = {
 extend_reviewed(REVIEWED)
 
 
-def scope(module: Path) -> dict:
-    digest = sha256(module)
-    if digest not in REVIEWED:
-        return {"schema": 1, "supported": False, "reason": "unreviewed-native-module"}
-    from capstone import CS_ARCH_X86, CS_MODE_64, Cs
+def scope(module: Path, *, inspection=None) -> dict:
+    with inspect_module(module, inspection) as inspection:
+        digest = inspection.digest
+        if digest not in REVIEWED:
+            return {"schema": 1, "supported": False, "reason": "unreviewed-native-module"}
+        from capstone import CS_ARCH_X86, CS_MODE_64, Cs
 
-    with module.open("rb") as stream:
-        elf = ELFFile(stream)
+        elf = inspection.elf
         table = elf.get_section_by_name(".symtab")
         if elf["e_machine"] != "EM_X86_64" or not table:
             raise ValueError("Reviewed upstream capture requires x86-64 symbols")
@@ -69,7 +69,7 @@ def scope(module: Path) -> dict:
         return result
 
 
-def write_scope(module: Path, directory: Path) -> dict:
-    report = scope(module)
+def write_scope(module: Path, directory: Path, *, inspection=None) -> dict:
+    report = scope(module, inspection=inspection)
     write_json(directory / "capture-upstream-scope.json", report)
     return report

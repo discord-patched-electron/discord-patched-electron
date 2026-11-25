@@ -73,8 +73,7 @@ if [[ -f "$root/client-distribution.json" ]]; then
   export PYTHONPATH="$root/python"
   unset PYTHONHOME ELECTRON_RUN_AS_NODE
   export DPE_CLIENT_ROOT="$DPE_PROFILE_DIR/dpe-updater"
-  # Packages contain only the updater. Reuse a verified runtime or prepare it
-  # with native progress before it can display the normal Electron startup UI.
+  # Reuse a verified runtime or acquire Electron so it can open the splash.
   DPE_RUNTIME_EXECUTABLE=$(python3 "$root/integration/updater/bootstrap.py" "$root" "$DPE_PROFILE_DIR")
   launch_result=$(mktemp)
   trap 'rm -f -- "$launch_result"' EXIT
@@ -87,18 +86,18 @@ if [[ -f "$root/client-distribution.json" ]]; then
     if [[ $status == 2 ]]; then exit 0; fi
     exit "$status"
   fi
-  incoming=$(python3 "$root/integration/updater/check.py" --application-path "$launch_result")
-  if [[ -n "$incoming" ]]; then
+  installed=$(python3 "$root/integration/updater/check.py" --launch-paths "$launch_result")
+  mapfile -t installed_paths <<<"$installed"
+  if [[ ${#installed_paths[@]} == 1 ]]; then
     rm -f -- "$launch_result"
     trap - EXIT
     exec "$DPE_LAUNCHER" "$@"
   fi
-  installed=$(python3 "$root/integration/updater/check.py" --launch-paths "$launch_result")
-  mapfile -t installed_paths <<<"$installed"
   export DPE_RUNTIME_SOURCE=${installed_paths[0]}
   export DPE_CLIENT_HOST=${installed_paths[1]}
   export DPE_RUNTIME_EXECUTABLE=${installed_paths[2]}
   DPE_VOICE_ROOT=${installed_paths[3]}
+  export DPE_DEFER_UPDATE_CHECK=${installed_paths[4]:-0}
   rm -f -- "$launch_result"
   trap - EXIT
 elif [[ -n $DPE_OPENH264_LIBRARY ]]; then

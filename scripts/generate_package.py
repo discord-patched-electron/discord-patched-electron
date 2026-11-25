@@ -67,6 +67,7 @@ SUPPORT = [
     "scripts/capture_direct_scope.py",
     "scripts/encoder_scope.py",
     "scripts/client_native.py",
+    "scripts/native_elf.py",
     "scripts/stage_package.py",
     "scripts/application_payload.py",
     "integration/bootstrap/loader.py",

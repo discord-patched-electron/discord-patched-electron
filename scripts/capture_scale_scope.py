@@ -4,13 +4,13 @@ import hashlib
 import struct
 from pathlib import Path
 
-from common import sha256, write_json
-from elftools.elf.elffile import ELFFile
+from common import write_json
 from native_client_2444 import HASHES as CLIENT_2444_HASHES
 from native_client_2472 import HASHES as CLIENT_2472_HASHES
 from native_client_2483 import HASHES as CLIENT_2483_HASHES
 from native_client_2484 import HASHES as CLIENT_2484_HASHES
 from native_client_2510 import HASHES as CLIENT_2510_HASHES
+from native_elf import inspect_module
 from patch_capture_dimensions import OUTPUT_SHA256 as DIMENSIONS_OTHER_SHA256
 from patch_capture_dimensions import PINNED_OUTPUT_SHA256 as DIMENSIONS_SHA256
 from patch_decoder_eagain import extend_reviewed
@@ -59,12 +59,12 @@ CONTEXT = bytes.fromhex(
 )
 
 
-def scope(module: Path) -> dict:
-    digest = sha256(module)
-    if digest not in REVIEWED:
-        return {"schema": 1, "supported": False, "reason": "unreviewed-native-module"}
-    with module.open("rb") as stream:
-        elf = ELFFile(stream)
+def scope(module: Path, *, inspection=None) -> dict:
+    with inspect_module(module, inspection) as inspection:
+        digest = inspection.digest
+        if digest not in REVIEWED:
+            return {"schema": 1, "supported": False, "reason": "unreviewed-native-module"}
+        elf = inspection.elf
         table = elf.get_section_by_name(".symtab")
         if elf["e_machine"] != "EM_X86_64" or not table:
             raise ValueError("Reviewed GPU capture scaling requires x86-64 symbols")
@@ -92,7 +92,7 @@ def scope(module: Path) -> dict:
         }
 
 
-def write_scope(module: Path, directory: Path) -> dict:
-    report = scope(module)
+def write_scope(module: Path, directory: Path, *, inspection=None) -> dict:
+    report = scope(module, inspection=inspection)
     write_json(directory / "capture-scale-scope.json", report)
     return report

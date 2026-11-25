@@ -123,6 +123,7 @@ def stage(
     scripts.mkdir(exist_ok=True)
     for name in (
         "client_native.py",
+        "native_elf.py",
         "camera_scope.py",
         "capture_scope.py",
         "capture_scale_scope.py",
