@@ -402,13 +402,20 @@ image/range includes. The additive dependency layer adapts video-frame memory
 budget includes, GIF configuration and OpenH264 switch context. It preserves
 Chromium's removal of FFmpeg audio decoders in the configuration script and the
 new CRAS switch declarations. Full dependency patch application and GN generation
-pass. Local compilation reuses the retained workspace and eight compile jobs.
+pass. The shared-memory capture port uses Chromium's current read-only mapping
+`data()` accessor. It retains the validity/allocation checks, mapping lifetime and
+existing opaque-pointer ABI; only the removed `memory()` accessor changes.
+The locked assembly tree is `55919c846464f66640308b08ea27a565540db91c`;
+fresh assembly evidence is `out/update-20261125/shared-memory-source.json`.
+Local compilation reuses the retained workspace and eight compile jobs.
 The initial 15-CPU quota on the 20-logical-CPU host was reduced in place to one
 CPU (5%), then raised to 19 CPUs (95%) at the user's request. The healthy
 compiler was not restarted. The memory limit remains 18 GiB.
 `out/update-20261125/build-quota-change.json` records these budget changes. Missing Node/npm tools in the container were supplied from a
 checksum-verified official Node distribution; retained compile objects survive
-those tool failures.
+those tool failures. Snapshot generation also requires GLib and X11 runtime
+libraries in the compiler container. Verified Ubuntu packages and their dependency
+closure are recorded under `out/update-20261125/build-container-deps/`.
 
 Alpha.13 compilation and runtime qualification are pending. The user's existing
 non-Nitro `clock` profile was tested through the full DPE/Equicord startup path
