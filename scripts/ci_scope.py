@@ -19,6 +19,58 @@ SCOPES = (
     "capture",
     "appimage",
 )
+SUITES = ("python", "javascript", "rust")
+PR_INTEGRATIONS = ("source", "audio", "packaging", "appimage")
+
+# These files have independent consumers. Everything else keeps the established
+# unit coverage, including source files imported by fixtures in another language.
+FOCUSED_SUITES = (
+    (("config/release-notes.json",), ("notes",)),
+    (("integration/video/kms-README.md", "THIRD_PARTY.md"), ()),
+    (
+        (
+            "scripts/assemble.py",
+            "scripts/source_patch.py",
+            "tests/test_partial_source_cache.py",
+            "tests/test_source_patch.py",
+        ),
+        ("source_tests",),
+    ),
+    (
+        (
+            "config/sources.lock.json",
+            "config/ports/*",
+            "patches/electron/*",
+            "patches/discord/*",
+            "patches/ports/*",
+        ),
+        ("source_tests",),
+    ),
+    (("tests/*/*.test.cjs",), ("javascript",)),
+    (
+        (
+            "tests/test_release*.py",
+            "tests/test_source_verification.py",
+            "tests/test_ci_scope.py",
+            "tests/test_ci_pr_evidence.py",
+            "scripts/releases.py",
+            "scripts/source_verification.py",
+            "scripts/release_proposals.py",
+        ),
+        ("release_tests",),
+    ),
+    (
+        (
+            ".github/workflows/sync-dev.yml",
+            ".github/actionlint.yaml",
+            ".editorconfig",
+            ".gitignore",
+            ".oxfmtrc.json",
+            ".oxlintrc.json",
+        ),
+        (),
+    ),
+)
 
 # First matching rule wins. Keep narrow exceptions above directory rules. Anything
 # unlisted (including new shared helpers) gets full coverage until explicitly scoped.
@@ -47,7 +99,10 @@ RULES = (
     (("config/clients.lock.json",), ("native", "audio", "packaging", "appimage")),
     (("config/sources.lock.json", "config/ports/*", "patches/electron/*"), ("source",)),
     (("README*.md", "**/README*.md"), ()),
-    (("patches/discord/*", "patches/ports/*", "scripts/assemble.py"), ("source",)),
+    (
+        ("patches/discord/*", "patches/ports/*", "scripts/assemble.py", "scripts/source_patch.py"),
+        ("source",),
+    ),
     (
         ("packaging/upstream/*", "scripts/check_installed_package.py", "tests/client-mods/*"),
         ("packaging",),
@@ -117,6 +172,7 @@ RULES = (
         (
             "scripts/appimage.py",
             "scripts/stage_appimage_dependencies.sh",
+            ".github/actions/setup-appimage/*",
             "ci/appimage/*",
             "scripts/check_appimage.py",
             "tests/fixtures/appimage-dependencies.py",
@@ -125,6 +181,7 @@ RULES = (
         ),
         ("appimage",),
     ),
+    ((".github/actions/cache-ci-rust/*",), ("unit",)),
     (
         ("scripts/package_release.py", "packaging/linux/appimage-apprun.sh"),
         ("packaging", "appimage"),
@@ -145,7 +202,14 @@ RULES = (
             "README.md",
             "CONTRIBUTING.md",
             "AGENTS.md",
-            "docs/*",
+            "CHANGELOG.md",
+            "CODE_OF_CONDUCT.md",
+            "SECURITY.md",
+            "SUPPORT.md",
+            "docs/*.md",
+            "docs/*.png",
+            "docs/*.svg",
+            "docs/*.webp",
             ".github/*.md",
             "agents/skills/*/SKILL.md",
         ),
@@ -220,6 +284,7 @@ RULES = (
         ("packaging", "audio"),
     ),
     (("scripts/check_app_audio.py", "scripts/check_wayland_audio.py"), ("audio",)),
+    (("integration/video/kms-README.md",), ("packaging", "capture")),
     (("integration/video/capture-rate.h",), ("packaging", "native", "camera", "capture")),
     (
         (
@@ -354,6 +419,10 @@ RULES = (
 
 def select(paths: list[str], reason: str = "") -> dict:
     selected = set(SCOPES) if reason else set()
+    suites = set(SUITES) if reason else set()
+    full_lint = bool(reason)
+    pr_reusable = not reason
+    documents = []
     decisions = {}
     for path in sorted(set(paths)):
         scopes = next(
@@ -362,11 +431,39 @@ def select(paths: list[str], reason: str = "") -> dict:
         )
         selected.update(scopes)
         decisions[path] = list(scopes)
-    if selected:
+        if path.startswith((".github/workflows/", ".github/actions/")) or path in {
+            ".github/actionlint.yaml",
+            "scripts/ci_scope.py",
+            "scripts/ci_pr_evidence.py",
+        }:
+            pr_reusable = False
+        if scopes:
+            suites.update(
+                next(
+                    (
+                        suites
+                        for patterns, suites in FOCUSED_SUITES
+                        if any(fnmatchcase(path, p) for p in patterns)
+                    ),
+                    SUITES,
+                )
+            )
+            full_lint |= path != "config/release-notes.json"
+        elif path.endswith(".md"):
+            documents.append(path)
+    if suites - {"notes"}:
         selected.add("unit")
+    else:
+        selected.discard("unit")
+    if "python" in suites:
+        suites.difference_update(("source_tests", "release_tests"))
     return {
         "checks": {name: name in selected for name in SCOPES},
-        "reason": reason or "Selected from changed paths; lint always runs.",
+        "suites": sorted(suites),
+        "full_lint": full_lint,
+        "pr_reusable": pr_reusable,
+        "documents": documents,
+        "reason": reason or "Selected from changed paths.",
         "paths": decisions,
     }
 
@@ -424,12 +521,25 @@ def main():
         with Path(output).open("a") as stream:
             for name, enabled in result["checks"].items():
                 stream.write(f"{name}={str(enabled).lower()}\n")
+            for name in (*SUITES, "notes", "source_tests", "release_tests"):
+                stream.write(f"{name}={str(name in result['suites']).lower()}\n")
+            stream.write(f"full_lint={str(result['full_lint']).lower()}\n")
+            stream.write(f"pr_reusable={str(result['pr_reusable']).lower()}\n")
+            integrations = [scope for scope in PR_INTEGRATIONS if result["checks"][scope]]
+            stream.write(f"pr_integrations={json.dumps(integrations)}\n")
+            # Do not send a large list when full lint already covers these files.
+            documents = result["documents"] if not result["full_lint"] else []
+            stream.write(f"documents={json.dumps(documents)}\n")
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with Path(summary).open("a") as stream:
             stream.write("## Check scope\n\n" + result["reason"] + "\n\n")
-            stream.write("| Check | Selected |\n| --- | --- |\n| lint | yes |\n")
+            stream.write("| Check | Selected |\n| --- | --- |\n")
+            lint = "source" if result["full_lint"] else "Markdown" if result["documents"] else "no"
+            stream.write(f"| lint | {lint} |\n")
+            stream.write(f"| suites | {', '.join(result['suites']) or 'none'} |\n")
             for name, enabled in result["checks"].items():
-                stream.write(f"| {name} | {'yes' if enabled else 'no'} |\n")
+                if name != "unit":
+                    stream.write(f"| {name} | {'yes' if enabled else 'no'} |\n")
             stream.write("\nThe selector log lists the scope for each changed path.\n")
 
 

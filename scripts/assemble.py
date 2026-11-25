@@ -21,6 +21,7 @@ from common import (
     sha256,
     write_json,
 )
+from source_patch import apply_source_patch
 
 
 def git(cache: Path, *args) -> str:
@@ -206,24 +207,21 @@ def assemble(target: str, cache: Path, destination: Path, report: Path) -> bool:
             series += [(ROOT / entry["patch"], []) for entry in port.get("followup_patches", [])]
             result["port"] = port
         result["patch_log"] = ""
+        result["include_merges"] = []
         for patch_file, options in series:
-            process = subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(destination),
-                    "apply",
-                    "--3way",
-                    "--index",
-                    "--whitespace=nowarn",
-                    *options,
-                    str(patch_file),
-                ],
-                capture_output=True,
-                text=True,
+            applied, log, merged = apply_source_patch(
+                destination,
+                patch_file,
+                options,
+                allow_include_merge=target != "patch-base"
+                and (not port or commit != port["anchor_commit"]),
             )
-            result["patch_log"] += process.stdout + process.stderr
-            if process.returncode:
+            result["patch_log"] += log
+            if merged:
+                result["include_merges"].append(
+                    {"patch": str(patch_file.relative_to(ROOT)), "paths": merged}
+                )
+            if not applied:
                 result["reason"] = "Discord patch requires a compatibility port"
                 write_json(report, result)
                 return False

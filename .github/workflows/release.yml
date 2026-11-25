@@ -127,9 +127,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-project
+      - uses: ./.github/actions/setup-appimage
       - name: Install packaging tools
         run: |
-          python scripts/appimage.py --install out/appimage-tools --dependencies
           curl --fail --location --silent --show-error --retry 3 \
             https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_x86_64.tar.gz \
             --output "$RUNNER_TEMP/nfpm.tar.gz"
@@ -140,9 +140,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential brotli nasm xvfb xauth libnss3 libgtk-3-0t64 libgbm1 libasound2t64 libpulse0 libatomic1 libxss1 libxtst6 rpm libarchive-tools libclang-dev libpipewire-0.3-dev libgbm-dev libegl-dev libgles-dev libdrm-dev libva-dev libcap-dev libwayland-dev libwayland-bin libvulkan-dev libgl-dev libx11-dev libxcb1-dev libxcb-xfixes0-dev cmake ninja-build
       - run: rustup show
-      - name: Check source and workflow quality
-        if: ${{ !inputs.skip_tests }}
-        run: python scripts/source_verification.py --commit "$GITHUB_SHA" --output out/source-verification.json
       - name: Assemble pinned inputs without compiling Electron
         run: |
           python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
@@ -171,6 +168,9 @@ jobs:
         with:
           app: out/relocated app
           output: out/mod-launch
+      - name: Check source and workflow quality
+        if: ${{ !inputs.skip_tests }}
+        run: python scripts/source_verification.py --commit "$GITHUB_SHA" --output out/source-verification.json
       - name: Create Arch, Debian, RPM, AppImage and portable packages
         run: |
           python scripts/package_release.py "out/relocated app" --output out/packages --version "$VERSION" --epoch "$SOURCE_DATE_EPOCH"

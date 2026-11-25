@@ -18,14 +18,14 @@ REQUIRED_STEPS = {
 }
 
 
-def verification(commit: str, *, timeout: int = 1200) -> dict:
+def push_checks_run(commit: str) -> dict | None:
     if not re.fullmatch(r"[a-f0-9]{40}", commit):
         raise ValueError("Source verification requires an immutable commit")
     runs = api(
         f"actions/workflows/check.yml/runs?head_sha={commit}&branch=main&event=push&per_page=1"
     )["workflow_runs"]
     if not runs:
-        return {"schema": 1, "source_commit": commit, "mode": "fresh"}
+        return None
     run = runs[0]
     if (
         run["head_sha"] != commit
@@ -35,6 +35,13 @@ def verification(commit: str, *, timeout: int = 1200) -> dict:
         or run["path"] != ".github/workflows/check.yml"
     ):
         raise ValueError("Untrusted source verification run")
+    return run
+
+
+def verification(commit: str, *, timeout: int = 1200) -> dict:
+    run = push_checks_run(commit)
+    if run is None:
+        return {"schema": 1, "source_commit": commit, "mode": "fresh"}
     deadline = time.monotonic() + timeout
     while True:
         jobs = api(f"actions/runs/{run['id']}/jobs?filter=latest&per_page=100")["jobs"]
@@ -83,10 +90,10 @@ def validate_bundled_report(report: dict, channel: str, candidate: dict):
 def bundled_verification(commit: str, candidate: dict, channel: str, output: Path) -> dict:
     if candidate != read_json(ROOT / "config/clients.lock.json")["clients"].get(channel):
         return {"mode": "fresh", "reason": "Candidate differs from push-tested client lock"}
-    proof = verification(commit)
-    if proof["mode"] != "reused":
+    run = push_checks_run(commit)
+    if run is None:
         return {"mode": "fresh", "reason": "No matching push verification"}
-    run_id = proof["checks_run"]
+    run_id = run["id"]
     deadline = time.monotonic() + 600
     while True:
         jobs = api(f"actions/runs/{run_id}/jobs?filter=latest&per_page=100")["jobs"]
@@ -130,7 +137,11 @@ def bundled_verification(commit: str, candidate: dict, channel: str, output: Pat
         validate_bundled_report(reports[0], channel, candidate)
         write_json(output.parent / "native-runtime/runtime-checks.json", reports[0])
     return {
-        **proof,
+        "schema": 1,
+        "mode": "reused",
+        "source_commit": commit,
+        "checks_run": run_id,
+        "url": run["html_url"],
         "native_job": job["id"],
         "artifact": artifact,
         "client_digest": digest(candidate),

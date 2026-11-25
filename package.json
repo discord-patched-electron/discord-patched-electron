@@ -18,9 +18,10 @@
     "lint:source": "uv run ruff check . && uv run ruff format --check . && oxlint integration tests && oxfmt --check . && uv run python scripts/check_style.py && uv run actionlint",
     "lint:rust": "cargo fmt --all --check && cargo clippy --locked --workspace --all-targets --features dpe-graphics/preview,dpe-graphics/kms-capture,dpe-pipewire/source -- -D warnings",
     "format": "uv run ruff check --fix . && uv run ruff format . && oxfmt --write . && uv run python scripts/check_style.py --fix && cargo fmt --all",
-    "test": "bun run --sequential --no-exit-on-error test:python test:js test:rust",
+    "test": "bun run --sequential --no-exit-on-error test:interpreted test:rust",
+    "test:interpreted": "bun run --parallel --no-exit-on-error test:python test:js",
     "test:rust": "cargo test --locked --workspace --features dpe-graphics/preview,dpe-graphics/kms-capture,dpe-pipewire/source",
-    "test:python": "uv run python -m unittest discover -s tests -v",
+    "test:python": "uv run python -m unittest discover -s tests -v --durations 15",
     "test:js": "node --test 'tests/**/*.test.cjs'",
     "dev": "uv run python scripts/dev.py"
   },

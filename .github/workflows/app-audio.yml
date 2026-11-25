@@ -72,17 +72,26 @@ jobs:
           if [ -n "$CLIENTS_STATE" ]; then args+=(--clients out/clients.lock.json); fi
           for channel in "${channels[@]}"; do
             python scripts/check_app_audio.py --discord "$channel" --output "out/app-audio/$channel" --download-only "${args[@]}"
-            for server in pipewire pulseaudio; do
-              mkdir -p "out/wayland-audio/$channel/$server"
-              cp out/app-audio/"$channel"/*.tar.br "out/wayland-audio/$channel/$server/"
-            done
+            mkdir -p "out/wayland-audio/$channel/prepared"
+            cp -l out/app-audio/"$channel"/*.tar.br "out/wayland-audio/$channel/prepared/"
           done
-          mkdir -p "out/wayland-audio/${channels[0]}/manual"
-          cp out/app-audio/"${channels[0]}"/*.tar.br "out/wayland-audio/${channels[0]}/manual/"
+      - name: Set the dependency refresh window
+        id: dependency-week
+        run: echo "value=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - name: Build disposable audio environment
-        run: |
-          docker build -t discord-electron-arch-packaging -f ci/arch/Dockerfile .
-          docker build -t discord-electron-audio-fixture ci/audio
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: ci/arch/Dockerfile
+          target: audio-fixture
+          load: true
+          tags: discord-electron-audio-fixture
+          build-args: DEPENDENCY_WEEK=${{ steps.dependency-week.outputs.value }}
+          cache-from: |
+            type=gha,scope=arch-packaging
+            type=gha,scope=arch-audio
+          cache-to: ${{ github.event_name != 'workflow_run' && 'type=gha,scope=arch-audio,mode=max,ignore-error=true' || '' }}
       - name: Verify XWayland owner resolution on a private X server
         run: |
           docker run --rm --network none --cpus 2 --memory 1g \
@@ -91,13 +100,13 @@ jobs:
             xvfb-run -a python /repo/tests/audio/x11-owners-smoke.py
       - name: Restore the compiled test compositor
         id: compositor-cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             out/wayland-test-tools/niri
             out/wayland-test-tools/niri-source
             out/wayland-test-tools/niri.sha256
-          key: wayland-test-niri-${{ runner.arch }}-${{ hashFiles('scripts/build_test_compositor.sh', 'ci/audio/niri.Dockerfile') }}
+          key: wayland-test-niri-${{ runner.arch }}-${{ hashFiles('scripts/build_test_compositor.sh', 'ci/audio/niri.Dockerfile', 'ci/arch/Dockerfile', 'rust-toolchain.toml') }}
       - name: Build or verify the pinned GPU-free test compositor
         run: |
           mkdir -p out/wayland-test-tools
@@ -112,8 +121,8 @@ jobs:
             -v "$GITHUB_WORKSPACE:/repo:ro" -v "$GITHUB_WORKSPACE/out/wayland-test-tools:/build" \
             discord-electron-test-compositor bash /repo/scripts/build_test_compositor.sh
       - name: Save the completed compositor without caching Rust build objects
-        if: steps.compositor-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: github.event_name != 'workflow_run' && steps.compositor-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             out/wayland-test-tools/niri
@@ -145,7 +154,6 @@ jobs:
       - name: Validate native Wayland video and application audio with both servers
         shell: bash
         run: |
-          sudo chown -R 1000:1000 out/wayland-audio
           selected=$(python scripts/channels.py "$DISCORD_CHANNELS")
           mapfile -t channels <<< "$selected"
           args=()
@@ -153,15 +161,27 @@ jobs:
             args+=(--runtime /repo/out/reference-download/runtime --provenance /repo/out/reference-download/artifact-provenance.json)
           fi
           if [ -n "$CLIENTS_STATE" ]; then args+=(--clients /repo/out/clients.lock.json); fi
+          for channel in "${channels[@]}"; do
+            mkdir -p "out/wayland-audio/$channel/"{pipewire,pulseaudio,manual}
+          done
+          sudo chown -R 1000:1000 out/wayland-audio
+          for channel in "${channels[@]}"; do
+            docker run --rm --network none --cpus 4 --memory 4g \
+              -v "$GITHUB_WORKSPACE:/repo:ro" \
+              -v "$GITHUB_WORKSPACE/out/wayland-audio/$channel/prepared:/audio" \
+              discord-electron-audio-fixture python /repo/scripts/check_wayland_audio.py \
+              --prepare-only --discord "$channel" --output /audio "${args[@]}"
+          done
           failed=0
           for channel in "${channels[@]}"; do
             for server in pipewire pulseaudio; do
               if ! docker run --rm --network none --cpus 4 --memory 4g \
                 -v "$GITHUB_WORKSPACE:/repo:ro" \
                 -v "$GITHUB_WORKSPACE/out/wayland-test-tools/niri:/usr/bin/niri:ro" \
+                -v "$GITHUB_WORKSPACE/out/wayland-audio/$channel/prepared:/prepared:ro" \
                 -v "$GITHUB_WORKSPACE/out/wayland-audio/$channel/$server:/audio" \
                 discord-electron-audio-fixture python /repo/scripts/check_wayland_audio.py \
-                --discord "$channel" --pulse "$server" --output /audio "${args[@]}"; then
+                --prepared /prepared --discord "$channel" --pulse "$server" --output /audio "${args[@]}"; then
                 failed=1
               fi
             done
@@ -169,9 +189,10 @@ jobs:
           if ! docker run --rm --network none --cpus 4 --memory 4g \
             -v "$GITHUB_WORKSPACE:/repo:ro" \
             -v "$GITHUB_WORKSPACE/out/wayland-test-tools/niri:/usr/bin/niri:ro" \
+            -v "$GITHUB_WORKSPACE/out/wayland-audio/${channels[0]}/prepared:/prepared:ro" \
             -v "$GITHUB_WORKSPACE/out/wayland-audio/${channels[0]}/manual:/audio" \
             discord-electron-audio-fixture python /repo/scripts/check_wayland_audio.py \
-            --selection manual --discord "${channels[0]}" --output /audio "${args[@]}"; then
+            --prepared /prepared --selection manual --discord "${channels[0]}" --output /audio "${args[@]}"; then
             failed=1
           fi
           exit "$failed"

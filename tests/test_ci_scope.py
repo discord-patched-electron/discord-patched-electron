@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from ci_scope import SCOPES, changed_paths, event_scope, select
+from ci_scope import SCOPES, SUITES, changed_paths, event_scope, select
 
 
 def enabled(result):
@@ -16,6 +16,31 @@ def enabled(result):
 
 
 class CheckSelection(unittest.TestCase):
+    def test_lint_and_unit_suites_follow_the_changed_inputs(self):
+        cases = (
+            (["docs/agent/ci-setup.md"], [], False),
+            (["CODE_OF_CONDUCT.md"], [], False),
+            (["config/release-notes.json"], ["notes"], False),
+            (["config/sources.lock.json"], ["source_tests"], True),
+            (["tests/updater/config.test.cjs"], ["javascript"], True),
+            (["docs/new_helper.py"], sorted(SUITES), True),
+            (
+                ["tests/test_release_notes.py", "integration/updater/client.py"],
+                sorted(SUITES),
+                True,
+            ),
+        )
+        for paths, suites, full_lint in cases:
+            with self.subTest(paths=paths):
+                result = select(paths)
+                self.assertEqual(result["suites"], suites)
+                self.assertEqual(result["full_lint"], full_lint)
+
+    def test_ci_changes_and_unknown_diffs_require_fresh_integration_results(self):
+        self.assertTrue(select(["integration/audio/app-audio.cjs"])["pr_reusable"])
+        self.assertFalse(select([".github/workflows/check.yml"])["pr_reusable"])
+        self.assertFalse(select([], "Cannot read the push diff")["pr_reusable"])
+
     def test_capture_sources_never_select_electron_source_or_compiler_checks(self):
         root = Path(__file__).resolve().parents[1]
         paths = [
@@ -27,7 +52,8 @@ class CheckSelection(unittest.TestCase):
         for path in paths:
             with self.subTest(path=path):
                 selected = enabled(select([path]))
-                self.assertIn("unit", selected)
+                if not path.endswith("kms-README.md"):
+                    self.assertIn("unit", selected)
                 self.assertIn("packaging", selected)
                 self.assertFalse(selected & {"source", "compiler"})
 
@@ -36,6 +62,8 @@ class CheckSelection(unittest.TestCase):
             "README.md": set(),
             "README-local.md": set(),
             "integration/README.md": set(),
+            "integration/video/kms-README.md": {"packaging", "capture"},
+            "THIRD_PARTY.md": {"packaging"},
             "config/clients.lock.json": {"unit", "native", "audio", "packaging", "appimage"},
             "config/sources.lock.json": {"unit", "source"},
             "scripts/dev.py": {"unit"},
@@ -43,7 +71,7 @@ class CheckSelection(unittest.TestCase):
             "patches/ports/46/prefilled-spellcheck.patch": {"unit", "source"},
             "scripts/assemble.py": {"unit", "source"},
             "scripts/build_reference.py": {"unit"},
-            ".github/workflows/sync-dev.yml": {"unit"},
+            ".github/workflows/sync-dev.yml": set(),
             "packaging/upstream/PKGBUILD": {"unit", "packaging"},
             "tests/frame-capture/main.cjs": {"unit", "native"},
             "tests/shortcuts/main.cjs": {"unit"},
@@ -61,7 +89,7 @@ class CheckSelection(unittest.TestCase):
             "docs/agent/releases.md": set(),
             "agents/skills/dpe-upstream-review/SKILL.md": set(),
             "scripts/releases.py": {"unit"},
-            "config/release-notes.json": {"unit"},
+            "config/release-notes.json": set(),
             "scripts/fixture_storage.py": {"unit", "native", "packaging"},
             "scripts/check_desktop_launch.py": {"unit", "packaging"},
             "scripts/appimage.py": {"unit", "appimage"},
@@ -226,7 +254,10 @@ class CheckSelection(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(enabled(json.loads(result.stdout)), set(SCOPES))
-            self.assertEqual(set(output.read_text().splitlines()), {f"{s}=true" for s in SCOPES})
+            outputs = dict(line.split("=", 1) for line in output.read_text().splitlines())
+            self.assertTrue(all(outputs[name] == "true" for name in (*SCOPES, *SUITES)))
+            self.assertEqual(outputs["full_lint"], "true")
+            self.assertEqual(json.loads(outputs["documents"]), [])
             self.assertIn("Manual run", summary.read_text())
 
 

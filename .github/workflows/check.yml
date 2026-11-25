@@ -7,13 +7,22 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: checks-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: checks-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   changes:
     runs-on: ubuntu-24.04
     outputs:
-      unit: ${{ steps.scope.outputs.unit }}
+      python: ${{ steps.scope.outputs.python }}
+      javascript: ${{ steps.scope.outputs.javascript }}
+      rust: ${{ steps.scope.outputs.rust }}
+      notes: ${{ steps.scope.outputs.notes }}
+      source_tests: ${{ steps.scope.outputs.source_tests }}
+      release_tests: ${{ steps.scope.outputs.release_tests }}
+      full_lint: ${{ steps.scope.outputs.full_lint }}
+      pr_reusable: ${{ steps.scope.outputs.pr_reusable }}
+      pr_integrations: ${{ steps.scope.outputs.pr_integrations }}
+      documents: ${{ steps.scope.outputs.documents }}
       source: ${{ steps.scope.outputs.source }}
       native: ${{ steps.scope.outputs.native }}
       audio: ${{ steps.scope.outputs.audio }}
@@ -30,6 +39,44 @@ jobs:
       - name: Select checks from the complete change
         id: scope
         run: python3 scripts/ci_scope.py
+      - name: Record the tested PR tree and scope
+        id: pr-source
+        if: >-
+          github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository &&
+          steps.scope.outputs.pr_reusable == 'true' && steps.scope.outputs.pr_integrations != '[]'
+        env:
+          PR_INTEGRATIONS: ${{ steps.scope.outputs.pr_integrations }}
+        run: python3 scripts/ci_pr_evidence.py record
+      - name: Retain the PR tree identity
+        if: steps.pr-source.conclusion == 'success'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: pr-source-${{ github.run_attempt }}
+          path: out/pr-source.json
+          retention-days: 2
+  pr-evidence:
+    needs: changes
+    if: >-
+      github.event_name == 'push' && needs.changes.outputs.pr_reusable == 'true' &&
+      needs.changes.outputs.pr_integrations != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      reused: ${{ steps.proof.outputs.reused }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Find successful same-tree PR integration checks
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_INTEGRATIONS: ${{ needs.changes.outputs.pr_integrations }}
+        run: python3 scripts/ci_pr_evidence.py reuse
   tests:
     needs: changes
     runs-on: ubuntu-24.04
@@ -38,16 +85,80 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-project
-      - if: needs.changes.outputs.unit == 'true'
+        if: needs.changes.outputs.full_lint == 'true'
+      - uses: ./.github/actions/setup-bun-dependencies
+        if: needs.changes.outputs.full_lint != 'true' && needs.changes.outputs.documents != '[]'
+      - name: Verify changed Markdown
+        if: needs.changes.outputs.full_lint != 'true' && needs.changes.outputs.documents != '[]'
+        env:
+          DOCUMENTS: ${{ needs.changes.outputs.documents }}
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          paths = [path for path in json.loads(os.environ["DOCUMENTS"]) if Path(path).is_file()]
+          if paths:
+              subprocess.run(["bun", "x", "--no-install", "oxfmt", "--check", "--", *paths], check=True)
+          PYTHON
+      - name: Validate release-note metadata
+        if: needs.changes.outputs.notes == 'true'
+        run: python3 -c 'from releases import detailed_changes; detailed_changes()'
+        env:
+          PYTHONPATH: scripts
+      - if: >-
+          needs.changes.outputs.python == 'true' || needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.camera == 'true' || needs.changes.outputs.capture == 'true'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends brotli gpg gpgv libclang-dev libpipewire-0.3-dev libgbm-dev libegl-dev libgles-dev libdrm-dev libva-dev nasm libcap-dev libwayland-dev libwayland-bin libvulkan-dev libgl-dev libx11-dev libxcb1-dev libxcb-xfixes0-dev cmake ninja-build
+      - uses: ./.github/actions/cache-ci-rust
+        if: >-
+          needs.changes.outputs.python == 'true' || needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.camera == 'true' || needs.changes.outputs.capture == 'true'
       - name: Verify source formatting and workflows
         run: bun run lint:source
+        if: needs.changes.outputs.full_lint == 'true'
       - name: Verify Rust formatting and lints
         run: bun run lint:rust
-        if: needs.changes.outputs.unit == 'true'
+        if: needs.changes.outputs.rust == 'true'
       - name: Run unit suites
         run: bun run test
-        if: needs.changes.outputs.unit == 'true'
+        if: >-
+          needs.changes.outputs.python == 'true' && needs.changes.outputs.javascript == 'true' &&
+          needs.changes.outputs.rust == 'true'
+      - name: Run JavaScript unit suite
+        run: bun run test:js
+        if: >-
+          needs.changes.outputs.javascript == 'true' &&
+          (needs.changes.outputs.python != 'true' || needs.changes.outputs.rust != 'true')
+      - name: Run Python unit suite
+        run: bun run test:python
+        if: >-
+          needs.changes.outputs.python == 'true' &&
+          (needs.changes.outputs.javascript != 'true' || needs.changes.outputs.rust != 'true')
+      - name: Run Rust unit suite
+        run: bun run test:rust
+        if: >-
+          needs.changes.outputs.rust == 'true' &&
+          (needs.changes.outputs.python != 'true' || needs.changes.outputs.javascript != 'true')
+      - name: Run source assembly unit tests
+        if: needs.changes.outputs.source_tests == 'true'
+        env:
+          PYTHONPATH: tests
+        run: >-
+          python -m unittest -v test_partial_source_cache test_source_patch test_pipeline
+          test_build_resume test_build_resources test_discovery test_reference_artifact
+          test_runtime_preflight test_update_policy
+      - name: Run release and CI unit tests
+        if: needs.changes.outputs.release_tests == 'true'
+        run: |
+          python -m unittest discover -s tests -p 'test_release*.py' -v
+          PYTHONPATH=tests python -m unittest -v test_source_verification test_ci_scope test_ci_pr_evidence
+      - name: Report Rust compiler cache activity
+        if: always() && env.RUSTC_WRAPPER != ''
+        run: '"$RUSTC_WRAPPER" --show-stats'
+        continue-on-error: true
       - name: Check real compiler cache hits and CPU/header invalidation
         if: needs.changes.outputs.compiler == 'true'
         run: python scripts/check_compiler_cache.py --compiler /usr/bin/clang
@@ -87,8 +198,10 @@ jobs:
       actions: read
     uses: ./.github/workflows/native-runtime.yml
   source-assembly:
-    needs: changes
-    if: needs.changes.outputs.source == 'true'
+    needs: [changes, pr-evidence]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      needs.changes.outputs.source == 'true' && needs.pr-evidence.outputs.reused != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -99,10 +212,14 @@ jobs:
         run: |
           selected=$(python3 scripts/channels.py --electron)
           mapfile -t targets <<< "$selected"
+          failed=0
           for target in patch-base "${targets[@]}"; do
-            python3 scripts/assemble.py "$target" \
-              --destination ".work/$target" --report "out/source-$target.json"
+            if ! python3 scripts/assemble.py "$target" \
+              --destination ".work/$target" --report "out/source-$target.json"; then
+              failed=1
+            fi
           done
+          exit "$failed"
       - name: Retain source diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -111,27 +228,32 @@ jobs:
           path: out/source-*.json
           retention-days: 7
   arch-packaging:
-    needs: changes
-    if: needs.changes.outputs.packaging == 'true'
+    needs: [changes, pr-evidence]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      needs.changes.outputs.packaging == 'true' && needs.pr-evidence.outputs.reused != 'true'
     uses: ./.github/workflows/package-check.yml
   application-audio:
-    needs: changes
-    if: needs.changes.outputs.audio == 'true'
+    needs: [changes, pr-evidence]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      needs.changes.outputs.audio == 'true' && needs.pr-evidence.outputs.reused != 'true'
     permissions:
       contents: read
       actions: read
     uses: ./.github/workflows/app-audio.yml
   appimage:
-    needs: changes
-    if: needs.changes.outputs.appimage == 'true'
+    needs: [changes, pr-evidence]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      needs.changes.outputs.appimage == 'true' && needs.pr-evidence.outputs.reused != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - name: Install checksum-pinned builder and runtime
-        run: python3 scripts/appimage.py --install out/appimage-tools --dependencies
+      - uses: ./.github/actions/setup-appimage
       - name: Build and launch an AppImage from this checkout without FUSE
         run: python3 scripts/check_appimage.py --container
   complete:
@@ -140,6 +262,7 @@ jobs:
     needs:
       [
         changes,
+        pr-evidence,
         tests,
         native-baselines,
         source-assembly,
@@ -160,12 +283,14 @@ jobs:
           jobs = json.loads(os.environ["RESULTS"])
           expected = {"changes": "success", "tests": "success"}
           scopes = jobs["changes"]["outputs"]
+          reused = jobs["pr-evidence"]["outputs"].get("reused") == "true"
           for job, scope in {
               "native-baselines": "native", "source-assembly": "source",
               "arch-packaging": "packaging", "application-audio": "audio",
               "appimage": "appimage",
           }.items():
-              expected[job] = "success" if scopes.get(scope) == "true" else "skipped"
+              selected = scopes.get(scope) == "true" and (scope == "native" or not reused)
+              expected[job] = "success" if selected else "skipped"
           failed = [job for job, result in expected.items() if jobs[job]["result"] != result]
           if failed:
               raise SystemExit("Checks did not complete as selected: " + ", ".join(failed))

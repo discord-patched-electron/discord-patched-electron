@@ -40,6 +40,7 @@ from incremental_workspace import transition, workspace_id
 IMPLEMENTATION = [
     "scripts/build_reference.py",
     "scripts/assemble.py",
+    "scripts/source_patch.py",
     "scripts/common.py",
     "scripts/runtime_fingerprints.py",
     "scripts/compiler_cache.py",
@@ -156,7 +157,9 @@ def build_inputs(target: str, sources: dict, config: dict) -> tuple[dict, dict, 
             "target": {key: spec[key] for key in ("version", "commit")},
             "port": port,
             "candidate_toolchain": hash_files(["ci/gn/BUILD.gn.in", "config/candidate-build.json"]),
-            "assembly_implementation": hash_files(["scripts/assemble.py", "scripts/common.py"]),
+            "assembly_implementation": hash_files(
+                ["scripts/assemble.py", "scripts/source_patch.py", "scripts/common.py"]
+            ),
         }
         key = runtime_key(spec, sources, config)
     return spec, inputs, key
@@ -371,7 +374,14 @@ def build(
         write_json(installed, {"identity": identity})
     if not prepared.exists():
         reset_patch_repositories(source, read_json(work / "patch-bases.json"))
-        timed_run(output, "hooks", "gclient", "runhooks", cwd=source)
+        timed_run(
+            output,
+            "hooks",
+            "gclient",
+            "runhooks",
+            cwd=source,
+            env={**os.environ, "ELECTRON_USE_THREE_WAY_MERGE_FOR_PATCHES": "1"},
+        )
         write_json(prepared, {"identity": identity})
     if prepare_only:
         write_json(

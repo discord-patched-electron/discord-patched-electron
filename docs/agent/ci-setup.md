@@ -6,14 +6,17 @@ Blacksmith through `build.yml`; package jobs never compile Electron.
 ## Check selection
 
 `check.yml` uses `scripts/ci_scope.py` to select checks for pushes and pull requests.
-Source lint always runs. Documentation changes skip native package installation
-and Cargo checks. Code changes run Python, JavaScript and Rust tests, with
-integration jobs selected by their inputs:
+Documentation-only changes format the changed Markdown with pinned Bun tools.
+Source changes run repository-wide lint and select unit suites and integration
+jobs from their inputs.
 
 | Change                                                         | Additional checks                                                           |
 | -------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| README, contributor guides, agent notes and skill instructions | None; source lint only                                                      |
-| Release notes, approval/AUR/discovery tooling, unit tests      | Unit suite only                                                             |
+| README, contributor guides, agent notes and skill instructions | Changed Markdown formatting                                                 |
+| Release-note metadata                                          | Validate the actual metadata through the release parser                     |
+| Release-note code and selected release/CI test files           | Focused Python release and CI tests                                         |
+| JavaScript unit test files                                     | JavaScript unit suite                                                       |
+| Other approval/AUR/discovery code and unit test files          | Full unit suite                                                             |
 | App settings, updater, package assets and templates            | Arch packaging                                                              |
 | Launcher                                                       | Arch packaging (shell syntax is already covered by lint)                    |
 | Audio adapters or patches                                      | Arch packaging and application audio                                        |
@@ -25,14 +28,15 @@ integration jobs selected by their inputs:
 | Compiler cache                                                 | Real compiler cache check                                                   |
 | Native/audio test fixtures                                     | Their corresponding integration suite                                       |
 | Client lock                                                    | Native, audio, Arch and AppImage package checks                             |
-| Source lock, imported Electron patches and source assembler    | Source assembly                                                             |
+| Source lock, imported Electron patches and source assembler    | Focused source tooling tests and source assembly                            |
 | Dev manager and manual-only benchmark/graphics/popout tools    | Unit suite only                                                             |
 | Runtime compatibility/import pins                              | Native and package checks                                                   |
 | Shared dependencies, selector/entry point and unfamiliar paths | Full checks                                                                 |
 
-Mixed changes use the union of their scopes. README variants and maintained
-documentation run source lint only. Every existing file has a consumer-based
-rule or an explicit shared-input fallback; new unknown paths still run all checks.
+Mixed changes use the union of their scopes. The docs rules cover README variants,
+root guides, Markdown and known image formats under `docs/`, and skill
+`SKILL.md` files. Shipped notices and capture documentation also exercise the
+builds that carry them. Unfamiliar inputs still select full checks.
 The shared setup action, language/dependency pins, channel/input primitives,
 `ci_scope.py` and `check.yml` keep full coverage because they control the complete
 job graph or environment. A selector/entry-point edit therefore validates the
@@ -48,8 +52,19 @@ as Arch packaging. There is no separate AppImage push/PR workflow or path filter
 to keep synchronized. Its dedicated builder changes select AppImage rather than
 Arch; shared package creation and AppRun changes select both.
 
-The **Checks complete** job requires every selected check to pass. A manual
-Checks dispatch runs all checks. To inspect a commit range locally:
+The **Checks complete** job requires every selected check to pass. New
+revisions cancel previous runs of the same PR. Main pushes and manual runs
+have independent groups so a small follow-up cannot cancel checks selected
+for an earlier push.
+
+Main can reuse source assembly, Arch, AppImage and audio checks from a
+successful same-repository PR attempt with the identical Git tree, selected
+checks and dependency refresh week. Missing, stale or failed evidence selects
+fresh checks. The lookup gives a matching in-progress attempt up to seven
+minutes. Main source tests and bundled native evidence continue to qualify
+release inputs independently. A manual dispatch runs the full graph.
+
+To inspect a commit range locally:
 
 ```sh
 uv run python scripts/ci_scope.py --base BEFORE_SHA --head AFTER_SHA
@@ -61,6 +76,13 @@ Keep a workflow boundary when its inputs, permissions or lifecycle differ. Share
 stable tool installation through `.github/actions/setup-project`; keep system
 packages and sandbox rules with the job that needs them. The Arch job deliberately
 installs only Bun on the host; Python and compilers live in its container.
+
+Arch packaging and audio use one multi-stage image recipe and share its
+BuildKit base layers. The Arch and AppImage dependency images refresh weekly.
+AppImage downloads retain their checksum verification on cache hits. Checks
+restore a bounded sccache store for Rust compilation. The audio job prepares
+each Wayland client once, then gives each backend and picker case a private
+copy and waits for the portal's readiness signal before launching Electron.
 
 | Workflow               | Responsibility and reason to retain it                                                                                                                                                                                           |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -84,9 +106,10 @@ and diagnostic uploads each support a retained execution boundary.
 ## Test design and coverage
 
 Use the existing runners: Python `unittest`, JavaScript `node:test` with strict
-assertions, and Cargo. `bun run test` runs all three sequentially, reports every
-suite's failures and exits nonzero if any fail. Sequential execution avoids
-concurrent native fixture builds sharing Cargo outputs. JavaScript discovery
+assertions, and Cargo. `bun run test` overlaps JavaScript with Python, then runs
+the Cargo suite after Python's native fixture builds release their outputs.
+It reports every suite's failures and exits nonzero if any fail. Python reports
+its 15 slowest cases. JavaScript discovery
 uses `tests/**/*.test.cjs`; Electron fixture entry points remain outside that
 naming pattern. Python discovery uses `test_*.py`.
 
@@ -124,17 +147,18 @@ behaviors and addressed with the appropriate fixture or end-to-end check.
 
 ## Reusing source verification for release
 
-Release packaging calls `source_verification.py` before candidate checks. It
-reuses the successful `tests` job from the exact source SHA's main-branch push
-Checks run only after source lint, Rust lint and unit suites all succeeded. The
-repository, workflow path, event, branch and full commit must match. Pending jobs
-are observed with a bounded completion wait rather than rerun concurrently;
-failed checks stop the release. Missing or older proofs require fresh source
+Release packaging calls `source_verification.py` before creating release
+packages. Independent staging and the initial launch can proceed while the
+main test job runs. Source verification reuses the successful `tests` job from
+the exact source SHA's main-branch push after source lint, Rust lint and unit
+suites succeed. The repository, workflow path, event, branch and full commit
+must match. Verification waits for pending jobs within a deadline.
+Failed checks stop the release. Missing or partial proofs require fresh source
 verification. The retained `source-verification.json` identifies the reused run
 and job. API failures never authorize a skip.
 
-Bundled native qualification can also reuse the push job only when the full
-client lock matches and its downloaded report proves the requested channel,
+Bundled native qualification can also reuse its exact main-push job when the
+client entry matches the bootstrap lock and the downloaded report proves the channel,
 bundled runtime, native fixture and offline Krisp all passed. The report's client
 digest must match; different clients or custom runtimes require their own checks.
 `native-reuse.json` retains the original job/artifact identity.

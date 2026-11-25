@@ -133,11 +133,15 @@ replacement paths, upstream-equivalent explanations and assembled Git trees.
 under `patches/ports/<major>/`. Preserve the imported files unchanged.
 
 An excluded import path needs a literal reviewed replacement or an explicit
-upstream equivalent in the lock. No wildcard exclusions, automatic conflict-side
-selection or silent patch skipping. Exact anchors must reproduce the locked tree;
-three-way reuse on later versions must stop on incompatible changes. Source
-assembly, dependency application, syntax checks, linking and runtime qualification
-are separate gates. Disabled/source-only ports are not qualified runtimes.
+upstream equivalent in the lock. Exact anchors must reproduce the locked tree.
+Away from those anchors, source assembly can merge independent insertions
+among unconditional literal C/C++ includes using Git's three index stages. Reports
+list each reconciled patch and file. Ambiguous ordering, conflicting code,
+missing preimages and changes to existing directives require a reviewed port.
+
+Dependency patching enables Electron's own three-way Git import during
+`gclient runhooks`. Source assembly, dependency application, syntax checks,
+linking and runtime qualification remain separate gates.
 
 Preserve upstream ownership/API changes while adding Discord bindings: cppgc
 BrowserWindow/FrameCapture tracing, current view pointers, shared renderer bindings,

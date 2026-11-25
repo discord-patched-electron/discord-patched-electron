@@ -318,6 +318,7 @@ def session(
             spawn(["niri", "-c", str(ROOT / "tests/wayland/niri.kdl")], "niri")
             ready(lambda: bool(list(run.glob("niri*.sock"))))
             env["NIRI_SOCKET"] = str(next(run.glob("niri*.sock")))
+            ready(lambda: any(p.is_socket() for p in run.glob("wayland-*")))
             env["WAYLAND_DISPLAY"] = next(p.name for p in run.glob("wayland-*") if p.is_socket())
             env["XDG_SESSION_TYPE"] = "wayland"
             env["XDG_CURRENT_DESKTOP"] = "niri"
@@ -349,7 +350,7 @@ def session(
             ready(lambda: len(json.loads(command(["niri", "msg", "-j", "windows"]))) >= 2)
             write_json(output / "inputs.json", inputs)
             spawn(["python3", str(ROOT / "tests/wayland/portal.py")], "portal")
-            time.sleep(0.4)
+            ready(lambda: "ready" in (output / "portal.log").read_text().splitlines())
             executable = read_json(output / "identity.json")["executable"]
             if selection == "manual":
                 threading.Thread(target=select_audio, daemon=True).start()
@@ -405,12 +406,16 @@ def session(
             worker_pids = read_json(crash_ready)
             crash.kill()
             crash.wait()
+
+            def worker_running(pid):
+                try:
+                    state = Path(f"/proc/{pid}/stat").read_text()
+                except (FileNotFoundError, ProcessLookupError):
+                    return False
+                return state.rsplit(")", 1)[1].split()[0] != "Z"
+
             deadline = time.monotonic() + 6
-            while any(
-                Path(f"/proc/{pid}/stat").exists()
-                and Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
-                for pid in worker_pids
-            ):
+            while any(worker_running(pid) for pid in worker_pids):
                 if time.monotonic() > deadline:
                     raise ValueError("Audio worker survived helper SIGKILL")
                 time.sleep(0.1)
@@ -456,7 +461,10 @@ def session(
                 try:
                     child.wait(timeout=4)
                 except sp.TimeoutExpired:
-                    os.killpg(child.pid, signal.SIGKILL)
+                    try:
+                        os.killpg(child.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
                     child.wait()
             for log in logs:
                 log.close()
@@ -477,29 +485,7 @@ def pack_fixture(archive: Path, channel: str):
         )
 
 
-def check(
-    output,
-    clients,
-    channel,
-    pulse,
-    download_only=False,
-    runtime=None,
-    provenance=None,
-    selection="auto",
-    voice_startup=False,
-    pulse_root=Path("/opt/dpe-pulse"),
-    wtype=Path("/usr/bin/wtype"),
-):
-    if bool(runtime) != bool(provenance):
-        raise ValueError("Custom runtime requires verified compiler provenance")
-    output = output.resolve()
-    if output.exists() and any(
-        p.name not in {"core.tar.br", "discord_voice.tar.br"} for p in output.iterdir()
-    ):
-        raise ValueError("Use an empty fixture directory or one with only the locked archives")
-    output.mkdir(parents=True, exist_ok=True)
-    client = load_clients(clients, [channel])[channel]
-    validate_channel(channel, client)
+def prepare_fixture(output, client, channel, download_only, runtime):
     for name, directory in [("core", "runtime"), ("discord_voice", "voice")]:
         if name == "core" and runtime:
             continue
@@ -578,6 +564,79 @@ def check(
         with wave.open(str(output / (name + ".wav")), "wb") as wav:
             wav.setparams((2, 2, 48000, 0, "NONE", "not compressed"))
             wav.writeframes(np.repeat(samples, 2).tobytes())
+
+
+def check(
+    output,
+    clients,
+    channel,
+    pulse,
+    download_only=False,
+    runtime=None,
+    provenance=None,
+    selection="auto",
+    voice_startup=False,
+    pulse_root=Path("/opt/dpe-pulse"),
+    wtype=Path("/usr/bin/wtype"),
+    *,
+    prepare_only=False,
+    prepared=None,
+):
+    if bool(runtime) != bool(provenance):
+        raise ValueError("Custom runtime requires verified compiler provenance")
+    output = output.resolve()
+    if output.exists() and any(
+        p.name not in {"core.tar.br", "discord_voice.tar.br"} for p in output.iterdir()
+    ):
+        raise ValueError("Use an empty fixture directory or one with only the locked archives")
+    output.mkdir(parents=True, exist_ok=True)
+    client = load_clients(clients, [channel])[channel]
+    validate_channel(channel, client)
+    if prepared:
+        expected = {
+            "channel": channel,
+            "client_digest": digest(client),
+            "runtime_kind": "custom" if runtime else "bundled",
+        }
+        identity = read_json(prepared / "identity.json")
+        if any(identity.get(key) != value for key, value in expected.items()):
+            raise ValueError("Prepared fixture does not match the selected inputs")
+        executable = (
+            "electron"
+            if runtime
+            else {"stable": "Discord", "ptb": "DiscordPTB", "canary": "DiscordCanary"}[channel]
+        )
+        if (
+            identity.get("executable") != executable
+            or sha256(prepared / "runtime" / executable) != identity.get("runtime_sha256")
+            or sha256(prepared / "voice/discord_voice.node") != identity.get("voice_sha256")
+            or (runtime and sha256(runtime / executable) != identity["runtime_sha256"])
+        ):
+            raise ValueError("Prepared fixture binaries differ from the selected inputs")
+        sp.run(
+            [
+                "cp",
+                "-a",
+                "--reflink=auto",
+                *(
+                    prepared / name
+                    for name in (
+                        "identity.json",
+                        "runtime",
+                        "voice",
+                        "tone",
+                        "b.wav",
+                        "discord.wav",
+                    )
+                ),
+                output,
+            ],
+            check=True,
+        )
+    else:
+        prepare_fixture(output, client, channel, download_only, runtime)
+    if download_only or prepare_only:
+        return
     namespace = (
         []
         if {name for _, name in socket.if_nameindex()} == {"lo"}
@@ -660,7 +719,10 @@ if __name__ == "__main__":
         default=Path("/opt/dpe-pulse"),
         help="Extracted PulseAudio package root for the private compatibility server",
     )
-    parser.add_argument("--download-only", action="store_true")
+    preparation = parser.add_mutually_exclusive_group()
+    preparation.add_argument("--download-only", action="store_true")
+    preparation.add_argument("--prepare-only", action="store_true")
+    preparation.add_argument("--prepared", type=Path)
     parser.add_argument("--selection", choices=["auto", "manual", "interactive"], default="auto")
     parser.add_argument(
         "--voice-startup",
@@ -699,4 +761,6 @@ if __name__ == "__main__":
             args.voice_startup,
             args.pulse_root,
             args.wtype,
+            prepare_only=args.prepare_only,
+            prepared=args.prepared,
         )

@@ -51,15 +51,16 @@ def install_tools(directory: Path):
             path.chmod(0o755)
 
 
-def install_dependencies(tools: Path):
+def install_dependencies(tools: Path, *, use_dependency_image=False):
     tools = tools.resolve()
     destination = tools / "dependencies"
     if destination.exists():
         raise ValueError("Choose a fresh dependency output directory")
-    subprocess.run(
-        ["docker", "build", "--tag", "dpe-appimage-dependencies", str(ROOT / "ci/appimage")],
-        check=True,
-    )
+    if not use_dependency_image:
+        subprocess.run(
+            ["docker", "build", "--tag", "dpe-appimage-dependencies", str(ROOT / "ci/appimage")],
+            check=True,
+        )
     with tempfile.TemporaryDirectory(prefix="dependencies-", dir=tools) as temporary:
         staged = Path(temporary) / "payload"
         staged.mkdir()
@@ -71,6 +72,7 @@ def install_dependencies(tools: Path):
                 "--user",
                 f"{os.getuid()}:{os.getgid()}",
                 "--network=none",
+                "--pull=never",
                 "-v",
                 f"{tools}:/tools:ro",
                 "-v",
@@ -156,7 +158,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--install", type=Path, required=True)
     parser.add_argument("--dependencies", action="store_true")
+    parser.add_argument("--use-dependency-image", action="store_true")
     args = parser.parse_args()
     install_tools(args.install)
     if args.dependencies:
-        install_dependencies(args.install)
+        install_dependencies(args.install, use_dependency_image=args.use_dependency_image)

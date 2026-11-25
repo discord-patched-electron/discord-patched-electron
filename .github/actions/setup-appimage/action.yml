@@ -1,0 +1,29 @@
+name: Set up AppImage packager
+description: Restore pinned AppImage downloads and select the current dependency image.
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: |
+          out/appimage-tools/appimagetool
+          out/appimage-tools/runtime-x86_64
+          out/appimage-tools/linuxdeploy
+          out/appimage-tools/python.tar.gz
+        key: appimage-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('config/appimage-tools.json') }}
+    - name: Set the dependency refresh window
+      id: dependency-week
+      shell: bash
+      run: echo "value=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+    - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+      with:
+        context: ci/appimage
+        load: true
+        tags: dpe-appimage-dependencies
+        build-args: DEPENDENCY_WEEK=${{ steps.dependency-week.outputs.value }}
+        cache-from: type=gha,scope=appimage-dependencies
+        cache-to: ${{ github.event_name != 'workflow_run' && 'type=gha,scope=appimage-dependencies,mode=max,ignore-error=true' || '' }}
+    - name: Stage verified AppImage tools
+      shell: bash
+      run: python3 scripts/appimage.py --install out/appimage-tools --dependencies --use-dependency-image

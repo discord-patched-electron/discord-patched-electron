@@ -1,0 +1,21 @@
+name: Cache Rust compiler outputs
+description: Use the pinned sccache binary with a bounded cache for Linux checks.
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: out/ci-rust-sccache
+        key: rust-objects-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('config/compiler-cache.json', 'rust-toolchain.toml', '.cargo/config.toml', 'Cargo.lock') }}-${{ hashFiles('native/**', 'integration/video/*.h', 'scripts/build_rust_support.py') }}
+        restore-keys: rust-objects-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('config/compiler-cache.json', 'rust-toolchain.toml', '.cargo/config.toml', 'Cargo.lock') }}-
+    - name: Set the Rust compiler wrapper
+      shell: bash
+      run: |
+        wrapper=$(PYTHONPATH=scripts python3 -c 'from pathlib import Path; from compiler_cache import install; print(install(Path("out/ci-rust-tool")).resolve())')
+        {
+          echo "RUSTC_WRAPPER=$wrapper"
+          echo "CARGO_INCREMENTAL=0"
+          echo "SCCACHE_DIR=$GITHUB_WORKSPACE/out/ci-rust-sccache"
+          echo "SCCACHE_CACHE_SIZE=768M"
+          echo "SCCACHE_IGNORE_SERVER_IO_ERROR=1"
+        } >> "$GITHUB_ENV"

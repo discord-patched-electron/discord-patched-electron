@@ -37,12 +37,9 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version-file: package.json
+      - uses: ./.github/actions/setup-bun-dependencies
       - name: Bundle the pinned UI before entering the read-only container
         run: |
-          bun install --frozen-lockfile --ignore-scripts
           python scripts/build_ui.py --output out/arch-ui
           mv out/arch-ui prebuilt-ui
       - name: Fetch the exact discovered client snapshot
@@ -54,8 +51,23 @@ jobs:
           python scripts/fetch_client_snapshot.py "$CLIENTS_STATE" --output out/clients.lock.json
           # Atomic JSON writes default to 0600; the container uses a different UID.
           chmod 644 out/clients.lock.json
+      - name: Set the dependency refresh window
+        id: dependency-week
+        run: echo "value=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - name: Build the Arch packaging environment
-        run: docker build -t discord-electron-arch-packaging -f ci/arch/Dockerfile .
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: ci/arch/Dockerfile
+          target: packaging
+          load: true
+          tags: discord-electron-arch-packaging
+          build-args: DEPENDENCY_WEEK=${{ steps.dependency-week.outputs.value }}
+          cache-from: |
+            type=gha,scope=arch-packaging
+            type=gha,scope=arch-audio
+          cache-to: ${{ github.event_name != 'workflow_run' && 'type=gha,scope=arch-packaging,mode=max,ignore-error=true' || '' }}
       - name: Package selected channels with a dummy runtime
         shell: bash
         run: |

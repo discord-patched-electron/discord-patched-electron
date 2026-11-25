@@ -177,8 +177,8 @@ class SourceVerification(unittest.TestCase):
             tempfile.TemporaryDirectory() as temporary,
             patch.object(
                 source,
-                "verification",
-                return_value={"mode": "reused", "checks_run": 12, "source_commit": self.commit},
+                "push_checks_run",
+                return_value=self.run,
             ),
             patch.object(source, "api", return_value={"jobs": [job]}),
             patch.object(source.subprocess, "run", side_effect=download),
@@ -189,7 +189,7 @@ class SourceVerification(unittest.TestCase):
             self.assertEqual(
                 read_json(output.parent / "native-runtime/runtime-checks.json"), report
             )
-        with patch.object(source, "verification") as checks:
+        with patch.object(source, "push_checks_run") as checks:
             proof = source.bundled_verification(
                 self.commit, {**candidate, "version": "1.0.1"}, "canary", Path("/unused/proof.json")
             )
