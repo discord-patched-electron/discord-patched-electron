@@ -4,6 +4,7 @@ import copy
 import errno
 import importlib.util
 import io
+import json
 import os
 import shutil
 import stat
@@ -160,16 +161,16 @@ class ApplicationUpdates(unittest.TestCase):
             ("ptb", "discord-ptb"),
         ):
             with self.subTest(channel=channel):
-                write_json(self.package / "bootstrap.json", {**self.policy, "channel": channel})
                 with (
-                    patch.object(loader, "__file__", str(self.package / "loader.py")),
-                    patch.object(sys, "argv", ["loader.py", "--launch"]),
-                    patch.object(sys, "stderr", io.StringIO()),
-                    patch.dict(os.environ, {"CHROME_DESKTOP": "", "WAYLAND_DISPLAY": "fixture"}),
+                    patch.dict(os.environ, {"CHROME_DESKTOP": ""}),
                     patch.object(loader.shutil, "which", return_value="/usr/bin/zenity"),
                     patch.object(loader.subprocess, "run") as run,
+                    self.assertRaisesRegex(ValueError, "Download failed"),
+                    loader.SetupProgress(
+                        self.package, self.profile, {**self.policy, "channel": channel}
+                    ),
                 ):
-                    loader.show_error(ValueError("Download failed"))
+                    raise ValueError("Download failed")
                 self.assertEqual(run.call_args.args[0][0], desktop)
                 self.assertIn(
                     "--window-icon=" + str(self.package / "discord.png"), run.call_args.args[0]
@@ -263,6 +264,90 @@ class ApplicationUpdates(unittest.TestCase):
         validate_bootstrap(self.package)
         self.assertFalse((self.package / "updater.py").exists())
         self.assertFalse((self.package / "app.asar").exists())
+        self.assertTrue((self.package / "splash/package.json").is_file())
+
+    def test_package_upgrade_starts_progress_before_download_and_honors_cancel(self):
+        next_app, archive = self.payload("second", "20261027.120001")
+        runtime_pin = {
+            "channel": "canary",
+            "electron_channel": "prerelease",
+            "electron_version": "46.0.0-alpha.13",
+            "runtime_key": "a" * 64,
+            "archive_sha256": "b" * 64,
+        }
+        cached = self.profile / "dpe-runtime/previous/generations" / runtime_pin["archive_sha256"]
+        cached.mkdir(parents=True)
+        executable = cached / "electron"
+        executable.write_bytes(b"cached runtime")
+        executable.chmod(0o700)
+        write_json(cached / "runtime.json", runtime_pin)
+        files = {"electron": sha256(executable)}
+        policy = {
+            **self.policy,
+            "application": next_app,
+            "runtime": {**runtime_pin, "files": files},
+        }
+        progress = loader.SetupProgress(self.package, self.profile, policy)
+        dialog = Mock()
+        dialog.poll.return_value = None
+
+        def download(_url, target, *, check_cancelled):
+            launch.assert_called_once()
+            staged = Path(launch.call_args.args[0][-2])
+            self.assertEqual(staged.stat().st_ino, executable.stat().st_ino)
+            self.assertEqual((staged.parent / "resources/app").resolve(), self.package / "splash")
+            shutil.copyfile(archive, target)
+            dialog.poll.return_value = loader.SPLASH_CANCELLED
+            check_cancelled()
+
+        with (
+            patch.dict(os.environ, {"DPE_CLIENT_OFFLINE": "0"}),
+            patch.object(loader.subprocess, "Popen", return_value=dialog) as launch,
+            patch.object(loader.io_select, "select", return_value=([], [], [])),
+            patch.object(loader, "download", side_effect=download),
+            self.assertRaises(loader.SetupCancelled),
+            progress,
+        ):
+            loader.select(
+                self.root,
+                self.package,
+                policy,
+                launch=True,
+                progress=progress,
+            )
+        self.assertTrue(self.first_app.is_dir())
+        self.assertFalse((self.root / "generations" / next_app["archive_sha256"]).exists())
+        self.assertNotIn("trial", read_json(self.root / "state.json"))
+        dialog.stdin.close.assert_called_once()
+        executable.write_bytes(b"corrupted runtime")
+        self.assertIsNone(loader.cached_splash_runtime(self.profile, policy, []))
+
+    def test_startup_failure_offers_retry_in_the_running_electron_splash(self):
+        progress = loader.SetupProgress(self.package, self.profile, self.policy)
+        progress.attempted = progress.ready = True
+        progress.dialog = Mock()
+        progress.dialog.poll.return_value = None
+        progress.dialog.wait.return_value = loader.SPLASH_RETRY
+        with (
+            patch.object(loader, "native_error") as native_error,
+            self.assertRaises(loader.SetupRetry),
+            progress,
+        ):
+            raise ValueError("application checksum mismatch")
+        message = json.loads(progress.dialog.stdin.write.call_args.args[0])
+        self.assertEqual(message, {"stage": "error", "details": "application checksum mismatch"})
+        native_error.assert_not_called()
+
+    def test_startup_failure_uses_native_error_if_electron_is_unavailable(self):
+        progress = loader.SetupProgress(self.package, self.profile, self.policy)
+        failure = ValueError("no verified application")
+        with (
+            patch.object(loader, "native_error") as native_error,
+            self.assertRaisesRegex(ValueError, str(failure)),
+            progress,
+        ):
+            raise failure
+        native_error.assert_called_once_with(self.package, "discord-canary", failure)
 
     def test_cancelled_first_launch_retries_the_verified_cache_offline(self):
         self.assertEqual(self.run_loader("--launch", "--", "cancel", check=False).returncode, 1)

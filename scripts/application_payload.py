@@ -11,6 +11,38 @@ from common import ROOT, read_json, sha256, write_json
 from desktop_identity import profile_name
 
 ASSET = "application.zip"
+BOOTSTRAP_ENTRIES = {
+    "loader.py",
+    "uninstall.py",
+    "splash",
+    "launch.sh",
+    "bootstrap.json",
+    "release-signing-key.asc",
+    "discord.png",
+    "README.txt",
+    "SHA256SUMS",
+    "licenses",
+}
+SPLASH_SOURCES = (
+    "failure.cjs",
+    "window.cjs",
+    "profile.cjs",
+    "splash-assets.cjs",
+    "splash-state.cjs",
+    "splash-preload.cjs",
+    "splash-media.json",
+    "modern-splash.html",
+    "openasar/source.json",
+)
+
+
+def bootstrap_entry_allowed(relative: Path) -> bool:
+    root, *rest = relative.parts
+    if not rest:
+        return root in BOOTSTRAP_ENTRIES or relative.suffix == ".desktop"
+    if root == "splash":
+        return "/".join(rest) in ("main.cjs", "package.json", "openasar", *SPLASH_SOURCES)
+    return root == "licenses"
 
 
 def bundle(app: Path, archive: Path, version: str, epoch: int) -> dict:
@@ -38,10 +70,25 @@ def bundle(app: Path, archive: Path, version: str, epoch: int) -> dict:
     }
 
 
-def bootstrap(source: Path, output: Path, application: dict, tag: str, channel: str, track: str):
+def bootstrap(
+    source: Path,
+    output: Path,
+    application: dict,
+    tag: str,
+    channel: str,
+    track: str,
+    *,
+    runtime: Path | None = None,
+):
     output.mkdir()
     shutil.copy2(ROOT / "integration/bootstrap/loader.py", output / "loader.py")
     shutil.copy2(ROOT / "integration/bootstrap/uninstall.py", output / "uninstall.py")
+    splash = output / "splash"
+    (splash / "openasar").mkdir(parents=True)
+    write_json(splash / "package.json", {"name": "discord-startup", "main": "main.cjs"})
+    shutil.copy2(ROOT / "integration/bootstrap/splash.cjs", splash / "main.cjs")
+    for filename in SPLASH_SOURCES:
+        shutil.copy2(ROOT / "integration/updater" / filename, splash / filename)
     shutil.copy2(ROOT / "packaging/release-signing-key.asc", output)
     for path in [source / "discord.png", *source.glob("*.desktop")]:
         shutil.copy2(path, output)
@@ -56,6 +103,18 @@ def bootstrap(source: Path, output: Path, application: dict, tag: str, channel: 
         'exec python3 -I "$root/loader.py" --launch -- "$@"\n'
     )
     (output / "launch.sh").chmod(0o755)
+    runtime_pin = {}
+    if runtime is not None:
+        runtime_pin = {
+            "runtime": {
+                **read_json(source / "runtime-update.json"),
+                "files": {
+                    path.relative_to(runtime).as_posix(): sha256(path)
+                    for path in runtime.rglob("*")
+                    if path.is_file() and path.relative_to(runtime).parts[0] != "resources"
+                },
+            }
+        }
     write_json(
         output / "bootstrap.json",
         {
@@ -64,6 +123,7 @@ def bootstrap(source: Path, output: Path, application: dict, tag: str, channel: 
             "electron_channel": track,
             "profile": profile_name(channel),
             "application": application,
+            **runtime_pin,
             "url": f"https://github.com/discord-patched-electron/discord-patched-electron/releases/download/{tag}/{ASSET}",
         },
     )
@@ -80,17 +140,6 @@ def bootstrap(source: Path, output: Path, application: dict, tag: str, channel: 
 
 
 def validate_bootstrap(app: Path):
-    allowed = {
-        "loader.py",
-        "uninstall.py",
-        "launch.sh",
-        "bootstrap.json",
-        "release-signing-key.asc",
-        "discord.png",
-        "README.txt",
-        "SHA256SUMS",
-        "licenses",
-    }
     if not {
         "loader.py",
         "uninstall.py",
@@ -101,10 +150,7 @@ def validate_bootstrap(app: Path):
         raise ValueError("Incomplete bootstrap package")
     for path in app.rglob("*"):
         relative = path.relative_to(app)
-        if path.is_symlink() or (
-            relative.parts[0] not in allowed
-            and not (len(relative.parts) == 1 and path.suffix == ".desktop")
-        ):
+        if path.is_symlink() or not bootstrap_entry_allowed(relative):
             raise ValueError(f"Unexpected code in bootstrap package: {relative}")
         if (
             relative.parts[0] == "licenses"

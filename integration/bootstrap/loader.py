@@ -9,7 +9,9 @@ import http.client
 import json
 import os
 import re
+import select as io_select
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -19,6 +21,7 @@ import urllib.error
 import urllib.request
 import uuid
 import zipfile
+from contextlib import nullcontext
 from pathlib import Path, PurePosixPath
 
 API = 1
@@ -35,6 +38,204 @@ FAILURES = (
 
 
 _diagnostic_profile = None
+SPLASH_CANCELLED = 42
+SPLASH_RETRY = 43
+
+
+class SetupCancelled(Exception):
+    """The user closed the Electron startup screen."""
+
+
+class SetupRetry(Exception):
+    """The user requested another setup attempt from the startup screen."""
+
+
+def cached_splash_runtime(profile, policy, applications):
+    pinned = policy.get("runtime")
+    pins = [(pinned, None)] if pinned else []
+    for application in applications:
+        try:
+            pins.append((read(application / "runtime-update.json"), application))
+        except FAILURES:
+            continue
+    for pin, application in pins:
+        if not isinstance(pin, dict) or any(
+            pin.get(key) != policy[key] for key in ("channel", "electron_channel")
+        ):
+            continue
+        digest = pin.get("archive_sha256")
+        if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
+            continue
+        for directory in (profile / "dpe-runtime").glob("*/generations/" + digest):
+            try:
+                metadata = read(directory / "runtime.json")
+                if any(
+                    metadata[key] != pin[key]
+                    for key in (
+                        "archive_sha256",
+                        "runtime_key",
+                        "electron_version",
+                        "channel",
+                        "electron_channel",
+                    )
+                ):
+                    continue
+                if (
+                    application is not None
+                    and (directory / "resources").resolve() != application / "resources"
+                ):
+                    continue
+                files = pin["files"] if application is None else metadata["files"]
+                if application is not None and files["electron"] != metadata["executable_sha256"]:
+                    continue
+                actual = {
+                    item.relative_to(directory).as_posix(): checksum(item)
+                    for item in directory.rglob("*")
+                    if item.is_file()
+                    and item.name != "runtime.json"
+                    and item.relative_to(directory).parts[0] != "resources"
+                }
+                if files == actual and os.access(directory / "electron", os.X_OK):
+                    return directory
+            except FAILURES:
+                continue
+    return None
+
+
+class SetupProgress:
+    def __init__(self, package, profile, policy):
+        self.package = package
+        self.profile = profile
+        self.policy = policy
+        channel = policy["channel"]
+        self.desktop = "discord" if channel == "stable" else "discord-" + channel
+        self.dialog = None
+        self.temporary = None
+        self.attempted = False
+        self.ready = False
+
+    def __enter__(self):
+        return self
+
+    def show(self, applications):
+        if self.attempted:
+            return
+        self.attempted = True
+        runtime = cached_splash_runtime(self.profile, self.policy, applications)
+        if runtime is None:
+            return
+        try:
+            self.temporary = tempfile.TemporaryDirectory(prefix="splash-", dir=self.profile)
+            launch = Path(self.temporary.name)
+            # A separate executable path gives the splash its own resources
+            # without changing the runtime used by a running Discord process.
+            os.link(runtime / "electron", launch / "electron")
+            for entry in runtime.iterdir():
+                if entry.name not in ("resources", "electron"):
+                    (launch / entry.name).symlink_to(entry)
+            resources = launch / "resources"
+            resources.mkdir()
+            (resources / "app").symlink_to(self.package / "splash")
+            command = [str(launch / "electron"), "--disable-setuid-sandbox"]
+            name = f"{self.desktop}-{self.policy['electron_channel']}-patched-electron-bin"
+            if Path("/etc/apparmor.d", name).is_file() and shutil.which("aa-exec"):
+                if (
+                    subprocess.run(
+                        ["aa-exec", "-p", name, "--", "true"], capture_output=True
+                    ).returncode
+                    == 0
+                ):
+                    command[:0] = ["aa-exec", "-p", name, "--"]
+            environment = {
+                **os.environ,
+                "DPE_APP_ROOT": str(self.package),
+                "DPE_PROFILE_DIR": str(self.profile),
+                "DPE_SPLASH_USER_DATA": str(launch / "user-data"),
+                "DPE_CLIENT_OFFLINE": "1",
+                "CHROME_DESKTOP": os.environ.get("CHROME_DESKTOP") or self.desktop + ".desktop",
+            }
+            for variable in ("ELECTRON_RUN_AS_NODE", "NODE_OPTIONS", "LD_PRELOAD"):
+                environment.pop(variable, None)
+            self.dialog = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                bufsize=0,
+                start_new_session=True,
+                env=environment,
+            )
+            # Start update I/O after the window paints. A display service or
+            # splash runtime failure must not block package recovery.
+            self.wait_for_window(1)
+            self.check()
+        except OSError as error:
+            diagnostic("bootstrap-splash-unavailable", error=str(error))
+
+    def wait_for_window(self, timeout):
+        if (
+            self.dialog
+            and not self.ready
+            and io_select.select([self.dialog.stdout], [], [], timeout)[0]
+        ):
+            self.ready = self.dialog.stdout.readline() == b"ready\n"
+
+    def check(self):
+        if self.dialog and self.dialog.poll() == SPLASH_CANCELLED:
+            raise SetupCancelled
+
+    def installing(self):
+        self.send({"stage": "install"})
+
+    def send(self, message):
+        self.check()
+        if self.dialog and self.dialog.poll() is None:
+            try:
+                self.dialog.stdin.write((json.dumps(message) + "\n").encode())
+                self.dialog.stdin.flush()
+                return True
+            except BrokenPipeError:
+                self.check()
+        return False
+
+    def __exit__(self, error_type, error, _traceback):
+        try:
+            if isinstance(error, FAILURES):
+                self.show([])
+                self.wait_for_window(4)
+                self.check()
+                if self.ready and self.send({"stage": "error", "details": str(error)[-4000:]}):
+                    status = self.dialog.wait()
+                    if status == SPLASH_RETRY:
+                        raise SetupRetry
+                    if status == SPLASH_CANCELLED:
+                        return
+                if self.dialog is None or self.dialog.poll() is not None:
+                    native_error(self.package, self.desktop, error)
+        finally:
+            self.close(error_type is None)
+
+    def close(self, check_cancelled):
+        try:
+            if self.dialog:
+                self.dialog.stdin.close()
+                self.dialog.stdout.close()
+                try:
+                    status = self.dialog.wait(timeout=1)
+                    if check_cancelled and status == SPLASH_CANCELLED:
+                        raise SetupCancelled
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(self.dialog.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    self.dialog.wait()
+        finally:
+            if self.temporary:
+                self.temporary.cleanup()
+
+
+def no_cancel():
+    pass
 
 
 def diagnostic(stage, **details):
@@ -212,12 +413,13 @@ def validate(directory, candidate):
     return app
 
 
-def extract(archive, app):
+def extract(archive, app, *, check_cancelled=no_cancel):
     total, seen = 0, set()
     with zipfile.ZipFile(archive) as source:
         if len(source.infolist()) > 20000:
             raise ValueError("Application archive has too many entries")
         for item in source.infolist():
+            check_cancelled()
             name = safe_path(item.filename)
             mode = item.external_attr >> 16
             if item.filename in seen or stat.S_IFMT(mode) not in (0, stat.S_IFREG):
@@ -233,7 +435,7 @@ def extract(archive, app):
             target.chmod(0o700 if mode & 0o111 else 0o600)
 
 
-def install(root, package, policy, candidate, archive, proof=None):
+def install(root, package, policy, candidate, archive, proof=None, *, check_cancelled=no_cancel):
     candidate = descriptor(candidate)
     if checksum(archive) != candidate["archive_sha256"]:
         raise ValueError("Application download checksum mismatch")
@@ -246,8 +448,9 @@ def install(root, package, policy, candidate, archive, proof=None):
         if proof:
             shutil.copytree(proof, staged / "proof")
         authorize(staged, package, policy)
-        extract(archive, staged / "app")
+        extract(archive, staged / "app", check_cancelled=check_cancelled)
         validate(staged, candidate)
+        check_cancelled()
         if destination.exists():
             try:
                 validate(destination, authorize(destination, package, policy))
@@ -267,13 +470,14 @@ class HTTPSRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def download(url, target):
+def download(url, target, *, check_cancelled=no_cancel):
     if not url.startswith(f"https://github.com/{REPOSITORY}/releases/download/"):
         raise ValueError("Unexpected application download URL")
     opener = urllib.request.build_opener(HTTPSRedirect())
     for attempt in range(3):
         complete = False
         try:
+            check_cancelled()
             with opener.open(url, timeout=20) as response, target.open("wb") as output:
                 length = response.headers.get("Content-Length")
                 expected = int(length) if length is not None else None
@@ -281,12 +485,14 @@ def download(url, target):
                     raise ValueError("Application download exceeds size limit")
                 total = 0
                 while block := response.read(1024 * 1024):
+                    check_cancelled()
                     total += len(block)
                     if total > 64 * 1024 * 1024:
                         raise ValueError("Application download exceeds size limit")
                     output.write(block)
                 if expected is not None and total < expected:
                     raise http.client.IncompleteRead(b"", expected - total)
+            check_cancelled()
             complete = True
             return
         except (
@@ -395,7 +601,7 @@ def record_launch(root, state, digest):
     write(root / "state.json", state)
 
 
-def select(root, package, policy, *, archive=None, launch=False):
+def select(root, package, policy, *, archive=None, launch=False, progress=None):
     state_file = root / "state.json"
     state = read_state(root)
     trial = state.get("trial")
@@ -421,7 +627,8 @@ def select(root, package, policy, *, archive=None, launch=False):
             state.pop("trial")
         write(state_file, state)
     baseline = policy["application"]
-    if state.get("baseline") != baseline["archive_sha256"]:
+    baseline_changed = state.get("baseline") != baseline["archive_sha256"]
+    if baseline_changed:
         # A changed package pin permits one fresh trial, including when migrating
         # state from an older loader. The same pin must not revive every crash.
         state["baseline"] = baseline["archive_sha256"]
@@ -437,6 +644,7 @@ def select(root, package, policy, *, archive=None, launch=False):
         app, _ = generation(root, running["digest"], package, policy)
         record_launch(root, state, running["digest"])
         return app, None
+    check_cancelled = progress.check if progress else no_cancel
     candidates = [
         state.get("trial", {}).get("digest"),
         state.get("pending"),
@@ -470,6 +678,7 @@ def select(root, package, policy, *, archive=None, launch=False):
         and os.environ.get("DPE_CLIENT_OFFLINE") != "1"
     ):
         try:
+            check_cancelled()
             with tempfile.TemporaryDirectory(prefix="download-", dir=root) as temporary:
                 source = archive
                 if source is None:
@@ -479,14 +688,22 @@ def select(root, package, policy, *, archive=None, launch=False):
                         )
                     print("Downloading Discord Patched Electron...", file=sys.stderr)
                     source = Path(temporary) / "application.zip"
-                    download(policy["url"], source)
-                directory = install(root, package, policy, baseline, source)
+                if progress:
+                    progress.show([app for _, _, app in sorted(valid, reverse=True)])
+                if archive is None:
+                    download(policy["url"], source, check_cancelled=check_cancelled)
+                if progress:
+                    progress.installing()
+                directory = install(
+                    root, package, policy, baseline, source, check_cancelled=check_cancelled
+                )
                 valid.append((baseline["version"], baseline["archive_sha256"], directory / "app"))
         except FAILURES:
             if not valid:
                 raise
     if not valid:
         raise ValueError("No working application is available; reinstall or retry online")
+    check_cancelled()
     _, digest, app = max(valid)
     token = None
     if launch and digest != state.get("current"):
@@ -541,9 +758,9 @@ def main():
     diagnostic("select-application")
     root = cache_root(package, profile)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    with (root / ".lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        if args.stage:
+    if args.stage:
+        with (root / ".lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
             manifest = read(args.stage / "release.json")
             incoming = descriptor(manifest["application"])
             app, _ = select(root, package, policy)
@@ -559,7 +776,28 @@ def main():
             write(root / "state.json", state)
             print(destination / "app")
             return
-        app, token = select(root, package, policy, archive=args.archive, launch=args.launch)
+    while True:
+        visibility = (
+            SetupProgress(package, profile, policy)
+            if args.launch
+            and (package / "splash/package.json").is_file()
+            and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+            else nullcontext()
+        )
+        try:
+            with visibility as progress, (root / ".lock").open("a") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                app, token = select(
+                    root,
+                    package,
+                    policy,
+                    archive=args.archive,
+                    launch=args.launch,
+                    progress=progress,
+                )
+            break
+        except SetupRetry:
+            continue
     if not args.launch:
         print(app)
         return
@@ -583,20 +821,9 @@ def main():
     os.execve(app / "launch.sh", [str(app / "launch.sh"), *arguments], environment)
 
 
-def show_error(error):
-    diagnostic("bootstrap-error", error=str(error))
-    print(f"Cannot start Discord Patched Electron: {error}", file=sys.stderr)
-    if (
-        "--launch" in sys.argv[1:]
-        and shutil.which("zenity")
-        and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-    ):
-        package = Path(__file__).resolve().parent
-        try:
-            channel = read(package / "bootstrap.json")["channel"]
-        except FAILURES:
-            channel = "canary"
-        desktop = "discord" if channel == "stable" else "discord-" + channel
+def native_error(package, desktop, error):
+    # Called only after the Electron startup screen could not be displayed.
+    if shutil.which("zenity"):
         identity = (os.environ.get("CHROME_DESKTOP") or desktop).removesuffix(".desktop")
         subprocess.run(
             [
@@ -615,6 +842,10 @@ def show_error(error):
 if __name__ == "__main__":
     try:
         main()
+    except SetupCancelled:
+        diagnostic("bootstrap-cancelled")
+        raise SystemExit(1) from None
     except FAILURES as error:
-        show_error(error)
+        diagnostic("bootstrap-error", error=str(error))
+        print(f"Cannot start Discord Patched Electron: {error}", file=sys.stderr)
         raise SystemExit(1) from None

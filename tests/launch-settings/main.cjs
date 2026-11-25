@@ -2065,6 +2065,30 @@ app
     checks.push(
       "Slow autosaves serialize newer edits; closing during debounce saves the final draft before closing",
     );
+    window.webContents.ipc.removeHandler("dpe-launch-save");
+    window.webContents.ipc.handle("dpe-launch-save", async () => ({ error: "Invalid draft" }));
+    await change("flags", baselineFlags + "\n--unsaved-draft");
+    await until(() => get('$("status").textContent.includes("Changes were not saved")'));
+    await evaluate('document.getElementById("flags").focus()');
+    window.close();
+    await until(() => get('document.querySelector(".dpe-settings-confirmation").open'));
+    assert.equal(await get("document.activeElement.textContent.trim()"), "Keep editing");
+    window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+    window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Escape" });
+    await until(() => get('!document.querySelector(".dpe-settings-confirmation").open'));
+    assert.equal(await get("document.activeElement.id"), "flags");
+    assert.ok((await get('$("flags").value')).includes("--unsaved-draft"));
+    window.close();
+    await until(() => get('document.querySelector(".dpe-settings-confirmation").open'));
+    await evaluate(
+      'document.querySelector(".dpe-settings-confirmation button:last-child").click()',
+    );
+    await until(() => window.isDestroyed());
+    await open();
+    assert.equal(await get('$("flags").value'), baselineFlags);
+    checks.push(
+      "Unsaved flags use a Settings dialog that retains the draft on Escape and restores focus",
+    );
 
     assert.equal(await get('$("advanced-label").textContent'), "Show Advanced Settings");
     assert.equal(await get('$("advanced").open'), false);

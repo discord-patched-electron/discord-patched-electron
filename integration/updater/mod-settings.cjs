@@ -356,7 +356,8 @@ async function finishSettings(window) {
   if (!isOnboardingSettings(window))
     throw new Error("This Settings window is not finishing setup.");
   if (busy || onboarding.finishing) throw new Error("Wait for mod setup to finish.");
-  if (!require("./launch-settings.cjs").confirmClose(window)) return { cancelled: true };
+  if (!(await require("./launch-settings.cjs").confirmClose(window))) return { cancelled: true };
+  if (!isOnboardingSettings(window) || busy || onboarding.finishing) return { cancelled: true };
   window.webContents.send("dpe-setup-error", "");
   try {
     return await completeOnboarding(onboarding);

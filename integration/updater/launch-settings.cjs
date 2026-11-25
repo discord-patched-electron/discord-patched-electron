@@ -1,28 +1,28 @@
-const { app, dialog } = require("electron");
+const { app } = require("electron");
 const { execFile } = require("node:child_process");
 const path = require("node:path");
 const preferences = require("./profile.cjs");
 const relaunch = require("./relaunch.cjs");
 const closing = new WeakMap();
 
-function confirmClose(window) {
+async function confirmClose(window) {
   const state = closing.get(window);
   if (state?.saving) {
     state.closeRequested = true;
     return false;
   }
   if (!state?.dirty || state.discardApproved) return true;
-  const discard =
-    dialog.showMessageBoxSync(window, {
-      type: "question",
-      buttons: ["Keep editing", "Discard changes"],
-      defaultId: 0,
-      cancelId: 0,
-      title: "Unsaved flags",
-      message: "Discard your unsaved flags?",
-    }) === 1;
-  if (discard) state.discardApproved = true;
-  return discard;
+  if (!state.confirmation) {
+    state.confirmation = new Promise((resolve) => {
+      state.finishConfirmation = (discard) => {
+        state.discardApproved = discard && !state.saving;
+        state.confirmation = state.finishConfirmation = undefined;
+        resolve(state.discardApproved);
+      };
+    });
+    window.webContents.send("dpe-launch-confirm-discard");
+  }
+  return state.confirmation;
 }
 
 function resetCloseApproval(window) {
@@ -99,6 +99,16 @@ function attach(current) {
       if (!state.dirty && !current.isDestroyed()) current.close();
     }
   });
+  current.webContents.ipc.on("dpe-launch-discard-decision", (event, discard) => {
+    if (
+      event.sender === current.webContents &&
+      event.senderFrame === current.webContents.mainFrame &&
+      typeof discard === "boolean"
+    )
+      state.finishConfirmation?.(discard);
+  });
+  current.once("closed", () => state.finishConfirmation?.(false));
+  current.webContents.once("render-process-gone", () => state.finishConfirmation?.(false));
   const handle = (name, callback) =>
     current.webContents.ipc.handle(name, async (event, ...args) => {
       if (
@@ -147,10 +157,16 @@ function attach(current) {
     return { restarting: true };
   });
   current.webContents.on("will-prevent-unload", (event) => {
-    // Ordinary Settings still prompts on its renderer guard. Onboarding checks
-    // before saving completion, and consumes that same discard decision here.
+    if (state.discardApproved) {
+      event.preventDefault();
+      return;
+    }
+    if (state.confirmation) return;
     state.dirty = true;
-    if (confirmClose(current)) event.preventDefault();
+    // Keep the renderer alive for the confirmation, then retry the close.
+    void confirmClose(current).then((allowed) => {
+      if (allowed && !current.isDestroyed()) current.close();
+    });
   });
 }
 function open() {

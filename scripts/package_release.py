@@ -335,7 +335,13 @@ def package(
     tag = release_tag(build["client_version"], release_key, build["channel"], version)
     payload = output / "payload"
     bootstrap(
-        app, payload, application, tag, build["channel"], build["capacity"]["source"]["target"]
+        app,
+        payload,
+        application,
+        tag,
+        build["channel"],
+        build["capacity"]["source"]["target"],
+        runtime=source / "runtime",
     )
     app = payload
     normalize_permissions(app)

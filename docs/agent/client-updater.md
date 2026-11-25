@@ -39,6 +39,12 @@ verifies every extracted file against a checksum-pinned index. It performs no
 ASAR patching or Electron/client update work. Normal cached launches need no
 network access before handing over to the application.
 
+When the package needs to download its application, the bootstrap can display the
+standard Electron splash first. It uses the cached package-pinned runtime, or a
+verified predecessor's runtime, and loads the packaged HTML in a private runtime
+view. The previous application's resources stay untouched. Closing the splash
+cancels preparation at the next download or extraction checkpoint.
+
 Initial downloads retry transient connection failures, incomplete responses and
 temporary HTTP errors up to three attempts, discarding each partial file. Closing
 setup before its first successful launch does not require downloading the verified
@@ -233,32 +239,25 @@ accepts only the local main frame, and window navigation is blocked.
 
 ## Startup screen and dependencies
 
-After the installed loader selects the application, its `bootstrap.py` selects a
-verified cached runtime before opening the 300×300
-startup screen. A first install uses a cancellable native progress dialog while
-Python downloads Electron; the helper can also run without a desktop dialog.
-The GTK3 dialog is titled **Discord Patched Electron** and says
-**Preparing Electron...**. Native widgets use the desktop
-theme, with centered content, 24px outer padding and 8px between the message and
-progress bar. The titlebar close button cancels preparation. It uses Python's
-`ctypes` and the package's existing GTK3 dependency, without Tkinter or PyGObject.
-GTK's animation setting controls the pulse. Zenity remains a fallback for portable
-installs without GTK3 and is still needed for the screen-share audio picker.
-Later launches reuse the cache without a network check before the splash.
-`startup.cjs` manages the window and retries; `runner.cjs` manages the cancellable
-helper group and bounded JSON-lines output. Preparation begins at DOM readiness
-without waiting for optional media downloads. Diagnostics go to stderr.
-Both helper paths terminate remaining members of their process group on completion,
-failure or cancellation, including descendants that outlive the parent process.
-Native-dialog cancellation is checked again before accepting a completed setup.
+The installed bootstrap ships the 300×300 HTML splash. It opens it from a
+verified cached Electron when application preparation would otherwise happen
+before a window exists. A cold install acquires its first Electron before
+displaying the splash. Later launches reuse the verified cache without a
+network check before the screen appears.
 
-Every startup stage uses the launcher's `CHROME_DESKTOP` identity, matching the
-installed desktop entry and icon. GTK sets its program name before initialization
-and its X11 class afterward; the packaged logo is loaded at 128px to fit X11's
-window-icon limit. Zenity receives the same identity as `argv[0]`, including for
-bootstrap errors. Electron sets its desktop name before readiness and supplies
-the packaged icon to every window, including settings and client popouts.
-OpenAsar autostart entries use the matching icon name and `StartupWMClass`.
+`startup.cjs` manages the regular window and retries. `runner.cjs` owns the
+cancellable helper group and bounded JSON-lines progress stream. Work starts
+at DOM readiness. Optional media can load independently. The launcher switches
+to the exact prepared Electron executable when setup finishes, even when the
+splash used an older runtime.
+
+Electron uses the launcher's `CHROME_DESKTOP` identity and the packaged icon.
+All startup progress and recoverable errors use the HTML splash. Native progress
+windows are prohibited. A native error dialog is permitted only when there is
+no verified Electron available or Electron cannot open the splash. Headless
+launches report bootstrap errors to stderr. First-run Settings confirms unsaved
+launch flags in its own Electron window. OpenAsar autostart entries use the matching
+icon name and `StartupWMClass`.
 
 `modern-splash.html` uses OpenAsar's sandboxed preload and a single progress bar.
 Module and runtime progress share task identities so concurrent work cannot move

@@ -332,9 +332,13 @@ def validate_generation(root: Path, app: Path, policy: dict, digest: str) -> tup
         or not all((generation / name).is_file() for name in REQUIRED_FILES)
         or not os.access(generation / "electron", os.X_OK)
         or (generation / "resources").resolve() != (app / "resources").resolve()
-        or checksum(generation / "electron") != info["executable_sha256"]
-        or ("files" in info and runtime_files(generation) != info["files"])
     ):
+        raise ValueError("Incomplete or mismatched runtime generation")
+    files = runtime_files(generation) if "files" in info else None
+    executable_hash = checksum(generation / "electron") if files is None else files.get("electron")
+    if (files is not None and files != info["files"]) or executable_hash != info[
+        "executable_sha256"
+    ]:
         raise ValueError("Incomplete or mismatched runtime generation")
     return generation / "electron", info
 
@@ -457,10 +461,11 @@ def install_runtime(
         extract(archive, staged)
         (staged / "resources").symlink_to(app / "resources", target_is_directory=True)
         probe(staged / "electron", incoming["electron_version"])
+        files = runtime_files(staged)
         info = {
             **incoming,
-            "executable_sha256": checksum(staged / "electron"),
-            "files": runtime_files(staged),
+            "executable_sha256": files["electron"],
+            "files": files,
         }
         write_json(staged / "runtime.json", info)
         replace_damaged(staged, destination)

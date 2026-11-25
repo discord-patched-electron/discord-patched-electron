@@ -50,6 +50,12 @@ contextBridge.exposeInMainWorld("Native", {
 contextBridge.exposeInMainWorld("LaunchSettings", {
   setDirty: (dirty) => ipcRenderer.send("dpe-launch-dirty", dirty),
   setSaving: (saving) => ipcRenderer.send("dpe-launch-saving", saving),
+  onConfirmDiscard: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("dpe-launch-confirm-discard", listener);
+    return () => ipcRenderer.removeListener("dpe-launch-confirm-discard", listener);
+  },
+  discardDecision: (discard) => ipcRenderer.send("dpe-launch-discard-decision", discard),
   load: () => ipcRenderer.invoke("dpe-launch-load"),
   preview: (config) => ipcRenderer.invoke("dpe-launch-preview", config),
   save: (config, fileRevision) => ipcRenderer.invoke("dpe-launch-save", config, fileRevision),
