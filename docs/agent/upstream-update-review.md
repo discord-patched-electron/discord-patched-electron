@@ -433,6 +433,20 @@ probe still encounters missing lazy CSS modules; its failure is retained as a
 harness coverage gap rather than reported as a pass. Account calls, a real Fedora Atomic installation, other GPUs
 and cross-platform behavior remain unverified. No release is published or approved.
 
+The long-running 2484/alpha.10 session also produced a SIGSEGV in
+`discord::node_api::Environment` bookkeeping inside `discord_utils.node`.
+The mapped utils module SHA-256 was
+`a2159205be8276cc28e787660721fd49dddb13ec4432f3a170063db9288ece2c`,
+which differs from both reviewed comparison and candidate utils binaries.
+The fault is a null bucket-list access with a retained bucket count of two in
+the static `GetEnvironmentToken::env_count` table. This is consistent with an
+invalid table lifetime/state; it does not establish the cause or a link to the
+reported startup flags issue. `out/update-20261125/primary-crash-metadata.json`
+and `primary-crash-registers.json` retain the native evidence. Only ELF core
+notes were read; no heap or raw core was extracted, and the primary profile was
+not relaunched. Long-running native-module teardown/lifetime remains an explicit
+limit of the bounded synthetic checks.
+
 The subsequent Canary 1.0.2513 snapshot is pinned to state
 `683b87868c1f09d7ce58ca77dd50fe187c1dea72`; its verified comparison is retained in
 `out/update-20261125/`. Its 21 changed member entries include stricter external-URL
