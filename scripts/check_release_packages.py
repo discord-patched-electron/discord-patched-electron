@@ -9,7 +9,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from application_payload import validate_bootstrap
+from application_payload import bootstrap_entry_allowed, validate_bootstrap
 from common import read_json, sha256, write_json
 from stage_updater import validate_distribution, validate_payload_entry
 
@@ -36,28 +36,10 @@ def check_bootstrap_archive(bundle, root):
     policy = json.load(bundle.extractfile(root + "/bootstrap.json"))
     if policy.get("schema") != 1 or policy["application"].get("asset") != "application.zip":
         raise ValueError("Package is not a minimal bootstrap distribution")
-    allowed = {
-        "loader.py",
-        "uninstall.py",
-        "launch.sh",
-        "bootstrap.json",
-        "release-signing-key.asc",
-        "discord.png",
-        "README.txt",
-        "SHA256SUMS",
-        "licenses",
-    }
     for entry in bundle.getmembers():
         if entry.name.startswith(root + "/"):
             relative = Path(entry.name.removeprefix(root + "/"))
-            if (
-                entry.issym()
-                or entry.islnk()
-                or (
-                    relative.parts[0] not in allowed
-                    and not (len(relative.parts) == 1 and relative.suffix == ".desktop")
-                )
-            ):
+            if entry.issym() or entry.islnk() or not bootstrap_entry_allowed(relative):
                 raise ValueError("Unexpected application code in installer: " + entry.name)
 
 

@@ -70,6 +70,7 @@ SUPPORT = [
     "scripts/stage_package.py",
     "scripts/application_payload.py",
     "integration/bootstrap/loader.py",
+    "integration/bootstrap/splash.cjs",
     "integration/bootstrap/uninstall.py",
     "scripts/stage_updater.py",
     "scripts/stage_capture_backends.py",

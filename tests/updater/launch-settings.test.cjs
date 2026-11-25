@@ -6,7 +6,6 @@ const vm = require("node:vm");
 const { test } = require("node:test");
 
 function fixture() {
-  let response = 0;
   const prompts = [];
   const calls = [];
   const handlers = new Map();
@@ -19,7 +18,9 @@ function fixture() {
   window.webContents = Object.assign(new EventEmitter(), {
     mainFrame: {},
     ipc,
-    send() {},
+    send(name) {
+      if (name === "dpe-launch-confirm-discard") prompts.push(name);
+    },
   });
   const mods = {
     isOnboarding: () => false,
@@ -32,16 +33,7 @@ function fixture() {
   };
   const context = {
     require(name) {
-      if (name === "electron")
-        return {
-          app: {},
-          dialog: {
-            showMessageBoxSync: (_window, options) => {
-              prompts.push(options);
-              return response;
-            },
-          },
-        };
+      if (name === "electron") return { app: {} };
       if (name === "node:child_process") return {};
       if (name === "node:path") return path;
       if (name === "./profile.cjs") return {};
@@ -66,21 +58,26 @@ function fixture() {
     handlers,
     calls,
     mods,
-    set response(value) {
-      response = value;
+    decide(discard, frame = event) {
+      ipc.emit("dpe-launch-discard-decision", frame, discard);
     },
   };
 }
 
-test("onboarding close confirms unsaved flags once, rejects foreign dirty state and permits retry", () => {
+test("onboarding close confirms unsaved flags once, rejects foreign state and permits retry", async () => {
   const f = fixture();
   f.ipc.emit("dpe-launch-dirty", { sender: {}, senderFrame: {} }, true);
-  assert.equal(f.api.confirmClose(f.window), true);
+  assert.equal(await f.api.confirmClose(f.window), true);
   assert.equal(f.prompts.length, 0);
   f.ipc.emit("dpe-launch-dirty", f.event, true);
-  assert.equal(f.api.confirmClose(f.window), false);
-  f.response = 1;
-  assert.equal(f.api.confirmClose(f.window), true);
+  const keep = f.api.confirmClose(f.window);
+  f.decide(true, { sender: {}, senderFrame: {} });
+  const repeated = f.api.confirmClose(f.window);
+  f.decide(false);
+  assert.deepEqual(await Promise.all([keep, repeated]), [false, false]);
+  const discard = f.api.confirmClose(f.window);
+  f.decide(true);
+  assert.equal(await discard, true);
   let allowed = false;
   f.window.webContents.emit("will-prevent-unload", {
     preventDefault: () => {
@@ -90,11 +87,12 @@ test("onboarding close confirms unsaved flags once, rejects foreign dirty state 
   assert.equal(allowed, true);
   assert.equal(f.prompts.length, 2);
   f.api.resetCloseApproval(f.window);
-  f.response = 0;
-  assert.equal(f.api.confirmClose(f.window), false);
+  const afterFailure = f.api.confirmClose(f.window);
+  f.decide(false);
+  assert.equal(await afterFailure, false);
   assert.equal(f.prompts.length, 3);
   f.ipc.emit("dpe-launch-dirty", f.event, false);
-  assert.equal(f.api.confirmClose(f.window), true);
+  assert.equal(await f.api.confirmClose(f.window), true);
 });
 
 test("Restart Discord delegates only onboarding Settings to guarded completion", async () => {
@@ -112,10 +110,10 @@ test("Restart Discord delegates only onboarding Settings to guarded completion",
 test("close waits for debounced or in-flight autosave and retries only after a successful save", async () => {
   const f = fixture();
   f.ipc.emit("dpe-launch-saving", { sender: {}, senderFrame: {} }, true);
-  assert.equal(f.api.confirmClose(f.window), true);
+  assert.equal(await f.api.confirmClose(f.window), true);
   f.ipc.emit("dpe-launch-dirty", f.event, true);
   f.ipc.emit("dpe-launch-saving", f.event, true);
-  assert.equal(f.api.confirmClose(f.window), false);
+  assert.equal(await f.api.confirmClose(f.window), false);
   assert.equal(f.prompts.length, 0);
   assert.match((await f.handlers.get("dpe-launch-restart")(f.event)).error, /Wait for flags/);
   f.ipc.emit("dpe-launch-dirty", f.event, false);
@@ -123,9 +121,11 @@ test("close waits for debounced or in-flight autosave and retries only after a s
   assert.deepEqual(f.calls, ["close"]);
   f.ipc.emit("dpe-launch-dirty", f.event, true);
   f.ipc.emit("dpe-launch-saving", f.event, true);
-  assert.equal(f.api.confirmClose(f.window), false);
+  assert.equal(await f.api.confirmClose(f.window), false);
   f.ipc.emit("dpe-launch-saving", f.event, false);
   assert.deepEqual(f.calls, ["close"], "failed validation keeps the draft visible");
-  assert.equal(f.api.confirmClose(f.window), false);
+  const keep = f.api.confirmClose(f.window);
+  f.decide(false);
+  assert.equal(await keep, false);
   assert.equal(f.prompts.length, 1, "invalid draft may be explicitly discarded");
 });

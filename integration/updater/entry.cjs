@@ -6,6 +6,7 @@ const Module = require("node:module");
 const links = require("../desktop/links.cjs");
 require("./diagnostic-log.cjs").install(app);
 const patches = require("./patches.cjs");
+let createWindow;
 
 function start() {
   const root = process.env.DPE_APP_ROOT;
@@ -43,7 +44,6 @@ function start() {
     // Do not evaluate the Discord bootstrap or create its window before Done.
     // Welcome finishes by relaunching so new mod loaders and launch flags apply.
     require("./profile.cjs").paths(app, info, installed).init();
-    require("./window.cjs"); // Register the local scheme before Electron becomes ready.
     if (!require("./profile.cjs").config().multiInstance && !app.requestSingleInstanceLock()) {
       app.exit(0);
       return;
@@ -121,13 +121,35 @@ function start() {
 
 function fail(error) {
   console.error(error);
-  app.whenReady().then(() => {
-    dialog.showErrorBox("Discord could not start", String(error.message));
+  let ended = false;
+  const splashFailed = () => {
+    if (ended) return;
+    ended = true;
+    if (process.env.DISPLAY || process.env.WAYLAND_DISPLAY)
+      dialog.showErrorBox("Discord could not start", String(error.message));
     app.exit(1);
-  });
+  };
+  void app
+    .whenReady()
+    .then(() => {
+      if (!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return app.exit(1);
+      const view = createWindow((action) => {
+        if (action === "retry") require("./relaunch.cjs").restart(app);
+      });
+      let painted = false;
+      view.window.once("ready-to-show", () => (painted = true));
+      view.window.once("closed", () => {
+        if (painted) app.exit(1);
+        else splashFailed();
+      });
+      view.window.webContents.once("render-process-gone", splashFailed);
+      view.update({ stage: "error", ...require("./failure.cjs")(error), seconds: null });
+    })
+    .catch(splashFailed);
 }
 
 try {
+  createWindow = require("./window.cjs"); // Register the scheme before Electron is ready.
   require("../desktop/preferences.cjs").configureMediaControls(
     app.commandLine,
     require("./profile.cjs").config().desktop,

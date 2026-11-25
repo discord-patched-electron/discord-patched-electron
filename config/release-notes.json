@@ -1,6 +1,15 @@
 {
   "schema": 1,
   "commits": {
+    "673ba92c10955cdaec33e1e9d28adf7171e8de94": {
+      "Improvements": [
+        "Show the HTML updater splash from a verified cached Electron before downloading a replacement application, then switch to the prepared runtime automatically."
+      ],
+      "Fixes": [
+        "Show recoverable startup and installation errors in the Electron splash. Reserve native error dialogs for failures that prevent Electron from displaying that splash.",
+        "Keep first-run launch flag discard confirmations inside the DPE Settings window."
+      ]
+    },
     "7dd195e6877535f78001b99693c3d9bfb0446227": {
       "Improvements": [
         "Update Discord Canary to 1.0.2513 and port Electron 46.0.0-alpha.13, preserving upstream security fixes and the new native voice-module layout."

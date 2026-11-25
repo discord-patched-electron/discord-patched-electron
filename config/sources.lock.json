@@ -199,7 +199,6 @@
     },
     "prerelease": {
       "commit": "d5343c16c17bbab06ea769b0f4b7633e846e4169",
-      "compatibility": "runtime-validated",
       "version": "46.0.0-alpha.13"
     },
     "stable": {

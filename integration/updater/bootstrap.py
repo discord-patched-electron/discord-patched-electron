@@ -6,14 +6,11 @@ import signal
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 from bootstrap_dialog import zenity_command
 from diagnostic_log import event as diagnostic_event
 from runtime import FAILURES, ensure_runtime
-
-DIALOG_DELAY_SECONDS = 2.0
 
 
 def stop_helper(task):
@@ -45,9 +42,6 @@ def prepare(app: Path, profile: Path) -> str:
     except FAILURES:
         if os.environ.get("DPE_CLIENT_OFFLINE") == "1":
             raise
-    # Most launches return above. Give uncached setup a short quiet period too;
-    # only show progress if the helper is still working after that delay.
-    dialog = None
     command = [
         sys.executable,
         str(app / "integration/updater/runtime.py"),
@@ -58,30 +52,7 @@ def prepare(app: Path, profile: Path) -> str:
     with tempfile.TemporaryFile(mode="w+") as errors, tempfile.TemporaryFile(mode="w+") as result:
         task = subprocess.Popen(command, stdout=result, stderr=errors, start_new_session=True)
         try:
-            show_at = time.monotonic() + DIALOG_DELAY_SECONDS
-            dialog_pending = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-            while task.poll() is None:
-                if dialog_pending and time.monotonic() >= show_at:
-                    dialog_pending = False
-                    try:
-                        dialog = subprocess.Popen(
-                            [
-                                sys.executable,
-                                str(app / "integration/updater/bootstrap_dialog.py"),
-                            ],
-                            stdin=subprocess.PIPE,
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                        )
-                    except OSError:
-                        pass
-                if dialog and dialog.poll() == 1:
-                    raise InterruptedError("Electron setup cancelled")
-                time.sleep(0.1)
-            # The helper may finish between polls after the dialog was closed.
-            # Do not turn that cancellation into a successful launch handoff.
-            if dialog and dialog.poll() == 1:
-                raise InterruptedError("Electron setup cancelled")
+            task.wait()
             errors.seek(0)
             details = errors.read()
             if details:
@@ -93,18 +64,7 @@ def prepare(app: Path, profile: Path) -> str:
             result.seek(0)
             return result.read().strip()
         finally:
-            try:
-                stop_helper(task)
-            finally:
-                if dialog:
-                    dialog.stdin.close()
-                    if dialog.poll() is None:
-                        dialog.terminate()
-                    try:
-                        dialog.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        dialog.kill()
-                        dialog.wait()
+            stop_helper(task)
 
 
 def main():

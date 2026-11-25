@@ -784,6 +784,31 @@
   opacity: 1;
 }
 
+.dpe-ui .dpe-settings-confirmation {
+  box-sizing: border-box;
+  width: var(--dpe-discord-modal-width, 440px);
+  max-width: calc(100% - 32px);
+  padding: var(--space-16, 16px);
+  border: 1px solid var(--dpe-border);
+  border-radius: var(--dpe-radius);
+  background: var(--background-floating, var(--dpe-surface));
+  color: var(--dpe-heading);
+  box-shadow: var(--elevation-high, 0 8px 24px #0005);
+}
+.dpe-ui .dpe-settings-confirmation::backdrop {
+  background: var(--black-alpha-60, rgb(0 0 0 / 0.6));
+}
+.dpe-ui .dpe-settings-confirmation h2 {
+  margin: 0;
+}
+.dpe-ui .dpe-settings-confirmation footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: var(--space-8, 8px);
+  margin-top: var(--space-16, 16px);
+}
+
 /* PiP controls share the stream status container's own fade/transform. */
 [data-dpe-pip-anchor] {
   position: relative;

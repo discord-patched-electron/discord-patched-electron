@@ -1,9 +1,9 @@
 /** @jsxImportSource preact */
 import { render } from "preact";
-import { useLayoutEffect, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import "../settings-controls.js";
 import flagEditor from "../flag-editor.js";
-import { fallback, Presentation, WindowTitle } from "./primitives.jsx";
+import { Button, fallback, Presentation, WindowTitle } from "./primitives.jsx";
 import { useMods } from "./mods.jsx";
 import { SettingsShell } from "./settings-shell.jsx";
 import { Onboarding } from "./onboarding.jsx";
@@ -13,6 +13,42 @@ window.FlagEditor = flagEditor;
 const welcome = window.Native.getMode?.() === "welcome";
 document.body.dataset.mode = welcome ? "welcome" : "settings";
 document.title = welcome ? "Welcome to DPE" : "DPE Settings";
+
+function DiscardFlags() {
+  const dialog = useRef();
+  useLayoutEffect(
+    () => window.LaunchSettings.onConfirmDiscard(() => dialog.current.showModal()),
+    [],
+  );
+  const finish = (discard) => {
+    dialog.current.close();
+    window.LaunchSettings.discardDecision(discard);
+  };
+  return (
+    <dialog
+      ref={dialog}
+      class="dpe-settings-confirmation"
+      aria-labelledby="discard-flags-title"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") event.stopPropagation();
+      }}
+      onCancel={(event) => {
+        event.preventDefault();
+        finish(false);
+      }}
+    >
+      <h2 id="discard-flags-title">Discard your unsaved flags?</h2>
+      <footer>
+        <Button autofocus onClick={() => finish(false)}>
+          Keep editing
+        </Button>
+        <Button variant="primary" onClick={() => finish(true)}>
+          Discard changes
+        </Button>
+      </footer>
+    </dialog>
+  );
+}
 
 function App() {
   const [presentation, setPresentation] = useState({
@@ -64,7 +100,10 @@ function App() {
       {welcome ? (
         <Onboarding model={model} />
       ) : (
-        <SettingsShell model={model} error={error} onError={setError} />
+        <>
+          <SettingsShell model={model} error={error} onError={setError} />
+          <DiscardFlags />
+        </>
       )}
     </Presentation.Provider>
   );

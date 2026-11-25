@@ -304,6 +304,7 @@ test("Configure more closes Welcome only after Settings is ready, then closes on
   assert.equal(f.api.isOnboardingSettings(f.configured), true);
   assert.equal(f.quits, 0);
   f.configured.close();
+  await tick();
   assert.equal(f.configured.isDestroyed(), false);
   assert.equal(f.children.at(-1).action, "complete");
   f.configured.close();
@@ -352,10 +353,12 @@ test("unsaved flags can cancel onboarding Settings close without starting comple
   await configure;
   f.allowDiscard = false;
   f.configured.close();
+  await tick();
   assert.equal(f.configured.isDestroyed(), false);
   assert.equal(f.children.filter((child) => child.action === "complete").length, 0);
   f.allowDiscard = true;
   const completed = f.api.finishSettings(f.configured);
+  await tick();
   f.finish({ ...state, setupComplete: true, onboardingPending: false });
   await completed;
   assert.equal(f.configured.isDestroyed(), true);
@@ -518,6 +521,7 @@ for (const failure of ["completion", "restart"]) {
     f.configured.show();
     await configure;
     f.configured.close();
+    await tick();
     f.finish(
       failure === "completion"
         ? { error: "Could not save setup marker" }
@@ -532,6 +536,7 @@ for (const failure of ["completion", "restart"]) {
     assert.equal(f.api.isOnboarding(), true);
     assert.equal(launches, 0);
     const done = f.api.setupAction("done");
+    await tick();
     f.finish({ ...installed, setupComplete: true, onboardingPending: false });
     assert.equal((await done).completed, true);
     assert.equal(launches, 1);
