@@ -74,6 +74,13 @@ async function main() {
   const requests = [];
   async function fetchFixture(url) {
     requests.push(String(url));
+    if (
+      bundled &&
+      /^https:\/\/api.github.com\/repos\/Equicord\/Equicord\/compare\/[a-f0-9]{40}\.\.\.HEAD$/.test(
+        url,
+      )
+    )
+      return Response.json({ ahead_by: 1, commits: [] });
     if (/^https:\/\/api.github.com\/repos\/[^/]+\/[^/]+\/releases\/latest$/.test(url))
       return Response.json({
         name: `Fixture ${marker}`,

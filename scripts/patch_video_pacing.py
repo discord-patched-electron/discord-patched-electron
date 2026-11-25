@@ -15,11 +15,13 @@ from native_client_2444 import STAGES
 from native_client_2472 import STAGES as CLIENT_2472_STAGES
 from native_client_2483 import STAGES as CLIENT_2483_STAGES
 from native_client_2484 import STAGES as CLIENT_2484_STAGES
+from native_client_2510 import STAGES as CLIENT_2510_STAGES
 
 PATCH = "screenshare-pacing-default-v1"
 BEFORE = b"1.0,2875,80,40,-60,3\0"
 AFTER = b"2.5,0050,80,40,-60,3\0"
 REVIEWED = (
+    (*CLIENT_2510_STAGES["pacing"][0:2], CLIENT_2510_STAGES["pacing"][2][0][0]),
     (*CLIENT_2484_STAGES["pacing"][0:2], CLIENT_2484_STAGES["pacing"][2][0][0]),
     (*CLIENT_2483_STAGES["pacing"][0:2], CLIENT_2483_STAGES["pacing"][2][0][0]),
     (*CLIENT_2472_STAGES["pacing"][0:2], CLIENT_2472_STAGES["pacing"][2][0][0]),
@@ -38,6 +40,7 @@ REVIEWED = (
 OUTPUT_BASES = {after: before for before, after, _ in REVIEWED}
 OUTPUT_BASES[CLIENT_2483_STAGES["pulse-reconnect"][1]] = CLIENT_2483_STAGES["pacing"][0]
 OUTPUT_BASES[CLIENT_2484_STAGES["pulse-reconnect"][1]] = CLIENT_2484_STAGES["pacing"][0]
+OUTPUT_BASES[CLIENT_2510_STAGES["pulse-reconnect"][1]] = CLIENT_2510_STAGES["pacing"][0]
 
 
 def corrected(data):
@@ -45,6 +48,7 @@ def corrected(data):
     if digest in (
         CLIENT_2483_STAGES["pulse-reconnect"][1],
         CLIENT_2484_STAGES["pulse-reconnect"][1],
+        CLIENT_2510_STAGES["pulse-reconnect"][1],
     ):
         return data
     for before, after, offset in REVIEWED:

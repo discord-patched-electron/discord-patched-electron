@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path("/usr/local/libexec/discord-patched-electron")
 SERVER = ROOT / "kms-server"
 RULES = Path("/etc/polkit-1/rules.d")
-ACTIONS = Path("/usr/share/polkit-1/actions")
+ACTIONS = Path("/etc/polkit-1/actions")
 ACTION = "org.discord-patched-electron.capture"
 MAINTENANCE_ACTION = ACTION + ".maintain"
 BUNDLE = Path(__file__).resolve().parents[2] / "capture"
@@ -29,6 +29,7 @@ _SETFSUID = ctypes.CDLL(None).setfsuid
 _SETFSUID.argtypes = [ctypes.c_uint]
 _SETFSUID.restype = ctypes.c_uint
 _QUERY_FSUID = 0xFFFFFFFF
+POLICY_ROOT = str(ROOT)
 POLICY = f'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
@@ -54,14 +55,24 @@ POLICY = f'''<?xml version="1.0" encoding="UTF-8"?>
 '''
 
 
-def root_directory(path: Path):
-    # Check every ancestor even when the leaf already exists. No symlink or
-    # user-writable privileged installation directory is accepted/repaired.
+def root_directory(path: Path, depth: int = 0):
+    # Permit root-controlled redirects such as Fedora Atomic's /usr/local,
+    # checking both the link's ancestors and its destination before writing.
+    if depth > 64:
+        raise ValueError("Permission directory link cycle")
     if path.parent != path:
-        root_directory(path.parent)
-    if not path.exists():
+        root_directory(path.parent, depth + 1)
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
         path.mkdir(mode=0o755)
-    info = path.lstat()
+        info = path.lstat()
+    if stat.S_ISLNK(info.st_mode):
+        if info.st_uid != 0:
+            raise ValueError("Untrusted permission directory link")
+        target = path.readlink()
+        root_directory(target if target.is_absolute() else path.parent / target, depth + 1)
+        return
     if (
         not stat.S_ISDIR(info.st_mode)
         or info.st_uid != 0
@@ -240,7 +251,9 @@ def apply(uid, data, binding, *, maintenance=None):
                 ROOT / "maintenance-authority.json", (json.dumps(authority) + "\n").encode(), 0o644
             )
             atomic_write(record, (json.dumps(policy) + "\n").encode(), 0o644)
-        atomic_write(ACTIONS / f"{ACTION}.policy", POLICY.encode(), 0o644)
+        # pkexec resolves its executable before matching exec.path annotations.
+        policy = POLICY.replace(POLICY_ROOT, str(ROOT.resolve(strict=True)))
+        atomic_write(ACTIONS / f"{ACTION}.policy", policy.encode(), 0o644)
         atomic_write(grant, rule(pwd.getpwuid(uid).pw_name).encode(), 0o644)
         atomic_write(marker, binding, 0o644)
     else:

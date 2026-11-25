@@ -174,6 +174,7 @@ unsafe fn install(env: Env, info: Info) -> Result<Value, &'static CStr> {
         0xe3ecf0 => 0x231fb90,
         0xe412b0 => 0x2323c10,
         0xe42cb0 => 0x2326c10,
+        0xe469b0 => 0x232bc10,
         _ => return Err(c"Unreviewed native selected storage."),
     };
     let selected = [selection, selection + 0x50, selection + 0x58];
@@ -279,7 +280,11 @@ unsafe fn install(env: Env, info: Info) -> Result<Value, &'static CStr> {
     INSTALLED.store(slot, Ordering::Release);
     Ok(undefined(env))
 }
-const WAKE_OFFSETS: [[u32; 10]; 6] = [
+const WAKE_OFFSETS: [[u32; 10]; 7] = [
+    [
+        0xeb223d, 0xe9c220, 0xebd786, 0xe9c330, 0xebbfd5, 0xe9c330, 0xe432ee, 0xe4be90, 0xe43316,
+        0xe895e0,
+    ],
     [
         0xeae53d, 0xe98520, 0xeb9a86, 0xe98630, 0xeb82d5, 0xe98630, 0xe3f5ee, 0xe48190, 0xe3f616,
         0xe858e0,
@@ -320,12 +325,13 @@ unsafe fn install_wake(env: Env, info: Info) -> Result<bool, &'static CStr> {
         .checked_sub(module.base)
         .ok_or(c"Capture wake module changed.")?;
     let expected = match show {
-        0xe2c3b0 => WAKE_OFFSETS[3],
-        0xe5fe50 => WAKE_OFFSETS[4],
-        0xe326f0 => WAKE_OFFSETS[5],
-        0xe3ecf0 => WAKE_OFFSETS[2],
-        0xe412b0 => WAKE_OFFSETS[1],
-        0xe42cb0 => WAKE_OFFSETS[0],
+        0xe2c3b0 => WAKE_OFFSETS[4],
+        0xe5fe50 => WAKE_OFFSETS[5],
+        0xe326f0 => WAKE_OFFSETS[6],
+        0xe3ecf0 => WAKE_OFFSETS[3],
+        0xe412b0 => WAKE_OFFSETS[2],
+        0xe42cb0 => WAKE_OFFSETS[1],
+        0xe469b0 => WAKE_OFFSETS[0],
         _ => return Ok(false),
     };
     if offsets != expected {

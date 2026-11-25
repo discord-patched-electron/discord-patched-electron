@@ -110,6 +110,15 @@ an arbitrary installer/interpreter/user-selected root executable. Old setup need
 explicit migration once. Revocation disables maintenance before removing rules;
 re-enabling requires setup approval.
 
+The installer writes local polkit actions to `/etc/polkit-1/actions`, keeping
+`/usr` read-only on Fedora Atomic. It accepts root-owned directory symlinks such
+as `/usr/local` → `/var/usrlocal` only after validating every link and the raw
+target's ancestors; user-owned or writable destinations remain rejected. The
+Python installer, JavaScript status checks, Rust capture startup and bootstrap
+uninstaller enforce this boundary. Policy executable annotations use the trusted
+canonical installation path because `pkexec` resolves its target before matching
+an action. Final removal handles both local and legacy `/usr/share` policies.
+
 ## Verified KMS maintenance
 
 The exact installed initial tuple can refresh its executable grant offline.

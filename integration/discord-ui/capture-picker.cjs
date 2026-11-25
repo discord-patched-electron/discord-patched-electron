@@ -474,6 +474,7 @@ module.exports = function capturePicker(request, ui, makeView) {
       }
       if (active && shape.start) {
         const startNode = React.cloneElement(shape.start, {
+          text: "Stream",
           disabled:
             busy || !sources.some((source) => source.token === selected && source.available),
           onClick: start,

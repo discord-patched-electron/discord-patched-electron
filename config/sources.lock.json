@@ -41,8 +41,8 @@
       }
     },
     "46": {
-      "anchor_commit": "c76ee1bdf7fcbe45c16344c607852164c82e2b7b",
-      "candidate_tree": "c3e54f7daf66a251eae5973eec4e46e3069a6dba",
+      "anchor_commit": "d5343c16c17bbab06ea769b0f4b7633e846e4169",
+      "candidate_tree": "e5dfd26e3a68c0a8592afd37404b6f4845ac37d4",
       "dependency_notes": {
         "chromium/add_missing_lock_annotation.patch": "Omitted from dependency series: upstream Environment::Create already has EXCLUSIVE_LOCKS_REQUIRED(GetLock()).",
         "chromium/av_add_ability_to_get_native_gpu-backed_textures_out_of_chromium.patch": "Preserve frame-scoped audio authorization and resolve every pending RestrictionTarget resolver with the Discord capture token.",
@@ -102,10 +102,14 @@
         {
           "patch": "patches/ports/46/alpha10-dependencies.patch",
           "patch_sha256": "45ab39e2cf363b22f4229560160d5da04281bf168d62454b6325ac82208832f7"
+        },
+        {
+          "patch": "patches/ports/46/alpha13-dependencies.patch",
+          "patch_sha256": "554ec47fb955d2c21a27cb320c69dec7ab9a91234c5c5516b7628c77eb097ba5"
         }
       ],
       "patch": "patches/ports/46/compatibility.patch",
-      "patch_sha256": "af5730624e303b93f16f6180643b4fa2619f501c0475c8e73857f3af0d65fe4a",
+      "patch_sha256": "5cc32cf2590b1ce6440dea224dc70dacb338a1f8795179ba47f54f9447140ac4",
       "replaced_paths": [
         "BUILD.gn",
         "build/zip.py",
@@ -129,7 +133,7 @@
         "shell/renderer/electron_api_service_impl.cc",
         "shell/renderer/electron_api_service_impl.h"
       ],
-      "status": "runtime-validated",
+      "status": "source-only",
       "upstream_equivalents": {
         "build/zip.py": "Preserve upstream WER packaging and static-ANGLE stub exclusions for the Linux build.",
         "lib/browser/api/web-contents.ts": "The deviceScaleFactor property moves into the native WebContents template, matching the new upstream accessor layout.",
@@ -190,9 +194,8 @@
       "version": "47.0.0-nightly.20261023"
     },
     "prerelease": {
-      "version": "46.0.0-alpha.10",
-      "commit": "bdaeaaa4795ee641a6d8262496e028c371533e09",
-      "compatibility": "runtime-validated"
+      "commit": "d5343c16c17bbab06ea769b0f4b7633e846e4169",
+      "version": "46.0.0-alpha.13"
     },
     "stable": {
       "commit": "54f961b44b83e4ece81065ab60a182fd0c38c01e",

@@ -284,6 +284,7 @@ RULES = (
             "scripts/native_client_2472.py",
             "scripts/native_client_2483.py",
             "scripts/native_client_2484.py",
+            "scripts/native_client_2510.py",
             "scripts/patch_capture_dimensions.py",
             "scripts/patch_capture_chroma.py",
             "scripts/patch_presentation_clock.py",

@@ -81,9 +81,29 @@ class PulseReconnect(unittest.TestCase):
             0x185D127: "thread_name",
             0x4737B5: "duplicate_done",
         }
+        latest = {
+            2695120: "loop_new",
+            25563767: "thread_name",
+            2692400: "loop_name",
+            2695776: "loop_start",
+            2689824: "loop_lock",
+            2697968: "ctx_state",
+            4685744: "detach",
+            2699008: "ctx_unref",
+            2688752: "loop_api",
+            25563751: "client_name",
+            2687216: "ctx_new",
+            4682848: "callback_state",
+            2689056: "ctx_set_state",
+            4679536: "callback_event",
+            2689008: "ctx_subscribe",
+            2698368: "ctx_connect",
+            2687536: "loop_unlock",
+        }
         for version, sites, bindings in (
             ("2483", reconnect.SITES, targets),
             ("2484", reconnect.CLIENT_2484_STAGES["pulse-reconnect"][2], relocated),
+            ("2510", reconnect.CLIENT_2510_STAGES["pulse-reconnect"][2], latest),
         ):
             with self.subTest(version=version):
                 self.execute_instructions(sites, bindings)

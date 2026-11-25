@@ -473,6 +473,14 @@ def software_av1_scope(elf):
         "7ReleaseEv",
     )
     reviewed = (
+        # Canary 1.0.2510: canonical bodies, call targets and literals match 2484.
+        (
+            "b7586cf8afd02e8d02890fd55431edd1748168e120b4a3d9c1bfe12348801b23",
+            "000fb96b47c2d03bd4bdb2e8b5c9649140ccd755f175bd8a6e205b10f0d2190e",
+            "7e09c492e1b23c6a4b695d0ada178d2077fc50851f5b25848ad1ed6e04c8bf0a",
+            "bdaeba2c8332f727f2bb078c6e5bff277fa085f7779c6ce039219da9f12350c6",
+            "a2ba9fd210eb7bafa3a1c063f97ab5836ff67468de34dc5c05ef01ee5c30eb16",
+        ),
         # Canary 1.0.2484: unchanged bodies and dav1d call identities.
         (
             "ddce5515d5134ec3fc2b14fb44e7cc4326f0f7993a87ef2fc7969ba61f02547b",

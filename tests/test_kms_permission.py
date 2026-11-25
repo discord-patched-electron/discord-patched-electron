@@ -58,6 +58,27 @@ class KmsPermission(unittest.TestCase):
                 setup.root_directory(setup.ROOT)
             mkdir.assert_not_called()
 
+    def test_root_owned_atomic_redirect_checks_target_and_its_ancestors(self):
+        link = Path("/usr/local")
+        destination = Path("/var/usrlocal")
+        for bad in (None, link, Path("/var"), destination):
+
+            def info(path, bad=bad):
+                mode = stat.S_IFLNK | 0o777 if path == link else stat.S_IFDIR | 0o755
+                return os.stat_result((mode, 0, 0, 1, 1000 if path == bad else 0, 0, 0, 0, 0, 0))
+
+            with (
+                patch.object(Path, "lstat", autospec=True, side_effect=info),
+                patch.object(Path, "readlink", return_value=destination),
+                patch.object(Path, "mkdir") as mkdir,
+            ):
+                if bad is None:
+                    setup.root_directory(setup.ROOT)
+                else:
+                    with self.assertRaises(ValueError):
+                        setup.root_directory(setup.ROOT)
+                mkdir.assert_not_called()
+
     def test_bundled_payload_checks_exact_manifest_and_rejects_links(self):
         with (
             tempfile.TemporaryDirectory() as temporary,
@@ -223,6 +244,9 @@ class KmsPermission(unittest.TestCase):
                 else:
                     self.assertEqual(marker.read_bytes(), binding)
                     self.assertEqual(writes[-1], marker)
+                    policy = (actions / f"{setup.ACTION}.policy").read_text()
+                    self.assertIn(f">{root.resolve()}/kms-server</annotate>", policy)
+                    self.assertNotIn(setup.POLICY_ROOT, policy)
 
     def test_initial_authority_installs_fixed_root_files_and_denies_direct_execution(self):
         with tempfile.TemporaryDirectory() as temporary:
