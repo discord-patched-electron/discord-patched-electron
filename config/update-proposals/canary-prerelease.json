@@ -89,15 +89,15 @@
     "version": "1.0.2514"
   },
   "client_version": "1.0.2514",
-  "clients_state": "92713a71a7b82d6898426fc2eeba156e85f6fe1a",
-  "electron_version": "46.0.0-alpha.10",
+  "clients_state": "e3986e61d0fc86457418928605971918fea79139",
+  "electron_version": "46.0.0-alpha.13",
   "runtime": {
-    "archive_sha256": "7ae29f857b048149c59ab979c15f606cd62f9fa26ef91a0741dc52b38248d2e1",
-    "run": "43553882378",
-    "runtime_key": "ba2de5a0a4db082ea23845c7776f2f940421544be69a3cc9e949fd730a054161"
+    "archive_sha256": "8743938381e1ee561bcbcec4c95f2e44407a33a16d1cef2122759f19bd8454da",
+    "run": "45643486672",
+    "runtime_key": "1378fb4639f7ec41f2e3793c9e8e7f2d7f9c4969b01f1e5b07e48b9caf46f6e2"
   },
   "schema": 1,
-  "source_commit": "700ab533fec9dfdd2c2213ab54e288c6b0782e33",
-  "tag": "v20261125172447.0.0-canary.e547814536d4a3d7",
-  "version": "20261125.172447"
+  "source_commit": "c179bfd99443eafbd59b32856e8f9e531e9e22be",
+  "tag": "v20261125194355.0.0-canary.c58420bef669c949",
+  "version": "20261125.194355"
 }
