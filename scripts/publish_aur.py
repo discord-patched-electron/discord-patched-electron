@@ -92,11 +92,15 @@ def recipe(manifest: dict, tag: str, revision: int = 1) -> str:
         else ["LicenseRef-Discord", "MIT", "BSD-3-Clause"]
     )
     install_hook = "install=discord.install\n"
+    description = (
+        f"Discord {manifest['channel'].title()} with the latest Electron and better Linux support, "
+        "plus many QoL features and fixes! (AVX2 required)"
+    )
     return f"""# Maintainer: he3als <he3als@users.noreply.github.com>
 pkgname={config["name"]}
 pkgver={manifest["version"]}
 pkgrel={revision}
-pkgdesc='Discord {manifest["channel"].title()} with patched Electron and Linux fixes (AVX2 required)'
+pkgdesc='{description}'
 arch=('x86_64')
 url='{URL}'
 license={array(licenses)}

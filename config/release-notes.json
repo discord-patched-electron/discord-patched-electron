@@ -1,6 +1,14 @@
 {
   "schema": 1,
   "commits": {
+    "3c67f707dccd350f6ecfacdaa0a3d2777e770303": {
+      "Fixes": [
+        "Fix blank Wayland screenshares when missing or stale session metadata sends Discord to its X11 capturer. The launcher passes the correct session type when Electron uses Wayland."
+      ],
+      "Improvements": [
+        "Update the AUR package description to reflect Linux support and quality-of-life improvements."
+      ]
+    },
     "62e4b4394b852e3fcb00844809a94ae81fcf5c12": {
       "Improvements": [
         "Accelerate large application, Electron, and Discord module downloads with up to eight connections selected from the measured transfer rate. Split downloads can be turned off in General settings.",

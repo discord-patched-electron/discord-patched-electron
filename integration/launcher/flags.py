@@ -487,24 +487,52 @@ def expand_variables(flag, profile, desktop):
     return result
 
 
-def automatic_display_flags(env, args):
-    # Electron 46 uses Chromium's display-server detection. When both servers
-    # are available, missing/stale session metadata would select Xwayland.
+def has_wayland_display(env):
     if "WAYLAND_SOCKET" in env:
-        wayland = bool(env["WAYLAND_SOCKET"])
-    elif "WAYLAND_DISPLAY" in env:
-        wayland = bool(env["WAYLAND_DISPLAY"])
-    else:
-        wayland = (
-            bool(env.get("XDG_RUNTIME_DIR"))
-            and (Path(env["XDG_RUNTIME_DIR"]) / "wayland-0").exists()
-        )
-    x11 = bool(env.get("DISPLAY")) or any(
-        arg == "--display" or arg.startswith("--display=") for arg in args
+        return bool(env["WAYLAND_SOCKET"])
+    if "WAYLAND_DISPLAY" in env:
+        return bool(env["WAYLAND_DISPLAY"])
+    return (
+        bool(env.get("XDG_RUNTIME_DIR")) and (Path(env["XDG_RUNTIME_DIR"]) / "wayland-0").exists()
     )
-    if wayland and x11 and env.get("XDG_SESSION_TYPE") != "wayland":
+
+
+def display_switches(args):
+    switches = {}
+    for arg in args:
+        if arg == "--":
+            break
+        key, _, value = arg.partition("=")
+        if key in ("--display", "-display", "--ozone-platform", "-ozone-platform"):
+            switches[key.lstrip("-")] = value
+    return switches
+
+
+def automatic_display_flags(env, args):
+    # Electron 46 would select Xwayland if both displays are available and
+    # the session type is missing or stale.
+    if (
+        env.get("XDG_SESSION_TYPE") != "wayland"
+        and has_wayland_display(env)
+        and (env.get("DISPLAY") or "display" in display_switches(args))
+    ):
         return ["--ozone-platform=wayland"]
     return []
+
+
+def native_session_override(env, flags):
+    # Discord's voice module checks XDG_SESSION_TYPE independently of Electron.
+    if env.get("XDG_SESSION_TYPE") == "wayland":
+        return ""
+    switches = display_switches(flags)
+    ozone = switches.get("ozone-platform", "")
+    if ozone == "wayland" or (
+        ozone in ("", "auto")
+        and has_wayland_display(env)
+        and not (env.get("DISPLAY") or "display" in switches)
+    ):
+        return "wayland"
+    return ""
 
 
 def resolve(profile, package, desktop, args, env=None, request=None):
@@ -696,11 +724,11 @@ def main():
                     result["warnings"].append(
                         f"Could not migrate launch flags to {result['flagsFile']}: {error}"
                     )
-            # The first NUL-delimited item preserves only the original arguments
-            # for relaunch; resolved flags must not override a newly edited preset.
-            sys.stdout.write(
-                json.dumps(args) + "\0" + "".join(flag + "\0" for flag in result["effective"])
-            )
+            # Preserve only the original arguments for relaunch. Follow them
+            # with the native session override and the flags for this launch.
+            effective = result["effective"]
+            session = native_session_override(os.environ, effective)
+            sys.stdout.write("\0".join([json.dumps(args), session, *effective, ""]))
             for warning in result["warnings"]:
                 print("Launch flags: " + warning, file=sys.stderr)
     except (ValueError, OSError) as error:

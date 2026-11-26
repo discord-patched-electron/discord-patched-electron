@@ -161,6 +161,21 @@ failed despite passing launch checks; do not restore it.
 
 ## Qualification and remaining work
 
+Discord's native voice module reads `XDG_SESSION_TYPE` independently of
+Electron's Ozone flags. If the session metadata is missing or stale, the portal
+can return a valid PipeWire source while Discord starts its X11 capturer. The
+launcher supplies `wayland` to the Discord process when the effective display
+selection is Wayland and restores the original metadata before resolving a
+relaunch.
+
+A private nested niri session with Luminous 0.1.22 and PipeWire reproduced zero
+decoded frames on Canary 1.0.2483 / Electron 46.0.0-alpha.10 and Canary 1.0.2514 /
+Electron 46.0.0-alpha.13. With the launcher correction, the loopback VP8 receiver
+decoded 139 and 137 distinct synthetic frames respectively at 30 FPS over six
+seconds. The synthetic markers worked in either vertical orientation. This
+check exercises portal selection and receiver delivery. The reporter's
+compositor, local Discord tile and live calls still need confirmation.
+
 Use real native sender/receiver checks and [matched benchmarks](benchmarks.md).
 Hold actual dimensions, codec/bitrate/receiver/delivery/pressure equal, include
 source/helper/compositor cost and retain failures. Bundled game/KMS PipeWire bypass

@@ -4,6 +4,16 @@ set -euo pipefail
 name=@PKGNAME@
 root=/usr/lib/@PKGNAME@
 export DPE_APP_ROOT="$root"
+# app.relaunch inherits the Discord process's environment. Resolve the next
+# display selection against the original session metadata.
+if [[ -v DPE_ORIGINAL_XDG_SESSION_TYPE ]]; then
+  if [[ $DPE_ORIGINAL_XDG_SESSION_TYPE == set:* ]]; then
+    export XDG_SESSION_TYPE=${DPE_ORIGINAL_XDG_SESSION_TYPE#set:}
+  else
+    unset XDG_SESSION_TYPE
+  fi
+  unset DPE_ORIGINAL_XDG_SESSION_TYPE
+fi
 # An app.relaunch inherits our codec environment; recompute it from this launch's
 # flags so disabling the codec or entering recovery removes our previous preload.
 # shellcheck source=integration/launcher/codec-preload.sh
@@ -39,6 +49,7 @@ for arg in "$@"; do
   if [[ $arg == --ignore-flags ]]; then export DPE_IGNORE_FLAGS=1; fi
 done
 flags=()
+native_session=
 if [[ ${DPE_IGNORE_FLAGS:-0} == 1 ]]; then
   export DPE_LAUNCH_ARGS='["--ignore-flags"]'
 else
@@ -48,7 +59,8 @@ else
   if python3 -I "$root/integration/launcher/flags.py" emit "$DPE_PROFILE_DIR" "$name" @DESKTOP_ID@ -- "$@" >"$flags_result"; then
     mapfile -d '' -t resolved <"$flags_result"
     export DPE_LAUNCH_ARGS=${resolved[0]}
-    flags=("${resolved[@]:1}")
+    native_session=${resolved[1]}
+    flags=("${resolved[@]:2}")
   else
     exit 1
   fi
@@ -141,5 +153,9 @@ export DISABLE_UPDATER_AUTO_PATCHING=1
 # Enter that same profile when its verified runtime lives in the user cache.
 if [[ -n ${DPE_APPLICATION_STARTED:-} ]]; then
   printf 'started\n' >"$DPE_APPLICATION_STARTED"
+fi
+if [[ -n $native_session ]]; then
+  export DPE_ORIGINAL_XDG_SESSION_TYPE=${XDG_SESSION_TYPE+set:$XDG_SESSION_TYPE}
+  export XDG_SESSION_TYPE=$native_session
 fi
 exec "${runtime_command[@]}" "$DPE_RUNTIME_EXECUTABLE" "${flags[@]}"
