@@ -66,7 +66,7 @@ class Launcher(unittest.TestCase):
                 "        sys.exit(0)\n"
                 "    Path(os.environ['DPE_LAUNCH_RESULT']).write_text(json.dumps({'runtime': str(root / 'cached runtime/electron'), 'installed_runtime': str(root / 'cached runtime/electron'), 'host': str(root / 'prepared'), 'voice': '/fixture/voice'}))\n"
                 "    sys.exit(int(os.environ.get('DPE_FIXTURE_UI_STATUS', '0')))\n"
-                'print(json.dumps({"flags":sys.argv[1:], "originalArgs":json.loads(os.environ["DPE_LAUNCH_ARGS"]), "managed":os.environ["DPE_FLAGS_MANAGED"], "profile":os.environ["DPE_PROFILE_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"], "launcher":os.environ["DPE_LAUNCHER"]}))\n'
+                'print(json.dumps({"flags":sys.argv[1:], "originalArgs":json.loads(os.environ["DPE_LAUNCH_ARGS"]), "managed":os.environ["DPE_FLAGS_MANAGED"], "profile":os.environ["DPE_PROFILE_DIR"], "desktop":os.environ["CHROME_DESKTOP"], "runtime":os.environ["DPE_RUNTIME_EXECUTABLE"], "app":os.environ["DPE_APP_ROOT"], "launcher":os.environ["DPE_LAUNCHER"], "sessionType":os.environ.get("XDG_SESSION_TYPE"), "originalSessionType":os.environ.get("DPE_ORIGINAL_XDG_SESSION_TYPE")}))\n'
             )
             runtime.chmod(0o755)
             if cached:
@@ -131,7 +131,14 @@ class Launcher(unittest.TestCase):
                 for key, value in os.environ.items()
                 if not key.startswith(("DPE_", "DISCORD_", "ELECTRON_"))
                 and key
-                not in ("CHROME_DESKTOP", "LD_PRELOAD", "XDG_SESSION_TYPE", "WAYLAND_DISPLAY")
+                not in (
+                    "CHROME_DESKTOP",
+                    "LD_PRELOAD",
+                    "DISPLAY",
+                    "XDG_SESSION_TYPE",
+                    "WAYLAND_DISPLAY",
+                    "WAYLAND_SOCKET",
+                )
             }
             if application_update:
                 bootstrap = root / "installed bootstrap.sh"
@@ -219,6 +226,43 @@ class Launcher(unittest.TestCase):
         self.assertTrue(result["profile"].endswith("/discordcanary"))
         self.assertEqual(result["originalArgs"], ["--ozone-platform=x11", "--example=with spaces"])
         self.assertEqual(result["managed"], "1")
+
+    def test_wayland_capture_gets_matching_session_type_from_final_display_selection(self):
+        for launch_env, args, expected_flag, expected_session in (
+            ({}, (), None, "wayland"),
+            ({"DISPLAY": ":7", "XDG_SESSION_TYPE": "x11"}, (), "wayland", "wayland"),
+            ({"DISPLAY": ":7"}, ("--ozone-platform=x11",), "x11", None),
+            ({"DISPLAY": ":7"}, ("-ozone-platform=x11",), "x11", None),
+            ({"DISPLAY": ":7"}, ("--", "--ozone-platform=x11"), "wayland", "wayland"),
+            ({"WAYLAND_DISPLAY": "", "DISPLAY": ":7", "XDG_SESSION_TYPE": "x11"}, (), None, "x11"),
+        ):
+            with self.subTest(launch_env=launch_env, args=args):
+                result = self.launch(args=args, env=launch_env, details=True)
+                switches = result["flags"]
+                if "--" in switches:
+                    switches = switches[: switches.index("--")]
+                ozone = [
+                    flag.partition("=")[2]
+                    for flag in switches
+                    if flag.partition("=")[0] in ("--ozone-platform", "-ozone-platform")
+                ]
+                self.assertEqual(ozone[-1] if ozone else None, expected_flag)
+                self.assertEqual(result["sessionType"], expected_session)
+
+    def test_relaunch_resolves_display_again_with_original_session_type(self):
+        first = self.launch(env={"DISPLAY": ":7", "XDG_SESSION_TYPE": "x11"}, details=True)
+        self.assertEqual(first["sessionType"], "wayland")
+        relaunched = self.launch(
+            args=("--ozone-platform=x11",),
+            env={
+                "DISPLAY": ":7",
+                "XDG_SESSION_TYPE": first["sessionType"],
+                "DPE_ORIGINAL_XDG_SESSION_TYPE": first["originalSessionType"],
+            },
+            details=True,
+        )
+        self.assertEqual(relaunched["sessionType"], "x11")
+        self.assertIsNone(relaunched["originalSessionType"])
 
     def test_recovery_bypasses_even_broken_resolver_settings_files_and_cli(self):
         for env, args in [
